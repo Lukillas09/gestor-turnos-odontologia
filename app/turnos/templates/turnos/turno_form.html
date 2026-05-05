@@ -10,6 +10,33 @@
         </div>
     </div>
 
+    {% if busqueda_form %}
+        <form class="filter-panel" method="get" novalidate>
+            {% if busqueda_form.non_field_errors %}
+                <div class="field-error field-full">{{ busqueda_form.non_field_errors }}</div>
+            {% endif %}
+
+            <div>
+                <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontologo</label>
+                {{ busqueda_form.odontologo }}
+                {% if busqueda_form.odontologo.errors %}
+                    <div class="field-error">{{ busqueda_form.odontologo.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ busqueda_form.fecha.id_for_label }}">Fecha</label>
+                {{ busqueda_form.fecha }}
+                {% if busqueda_form.fecha.errors %}
+                    <div class="field-error">{{ busqueda_form.fecha.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="filter-actions">
+                <button type="submit">Buscar horarios</button>
+                <a class="button button-secondary" href="{% url 'turnos:crear' %}">Limpiar</a>
+            </div>
+        </form>
+    {% endif %}
+
     <form class="form-panel" method="post" novalidate>
         {% csrf_token %}
 

@@ -192,6 +192,48 @@ class TurnoViewsTests(TestCase):
         self.assertContains(response, "09/05/2026")
         self.assertNotContains(response, "08/05/2026")
 
+    def test_creacion_pide_buscar_horarios_por_odontologo_y_fecha(self):
+        response = self.client.get(reverse("turnos:crear"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Buscar horarios")
+        self.assertContains(response, "Elegir odontologo y fecha")
+
+    def test_creacion_muestra_solo_horarios_disponibles(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(9, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(
+            reverse("turnos:crear"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="09:00"')
+        self.assertContains(response, 'value="10:00"')
+        self.assertNotContains(response, 'value="09:30"')
+
+    def test_creacion_indica_cuando_no_hay_horarios_disponibles(self):
+        response = self.client.get(
+            reverse("turnos:crear"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-09",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sin horarios disponibles")
+
     def test_creacion_de_turno_valido(self):
         response = self.client.post(
             reverse("turnos:crear"),

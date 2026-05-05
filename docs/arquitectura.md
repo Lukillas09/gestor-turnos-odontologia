@@ -67,6 +67,7 @@ Responsabilidad:
 - Validar reglas basicas de agenda.
 - Evitar turnos superpuestos.
 - Calcular horarios disponibles.
+- Guiar la creacion de turnos con horarios disponibles.
 - Mostrar agenda diaria y semanal simple.
 - Preparar la relacion futura con Google Calendar.
 
@@ -95,6 +96,8 @@ El selector `obtener_horarios_disponibles` calcula horarios libres usando:
 - Duracion configurada del turno.
 - Turnos pendientes y confirmados ya existentes.
 - Estado activo/inactivo del odontologo.
+
+El formulario de creacion de turnos consume ese selector para que la hora se elija desde una lista de horarios libres, en lugar de cargarla manualmente.
 
 Los selectores `obtener_turnos_del_dia` y `obtener_turnos_de_la_semana` concentran las consultas de agenda para que las vistas solo preparen contexto de presentacion.
 

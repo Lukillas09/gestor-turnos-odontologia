@@ -24,6 +24,7 @@ Actualmente incluye:
 - Validación para evitar turnos en odontólogos inactivos.
 - Cálculo de horarios disponibles.
 - Agenda diaria y semanal simple.
+- Creación de turnos guiada por horarios disponibles.
 - Campo preparado para guardar el ID del evento de Google Calendar.
 - Tests iniciales para la lógica de turnos.
 
@@ -149,6 +150,7 @@ Desde esa seccion se puede:
 - Ver el listado de turnos.
 - Filtrar turnos por fecha, estado u odontologo.
 - Crear un nuevo turno.
+- Buscar horarios disponibles por odontologo y fecha antes de elegir la hora.
 - Ver el detalle de un turno.
 - Editar los datos de un turno.
 - Cancelar un turno sin borrarlo.

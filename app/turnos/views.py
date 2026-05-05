@@ -8,7 +8,13 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
-from .forms import AgendaFiltroForm, TurnoFiltroForm, TurnoForm
+from .forms import (
+    AgendaFiltroForm,
+    TurnoCreateForm,
+    TurnoFiltroForm,
+    TurnoForm,
+    TurnoHorarioBusquedaForm,
+)
 from .models import Turno
 from .selectors import obtener_inicio_semana, obtener_turnos_de_la_semana, obtener_turnos_del_dia
 from .services import cancelar_turno
@@ -58,21 +64,37 @@ class TurnoListView(LoginRequiredMixin, ListView):
 
 class TurnoCreateView(LoginRequiredMixin, CreateView):
     model = Turno
-    form_class = TurnoForm
+    form_class = TurnoCreateForm
     template_name = "turnos/turno_form.html"
     success_url = reverse_lazy("turnos:lista")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        busqueda_form = self._obtener_busqueda_form()
+
+        if busqueda_form.is_valid():
+            odontologo = busqueda_form.cleaned_data["odontologo"]
+            initial["odontologo"] = odontologo
+            initial["fecha"] = busqueda_form.cleaned_data["fecha"]
+            initial["duracion_minutos"] = odontologo.duracion_turno_minutos
+
+        return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Nuevo turno"
-        context["subtitulo"] = "Carga de paciente, odontologo y horario de atencion."
+        context["subtitulo"] = "Elegi odontologo y fecha para usar horarios disponibles."
         context["texto_boton"] = "Guardar turno"
         context["url_cancelar"] = reverse_lazy("turnos:lista")
+        context["busqueda_form"] = self._obtener_busqueda_form()
         return context
 
     def form_valid(self, form):
         messages.success(self.request, "Turno creado correctamente.")
         return super().form_valid(form)
+
+    def _obtener_busqueda_form(self):
+        return TurnoHorarioBusquedaForm(self.request.GET or None)
 
 
 class TurnoDetailView(LoginRequiredMixin, DetailView):
