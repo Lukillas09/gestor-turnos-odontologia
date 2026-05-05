@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -13,7 +14,7 @@ from .selectors import obtener_inicio_semana, obtener_turnos_de_la_semana, obten
 from .services import cancelar_turno
 
 
-class TurnoListView(ListView):
+class TurnoListView(LoginRequiredMixin, ListView):
     model = Turno
     template_name = "turnos/turno_list.html"
     context_object_name = "turnos"
@@ -55,7 +56,7 @@ class TurnoListView(ListView):
         return context
 
 
-class TurnoCreateView(CreateView):
+class TurnoCreateView(LoginRequiredMixin, CreateView):
     model = Turno
     form_class = TurnoForm
     template_name = "turnos/turno_form.html"
@@ -74,7 +75,7 @@ class TurnoCreateView(CreateView):
         return super().form_valid(form)
 
 
-class TurnoDetailView(DetailView):
+class TurnoDetailView(LoginRequiredMixin, DetailView):
     model = Turno
     template_name = "turnos/turno_detail.html"
     context_object_name = "turno"
@@ -91,7 +92,7 @@ class TurnoDetailView(DetailView):
         )
 
 
-class TurnoUpdateView(UpdateView):
+class TurnoUpdateView(LoginRequiredMixin, UpdateView):
     model = Turno
     form_class = TurnoForm
     template_name = "turnos/turno_form.html"
@@ -112,7 +113,7 @@ class TurnoUpdateView(UpdateView):
         return super().form_valid(form)
 
 
-class TurnoCancelView(View):
+class TurnoCancelView(LoginRequiredMixin, View):
     def post(self, request, pk):
         turno = get_object_or_404(Turno, pk=pk)
         cancelar_turno(turno)
@@ -120,7 +121,7 @@ class TurnoCancelView(View):
         return redirect("turnos:detalle", pk=turno.pk)
 
 
-class AgendaDiaView(TemplateView):
+class AgendaDiaView(LoginRequiredMixin, TemplateView):
     template_name = "turnos/agenda_dia.html"
 
     def get_context_data(self, **kwargs):
@@ -142,7 +143,7 @@ class AgendaDiaView(TemplateView):
         return context
 
 
-class AgendaSemanaView(TemplateView):
+class AgendaSemanaView(LoginRequiredMixin, TemplateView):
     template_name = "turnos/agenda_semana.html"
 
     def get_context_data(self, **kwargs):

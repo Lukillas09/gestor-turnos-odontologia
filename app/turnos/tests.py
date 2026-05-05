@@ -138,6 +138,7 @@ class TurnoViewsTests(TestCase):
             first_name="Maria",
             last_name="Lopez",
         )
+        self.client.force_login(usuario)
         self.odontologo = Odontologo.objects.create(
             usuario=usuario,
             matricula="MN-54321",
@@ -429,6 +430,34 @@ class HorariosDisponiblesTests(TestCase):
         self.assertEqual(horarios, [])
 
 
+class TurnoAccessTests(TestCase):
+    def assert_requiere_login(self, url):
+        self.assertRedirects(self.client.get(url), f"{reverse('login')}?next={url}")
+
+    def test_listado_requiere_login(self):
+        self.assert_requiere_login(reverse("turnos:lista"))
+
+    def test_creacion_requiere_login(self):
+        self.assert_requiere_login(reverse("turnos:crear"))
+
+    def test_detalle_requiere_login(self):
+        self.assert_requiere_login(reverse("turnos:detalle", kwargs={"pk": 1}))
+
+    def test_edicion_requiere_login(self):
+        self.assert_requiere_login(reverse("turnos:editar", kwargs={"pk": 1}))
+
+    def test_agenda_diaria_requiere_login(self):
+        self.assert_requiere_login(reverse("turnos:agenda_dia"))
+
+    def test_agenda_semanal_requiere_login(self):
+        self.assert_requiere_login(reverse("turnos:agenda_semana"))
+
+    def test_cancelacion_requiere_login(self):
+        url = reverse("turnos:cancelar", kwargs={"pk": 1})
+
+        self.assertRedirects(self.client.post(url), f"{reverse('login')}?next={url}")
+
+
 class AgendaSelectorsTests(TestCase):
     def setUp(self):
         usuario = get_user_model().objects.create_user(
@@ -499,6 +528,7 @@ class AgendaViewsTests(TestCase):
             first_name="Ines",
             last_name="Costa",
         )
+        self.client.force_login(usuario)
         self.odontologo = Odontologo.objects.create(
             usuario=usuario,
             matricula="MN-22222",

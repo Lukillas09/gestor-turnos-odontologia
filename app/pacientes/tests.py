@@ -1,10 +1,60 @@
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import TestCase
 
 from .models import Paciente
 
 
+class LoginInternoTests(TestCase):
+    def test_login_responde_correctamente(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ingresar")
+
+    def test_login_redirige_a_pacientes_con_credenciales_validas(self):
+        get_user_model().objects.create_user(
+            username="recepcion",
+            password="Password123!",
+        )
+
+        response = self.client.post(
+            reverse("login"),
+            {
+                "username": "recepcion",
+                "password": "Password123!",
+            },
+        )
+
+        self.assertRedirects(response, reverse("pacientes:lista"))
+
+    def test_logout_redirige_al_login(self):
+        usuario = get_user_model().objects.create_user(
+            username="recepcion",
+            password="Password123!",
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(reverse("logout"))
+
+        self.assertRedirects(response, reverse("login"))
+
+
+class PacienteAccessTests(TestCase):
+    def test_listado_requiere_login(self):
+        response = self.client.get(reverse("pacientes:lista"))
+
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('pacientes:lista')}")
+
+
 class PacienteViewsTests(TestCase):
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_user(
+            username="usuario.pacientes",
+            password="Password123!",
+        )
+        self.client.force_login(self.usuario)
+
     def test_listado_muestra_pacientes(self):
         Paciente.objects.create(
             nombre="Ana",

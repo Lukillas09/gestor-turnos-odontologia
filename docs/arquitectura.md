@@ -37,6 +37,7 @@ Responsabilidad:
 
 - Configuracion general de Django.
 - Registro de apps instaladas.
+- Configuracion de autenticacion y redirecciones de login/logout.
 - Configuracion de base de datos.
 - Configuracion de idioma, zona horaria y archivos estaticos.
 - Rutas principales del proyecto.
@@ -113,6 +114,12 @@ Se usa Django Admin para validar el dominio rapidamente y poder cargar datos des
 Esta decision permite avanzar sin invertir todavia en vistas propias, plantillas o frontend.
 
 Mas adelante se agregaran pantallas especificas para usuarios del consultorio.
+
+### Login interno
+
+Las vistas internas de pacientes, turnos y agenda requieren sesion iniciada.
+
+Por ahora se utiliza la autenticacion nativa de Django. La separacion por roles queda como decision futura para no agregar permisos antes de que aparezca una necesidad concreta.
 
 ### SQLite para desarrollo local
 

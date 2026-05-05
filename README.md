@@ -14,6 +14,8 @@ Actualmente incluye:
 - App `pacientes` para gestionar datos de pacientes.
 - App `turnos` para gestionar odontólogos y turnos.
 - Panel de administración de Django mejorado.
+- Login interno con autenticación de Django.
+- Vistas internas protegidas para usuarios autenticados.
 - Listado y creación de pacientes desde vistas propias.
 - Listado y creación de turnos desde vistas propias.
 - Validación para evitar turnos superpuestos.
@@ -115,6 +117,12 @@ Desde el panel de administración se pueden cargar y administrar:
 - Turnos
 
 ## Interfaz web inicial
+
+Para usar las vistas internas hay que iniciar sesión:
+
+```text
+http://127.0.0.1:8000/cuentas/login/
+```
 
 El proyecto ya incluye una primera interfaz propia para pacientes:
 
@@ -269,7 +277,7 @@ Próximos pasos sugeridos:
 2. Agregar formularios para pacientes y turnos.
 3. Crear una vista de agenda diaria o semanal.
 4. Definir disponibilidad por odontólogo.
-5. Agregar autenticación para usuarios internos.
+5. Separar permisos por rol para odontólogo y recepcionista.
 6. Integrar Google Calendar para crear, actualizar y cancelar eventos.
 7. Preparar variables de entorno para producción.
 8. Cambiar SQLite por PostgreSQL antes del despliegue.
