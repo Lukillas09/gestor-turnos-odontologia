@@ -21,6 +21,7 @@ Actualmente incluye:
 - Bloqueo de días no laborables.
 - Validación para evitar turnos en odontólogos inactivos.
 - Cálculo de horarios disponibles.
+- Agenda diaria y semanal simple.
 - Campo preparado para guardar el ID del evento de Google Calendar.
 - Tests iniciales para la lógica de turnos.
 
@@ -143,6 +144,20 @@ Desde esa seccion se puede:
 - Ver el detalle de un turno.
 - Editar los datos de un turno.
 - Cancelar un turno sin borrarlo.
+
+Vistas de agenda:
+
+```text
+http://127.0.0.1:8000/turnos/agenda/dia/
+http://127.0.0.1:8000/turnos/agenda/semana/
+```
+
+Desde esas vistas se puede:
+
+- Ver una tabla diaria de turnos.
+- Ver una tabla semanal agrupada por dia.
+- Filtrar por fecha y odontologo.
+- Navegar al dia o semana anterior/siguiente.
 
 ### Pacientes
 

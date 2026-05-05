@@ -247,6 +247,17 @@
             gap: 8px;
         }
 
+        .agenda-items {
+            display: grid;
+            gap: 8px;
+        }
+
+        .agenda-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -342,6 +353,8 @@
             <nav class="nav" aria-label="Principal">
                 <a href="{% url 'pacientes:lista' %}">Pacientes</a>
                 <a href="{% url 'turnos:lista' %}">Turnos</a>
+                <a href="{% url 'turnos:agenda_dia' %}">Agenda dia</a>
+                <a href="{% url 'turnos:agenda_semana' %}">Agenda semana</a>
                 <a href="{% url 'admin:index' %}">Admin</a>
             </nav>
         </div>

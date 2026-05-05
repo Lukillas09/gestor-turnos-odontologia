@@ -3,6 +3,52 @@ from datetime import datetime, timedelta
 from .models import DisponibilidadOdontologo, Turno
 
 
+def obtener_turnos_del_dia(fecha, odontologo=None):
+    turnos = _turnos_con_relaciones().filter(fecha=fecha)
+
+    if odontologo:
+        turnos = turnos.filter(odontologo=odontologo)
+
+    return turnos
+
+
+def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None):
+    inicio_semana = obtener_inicio_semana(fecha_referencia)
+    fin_semana = inicio_semana + timedelta(days=6)
+    turnos = _turnos_con_relaciones().filter(
+        fecha__gte=inicio_semana,
+        fecha__lte=fin_semana,
+    )
+
+    if odontologo:
+        turnos = turnos.filter(odontologo=odontologo)
+
+    turnos_por_fecha = {}
+
+    for turno in turnos:
+        turnos_por_fecha.setdefault(turno.fecha, []).append(turno)
+
+    return [
+        {
+            "fecha": inicio_semana + timedelta(days=dia),
+            "turnos": turnos_por_fecha.get(inicio_semana + timedelta(days=dia), []),
+        }
+        for dia in range(7)
+    ]
+
+
+def obtener_inicio_semana(fecha):
+    return fecha - timedelta(days=fecha.weekday())
+
+
+def _turnos_con_relaciones():
+    return Turno.objects.select_related(
+        "paciente",
+        "odontologo",
+        "odontologo__usuario",
+    )
+
+
 def obtener_horarios_disponibles(odontologo, fecha, duracion_minutos=None, intervalo_minutos=None):
     if not odontologo.activo:
         return []

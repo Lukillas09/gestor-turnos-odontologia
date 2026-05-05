@@ -56,3 +56,15 @@ class TurnoFiltroForm(forms.Form):
         queryset=Odontologo.objects.filter(activo=True),
         empty_label="Todos los odontologos",
     )
+
+
+class AgendaFiltroForm(forms.Form):
+    fecha = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    odontologo = forms.ModelChoiceField(
+        required=False,
+        queryset=Odontologo.objects.filter(activo=True),
+        empty_label="Todos los odontologos",
+    )

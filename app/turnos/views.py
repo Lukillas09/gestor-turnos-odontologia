@@ -1,11 +1,15 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.views import View
-from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
-from .forms import TurnoFiltroForm, TurnoForm
+from .forms import AgendaFiltroForm, TurnoFiltroForm, TurnoForm
 from .models import Turno
+from .selectors import obtener_inicio_semana, obtener_turnos_de_la_semana, obtener_turnos_del_dia
 from .services import cancelar_turno
 
 
@@ -114,3 +118,50 @@ class TurnoCancelView(View):
         cancelar_turno(turno)
         messages.success(request, "Turno cancelado correctamente.")
         return redirect("turnos:detalle", pk=turno.pk)
+
+
+class AgendaDiaView(TemplateView):
+    template_name = "turnos/agenda_dia.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        filtros_form = AgendaFiltroForm(self.request.GET)
+        fecha = timezone.localdate()
+        odontologo = None
+
+        if filtros_form.is_valid():
+            fecha = filtros_form.cleaned_data["fecha"] or fecha
+            odontologo = filtros_form.cleaned_data["odontologo"]
+
+        context["filtros_form"] = filtros_form
+        context["odontologo"] = odontologo
+        context["fecha"] = fecha
+        context["fecha_anterior"] = fecha - timedelta(days=1)
+        context["fecha_siguiente"] = fecha + timedelta(days=1)
+        context["turnos"] = obtener_turnos_del_dia(fecha, odontologo)
+        return context
+
+
+class AgendaSemanaView(TemplateView):
+    template_name = "turnos/agenda_semana.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        filtros_form = AgendaFiltroForm(self.request.GET)
+        fecha_referencia = timezone.localdate()
+        odontologo = None
+
+        if filtros_form.is_valid():
+            fecha_referencia = filtros_form.cleaned_data["fecha"] or fecha_referencia
+            odontologo = filtros_form.cleaned_data["odontologo"]
+
+        inicio_semana = obtener_inicio_semana(fecha_referencia)
+
+        context["filtros_form"] = filtros_form
+        context["odontologo"] = odontologo
+        context["inicio_semana"] = inicio_semana
+        context["fin_semana"] = inicio_semana + timedelta(days=6)
+        context["semana_anterior"] = inicio_semana - timedelta(days=7)
+        context["semana_siguiente"] = inicio_semana + timedelta(days=7)
+        context["dias"] = obtener_turnos_de_la_semana(fecha_referencia, odontologo)
+        return context

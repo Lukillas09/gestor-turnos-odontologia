@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda diaria | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Agenda diaria</h1>
+            <p class="subtitle">{{ fecha|date:"l d/m/Y" }}</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Dia anterior</a>
+            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Dia siguiente</a>
+            <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
+        </div>
+    </div>
+
+    <form class="filter-panel" method="get">
+        <div>
+            <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
+            {{ filtros_form.fecha }}
+        </div>
+        <div>
+            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontologo</label>
+            {{ filtros_form.odontologo }}
+        </div>
+        <div class="filter-actions">
+            <button type="submit">Ver agenda</button>
+            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Hoy</a>
+        </div>
+    </form>
+
+    {% if turnos %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Paciente</th>
+                        <th>Odontologo</th>
+                        <th>Motivo</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for turno in turnos %}
+                        <tr>
+                            <td>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</td>
+                            <td>
+                                <a href="{% url 'turnos:detalle' turno.pk %}">{{ turno.paciente }}</a>
+                            </td>
+                            <td>{{ turno.odontologo }}</td>
+                            <td>{{ turno.motivo|default:"-" }}</td>
+                            <td>{{ turno.get_estado_display }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No hay turnos cargados para este dia.</p>
+        </div>
+    {% endif %}
+{% endblock %}

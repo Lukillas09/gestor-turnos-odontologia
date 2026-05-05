@@ -7,7 +7,12 @@ from django.urls import reverse
 
 from pacientes.models import Paciente
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
-from turnos.selectors import obtener_horarios_disponibles
+from turnos.selectors import (
+    obtener_horarios_disponibles,
+    obtener_inicio_semana,
+    obtener_turnos_de_la_semana,
+    obtener_turnos_del_dia,
+)
 
 
 def crear_disponibilidad_laboral(odontologo, hora_inicio=time(9, 0), hora_fin=time(18, 0)):
@@ -422,6 +427,210 @@ class HorariosDisponiblesTests(TestCase):
         horarios = obtener_horarios_disponibles(self.odontologo, date(2026, 5, 9))
 
         self.assertEqual(horarios, [])
+
+
+class AgendaSelectorsTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(
+            username="dra.agenda",
+            first_name="Clara",
+            last_name="Molina",
+        )
+        self.odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-11111",
+        )
+        crear_disponibilidad_laboral(self.odontologo)
+        self.paciente = Paciente.objects.create(
+            nombre="Nora",
+            apellido="Vega",
+            documento="34111222",
+        )
+
+    def test_obtiene_turnos_del_dia(self):
+        turno_del_dia = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 11),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        turnos = obtener_turnos_del_dia(date(2026, 5, 8))
+
+        self.assertEqual(list(turnos), [turno_del_dia])
+
+    def test_obtiene_inicio_de_semana(self):
+        self.assertEqual(obtener_inicio_semana(date(2026, 5, 8)), date(2026, 5, 4))
+
+    def test_obtiene_turnos_de_la_semana(self):
+        turno_lunes = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 4),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+        turno_viernes = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(11, 0),
+            duracion_minutos=30,
+        )
+
+        dias = obtener_turnos_de_la_semana(date(2026, 5, 8))
+
+        self.assertEqual(dias[0]["turnos"], [turno_lunes])
+        self.assertEqual(dias[4]["turnos"], [turno_viernes])
+
+
+class AgendaViewsTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(
+            username="dra.vistas",
+            first_name="Ines",
+            last_name="Costa",
+        )
+        self.odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-22222",
+        )
+        crear_disponibilidad_laboral(self.odontologo)
+        self.paciente = Paciente.objects.create(
+            nombre="Pedro",
+            apellido="Luna",
+            documento="35111222",
+        )
+
+    def test_agenda_diaria_muestra_turnos_de_fecha_seleccionada(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Control diario",
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 11),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Fuera del dia",
+        )
+
+        response = self.client.get(reverse("turnos:agenda_dia"), {"fecha": "2026-05-08"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Control diario")
+        self.assertNotContains(response, "Fuera del dia")
+
+    def test_agenda_diaria_filtra_por_odontologo(self):
+        otro_usuario = get_user_model().objects.create_user(
+            username="dr.otro",
+            first_name="Mateo",
+            last_name="Ruiz",
+        )
+        otro_odontologo = Odontologo.objects.create(
+            usuario=otro_usuario,
+            matricula="MN-33333",
+        )
+        crear_disponibilidad_laboral(otro_odontologo)
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Turno visible",
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=otro_odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Turno filtrado",
+        )
+
+        response = self.client.get(
+            reverse("turnos:agenda_dia"),
+            {"fecha": "2026-05-08", "odontologo": self.odontologo.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Turno visible")
+        self.assertNotContains(response, "Turno filtrado")
+
+    def test_agenda_semanal_muestra_turnos_de_la_semana(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 4),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Inicio de semana",
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 11),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Fuera de la semana",
+        )
+
+        response = self.client.get(reverse("turnos:agenda_semana"), {"fecha": "2026-05-08"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Inicio de semana")
+        self.assertNotContains(response, "Fuera de la semana")
+
+    def test_agenda_semanal_filtra_por_odontologo(self):
+        otro_usuario = get_user_model().objects.create_user(
+            username="dra.semana",
+            first_name="Paula",
+            last_name="Ibarra",
+        )
+        otro_odontologo = Odontologo.objects.create(
+            usuario=otro_usuario,
+            matricula="MN-44444",
+        )
+        crear_disponibilidad_laboral(otro_odontologo)
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Semana visible",
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=otro_odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Semana filtrada",
+        )
+
+        response = self.client.get(
+            reverse("turnos:agenda_semana"),
+            {"fecha": "2026-05-08", "odontologo": self.odontologo.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Semana visible")
+        self.assertNotContains(response, "Semana filtrada")
 
     def test_odontologo_inactivo_no_tiene_horarios_disponibles(self):
         self.odontologo.activo = False
