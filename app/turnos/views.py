@@ -1,9 +1,12 @@
 from django.contrib import messages
-from django.urls import reverse_lazy
-from django.views.generic import CreateView, ListView
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
+from django.views import View
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from .forms import TurnoFiltroForm, TurnoForm
 from .models import Turno
+from .services import cancelar_turno
 
 
 class TurnoListView(ListView):
@@ -54,6 +57,60 @@ class TurnoCreateView(CreateView):
     template_name = "turnos/turno_form.html"
     success_url = reverse_lazy("turnos:lista")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Nuevo turno"
+        context["subtitulo"] = "Carga de paciente, odontologo y horario de atencion."
+        context["texto_boton"] = "Guardar turno"
+        context["url_cancelar"] = reverse_lazy("turnos:lista")
+        return context
+
     def form_valid(self, form):
         messages.success(self.request, "Turno creado correctamente.")
         return super().form_valid(form)
+
+
+class TurnoDetailView(DetailView):
+    model = Turno
+    template_name = "turnos/turno_detail.html"
+    context_object_name = "turno"
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related(
+                "paciente",
+                "odontologo",
+                "odontologo__usuario",
+            )
+        )
+
+
+class TurnoUpdateView(UpdateView):
+    model = Turno
+    form_class = TurnoForm
+    template_name = "turnos/turno_form.html"
+
+    def get_success_url(self):
+        return reverse("turnos:detalle", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Editar turno"
+        context["subtitulo"] = "Actualizacion de paciente, odontologo, horario y estado."
+        context["texto_boton"] = "Guardar cambios"
+        context["url_cancelar"] = self.get_success_url()
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, "Turno actualizado correctamente.")
+        return super().form_valid(form)
+
+
+class TurnoCancelView(View):
+    def post(self, request, pk):
+        turno = get_object_or_404(Turno, pk=pk)
+        cancelar_turno(turno)
+        messages.success(request, "Turno cancelado correctamente.")
+        return redirect("turnos:detalle", pk=turno.pk)

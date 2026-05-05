@@ -137,6 +137,9 @@ Desde esa seccion se puede:
 - Ver el listado de turnos.
 - Filtrar turnos por fecha, estado u odontologo.
 - Crear un nuevo turno.
+- Ver el detalle de un turno.
+- Editar los datos de un turno.
+- Cancelar un turno sin borrarlo.
 
 ### Pacientes
 

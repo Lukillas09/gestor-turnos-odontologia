@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Turno de {{ turno.paciente }} | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Turno de {{ turno.paciente }}</h1>
+            <p class="subtitle">{{ turno.fecha|date:"d/m/Y" }} de {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'turnos:lista' %}">Volver</a>
+            <a class="button" href="{% url 'turnos:editar' turno.pk %}">Editar</a>
+            {% if turno.estado != turno.Estado.CANCELADO %}
+                <form method="post" action="{% url 'turnos:cancelar' turno.pk %}">
+                    {% csrf_token %}
+                    <button class="button-danger" type="submit">Cancelar turno</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="detail-panel">
+        <dl class="detail-grid">
+            <div>
+                <dt>Paciente</dt>
+                <dd>{{ turno.paciente }}</dd>
+            </div>
+            <div>
+                <dt>Odontologo</dt>
+                <dd>{{ turno.odontologo }}</dd>
+            </div>
+            <div>
+                <dt>Fecha</dt>
+                <dd>{{ turno.fecha|date:"d/m/Y" }}</dd>
+            </div>
+            <div>
+                <dt>Horario</dt>
+                <dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd>
+            </div>
+            <div>
+                <dt>Duracion</dt>
+                <dd>{{ turno.duracion_minutos }} minutos</dd>
+            </div>
+            <div>
+                <dt>Estado</dt>
+                <dd>{{ turno.get_estado_display }}</dd>
+            </div>
+            <div class="field-full">
+                <dt>Motivo</dt>
+                <dd>{{ turno.motivo|default:"-" }}</dd>
+            </div>
+            <div class="field-full">
+                <dt>Notas</dt>
+                <dd>{{ turno.notas|linebreaksbr|default:"-" }}</dd>
+            </div>
+        </dl>
+    </section>
+{% endblock %}

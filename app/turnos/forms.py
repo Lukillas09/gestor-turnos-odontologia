@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 
 from .models import Odontologo, Turno
 
@@ -30,7 +31,14 @@ class TurnoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["paciente"].empty_label = "Seleccionar paciente"
-        self.fields["odontologo"].queryset = Odontologo.objects.filter(activo=True)
+        odontologos = Odontologo.objects.filter(activo=True)
+
+        if self.instance and self.instance.odontologo_id:
+            odontologos = Odontologo.objects.filter(
+                Q(activo=True) | Q(pk=self.instance.odontologo_id)
+            )
+
+        self.fields["odontologo"].queryset = odontologos
         self.fields["odontologo"].empty_label = "Seleccionar odontologo"
 
 
