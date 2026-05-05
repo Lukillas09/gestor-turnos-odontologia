@@ -21,5 +21,20 @@ class Paciente(models.Model):
     def nombre_completo(self):
         return f"{self.apellido}, {self.nombre}"
 
+    def clean(self):
+        self.documento = self._normalizar_documento(self.documento)
+
+    def save(self, *args, **kwargs):
+        self.documento = self._normalizar_documento(self.documento)
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _normalizar_documento(documento):
+        if documento is None:
+            return None
+
+        documento = documento.strip()
+        return documento or None
+
     def __str__(self):
         return self.nombre_completo

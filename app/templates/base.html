@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Gestor de Turnos{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #f6f7f9;
+            --surface: #ffffff;
+            --text: #20242a;
+            --muted: #667085;
+            --line: #d9dee7;
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --danger: #b42318;
+            --success-bg: #ecfdf3;
+            --success-text: #067647;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+            line-height: 1.5;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .topbar-inner,
+        .page {
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        .topbar-inner {
+            min-height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav a {
+            color: var(--muted);
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .page {
+            padding: 32px 0;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            margin: 8px 0 0;
+            color: var(--muted);
+        }
+
+        .button,
+        button {
+            min-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 8px 14px;
+            background: var(--primary);
+            color: #ffffff;
+            font: inherit;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .button:hover,
+        button:hover {
+            background: var(--primary-dark);
+        }
+
+        .button-secondary {
+            background: var(--surface);
+            border-color: var(--line);
+            color: var(--text);
+        }
+
+        .button-secondary:hover {
+            background: #eef2f7;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .search-form {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            min-height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 8px 10px;
+            background: var(--surface);
+            color: var(--text);
+            font: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+
+        .table-wrap,
+        .form-panel,
+        .empty-state {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .form-panel,
+        .empty-state {
+            padding: 24px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .field-full {
+            grid-column: 1 / -1;
+        }
+
+        .field-error,
+        .errorlist {
+            color: var(--danger);
+            margin: 6px 0 0;
+            padding: 0;
+            list-style: none;
+            font-size: 14px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        .messages {
+            margin: 0 0 16px;
+            padding: 0;
+            list-style: none;
+        }
+
+        .message {
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+
+        .message.success {
+            background: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        @media (max-width: 720px) {
+            .topbar-inner,
+            .page {
+                width: min(100% - 20px, 1120px);
+            }
+
+            .topbar-inner,
+            .page-header,
+            .toolbar,
+            .search-form,
+            .form-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            th,
+            td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="{% url 'pacientes:lista' %}">Gestor de Turnos</a>
+            <nav class="nav" aria-label="Principal">
+                <a href="{% url 'pacientes:lista' %}">Pacientes</a>
+                <a href="{% url 'admin:index' %}">Admin</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="message {{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

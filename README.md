@@ -14,6 +14,7 @@ Actualmente incluye:
 - App `pacientes` para gestionar datos de pacientes.
 - App `turnos` para gestionar odontólogos y turnos.
 - Panel de administración de Django mejorado.
+- Listado y creación de pacientes desde vistas propias.
 - Validación para evitar turnos superpuestos.
 - Validación de horarios de atención del odontólogo.
 - Campo preparado para guardar el ID del evento de Google Calendar.
@@ -107,6 +108,20 @@ Desde el panel de administración se pueden cargar y administrar:
 - Pacientes
 - Odontólogos
 - Turnos
+
+## Interfaz web inicial
+
+El proyecto ya incluye una primera interfaz propia para pacientes:
+
+```text
+http://127.0.0.1:8000/pacientes/
+```
+
+Desde esa sección se puede:
+
+- Ver el listado de pacientes.
+- Buscar pacientes por nombre, apellido o DNI.
+- Crear un nuevo paciente.
 
 ### Pacientes
 

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Pacientes | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Pacientes</h1>
+            <p class="subtitle">Listado de pacientes registrados en el consultorio.</p>
+        </div>
+        <a class="button" href="{% url 'pacientes:crear' %}">Nuevo paciente</a>
+    </div>
+
+    <div class="toolbar">
+        <form class="search-form" method="get">
+            <input
+                type="search"
+                name="q"
+                value="{{ busqueda }}"
+                placeholder="Buscar por nombre, apellido o DNI"
+                aria-label="Buscar pacientes"
+            >
+            <button type="submit">Buscar</button>
+            {% if busqueda %}
+                <a class="button button-secondary" href="{% url 'pacientes:lista' %}">Limpiar</a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if pacientes %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Apellido</th>
+                        <th>Nombre</th>
+                        <th>DNI</th>
+                        <th>Telefono</th>
+                        <th>Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for paciente in pacientes %}
+                        <tr>
+                            <td>{{ paciente.apellido }}</td>
+                            <td>{{ paciente.nombre }}</td>
+                            <td>{{ paciente.documento|default:"-" }}</td>
+                            <td>{{ paciente.telefono|default:"-" }}</td>
+                            <td>{{ paciente.email|default:"-" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            {% if busqueda %}
+                <p>No se encontraron pacientes para "{{ busqueda }}".</p>
+            {% else %}
+                <p>No hay pacientes cargados.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if is_paginated %}
+        <div class="form-actions">
+            {% if page_obj.has_previous %}
+                <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Anterior</a>
+            {% endif %}
+            <span class="muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Siguiente</a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}
