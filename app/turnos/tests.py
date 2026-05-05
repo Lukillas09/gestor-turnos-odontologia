@@ -6,7 +6,24 @@ from django.test import TestCase
 from django.urls import reverse
 
 from pacientes.models import Paciente
-from turnos.models import Odontologo, Turno
+from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
+from turnos.selectors import obtener_horarios_disponibles
+
+
+def crear_disponibilidad_laboral(odontologo, hora_inicio=time(9, 0), hora_fin=time(18, 0)):
+    disponibilidades = []
+
+    for dia_semana in range(5):
+        disponibilidades.append(
+            DisponibilidadOdontologo.objects.create(
+                odontologo=odontologo,
+                dia_semana=dia_semana,
+                hora_inicio=hora_inicio,
+                hora_fin=hora_fin,
+            )
+        )
+
+    return disponibilidades
 
 
 class TurnoModelTests(TestCase):
@@ -22,6 +39,7 @@ class TurnoModelTests(TestCase):
             hora_inicio_atencion=time(9, 0),
             hora_fin_atencion=time(18, 0),
         )
+        crear_disponibilidad_laboral(self.odontologo)
         self.paciente = Paciente.objects.create(
             nombre="Lucas",
             apellido="Perez",
@@ -80,6 +98,33 @@ class TurnoModelTests(TestCase):
         with self.assertRaises(ValidationError):
             turno_fuera_de_horario.full_clean()
 
+    def test_no_permite_turnos_en_dias_no_laborables(self):
+        turno_dia_no_laborable = Turno(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 9),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        with self.assertRaises(ValidationError):
+            turno_dia_no_laborable.full_clean()
+
+    def test_no_permite_turnos_para_odontologo_inactivo(self):
+        self.odontologo.activo = False
+        self.odontologo.save()
+
+        turno = Turno(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 6),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        with self.assertRaises(ValidationError):
+            turno.full_clean()
+
 
 class TurnoViewsTests(TestCase):
     def setUp(self):
@@ -94,6 +139,7 @@ class TurnoViewsTests(TestCase):
             hora_inicio_atencion=time(9, 0),
             hora_fin_atencion=time(18, 0),
         )
+        crear_disponibilidad_laboral(self.odontologo)
         self.paciente = Paciente.objects.create(
             nombre="Julia",
             apellido="Diaz",
@@ -202,7 +248,7 @@ class TurnoViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Turno.objects.filter(motivo="Control fuera de horario").exists())
-        self.assertIn("duracion_minutos", response.context["form"].errors)
+        self.assertIn("hora_inicio", response.context["form"].errors)
 
     def test_detalle_muestra_datos_del_turno(self):
         turno = Turno.objects.create(
@@ -308,3 +354,79 @@ class TurnoViewsTests(TestCase):
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
         self.assertEqual(turno.estado, Turno.Estado.CANCELADO)
         self.assertEqual(Turno.objects.count(), 1)
+
+
+class HorariosDisponiblesTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(
+            username="dr.romero",
+            first_name="Pablo",
+            last_name="Romero",
+        )
+        self.odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-99999",
+            duracion_turno_minutos=30,
+            hora_inicio_atencion=time(9, 0),
+            hora_fin_atencion=time(11, 0),
+        )
+        DisponibilidadOdontologo.objects.create(
+            odontologo=self.odontologo,
+            dia_semana=DisponibilidadOdontologo.DiaSemana.VIERNES,
+            hora_inicio=time(9, 0),
+            hora_fin=time(11, 0),
+        )
+        self.paciente = Paciente.objects.create(
+            nombre="Tomas",
+            apellido="Silva",
+            documento="33111222",
+        )
+
+    def test_calcula_horarios_disponibles_del_dia(self):
+        horarios = obtener_horarios_disponibles(self.odontologo, date(2026, 5, 8))
+
+        self.assertEqual(
+            horarios,
+            [time(9, 0), time(9, 30), time(10, 0), time(10, 30)],
+        )
+
+    def test_turnos_activos_bloquean_horarios_disponibles(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(9, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        horarios = obtener_horarios_disponibles(self.odontologo, date(2026, 5, 8))
+
+        self.assertEqual(horarios, [time(9, 0), time(10, 0), time(10, 30)])
+
+    def test_turnos_cancelados_no_bloquean_horarios_disponibles(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(9, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CANCELADO,
+        )
+
+        horarios = obtener_horarios_disponibles(self.odontologo, date(2026, 5, 8))
+
+        self.assertIn(time(9, 30), horarios)
+
+    def test_dia_sin_disponibilidad_no_tiene_horarios(self):
+        horarios = obtener_horarios_disponibles(self.odontologo, date(2026, 5, 9))
+
+        self.assertEqual(horarios, [])
+
+    def test_odontologo_inactivo_no_tiene_horarios_disponibles(self):
+        self.odontologo.activo = False
+        self.odontologo.save()
+
+        horarios = obtener_horarios_disponibles(self.odontologo, date(2026, 5, 8))
+
+        self.assertEqual(horarios, [])

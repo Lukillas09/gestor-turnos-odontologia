@@ -17,7 +17,10 @@ Actualmente incluye:
 - Listado y creación de pacientes desde vistas propias.
 - Listado y creación de turnos desde vistas propias.
 - Validación para evitar turnos superpuestos.
-- Validación de horarios de atención del odontólogo.
+- Disponibilidad de odontólogos por día de semana.
+- Bloqueo de días no laborables.
+- Validación para evitar turnos en odontólogos inactivos.
+- Cálculo de horarios disponibles.
 - Campo preparado para guardar el ID del evento de Google Calendar.
 - Tests iniciales para la lógica de turnos.
 
@@ -185,10 +188,12 @@ Además incluye filtros por estado, fecha y odontólogo.
 La lógica actual valida que:
 
 - Un turno tenga duración mayor a cero.
-- El turno empiece dentro del horario de atención del odontólogo.
-- El turno termine dentro del horario de atención del odontólogo.
+- El odontólogo esté activo para cargar turnos no cancelados.
+- El turno entre dentro de una disponibilidad activa del odontólogo.
+- Los días sin disponibilidad activa queden bloqueados como no laborables.
 - No existan turnos activos superpuestos para el mismo odontólogo.
 - Los turnos cancelados no bloqueen ese horario.
+- Los horarios disponibles se calculen a partir de disponibilidad y turnos activos.
 
 Estados disponibles para un turno:
 

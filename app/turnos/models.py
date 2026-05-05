@@ -51,6 +51,74 @@ class Odontologo(models.Model):
         return self.nombre_completo
 
 
+class DisponibilidadOdontologo(models.Model):
+    class DiaSemana(models.IntegerChoices):
+        LUNES = 0, "Lunes"
+        MARTES = 1, "Martes"
+        MIERCOLES = 2, "Miercoles"
+        JUEVES = 3, "Jueves"
+        VIERNES = 4, "Viernes"
+        SABADO = 5, "Sabado"
+        DOMINGO = 6, "Domingo"
+
+    odontologo = models.ForeignKey(
+        Odontologo,
+        on_delete=models.CASCADE,
+        related_name="disponibilidades",
+    )
+    dia_semana = models.PositiveSmallIntegerField(choices=DiaSemana.choices)
+    hora_inicio = models.TimeField()
+    hora_fin = models.TimeField()
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["odontologo", "dia_semana", "hora_inicio"]
+        verbose_name = "Disponibilidad de odontologo"
+        verbose_name_plural = "Disponibilidades de odontologos"
+        indexes = [
+            models.Index(fields=["odontologo", "dia_semana", "activo"]),
+        ]
+
+    def clean(self):
+        errors = {}
+
+        if self.hora_inicio >= self.hora_fin:
+            errors["hora_fin"] = "La hora de fin debe ser posterior al inicio."
+
+        if not errors and self.activo:
+            disponibilidades = DisponibilidadOdontologo.objects.filter(
+                odontologo=self.odontologo,
+                dia_semana=self.dia_semana,
+                activo=True,
+            )
+
+            if self.pk:
+                disponibilidades = disponibilidades.exclude(pk=self.pk)
+
+            for disponibilidad in disponibilidades:
+                if (
+                    self.hora_inicio < disponibilidad.hora_fin
+                    and self.hora_fin > disponibilidad.hora_inicio
+                ):
+                    errors["hora_inicio"] = "Ya existe una disponibilidad superpuesta para ese dia."
+                    break
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.odontologo} - {self.get_dia_semana_display()} "
+            f"{self.hora_inicio:%H:%M} a {self.hora_fin:%H:%M}"
+        )
+
+
 class Turno(models.Model):
     class Estado(models.TextChoices):
         PENDIENTE = "pendiente", "Pendiente"
@@ -111,8 +179,10 @@ class Turno(models.Model):
             errors["duracion_minutos"] = "La duracion debe ser mayor a 0."
 
         if not errors and self.fecha and self.hora_inicio and self.odontologo_id:
-            self._validar_horario_atencion(errors)
-            self._validar_solapamiento(errors)
+            if self.estado != self.Estado.CANCELADO:
+                self._validar_odontologo_activo(errors)
+                self._validar_disponibilidad(errors)
+                self._validar_solapamiento(errors)
 
         if errors:
             raise ValidationError(errors)
@@ -121,16 +191,25 @@ class Turno(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    def _validar_horario_atencion(self, errors):
+    def _validar_odontologo_activo(self, errors):
+        if not self.odontologo.activo:
+            errors["odontologo"] = "No se pueden cargar turnos para un odontologo inactivo."
+
+    def _validar_disponibilidad(self, errors):
         if self.fecha_hora_fin.date() != self.fecha:
             errors["duracion_minutos"] = "El turno debe terminar el mismo dia."
             return
 
-        if self.hora_inicio < self.odontologo.hora_inicio_atencion:
-            errors["hora_inicio"] = "El turno empieza antes del horario de atencion."
+        disponibilidad = DisponibilidadOdontologo.objects.filter(
+            odontologo=self.odontologo,
+            dia_semana=self.fecha.weekday(),
+            activo=True,
+            hora_inicio__lte=self.hora_inicio,
+            hora_fin__gte=self.hora_fin,
+        ).exists()
 
-        if self.hora_fin > self.odontologo.hora_fin_atencion:
-            errors["duracion_minutos"] = "El turno termina fuera del horario de atencion."
+        if not disponibilidad:
+            errors["hora_inicio"] = "El odontologo no atiende en ese dia y horario."
 
     def _validar_solapamiento(self, errors):
         if self.estado == self.Estado.CANCELADO:

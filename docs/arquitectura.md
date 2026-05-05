@@ -61,14 +61,17 @@ Por ahora, esta app no conoce los detalles internos de los turnos. La relacion c
 Responsabilidad:
 
 - Representar odontologos.
+- Representar disponibilidad de odontologos.
 - Representar turnos.
 - Validar reglas basicas de agenda.
 - Evitar turnos superpuestos.
+- Calcular horarios disponibles.
 - Preparar la relacion futura con Google Calendar.
 
 Modelos principales:
 
 - `Odontologo`
+- `DisponibilidadOdontologo`
 - `Turno`
 
 Esta app concentra las reglas iniciales del dominio de agenda.
@@ -78,10 +81,18 @@ Esta app concentra las reglas iniciales del dominio de agenda.
 El modelo `Turno` valida que:
 
 - La duracion del turno sea mayor a cero.
-- El turno empiece dentro del horario de atencion del odontologo.
-- El turno termine dentro del horario de atencion del odontologo.
+- El odontologo este activo para turnos no cancelados.
+- El turno entre dentro de una disponibilidad activa del odontologo.
+- Los dias sin disponibilidad activa queden bloqueados como no laborables.
 - No exista otro turno activo superpuesto para el mismo odontologo.
 - Los turnos cancelados no bloqueen horarios.
+
+El selector `obtener_horarios_disponibles` calcula horarios libres usando:
+
+- Disponibilidad activa del odontologo.
+- Duracion configurada del turno.
+- Turnos pendientes y confirmados ya existentes.
+- Estado activo/inactivo del odontologo.
 
 Estados actuales de un turno:
 

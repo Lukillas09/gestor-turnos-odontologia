@@ -1,10 +1,17 @@
 from django.contrib import admin
 
-from .models import Odontologo, Turno
+from .models import DisponibilidadOdontologo, Odontologo, Turno
+
+
+class DisponibilidadOdontologoInline(admin.TabularInline):
+    model = DisponibilidadOdontologo
+    extra = 1
+    fields = ("dia_semana", "hora_inicio", "hora_fin", "activo")
 
 
 @admin.register(Odontologo)
 class OdontologoAdmin(admin.ModelAdmin):
+    inlines = (DisponibilidadOdontologoInline,)
     list_display = (
         "nombre",
         "apellido",
@@ -82,6 +89,20 @@ class OdontologoAdmin(admin.ModelAdmin):
     @admin.display(description="Horario de atencion")
     def horario_atencion(self, obj):
         return f"{obj.hora_inicio_atencion:%H:%M} a {obj.hora_fin_atencion:%H:%M}"
+
+
+@admin.register(DisponibilidadOdontologo)
+class DisponibilidadOdontologoAdmin(admin.ModelAdmin):
+    list_display = ("odontologo", "dia_semana", "hora_inicio", "hora_fin", "activo")
+    list_filter = ("dia_semana", "activo", "odontologo")
+    search_fields = (
+        "odontologo__usuario__first_name",
+        "odontologo__usuario__last_name",
+        "odontologo__matricula",
+    )
+    autocomplete_fields = ("odontologo",)
+    ordering = ("odontologo", "dia_semana", "hora_inicio")
+    readonly_fields = ("creado_en", "actualizado_en")
 
 
 @admin.register(Turno)
