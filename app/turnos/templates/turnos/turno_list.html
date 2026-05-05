@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Turnos | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Turnos</h1>
+            <p class="subtitle">Agenda de turnos del consultorio.</p>
+        </div>
+        <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
+    </div>
+
+    <form class="filter-panel" method="get">
+        <div>
+            <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
+            {{ filtros_form.fecha }}
+        </div>
+        <div>
+            <label for="{{ filtros_form.estado.id_for_label }}">Estado</label>
+            {{ filtros_form.estado }}
+        </div>
+        <div>
+            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontologo</label>
+            {{ filtros_form.odontologo }}
+        </div>
+        <div class="filter-actions">
+            <button type="submit">Filtrar</button>
+            <a class="button button-secondary" href="{% url 'turnos:lista' %}">Limpiar</a>
+        </div>
+    </form>
+
+    {% if turnos %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Paciente</th>
+                        <th>Odontologo</th>
+                        <th>Fecha</th>
+                        <th>Hora inicio</th>
+                        <th>Hora fin</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for turno in turnos %}
+                        <tr>
+                            <td>{{ turno.paciente }}</td>
+                            <td>{{ turno.odontologo }}</td>
+                            <td>{{ turno.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ turno.hora_inicio|time:"H:i" }}</td>
+                            <td>{{ turno.hora_fin|time:"H:i" }}</td>
+                            <td>{{ turno.get_estado_display }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No hay turnos para los filtros seleccionados.</p>
+        </div>
+    {% endif %}
+
+    {% if is_paginated %}
+        <div class="form-actions">
+            {% if page_obj.has_previous %}
+                <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Anterior</a>
+            {% endif %}
+            <span class="muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Siguiente</a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}

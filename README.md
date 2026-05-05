@@ -15,6 +15,7 @@ Actualmente incluye:
 - App `turnos` para gestionar odontólogos y turnos.
 - Panel de administración de Django mejorado.
 - Listado y creación de pacientes desde vistas propias.
+- Listado y creación de turnos desde vistas propias.
 - Validación para evitar turnos superpuestos.
 - Validación de horarios de atención del odontólogo.
 - Campo preparado para guardar el ID del evento de Google Calendar.
@@ -124,6 +125,18 @@ Desde esa sección se puede:
 - Crear un nuevo paciente.
 - Ver el detalle de un paciente.
 - Editar los datos de un paciente.
+
+Tambien incluye una interfaz inicial para turnos:
+
+```text
+http://127.0.0.1:8000/turnos/
+```
+
+Desde esa seccion se puede:
+
+- Ver el listado de turnos.
+- Filtrar turnos por fecha, estado u odontologo.
+- Crear un nuevo turno.
 
 ### Pacientes
 

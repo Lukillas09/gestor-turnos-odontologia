@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo turno | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Nuevo turno</h1>
+            <p class="subtitle">Carga de paciente, odontologo y horario de atencion.</p>
+        </div>
+    </div>
+
+    <form class="form-panel" method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="field-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-grid">
+            {% for field in form %}
+                <div class="{% if field.name == 'motivo' or field.name == 'notas' %}field-full{% endif %}">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <p class="muted">{{ field.help_text }}</p>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="field-error">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit">Guardar turno</button>
+            <a class="button button-secondary" href="{% url 'turnos:lista' %}">Cancelar</a>
+        </div>
+    </form>
+{% endblock %}
