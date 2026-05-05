@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ paciente.nombre_completo }} | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>{{ paciente.nombre }} {{ paciente.apellido }}</h1>
+            <p class="subtitle">Detalle del paciente.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'pacientes:lista' %}">Volver</a>
+            <a class="button" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
+        </div>
+    </div>
+
+    <section class="detail-panel">
+        <dl class="detail-grid">
+            <div>
+                <dt>Nombre</dt>
+                <dd>{{ paciente.nombre }}</dd>
+            </div>
+            <div>
+                <dt>Apellido</dt>
+                <dd>{{ paciente.apellido }}</dd>
+            </div>
+            <div>
+                <dt>DNI</dt>
+                <dd>{{ paciente.documento|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt>Telefono</dt>
+                <dd>{{ paciente.telefono|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt>Email</dt>
+                <dd>{{ paciente.email|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt>Fecha de nacimiento</dt>
+                <dd>{{ paciente.fecha_nacimiento|date:"d/m/Y"|default:"-" }}</dd>
+            </div>
+            <div class="field-full">
+                <dt>Observaciones</dt>
+                <dd>{{ paciente.observaciones|linebreaksbr|default:"-" }}</dd>
+            </div>
+        </dl>
+    </section>
+{% endblock %}

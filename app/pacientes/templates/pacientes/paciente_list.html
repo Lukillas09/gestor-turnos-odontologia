@@ -37,16 +37,24 @@
                         <th>DNI</th>
                         <th>Telefono</th>
                         <th>Email</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for paciente in pacientes %}
                         <tr>
-                            <td>{{ paciente.apellido }}</td>
-                            <td>{{ paciente.nombre }}</td>
+                            <td>
+                                <a href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.apellido }}</a>
+                            </td>
+                            <td>
+                                <a href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.nombre }}</a>
+                            </td>
                             <td>{{ paciente.documento|default:"-" }}</td>
                             <td>{{ paciente.telefono|default:"-" }}</td>
                             <td>{{ paciente.email|default:"-" }}</td>
+                            <td>
+                                <a class="text-link" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

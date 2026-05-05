@@ -78,4 +78,68 @@ class PacienteViewsTests(TestCase):
         self.assertRedirects(segunda_respuesta, reverse("pacientes:lista"))
         self.assertEqual(Paciente.objects.filter(documento__isnull=True).count(), 2)
 
-# Create your tests here.
+    def test_detalle_muestra_datos_del_paciente(self):
+        paciente = Paciente.objects.create(
+            nombre="Elena",
+            apellido="Rios",
+            documento="20111222",
+            telefono="1144556677",
+            email="elena@example.com",
+        )
+
+        response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Elena")
+        self.assertContains(response, "20111222")
+
+    def test_edicion_actualiza_paciente(self):
+        paciente = Paciente.objects.create(
+            nombre="Sofia",
+            apellido="Mendez",
+            documento="22111222",
+            telefono="1111",
+        )
+
+        response = self.client.post(
+            reverse("pacientes:editar", kwargs={"pk": paciente.pk}),
+            {
+                "nombre": "Sofia",
+                "apellido": "Mendez",
+                "documento": "22111222",
+                "telefono": "2222",
+                "email": "sofia@example.com",
+                "fecha_nacimiento": "",
+                "observaciones": "Paciente actualizada",
+            },
+        )
+
+        paciente.refresh_from_db()
+
+        self.assertRedirects(response, reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+        self.assertEqual(paciente.telefono, "2222")
+        self.assertEqual(paciente.email, "sofia@example.com")
+        self.assertEqual(paciente.observaciones, "Paciente actualizada")
+
+    def test_edicion_no_permite_documento_duplicado(self):
+        Paciente.objects.create(nombre="Ana", apellido="Gomez", documento="12345678")
+        paciente = Paciente.objects.create(nombre="Luis", apellido="Perez", documento="87654321")
+
+        response = self.client.post(
+            reverse("pacientes:editar", kwargs={"pk": paciente.pk}),
+            {
+                "nombre": "Luis",
+                "apellido": "Perez",
+                "documento": "12345678",
+                "telefono": "",
+                "email": "",
+                "fecha_nacimiento": "",
+                "observaciones": "",
+            },
+        )
+
+        paciente.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("documento", response.context["form"].errors)
+        self.assertEqual(paciente.documento, "87654321")

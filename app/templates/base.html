@@ -71,6 +71,16 @@
             text-decoration: none;
         }
 
+        .text-link {
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .text-link:hover {
+            text-decoration: underline;
+        }
+
         .page {
             padding: 32px 0;
         }
@@ -81,6 +91,11 @@
             justify-content: space-between;
             gap: 16px;
             margin-bottom: 24px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
         }
 
         h1 {
@@ -162,6 +177,7 @@
         }
 
         .table-wrap,
+        .detail-panel,
         .form-panel,
         .empty-state {
             background: var(--surface);
@@ -201,6 +217,7 @@
         }
 
         .form-panel,
+        .detail-panel,
         .empty-state {
             padding: 24px;
         }
@@ -213,6 +230,23 @@
 
         .field-full {
             grid-column: 1 / -1;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin: 0;
+        }
+
+        .detail-grid dt {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .detail-grid dd {
+            margin: 4px 0 0;
         }
 
         .field-error,
@@ -254,6 +288,7 @@
 
             .topbar-inner,
             .page-header,
+            .header-actions,
             .toolbar,
             .search-form,
             .form-actions {
@@ -261,7 +296,8 @@
                 flex-direction: column;
             }
 
-            .form-grid {
+            .form-grid,
+            .detail-grid {
                 grid-template-columns: 1fr;
             }
 

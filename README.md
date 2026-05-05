@@ -122,6 +122,8 @@ Desde esa sección se puede:
 - Ver el listado de pacientes.
 - Buscar pacientes por nombre, apellido o DNI.
 - Crear un nuevo paciente.
+- Ver el detalle de un paciente.
+- Editar los datos de un paciente.
 
 ### Pacientes
 

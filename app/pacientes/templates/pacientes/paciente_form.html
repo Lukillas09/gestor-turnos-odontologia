@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Nuevo paciente | Gestor de Turnos{% endblock %}
+{% block title %}{{ titulo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
     <div class="page-header">
         <div>
-            <h1>Nuevo paciente</h1>
-            <p class="subtitle">Carga de datos personales y de contacto.</p>
+            <h1>{{ titulo }}</h1>
+            <p class="subtitle">{{ subtitulo }}</p>
         </div>
     </div>
 
@@ -30,8 +30,8 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit">Guardar paciente</button>
-            <a class="button button-secondary" href="{% url 'pacientes:lista' %}">Cancelar</a>
+            <button type="submit">{{ texto_boton }}</button>
+            <a class="button button-secondary" href="{{ url_cancelar }}">Cancelar</a>
         </div>
     </form>
 {% endblock %}
