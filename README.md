@@ -19,6 +19,10 @@ Actualmente incluye:
 - Campo preparado para guardar el ID del evento de Google Calendar.
 - Tests iniciales para la lógica de turnos.
 
+Documentación técnica:
+
+- [Arquitectura del proyecto](docs/arquitectura.md)
+
 ## Tecnologías
 
 - Python 3.13
