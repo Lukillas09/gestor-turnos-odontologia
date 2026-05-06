@@ -1,5 +1,6 @@
 from django import forms
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
@@ -160,21 +161,59 @@ class TurnoHorarioBusquedaForm(forms.Form):
     )
 
 
+class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
+    fecha = forms.DateField(
+        error_messages={
+            "required": "Elegi una fecha para ver horarios.",
+            "invalid": "Ingresa una fecha valida.",
+        },
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    def clean_fecha(self):
+        fecha = self.cleaned_data["fecha"]
+
+        if fecha < timezone.localdate():
+            raise forms.ValidationError("La fecha no puede ser anterior a hoy.")
+
+        return fecha
+
+
 class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
-    nombre = forms.CharField(max_length=100)
-    apellido = forms.CharField(max_length=100)
+    nombre = forms.CharField(
+        max_length=100,
+        error_messages={"required": "Ingresa tu nombre."},
+    )
+    apellido = forms.CharField(
+        max_length=100,
+        error_messages={"required": "Ingresa tu apellido."},
+    )
     documento = forms.CharField(max_length=20, required=False, label="DNI")
     telefono = forms.CharField(max_length=30, required=False)
-    email = forms.EmailField(required=False)
+    email = forms.EmailField(
+        required=False,
+        error_messages={"invalid": "Ingresa un email valido o deja el campo vacio."},
+    )
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True),
         empty_label="Seleccionar odontologo",
+        error_messages={"required": "Elegi un odontologo."},
     )
-    fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    fecha = forms.DateField(
+        error_messages={
+            "required": "Elegi una fecha.",
+            "invalid": "Ingresa una fecha valida.",
+        },
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
     hora_inicio = forms.TypedChoiceField(
         choices=(),
         coerce=convertir_a_hora,
         empty_value=None,
+        error_messages={
+            "required": "Elegi un horario disponible.",
+            "invalid_choice": "Ese horario ya no esta disponible. Volve a buscar horarios.",
+        },
         label="Horario",
     )
     motivo = forms.CharField(
@@ -190,6 +229,14 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     def clean_documento(self):
         documento = self.cleaned_data["documento"].strip()
         return documento or None
+
+    def clean_fecha(self):
+        fecha = self.cleaned_data["fecha"]
+
+        if fecha < timezone.localdate():
+            raise forms.ValidationError("La fecha no puede ser anterior a hoy.")
+
+        return fecha
 
 
 class TurnoFiltroForm(forms.Form):

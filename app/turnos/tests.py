@@ -1,10 +1,11 @@
-from datetime import date, time
+from datetime import date, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from pacientes.models import Paciente
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
@@ -324,6 +325,57 @@ class TurnoViewsTests(TestCase):
         self.assertContains(response, "Control")
         self.assertContains(response, "10:00")
 
+    def test_detalle_muestra_boton_confirmar_si_el_turno_esta_pendiente(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Confirmar turno")
+
+    def test_detalle_no_muestra_boton_confirmar_si_el_turno_no_esta_pendiente(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Confirmar turno")
+
+    def test_confirmacion_cambia_estado_sin_modificar_fecha_ni_horario(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=60,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Solicitud publica",
+        )
+
+        response = self.client.post(reverse("turnos:confirmar", kwargs={"pk": turno.pk}))
+
+        turno.refresh_from_db()
+
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertEqual(turno.estado, Turno.Estado.CONFIRMADO)
+        self.assertEqual(turno.fecha, date(2026, 5, 8))
+        self.assertEqual(turno.hora_inicio, time(10, 0))
+        self.assertEqual(turno.duracion_minutos, 60)
+
     def test_edicion_actualiza_turno(self):
         turno = Turno.objects.create(
             paciente=self.paciente,
@@ -462,6 +514,20 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, 'value="10:00"')
         self.assertNotContains(response, 'value="09:30"')
 
+    def test_formulario_publico_no_permite_buscar_fecha_pasada(self):
+        fecha_pasada = timezone.localdate() - timedelta(days=1)
+
+        response = self.client.get(
+            reverse("turnos:solicitud_publica"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": fecha_pasada.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "La fecha no puede ser anterior a hoy.")
+
     def test_solicitud_publica_crea_paciente_y_turno_pendiente(self):
         response = self.client.post(
             reverse("turnos:solicitud_publica"),
@@ -484,6 +550,31 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
         self.assertEqual(turno.paciente.documento, "38111222")
         self.assertEqual(turno.hora_inicio, time(10, 0))
+
+    def test_confirmacion_publica_muestra_datos_del_turno(self):
+        self.client.post(
+            reverse("turnos:solicitud_publica"),
+            {
+                "nombre": "Lucia",
+                "apellido": "Paz",
+                "documento": "38111222",
+                "telefono": "1155667788",
+                "email": "lucia@example.com",
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+                "hora_inicio": "10:00",
+                "motivo": "Consulta inicial",
+            },
+        )
+
+        response = self.client.get(reverse("turnos:solicitud_publica_ok"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Paz, Lucia")
+        self.assertContains(response, "Paula Publica")
+        self.assertContains(response, "08/05/2026")
+        self.assertContains(response, "10:00 a 10:30")
+        self.assertContains(response, "Pendiente")
 
     def test_solicitud_publica_reutiliza_paciente_por_documento(self):
         paciente = Paciente.objects.create(
@@ -548,6 +639,39 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Turno.objects.filter(motivo="Horario ocupado").exists())
         self.assertIn("hora_inicio", response.context["form"].errors)
+
+    def test_solicitud_publica_rechaza_fecha_pasada(self):
+        fecha_pasada = timezone.localdate() - timedelta(days=1)
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica"),
+            {
+                "nombre": "Clara",
+                "apellido": "Luna",
+                "documento": "42111222",
+                "telefono": "",
+                "email": "",
+                "odontologo": self.odontologo.pk,
+                "fecha": fecha_pasada.isoformat(),
+                "hora_inicio": "10:00",
+                "motivo": "Fecha pasada",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Turno.objects.filter(motivo="Fecha pasada").exists())
+        self.assertIn("fecha", response.context["form"].errors)
+        self.assertContains(response, "La fecha no puede ser anterior a hoy.")
+
+    def test_solicitud_publica_muestra_mensajes_de_error_claros(self):
+        response = self.client.post(reverse("turnos:solicitud_publica"), {})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ingresa tu nombre.")
+        self.assertContains(response, "Ingresa tu apellido.")
+        self.assertContains(response, "Elegi un odontologo.")
+        self.assertContains(response, "Elegi una fecha.")
+        self.assertContains(response, "Elegi un horario disponible.")
 
 
 class HorariosDisponiblesTests(TestCase):
@@ -645,6 +769,11 @@ class TurnoAccessTests(TestCase):
 
         self.assertRedirects(self.client.post(url), f"{reverse('login')}?next={url}")
 
+    def test_confirmacion_requiere_login(self):
+        url = reverse("turnos:confirmar", kwargs={"pk": 1})
+
+        self.assertRedirects(self.client.post(url), f"{reverse('login')}?next={url}")
+
 
 class TurnoRoleTests(TestCase):
     def setUp(self):
@@ -724,6 +853,9 @@ class TurnoRoleTests(TestCase):
         response_editar = self.client.get(
             reverse("turnos:editar", kwargs={"pk": self.turno_propio.pk})
         )
+        response_confirmar = self.client.post(
+            reverse("turnos:confirmar", kwargs={"pk": self.turno_propio.pk})
+        )
         response_cancelar = self.client.post(
             reverse("turnos:cancelar", kwargs={"pk": self.turno_propio.pk})
         )
@@ -732,6 +864,7 @@ class TurnoRoleTests(TestCase):
 
         self.assertEqual(response_crear.status_code, 403)
         self.assertEqual(response_editar.status_code, 403)
+        self.assertEqual(response_confirmar.status_code, 403)
         self.assertEqual(response_cancelar.status_code, 403)
         self.assertEqual(self.turno_propio.estado, Turno.Estado.PENDIENTE)
 

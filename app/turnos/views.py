@@ -20,6 +20,7 @@ from usuarios.roles import limitar_turnos_por_usuario, obtener_odontologo_visibl
 
 from .forms import (
     AgendaFiltroForm,
+    SolicitudTurnoBusquedaPublicaForm,
     SolicitudTurnoPublicaForm,
     TurnoCreateForm,
     TurnoFiltroForm,
@@ -33,7 +34,7 @@ from .selectors import (
     obtener_turnos_de_la_semana,
     obtener_turnos_del_dia,
 )
-from .services import cancelar_turno, crear_solicitud_turno_publica
+from .services import cancelar_turno, confirmar_turno, crear_solicitud_turno_publica
 
 
 class TurnoListView(VerTurnosRequeridoMixin, ListView):
@@ -136,20 +137,35 @@ class SolicitudTurnoPublicaView(FormView):
 
     def form_valid(self, form):
         try:
-            crear_solicitud_turno_publica(form.cleaned_data)
+            turno = crear_solicitud_turno_publica(form.cleaned_data)
         except ValidationError as error:
             form.add_error(None, error)
             return self.form_invalid(form)
 
+        self.request.session["solicitud_turno_publica_id"] = turno.pk
         messages.success(self.request, "Solicitud de turno recibida correctamente.")
         return super().form_valid(form)
 
     def _obtener_busqueda_form(self):
-        return TurnoHorarioBusquedaForm(self.request.GET or None)
+        return SolicitudTurnoBusquedaPublicaForm(self.request.GET or None)
 
 
 class SolicitudTurnoPublicaOkView(TemplateView):
     template_name = "turnos/solicitud_publica_ok.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        turno_id = self.request.session.get("solicitud_turno_publica_id")
+        context["turno"] = (
+            Turno.objects.select_related(
+                "paciente",
+                "odontologo",
+                "odontologo__usuario",
+            )
+            .filter(pk=turno_id)
+            .first()
+        )
+        return context
 
 
 class TurnoDetailView(VerTurnosRequeridoMixin, DetailView):
@@ -189,6 +205,14 @@ class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Turno actualizado correctamente.")
         return super().form_valid(form)
+
+
+class TurnoConfirmView(GestionConsultorioRequeridaMixin, View):
+    def post(self, request, pk):
+        turno = get_object_or_404(Turno, pk=pk)
+        confirmar_turno(turno)
+        messages.success(request, "Turno confirmado correctamente.")
+        return redirect("turnos:detalle", pk=turno.pk)
 
 
 class TurnoCancelView(GestionConsultorioRequeridaMixin, View):

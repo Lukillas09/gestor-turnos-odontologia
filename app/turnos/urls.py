@@ -6,6 +6,7 @@ from .views import (
     SolicitudTurnoPublicaOkView,
     SolicitudTurnoPublicaView,
     TurnoCancelView,
+    TurnoConfirmView,
     TurnoCreateView,
     TurnoDetailView,
     TurnoListView,
@@ -27,5 +28,6 @@ urlpatterns = [
     path("agenda/semana/", AgendaSemanaView.as_view(), name="agenda_semana"),
     path("<int:pk>/", TurnoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", TurnoUpdateView.as_view(), name="editar"),
+    path("<int:pk>/confirmar/", TurnoConfirmView.as_view(), name="confirmar"),
     path("<int:pk>/cancelar/", TurnoCancelView.as_view(), name="cancelar"),
 ]

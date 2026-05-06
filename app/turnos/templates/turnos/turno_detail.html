@@ -12,6 +12,12 @@
             <a class="button button-secondary" href="{% url 'turnos:lista' %}">Volver</a>
             {% if puede_gestionar_turnos %}
                 <a class="button" href="{% url 'turnos:editar' turno.pk %}">Editar</a>
+                {% if turno.estado == turno.Estado.PENDIENTE %}
+                    <form method="post" action="{% url 'turnos:confirmar' turno.pk %}">
+                        {% csrf_token %}
+                        <button class="button-success" type="submit">Confirmar turno</button>
+                    </form>
+                {% endif %}
                 {% if turno.estado != turno.Estado.CANCELADO %}
                     <form method="post" action="{% url 'turnos:cancelar' turno.pk %}">
                         {% csrf_token %}

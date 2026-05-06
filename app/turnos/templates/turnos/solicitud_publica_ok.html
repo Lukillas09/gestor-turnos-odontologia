@@ -6,14 +6,45 @@
     <div class="page-header">
         <div>
             <h1>Solicitud recibida</h1>
-            <p class="subtitle">El turno quedó registrado como pendiente.</p>
+            <p class="subtitle">El turno quedo registrado como pendiente.</p>
         </div>
         <div class="header-actions">
             <a class="button" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
         </div>
     </div>
 
-    <section class="empty-state">
-        <p>El consultorio podrá confirmar o reprogramar la solicitud desde el panel interno.</p>
-    </section>
+    {% if turno %}
+        <section class="detail-panel">
+            <dl class="detail-grid">
+                <div>
+                    <dt>Paciente</dt>
+                    <dd>{{ turno.paciente }}</dd>
+                </div>
+                <div>
+                    <dt>Odontologo</dt>
+                    <dd>{{ turno.odontologo }}</dd>
+                </div>
+                <div>
+                    <dt>Fecha</dt>
+                    <dd>{{ turno.fecha|date:"d/m/Y" }}</dd>
+                </div>
+                <div>
+                    <dt>Horario</dt>
+                    <dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd>
+                </div>
+                <div>
+                    <dt>Estado</dt>
+                    <dd><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></dd>
+                </div>
+                <div>
+                    <dt>Motivo</dt>
+                    <dd>{{ turno.motivo|default:"-" }}</dd>
+                </div>
+            </dl>
+        </section>
+    {% else %}
+        <section class="empty-state">
+            <p>El consultorio podra confirmar o reprogramar la solicitud desde el panel interno.</p>
+        </section>
+    {% endif %}
 {% endblock %}

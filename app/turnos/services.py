@@ -3,6 +3,15 @@ from pacientes.models import Paciente
 from .models import Turno
 
 
+def confirmar_turno(turno):
+    if turno.estado != Turno.Estado.PENDIENTE:
+        return turno
+
+    turno.estado = Turno.Estado.CONFIRMADO
+    turno.save(update_fields=["estado", "actualizado_en"])
+    return turno
+
+
 def cancelar_turno(turno):
     if turno.estado == Turno.Estado.CANCELADO:
         return turno

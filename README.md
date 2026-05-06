@@ -156,6 +156,8 @@ Desde esa pantalla se puede:
 - Ver horarios disponibles.
 - Completar datos básicos del paciente.
 - Guardar la solicitud como turno pendiente.
+- Evitar solicitudes con fechas anteriores al dia actual.
+- Ver una confirmacion con los datos del turno solicitado.
 
 El proyecto ya incluye una primera interfaz propia para pacientes:
 
@@ -185,6 +187,7 @@ Desde esa seccion se puede:
 - Buscar horarios disponibles por odontologo y fecha antes de elegir la hora.
 - Ver el detalle de un turno.
 - Editar los datos de un turno.
+- Confirmar un turno pendiente sin modificar fecha ni horario.
 - Cancelar un turno sin borrarlo.
 
 Vistas de agenda:
@@ -257,6 +260,8 @@ La lógica actual valida que:
 - Los horarios disponibles se calculen a partir de disponibilidad y turnos activos.
 - Los odontologos solo puedan ver turnos asociados a su perfil.
 - Las solicitudes públicas de turno se guarden como pendientes.
+- Las solicitudes públicas no permitan fechas pasadas.
+- Los turnos pendientes puedan confirmarse desde el detalle manteniendo fecha y horario.
 
 Estados disponibles para un turno:
 
