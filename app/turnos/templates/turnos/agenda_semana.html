@@ -11,7 +11,9 @@
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'turnos:agenda_semana' %}?fecha={{ semana_anterior|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Semana anterior</a>
             <a class="button button-secondary" href="{% url 'turnos:agenda_semana' %}?fecha={{ semana_siguiente|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Semana siguiente</a>
-            <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
+            {% if puede_gestionar_turnos %}
+                <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
+            {% endif %}
         </div>
     </div>
 
@@ -55,7 +57,7 @@
                                             </a>
                                             <span>{{ turno.paciente }} con {{ turno.odontologo }}</span>
                                             <span>{{ turno.motivo|default:"-" }}</span>
-                                            <span class="muted">{{ turno.get_estado_display }}</span>
+                                            <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
                                         </div>
                                     {% endfor %}
                                 </div>

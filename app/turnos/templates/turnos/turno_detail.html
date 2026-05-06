@@ -10,12 +10,14 @@
         </div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'turnos:lista' %}">Volver</a>
-            <a class="button" href="{% url 'turnos:editar' turno.pk %}">Editar</a>
-            {% if turno.estado != turno.Estado.CANCELADO %}
-                <form method="post" action="{% url 'turnos:cancelar' turno.pk %}">
-                    {% csrf_token %}
-                    <button class="button-danger" type="submit">Cancelar turno</button>
-                </form>
+            {% if puede_gestionar_turnos %}
+                <a class="button" href="{% url 'turnos:editar' turno.pk %}">Editar</a>
+                {% if turno.estado != turno.Estado.CANCELADO %}
+                    <form method="post" action="{% url 'turnos:cancelar' turno.pk %}">
+                        {% csrf_token %}
+                        <button class="button-danger" type="submit">Cancelar turno</button>
+                    </form>
+                {% endif %}
             {% endif %}
         </div>
     </div>

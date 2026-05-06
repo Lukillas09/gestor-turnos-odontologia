@@ -15,6 +15,7 @@ Actualmente incluye:
 - App `turnos` para gestionar odontólogos y turnos.
 - Panel de administración de Django mejorado.
 - Login interno con autenticación de Django.
+- Roles internos basados en grupos de Django.
 - Vistas internas protegidas para usuarios autenticados.
 - Listado y creación de pacientes desde vistas propias.
 - Listado y creación de turnos desde vistas propias.
@@ -24,7 +25,9 @@ Actualmente incluye:
 - Validación para evitar turnos en odontólogos inactivos.
 - Cálculo de horarios disponibles.
 - Agenda diaria y semanal simple.
+- Agenda diaria por bloques horarios y colores por estado.
 - Creación de turnos guiada por horarios disponibles.
+- Formulario público para solicitar turnos.
 - Campo preparado para guardar el ID del evento de Google Calendar.
 - Tests iniciales para la lógica de turnos.
 
@@ -59,6 +62,13 @@ gestor-turnos-odontologia/
     │   ├── admin.py
     │   ├── apps.py
     │   ├── models.py
+    │   ├── tests.py
+    │   └── migrations/
+    ├── usuarios/
+    │   ├── apps.py
+    │   ├── roles.py
+    │   ├── mixins.py
+    │   ├── views.py
     │   ├── tests.py
     │   └── migrations/
     └── turnos/
@@ -125,6 +135,28 @@ Para usar las vistas internas hay que iniciar sesión:
 http://127.0.0.1:8000/cuentas/login/
 ```
 
+Roles actuales:
+
+- `Recepcionista`: puede gestionar pacientes y turnos.
+- `Odontologo`: puede ver sus propios turnos y agenda.
+- `Administrador`: puede configurar odontólogos y disponibilidad desde Django Admin.
+
+Los roles se crean como grupos de Django al ejecutar migraciones.
+Para entrar al admin, el usuario administrador tambien debe tener `is_staff` activo.
+
+Formulario público para pacientes:
+
+```text
+http://127.0.0.1:8000/turnos/solicitar/
+```
+
+Desde esa pantalla se puede:
+
+- Elegir odontologo y fecha.
+- Ver horarios disponibles.
+- Completar datos básicos del paciente.
+- Guardar la solicitud como turno pendiente.
+
 El proyecto ya incluye una primera interfaz propia para pacientes:
 
 ```text
@@ -165,9 +197,13 @@ http://127.0.0.1:8000/turnos/agenda/semana/
 Desde esas vistas se puede:
 
 - Ver una tabla diaria de turnos.
+- Ver la agenda diaria por bloques horarios.
 - Ver una tabla semanal agrupada por dia.
+- Identificar estados por color.
 - Filtrar por fecha y odontologo.
 - Navegar al dia o semana anterior/siguiente.
+
+Cuando ingresa un odontologo, la agenda queda limitada automaticamente a sus propios turnos.
 
 ### Pacientes
 
@@ -219,6 +255,8 @@ La lógica actual valida que:
 - No existan turnos activos superpuestos para el mismo odontólogo.
 - Los turnos cancelados no bloqueen ese horario.
 - Los horarios disponibles se calculen a partir de disponibilidad y turnos activos.
+- Los odontologos solo puedan ver turnos asociados a su perfil.
+- Las solicitudes públicas de turno se guarden como pendientes.
 
 Estados disponibles para un turno:
 
@@ -275,14 +313,11 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Crear vistas propias para listar, crear y editar turnos fuera del admin.
-2. Agregar formularios para pacientes y turnos.
-3. Crear una vista de agenda diaria o semanal.
-4. Definir disponibilidad por odontólogo.
-5. Separar permisos por rol para odontólogo y recepcionista.
-6. Integrar Google Calendar para crear, actualizar y cancelar eventos.
-7. Preparar variables de entorno para producción.
-8. Cambiar SQLite por PostgreSQL antes del despliegue.
+1. Mejorar el formulario público con validaciones y mensajes más detallados.
+2. Integrar Google Calendar para crear, actualizar y cancelar eventos.
+3. Agregar notificaciones por email.
+4. Preparar variables de entorno para producción.
+5. Cambiar SQLite por PostgreSQL antes del despliegue.
 
 ## Integración futura con Google Calendar
 

@@ -12,6 +12,37 @@ def obtener_turnos_del_dia(fecha, odontologo=None):
     return turnos
 
 
+def obtener_bloques_agenda_del_dia(fecha, odontologo=None, intervalo_minutos=30):
+    turnos = list(obtener_turnos_del_dia(fecha, odontologo))
+    rango_agenda = _obtener_rango_agenda(fecha, odontologo, turnos)
+
+    if not rango_agenda:
+        return []
+
+    hora_inicio, hora_fin = rango_agenda
+    inicio = datetime.combine(fecha, hora_inicio)
+    fin = datetime.combine(fecha, hora_fin)
+    intervalo = timedelta(minutes=intervalo_minutos)
+    bloques = []
+
+    while inicio < fin:
+        fin_bloque = inicio + intervalo
+        bloques.append(
+            {
+                "hora_inicio": inicio.time(),
+                "hora_fin": fin_bloque.time(),
+                "turnos": [
+                    turno
+                    for turno in turnos
+                    if inicio <= turno.fecha_hora_inicio < fin_bloque
+                ],
+            }
+        )
+        inicio = fin_bloque
+
+    return bloques
+
+
 def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None):
     inicio_semana = obtener_inicio_semana(fecha_referencia)
     fin_semana = inicio_semana + timedelta(days=6)
@@ -47,6 +78,28 @@ def _turnos_con_relaciones():
         "odontologo",
         "odontologo__usuario",
     )
+
+
+def _obtener_rango_agenda(fecha, odontologo, turnos):
+    disponibilidades = DisponibilidadOdontologo.objects.filter(
+        dia_semana=fecha.weekday(),
+        activo=True,
+        odontologo__activo=True,
+    )
+
+    if odontologo:
+        disponibilidades = disponibilidades.filter(odontologo=odontologo)
+
+    horas_inicio = [disponibilidad.hora_inicio for disponibilidad in disponibilidades]
+    horas_fin = [disponibilidad.hora_fin for disponibilidad in disponibilidades]
+
+    horas_inicio.extend(turno.hora_inicio for turno in turnos)
+    horas_fin.extend(turno.hora_fin for turno in turnos)
+
+    if not horas_inicio or not horas_fin:
+        return None
+
+    return min(horas_inicio), max(horas_fin)
 
 
 def obtener_horarios_disponibles(odontologo, fecha, duracion_minutos=None, intervalo_minutos=None):

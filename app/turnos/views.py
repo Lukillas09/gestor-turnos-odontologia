@@ -1,26 +1,42 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views import View
-from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
+from django.views.generic import (
+    CreateView,
+    DetailView,
+    FormView,
+    ListView,
+    TemplateView,
+    UpdateView,
+)
+
+from usuarios.mixins import GestionConsultorioRequeridaMixin, VerTurnosRequeridoMixin
+from usuarios.roles import limitar_turnos_por_usuario, obtener_odontologo_visible
 
 from .forms import (
     AgendaFiltroForm,
+    SolicitudTurnoPublicaForm,
     TurnoCreateForm,
     TurnoFiltroForm,
     TurnoForm,
     TurnoHorarioBusquedaForm,
 )
 from .models import Turno
-from .selectors import obtener_inicio_semana, obtener_turnos_de_la_semana, obtener_turnos_del_dia
-from .services import cancelar_turno
+from .selectors import (
+    obtener_bloques_agenda_del_dia,
+    obtener_inicio_semana,
+    obtener_turnos_de_la_semana,
+    obtener_turnos_del_dia,
+)
+from .services import cancelar_turno, crear_solicitud_turno_publica
 
 
-class TurnoListView(LoginRequiredMixin, ListView):
+class TurnoListView(VerTurnosRequeridoMixin, ListView):
     model = Turno
     template_name = "turnos/turno_list.html"
     context_object_name = "turnos"
@@ -36,7 +52,8 @@ class TurnoListView(LoginRequiredMixin, ListView):
                 "odontologo__usuario",
             )
         )
-        self.filtros_form = TurnoFiltroForm(self.request.GET)
+        queryset = limitar_turnos_por_usuario(queryset, self.request.user)
+        self.filtros_form = TurnoFiltroForm(self.request.GET, usuario=self.request.user)
 
         if self.filtros_form.is_valid():
             filtros = self.filtros_form.cleaned_data
@@ -62,7 +79,7 @@ class TurnoListView(LoginRequiredMixin, ListView):
         return context
 
 
-class TurnoCreateView(LoginRequiredMixin, CreateView):
+class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):
     model = Turno
     form_class = TurnoCreateForm
     template_name = "turnos/turno_form.html"
@@ -97,13 +114,51 @@ class TurnoCreateView(LoginRequiredMixin, CreateView):
         return TurnoHorarioBusquedaForm(self.request.GET or None)
 
 
-class TurnoDetailView(LoginRequiredMixin, DetailView):
+class SolicitudTurnoPublicaView(FormView):
+    form_class = SolicitudTurnoPublicaForm
+    template_name = "turnos/solicitud_publica_form.html"
+    success_url = reverse_lazy("turnos:solicitud_publica_ok")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        busqueda_form = self._obtener_busqueda_form()
+
+        if busqueda_form.is_valid():
+            initial["odontologo"] = busqueda_form.cleaned_data["odontologo"]
+            initial["fecha"] = busqueda_form.cleaned_data["fecha"]
+
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["busqueda_form"] = self._obtener_busqueda_form()
+        return context
+
+    def form_valid(self, form):
+        try:
+            crear_solicitud_turno_publica(form.cleaned_data)
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+
+        messages.success(self.request, "Solicitud de turno recibida correctamente.")
+        return super().form_valid(form)
+
+    def _obtener_busqueda_form(self):
+        return TurnoHorarioBusquedaForm(self.request.GET or None)
+
+
+class SolicitudTurnoPublicaOkView(TemplateView):
+    template_name = "turnos/solicitud_publica_ok.html"
+
+
+class TurnoDetailView(VerTurnosRequeridoMixin, DetailView):
     model = Turno
     template_name = "turnos/turno_detail.html"
     context_object_name = "turno"
 
     def get_queryset(self):
-        return (
+        queryset = (
             super()
             .get_queryset()
             .select_related(
@@ -112,9 +167,10 @@ class TurnoDetailView(LoginRequiredMixin, DetailView):
                 "odontologo__usuario",
             )
         )
+        return limitar_turnos_por_usuario(queryset, self.request.user)
 
 
-class TurnoUpdateView(LoginRequiredMixin, UpdateView):
+class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
     model = Turno
     form_class = TurnoForm
     template_name = "turnos/turno_form.html"
@@ -135,7 +191,7 @@ class TurnoUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class TurnoCancelView(LoginRequiredMixin, View):
+class TurnoCancelView(GestionConsultorioRequeridaMixin, View):
     def post(self, request, pk):
         turno = get_object_or_404(Turno, pk=pk)
         cancelar_turno(turno)
@@ -143,18 +199,20 @@ class TurnoCancelView(LoginRequiredMixin, View):
         return redirect("turnos:detalle", pk=turno.pk)
 
 
-class AgendaDiaView(LoginRequiredMixin, TemplateView):
+class AgendaDiaView(VerTurnosRequeridoMixin, TemplateView):
     template_name = "turnos/agenda_dia.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        filtros_form = AgendaFiltroForm(self.request.GET)
+        filtros_form = AgendaFiltroForm(self.request.GET, usuario=self.request.user)
         fecha = timezone.localdate()
-        odontologo = None
+        odontologo_solicitado = None
 
         if filtros_form.is_valid():
             fecha = filtros_form.cleaned_data["fecha"] or fecha
-            odontologo = filtros_form.cleaned_data["odontologo"]
+            odontologo_solicitado = filtros_form.cleaned_data["odontologo"]
+
+        odontologo = obtener_odontologo_visible(self.request.user, odontologo_solicitado)
 
         context["filtros_form"] = filtros_form
         context["odontologo"] = odontologo
@@ -162,23 +220,25 @@ class AgendaDiaView(LoginRequiredMixin, TemplateView):
         context["fecha_anterior"] = fecha - timedelta(days=1)
         context["fecha_siguiente"] = fecha + timedelta(days=1)
         context["turnos"] = obtener_turnos_del_dia(fecha, odontologo)
+        context["bloques_agenda"] = obtener_bloques_agenda_del_dia(fecha, odontologo)
         return context
 
 
-class AgendaSemanaView(LoginRequiredMixin, TemplateView):
+class AgendaSemanaView(VerTurnosRequeridoMixin, TemplateView):
     template_name = "turnos/agenda_semana.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        filtros_form = AgendaFiltroForm(self.request.GET)
+        filtros_form = AgendaFiltroForm(self.request.GET, usuario=self.request.user)
         fecha_referencia = timezone.localdate()
-        odontologo = None
+        odontologo_solicitado = None
 
         if filtros_form.is_valid():
             fecha_referencia = filtros_form.cleaned_data["fecha"] or fecha_referencia
-            odontologo = filtros_form.cleaned_data["odontologo"]
+            odontologo_solicitado = filtros_form.cleaned_data["odontologo"]
 
         inicio_semana = obtener_inicio_semana(fecha_referencia)
+        odontologo = obtener_odontologo_visible(self.request.user, odontologo_solicitado)
 
         context["filtros_form"] = filtros_form
         context["odontologo"] = odontologo

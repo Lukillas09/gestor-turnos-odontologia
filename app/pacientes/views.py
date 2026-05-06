@@ -1,14 +1,15 @@
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
+
+from usuarios.mixins import GestionConsultorioRequeridaMixin
 
 from .forms import PacienteForm
 from .models import Paciente
 
 
-class PacienteListView(LoginRequiredMixin, ListView):
+class PacienteListView(GestionConsultorioRequeridaMixin, ListView):
     model = Paciente
     template_name = "pacientes/paciente_list.html"
     context_object_name = "pacientes"
@@ -33,7 +34,7 @@ class PacienteListView(LoginRequiredMixin, ListView):
         return context
 
 
-class PacienteCreateView(LoginRequiredMixin, CreateView):
+class PacienteCreateView(GestionConsultorioRequeridaMixin, CreateView):
     model = Paciente
     form_class = PacienteForm
     template_name = "pacientes/paciente_form.html"
@@ -52,13 +53,13 @@ class PacienteCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class PacienteDetailView(LoginRequiredMixin, DetailView):
+class PacienteDetailView(GestionConsultorioRequeridaMixin, DetailView):
     model = Paciente
     template_name = "pacientes/paciente_detail.html"
     context_object_name = "paciente"
 
 
-class PacienteUpdateView(LoginRequiredMixin, UpdateView):
+class PacienteUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
     model = Paciente
     form_class = PacienteForm
     template_name = "pacientes/paciente_form.html"

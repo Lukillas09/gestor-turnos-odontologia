@@ -1,8 +1,16 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.test import TestCase
+from turnos.models import Odontologo
+from usuarios.roles import ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 from .models import Paciente
+
+
+def asignar_rol(usuario, nombre_rol):
+    grupo, _ = Group.objects.get_or_create(name=nombre_rol)
+    usuario.groups.add(grupo)
 
 
 class LoginInternoTests(TestCase):
@@ -13,10 +21,11 @@ class LoginInternoTests(TestCase):
         self.assertContains(response, "Ingresar")
 
     def test_login_redirige_a_pacientes_con_credenciales_validas(self):
-        get_user_model().objects.create_user(
+        usuario = get_user_model().objects.create_user(
             username="recepcion",
             password="Password123!",
         )
+        asignar_rol(usuario, ROL_RECEPCIONISTA)
 
         response = self.client.post(
             reverse("login"),
@@ -46,6 +55,16 @@ class PacienteAccessTests(TestCase):
 
         self.assertRedirects(response, f"{reverse('login')}?next={reverse('pacientes:lista')}")
 
+    def test_odontologo_no_puede_gestionar_pacientes(self):
+        usuario = get_user_model().objects.create_user(username="dr.pacientes")
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        Odontologo.objects.create(usuario=usuario, matricula="MN-PAC")
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("pacientes:lista"))
+
+        self.assertEqual(response.status_code, 403)
+
 
 class PacienteViewsTests(TestCase):
     def setUp(self):
@@ -53,6 +72,7 @@ class PacienteViewsTests(TestCase):
             username="usuario.pacientes",
             password="Password123!",
         )
+        asignar_rol(self.usuario, ROL_RECEPCIONISTA)
         self.client.force_login(self.usuario)
 
     def test_listado_muestra_pacientes(self):

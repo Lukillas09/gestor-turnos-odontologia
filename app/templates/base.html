@@ -282,6 +282,85 @@
             gap: 8px;
         }
 
+        .agenda-time {
+            color: var(--muted);
+            font-weight: 700;
+            vertical-align: top;
+        }
+
+        .agenda-turno {
+            display: grid;
+            gap: 4px;
+            border: 1px solid var(--line);
+            border-left-width: 4px;
+            border-radius: 6px;
+            padding: 10px 12px;
+            background: var(--surface);
+            white-space: normal;
+        }
+
+        .agenda-turno-pendiente {
+            border-left-color: #d97706;
+            background: #fff8e6;
+        }
+
+        .agenda-turno-confirmado {
+            border-left-color: #059669;
+            background: #ecfdf3;
+        }
+
+        .agenda-turno-cancelado {
+            border-left-color: #b42318;
+            background: #fef3f2;
+        }
+
+        .agenda-turno-realizado {
+            border-left-color: #4f46e5;
+            background: #eef2ff;
+        }
+
+        .agenda-turno-main {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-pendiente {
+            border-color: #fed7aa;
+            background: #fff7ed;
+            color: #9a3412;
+        }
+
+        .status-confirmado {
+            border-color: #a7f3d0;
+            background: #ecfdf3;
+            color: #047857;
+        }
+
+        .status-cancelado {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #b42318;
+        }
+
+        .status-realizado {
+            border-color: #c7d2fe;
+            background: #eef2ff;
+            color: #3730a3;
+        }
+
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -374,13 +453,21 @@
 <body>
     <header class="topbar">
         <div class="topbar-inner">
-            <a class="brand" href="{% url 'pacientes:lista' %}">Gestor de Turnos</a>
+            <a class="brand" href="{% url 'inicio' %}">Gestor de Turnos</a>
             <nav class="nav" aria-label="Principal">
+                <a href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
                 {% if request.user.is_authenticated %}
-                    <a href="{% url 'pacientes:lista' %}">Pacientes</a>
-                    <a href="{% url 'turnos:lista' %}">Turnos</a>
-                    <a href="{% url 'turnos:agenda_dia' %}">Agenda dia</a>
-                    <a href="{% url 'turnos:agenda_semana' %}">Agenda semana</a>
+                    {% if puede_gestionar_pacientes %}
+                        <a href="{% url 'pacientes:lista' %}">Pacientes</a>
+                    {% endif %}
+                    {% if puede_ver_turnos %}
+                        <a href="{% url 'turnos:lista' %}">Turnos</a>
+                        <a href="{% url 'turnos:agenda_dia' %}">Agenda dia</a>
+                        <a href="{% url 'turnos:agenda_semana' %}">Agenda semana</a>
+                    {% endif %}
+                    {% if request.user.is_staff and puede_configurar_disponibilidad %}
+                        <a href="{% url 'admin:index' %}">Admin</a>
+                    {% endif %}
                     <span class="nav-user">{{ request.user.get_username }}</span>
                     <form class="logout-form" method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
@@ -389,7 +476,6 @@
                 {% else %}
                     <a href="{% url 'login' %}">Ingresar</a>
                 {% endif %}
-                <a href="{% url 'admin:index' %}">Admin</a>
             </nav>
         </div>
     </header>

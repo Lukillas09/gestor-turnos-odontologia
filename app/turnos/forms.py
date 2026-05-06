@@ -2,6 +2,8 @@ from django import forms
 from django.db.models import Q
 from django.utils.dateparse import parse_date, parse_time
 
+from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
+
 from .models import Odontologo, Turno
 from .selectors import obtener_horarios_disponibles
 
@@ -56,18 +58,7 @@ class TurnoForm(forms.ModelForm):
         self.fields["odontologo"].empty_label = "Seleccionar odontologo"
 
 
-class TurnoCreateForm(TurnoForm):
-    hora_inicio = forms.TypedChoiceField(
-        choices=(),
-        coerce=convertir_a_hora,
-        empty_value=None,
-        label="Hora de inicio",
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._configurar_horarios_disponibles()
-
+class HorariosDisponiblesFormMixin:
     def _configurar_horarios_disponibles(self):
         odontologo = self._obtener_odontologo_seleccionado()
         fecha = self._obtener_fecha_seleccionada()
@@ -146,6 +137,19 @@ class TurnoCreateForm(TurnoForm):
         return horario.strftime("%H:%M")
 
 
+class TurnoCreateForm(HorariosDisponiblesFormMixin, TurnoForm):
+    hora_inicio = forms.TypedChoiceField(
+        choices=(),
+        coerce=convertir_a_hora,
+        empty_value=None,
+        label="Hora de inicio",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._configurar_horarios_disponibles()
+
+
 class TurnoHorarioBusquedaForm(forms.Form):
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True),
@@ -154,6 +158,38 @@ class TurnoHorarioBusquedaForm(forms.Form):
     fecha = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
     )
+
+
+class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
+    nombre = forms.CharField(max_length=100)
+    apellido = forms.CharField(max_length=100)
+    documento = forms.CharField(max_length=20, required=False, label="DNI")
+    telefono = forms.CharField(max_length=30, required=False)
+    email = forms.EmailField(required=False)
+    odontologo = forms.ModelChoiceField(
+        queryset=Odontologo.objects.filter(activo=True),
+        empty_label="Seleccionar odontologo",
+    )
+    fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    hora_inicio = forms.TypedChoiceField(
+        choices=(),
+        coerce=convertir_a_hora,
+        empty_value=None,
+        label="Horario",
+    )
+    motivo = forms.CharField(
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": "Ej: control, limpieza, urgencia"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._configurar_horarios_disponibles()
+
+    def clean_documento(self):
+        documento = self.cleaned_data["documento"].strip()
+        return documento or None
 
 
 class TurnoFiltroForm(forms.Form):
@@ -171,6 +207,10 @@ class TurnoFiltroForm(forms.Form):
         empty_label="Todos los odontologos",
     )
 
+    def __init__(self, *args, usuario=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        limitar_odontologos_por_usuario(self.fields["odontologo"], usuario)
+
 
 class AgendaFiltroForm(forms.Form):
     fecha = forms.DateField(
@@ -182,3 +222,22 @@ class AgendaFiltroForm(forms.Form):
         queryset=Odontologo.objects.filter(activo=True),
         empty_label="Todos los odontologos",
     )
+
+    def __init__(self, *args, usuario=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        limitar_odontologos_por_usuario(self.fields["odontologo"], usuario)
+
+
+def limitar_odontologos_por_usuario(campo_odontologo, usuario):
+    if not usuario or puede_gestionar_consultorio(usuario):
+        return
+
+    odontologo = obtener_odontologo_del_usuario(usuario)
+
+    if not odontologo:
+        campo_odontologo.queryset = Odontologo.objects.none()
+        return
+
+    campo_odontologo.queryset = Odontologo.objects.filter(pk=odontologo.pk, activo=True)
+    campo_odontologo.empty_label = None
+    campo_odontologo.initial = odontologo

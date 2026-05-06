@@ -13,6 +13,7 @@ En esta primera etapa se busca resolver:
 - Carga de pacientes.
 - Carga de odontologos.
 - Carga y gestion de turnos.
+- Solicitud publica de turnos para pacientes.
 - Validacion de horarios disponibles.
 - Prevencion de turnos superpuestos.
 - Preparacion para una futura integracion con Google Calendar.
@@ -38,6 +39,7 @@ Responsabilidad:
 - Configuracion general de Django.
 - Registro de apps instaladas.
 - Configuracion de autenticacion y redirecciones de login/logout.
+- Registro del context processor de permisos.
 - Configuracion de base de datos.
 - Configuracion de idioma, zona horaria y archivos estaticos.
 - Rutas principales del proyecto.
@@ -68,7 +70,9 @@ Responsabilidad:
 - Evitar turnos superpuestos.
 - Calcular horarios disponibles.
 - Guiar la creacion de turnos con horarios disponibles.
+- Resolver solicitudes publicas de turnos.
 - Mostrar agenda diaria y semanal simple.
+- Mostrar agenda diaria por bloques horarios con estados diferenciados visualmente.
 - Preparar la relacion futura con Google Calendar.
 
 Modelos principales:
@@ -78,6 +82,17 @@ Modelos principales:
 - `Turno`
 
 Esta app concentra las reglas iniciales del dominio de agenda.
+
+### usuarios
+
+Responsabilidad:
+
+- Centralizar roles y permisos internos.
+- Definir permisos de recepcionista, odontologo y administrador.
+- Redirigir a cada usuario a su pantalla inicial segun el rol.
+- Exponer permisos simples a las plantillas.
+
+Este modulo no representa pacientes ni turnos. Solo decide que puede hacer cada usuario dentro del sistema.
 
 ## Reglas de negocio actuales
 
@@ -99,7 +114,11 @@ El selector `obtener_horarios_disponibles` calcula horarios libres usando:
 
 El formulario de creacion de turnos consume ese selector para que la hora se elija desde una lista de horarios libres, en lugar de cargarla manualmente.
 
+El formulario publico de solicitud de turnos tambien consume ese selector y guarda los turnos nuevos como `pendiente`.
+
 Los selectores `obtener_turnos_del_dia` y `obtener_turnos_de_la_semana` concentran las consultas de agenda para que las vistas solo preparen contexto de presentacion.
+
+El selector `obtener_bloques_agenda_del_dia` arma bloques horarios para la agenda diaria. La vista usa esos bloques para mostrar espacios libres y turnos cargados sin agregar librerias externas.
 
 Estados actuales de un turno:
 
@@ -107,6 +126,17 @@ Estados actuales de un turno:
 - `confirmado`
 - `cancelado`
 - `realizado`
+
+## Roles actuales
+
+El sistema usa grupos de Django para separar responsabilidades:
+
+- `Recepcionista`: puede gestionar pacientes y turnos desde las vistas internas.
+- `Odontologo`: puede ver turnos propios, detalle y agenda filtrada a su perfil.
+- `Administrador`: puede configurar odontologos y disponibilidad desde Django Admin.
+
+Los permisos de acceso viven en `usuarios/roles.py` y los mixins de vistas en `usuarios/mixins.py`.
+Para acceder a Django Admin, el usuario tambien debe tener `is_staff` activo.
 
 ## Decisiones tomadas
 
@@ -122,7 +152,9 @@ Mas adelante se agregaran pantallas especificas para usuarios del consultorio.
 
 Las vistas internas de pacientes, turnos y agenda requieren sesion iniciada.
 
-Por ahora se utiliza la autenticacion nativa de Django. La separacion por roles queda como decision futura para no agregar permisos antes de que aparezca una necesidad concreta.
+Por ahora se utiliza la autenticacion nativa de Django con grupos para roles internos.
+
+El formulario publico de solicitud de turnos no requiere sesion iniciada.
 
 ### SQLite para desarrollo local
 
@@ -176,6 +208,7 @@ Esta estructura se va a crear solo cuando haga falta, no antes.
 Los siguientes casos de uso deberian vivir fuera del modelo cuando la logica crezca:
 
 - Crear turno.
+- Crear solicitud publica de turno.
 - Confirmar turno.
 - Cancelar turno.
 - Reprogramar turno.
@@ -190,6 +223,7 @@ confirmar_turno(...)
 cancelar_turno(...)
 reprogramar_turno(...)
 obtener_horarios_disponibles(...)
+crear_solicitud_turno_publica(...)
 ```
 
 ## Criterios de codigo limpio
@@ -217,7 +251,7 @@ Ejemplos posibles a futuro:
 - `notificaciones`
 - `integraciones`
 
-Por ahora, `pacientes` y `turnos` son suficientes.
+Por ahora, `pacientes`, `turnos` y `usuarios` son suficientes.
 
 ## Integracion futura con Google Calendar
 

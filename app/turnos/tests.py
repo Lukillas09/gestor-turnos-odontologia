@@ -1,6 +1,7 @@
 from datetime import date, time
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -8,11 +9,18 @@ from django.urls import reverse
 from pacientes.models import Paciente
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from turnos.selectors import (
+    obtener_bloques_agenda_del_dia,
     obtener_horarios_disponibles,
     obtener_inicio_semana,
     obtener_turnos_de_la_semana,
     obtener_turnos_del_dia,
 )
+from usuarios.roles import ROL_ODONTOLOGO, ROL_RECEPCIONISTA
+
+
+def asignar_rol(usuario, nombre_rol):
+    grupo, _ = Group.objects.get_or_create(name=nombre_rol)
+    usuario.groups.add(grupo)
 
 
 def crear_disponibilidad_laboral(odontologo, hora_inicio=time(9, 0), hora_fin=time(18, 0)):
@@ -138,6 +146,7 @@ class TurnoViewsTests(TestCase):
             first_name="Maria",
             last_name="Lopez",
         )
+        asignar_rol(usuario, ROL_RECEPCIONISTA)
         self.client.force_login(usuario)
         self.odontologo = Odontologo.objects.create(
             usuario=usuario,
@@ -404,6 +413,143 @@ class TurnoViewsTests(TestCase):
         self.assertEqual(Turno.objects.count(), 1)
 
 
+class SolicitudTurnoPublicaTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(
+            username="dra.publica",
+            first_name="Paula",
+            last_name="Publica",
+        )
+        self.odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-PUB",
+            duracion_turno_minutos=30,
+        )
+        crear_disponibilidad_laboral(self.odontologo)
+
+    def test_formulario_publico_no_requiere_login(self):
+        response = self.client.get(reverse("turnos:solicitud_publica"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Solicitar turno")
+        self.assertContains(response, "Enviar solicitud")
+
+    def test_formulario_publico_muestra_horarios_disponibles(self):
+        paciente = Paciente.objects.create(
+            nombre="Rita",
+            apellido="Moreno",
+            documento="37111222",
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(9, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(
+            reverse("turnos:solicitud_publica"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="09:00"')
+        self.assertContains(response, 'value="10:00"')
+        self.assertNotContains(response, 'value="09:30"')
+
+    def test_solicitud_publica_crea_paciente_y_turno_pendiente(self):
+        response = self.client.post(
+            reverse("turnos:solicitud_publica"),
+            {
+                "nombre": "Lucia",
+                "apellido": "Paz",
+                "documento": "38111222",
+                "telefono": "1155667788",
+                "email": "lucia@example.com",
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+                "hora_inicio": "10:00",
+                "motivo": "Consulta inicial",
+            },
+        )
+
+        turno = Turno.objects.get(motivo="Consulta inicial")
+
+        self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
+        self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
+        self.assertEqual(turno.paciente.documento, "38111222")
+        self.assertEqual(turno.hora_inicio, time(10, 0))
+
+    def test_solicitud_publica_reutiliza_paciente_por_documento(self):
+        paciente = Paciente.objects.create(
+            nombre="Viejo",
+            apellido="Nombre",
+            documento="39111222",
+        )
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica"),
+            {
+                "nombre": "Nadia",
+                "apellido": "Suarez",
+                "documento": "39111222",
+                "telefono": "1199999999",
+                "email": "nadia@example.com",
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+                "hora_inicio": "11:00",
+                "motivo": "Control",
+            },
+        )
+
+        paciente.refresh_from_db()
+        turno = Turno.objects.get(motivo="Control")
+
+        self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
+        self.assertEqual(Paciente.objects.filter(documento="39111222").count(), 1)
+        self.assertEqual(turno.paciente, paciente)
+        self.assertEqual(paciente.nombre, "Nadia")
+        self.assertEqual(paciente.email, "nadia@example.com")
+
+    def test_solicitud_publica_rechaza_horario_no_disponible(self):
+        paciente = Paciente.objects.create(
+            nombre="Mario",
+            apellido="Rojas",
+            documento="40111222",
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica"),
+            {
+                "nombre": "Clara",
+                "apellido": "Luna",
+                "documento": "41111222",
+                "telefono": "",
+                "email": "",
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+                "hora_inicio": "10:00",
+                "motivo": "Horario ocupado",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Turno.objects.filter(motivo="Horario ocupado").exists())
+        self.assertIn("hora_inicio", response.context["form"].errors)
+
+
 class HorariosDisponiblesTests(TestCase):
     def setUp(self):
         usuario = get_user_model().objects.create_user(
@@ -500,6 +646,103 @@ class TurnoAccessTests(TestCase):
         self.assertRedirects(self.client.post(url), f"{reverse('login')}?next={url}")
 
 
+class TurnoRoleTests(TestCase):
+    def setUp(self):
+        usuario_odontologo = get_user_model().objects.create_user(
+            username="dr.roles",
+            first_name="Ramon",
+            last_name="Roles",
+        )
+        asignar_rol(usuario_odontologo, ROL_ODONTOLOGO)
+        self.odontologo = Odontologo.objects.create(
+            usuario=usuario_odontologo,
+            matricula="MN-ROL",
+        )
+        crear_disponibilidad_laboral(self.odontologo)
+
+        otro_usuario = get_user_model().objects.create_user(
+            username="dra.otra",
+            first_name="Laura",
+            last_name="Otra",
+        )
+        self.otro_odontologo = Odontologo.objects.create(
+            usuario=otro_usuario,
+            matricula="MN-OTRA",
+        )
+        crear_disponibilidad_laboral(self.otro_odontologo)
+
+        self.paciente = Paciente.objects.create(
+            nombre="Marta",
+            apellido="Ruiz",
+            documento="36111222",
+        )
+        self.turno_propio = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Turno propio",
+        )
+        self.turno_ajeno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.otro_odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Turno ajeno",
+        )
+        self.client.force_login(usuario_odontologo)
+
+    def test_odontologo_lista_solo_sus_turnos(self):
+        response = self.client.get(reverse("turnos:lista"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Roles")
+        self.assertNotContains(response, "Otra")
+        self.assertNotContains(response, "Nuevo turno")
+        self.assertNotContains(response, "Editar")
+
+    def test_odontologo_puede_ver_detalle_de_turno_propio(self):
+        response = self.client.get(
+            reverse("turnos:detalle", kwargs={"pk": self.turno_propio.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Turno propio")
+        self.assertNotContains(response, "Cancelar turno")
+
+    def test_odontologo_no_puede_ver_turno_ajeno(self):
+        response = self.client.get(
+            reverse("turnos:detalle", kwargs={"pk": self.turno_ajeno.pk})
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_odontologo_no_puede_gestionar_turnos(self):
+        response_crear = self.client.get(reverse("turnos:crear"))
+        response_editar = self.client.get(
+            reverse("turnos:editar", kwargs={"pk": self.turno_propio.pk})
+        )
+        response_cancelar = self.client.post(
+            reverse("turnos:cancelar", kwargs={"pk": self.turno_propio.pk})
+        )
+
+        self.turno_propio.refresh_from_db()
+
+        self.assertEqual(response_crear.status_code, 403)
+        self.assertEqual(response_editar.status_code, 403)
+        self.assertEqual(response_cancelar.status_code, 403)
+        self.assertEqual(self.turno_propio.estado, Turno.Estado.PENDIENTE)
+
+    def test_agenda_de_odontologo_queda_filtrada_a_su_perfil(self):
+        response = self.client.get(reverse("turnos:agenda_dia"), {"fecha": "2026-05-08"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Turno propio")
+        self.assertNotContains(response, "Turno ajeno")
+
+
 class AgendaSelectorsTests(TestCase):
     def setUp(self):
         usuario = get_user_model().objects.create_user(
@@ -541,6 +784,24 @@ class AgendaSelectorsTests(TestCase):
     def test_obtiene_inicio_de_semana(self):
         self.assertEqual(obtener_inicio_semana(date(2026, 5, 8)), date(2026, 5, 4))
 
+    def test_obtiene_bloques_de_agenda_del_dia(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        bloques = obtener_bloques_agenda_del_dia(date(2026, 5, 8), self.odontologo)
+        bloque_de_turno = next(
+            bloque for bloque in bloques if bloque["hora_inicio"] == time(10, 0)
+        )
+
+        self.assertEqual(bloques[0]["hora_inicio"], time(9, 0))
+        self.assertEqual(bloques[-1]["hora_fin"], time(18, 0))
+        self.assertEqual(bloque_de_turno["turnos"], [turno])
+
     def test_obtiene_turnos_de_la_semana(self):
         turno_lunes = Turno.objects.create(
             paciente=self.paciente,
@@ -570,6 +831,7 @@ class AgendaViewsTests(TestCase):
             first_name="Ines",
             last_name="Costa",
         )
+        asignar_rol(usuario, ROL_RECEPCIONISTA)
         self.client.force_login(usuario)
         self.odontologo = Odontologo.objects.create(
             usuario=usuario,
@@ -604,6 +866,8 @@ class AgendaViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Control diario")
+        self.assertContains(response, "10:00 a 10:30")
+        self.assertContains(response, "status-pendiente")
         self.assertNotContains(response, "Fuera del dia")
 
     def test_agenda_diaria_filtra_por_odontologo(self):
@@ -665,6 +929,7 @@ class AgendaViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Inicio de semana")
+        self.assertContains(response, "status-pendiente")
         self.assertNotContains(response, "Fuera de la semana")
 
     def test_agenda_semanal_filtra_por_odontologo(self):

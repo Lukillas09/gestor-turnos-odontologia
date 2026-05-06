@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitud recibida | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Solicitud recibida</h1>
+            <p class="subtitle">El turno quedó registrado como pendiente.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
+        </div>
+    </div>
+
+    <section class="empty-state">
+        <p>El consultorio podrá confirmar o reprogramar la solicitud desde el panel interno.</p>
+    </section>
+{% endblock %}

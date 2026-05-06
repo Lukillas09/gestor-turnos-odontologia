@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitar turno | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Solicitar turno</h1>
+            <p class="subtitle">Solicitud pública para pacientes.</p>
+        </div>
+    </div>
+
+    <form class="filter-panel" method="get" novalidate>
+        {% if busqueda_form.non_field_errors %}
+            <div class="field-error field-full">{{ busqueda_form.non_field_errors }}</div>
+        {% endif %}
+
+        <div>
+            <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontologo</label>
+            {{ busqueda_form.odontologo }}
+            {% if busqueda_form.odontologo.errors %}
+                <div class="field-error">{{ busqueda_form.odontologo.errors }}</div>
+            {% endif %}
+        </div>
+        <div>
+            <label for="{{ busqueda_form.fecha.id_for_label }}">Fecha</label>
+            {{ busqueda_form.fecha }}
+            {% if busqueda_form.fecha.errors %}
+                <div class="field-error">{{ busqueda_form.fecha.errors }}</div>
+            {% endif %}
+        </div>
+        <div class="filter-actions">
+            <button type="submit">Ver horarios</button>
+            <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}">Limpiar</a>
+        </div>
+    </form>
+
+    <form class="form-panel" method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="field-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-grid">
+            {% for field in form %}
+                <div class="{% if field.name == 'motivo' %}field-full{% endif %}">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <p class="muted">{{ field.help_text }}</p>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="field-error">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit">Enviar solicitud</button>
+        </div>
+    </form>
+{% endblock %}
