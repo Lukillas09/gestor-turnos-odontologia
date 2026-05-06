@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from .models import DisponibilidadOdontologo, Odontologo, Turno
+from .models import (
+    DisponibilidadOdontologo,
+    GoogleCalendarConexion,
+    Odontologo,
+    Turno,
+)
 
 
 class DisponibilidadOdontologoInline(admin.TabularInline):
@@ -9,9 +14,23 @@ class DisponibilidadOdontologoInline(admin.TabularInline):
     fields = ("dia_semana", "hora_inicio", "hora_fin", "activo")
 
 
+class GoogleCalendarConexionInline(admin.StackedInline):
+    model = GoogleCalendarConexion
+    extra = 0
+    max_num = 1
+    fields = (
+        "calendar_id",
+        "activa",
+        "token_expira_en",
+        "sincronizado_en",
+        "ultimo_error",
+    )
+    readonly_fields = ("sincronizado_en",)
+
+
 @admin.register(Odontologo)
 class OdontologoAdmin(admin.ModelAdmin):
-    inlines = (DisponibilidadOdontologoInline,)
+    inlines = (DisponibilidadOdontologoInline, GoogleCalendarConexionInline)
     list_display = (
         "nombre",
         "apellido",
@@ -103,6 +122,85 @@ class DisponibilidadOdontologoAdmin(admin.ModelAdmin):
     autocomplete_fields = ("odontologo",)
     ordering = ("odontologo", "dia_semana", "hora_inicio")
     readonly_fields = ("creado_en", "actualizado_en")
+
+
+@admin.register(GoogleCalendarConexion)
+class GoogleCalendarConexionAdmin(admin.ModelAdmin):
+    list_display = (
+        "odontologo",
+        "calendar_id",
+        "activa",
+        "esta_conectada_display",
+        "access_token_expirado_display",
+        "token_expira_en",
+        "sincronizado_en",
+    )
+    list_filter = ("activa", "token_type")
+    search_fields = (
+        "odontologo__usuario__first_name",
+        "odontologo__usuario__last_name",
+        "odontologo__usuario__email",
+        "odontologo__matricula",
+        "calendar_id",
+    )
+    autocomplete_fields = ("odontologo",)
+    readonly_fields = ("creado_en", "actualizado_en", "sincronizado_en")
+    ordering = ("odontologo",)
+    fieldsets = (
+        (
+            "Odontologo",
+            {
+                "fields": (
+                    "odontologo",
+                    "calendar_id",
+                    "activa",
+                )
+            },
+        ),
+        (
+            "Token OAuth",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "access_token",
+                    "refresh_token",
+                    "token_type",
+                    "scopes",
+                    "token_expira_en",
+                ),
+                "description": (
+                    "Estos valores los debe escribir el flujo OAuth. "
+                    "No deben subirse al repositorio."
+                ),
+            },
+        ),
+        (
+            "Sincronizacion",
+            {
+                "fields": (
+                    "sincronizado_en",
+                    "ultimo_error",
+                )
+            },
+        ),
+        (
+            "Auditoria",
+            {
+                "fields": (
+                    "creado_en",
+                    "actualizado_en",
+                )
+            },
+        ),
+    )
+
+    @admin.display(boolean=True, description="Conectada")
+    def esta_conectada_display(self, obj):
+        return obj.esta_conectada
+
+    @admin.display(boolean=True, description="Access token expirado")
+    def access_token_expirado_display(self, obj):
+        return obj.access_token_expirado
 
 
 @admin.register(Turno)

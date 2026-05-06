@@ -16,7 +16,7 @@ En esta primera etapa se busca resolver:
 - Solicitud publica de turnos para pacientes.
 - Validacion de horarios disponibles.
 - Prevencion de turnos superpuestos.
-- Preparacion para una futura integracion con Google Calendar.
+- Preparacion para integracion con Google Calendar.
 
 ## Principios de diseno
 
@@ -74,14 +74,15 @@ Responsabilidad:
 - Resolver solicitudes publicas de turnos.
 - Mostrar agenda diaria y semanal simple.
 - Mostrar agenda diaria por bloques horarios con estados diferenciados visualmente.
-- Aislar la integracion futura con Google Calendar.
-- Preparar la relacion futura con Google Calendar.
+- Aislar la integracion con Google Calendar.
+- Sincronizar turnos con eventos externos sin acoplar vistas ni formularios.
 
 Modelos principales:
 
 - `Odontologo`
 - `DisponibilidadOdontologo`
 - `Turno`
+- `GoogleCalendarConexion`
 
 Esta app concentra las reglas iniciales del dominio de agenda.
 
@@ -209,7 +210,11 @@ La separacion esperada seria:
 
 Esta estructura se va a crear solo cuando haga falta, no antes.
 
-El modulo `turnos/integrations/google_calendar.py` ya existe como punto de entrada para leer configuracion OAuth sin mezclar credenciales ni llamadas externas con modelos, vistas o servicios.
+El modulo `turnos/integrations/google_calendar.py` prepara eventos de Google Calendar, lee configuracion OAuth, renueva access tokens y ejecuta llamadas HTTP a la API externa.
+
+El modulo `turnos/google_calendar_sync.py` coordina la sincronizacion desde el dominio: decide si corresponde crear, actualizar o cancelar un evento, y registra errores sin romper el guardado del turno.
+
+El modelo `GoogleCalendarConexion` guarda la relacion entre un `Odontologo` y su token OAuth. Es una relacion uno a uno porque cada odontologo debe conectar su propia agenda.
 
 ## Seguridad y secretos
 
@@ -223,6 +228,8 @@ No deben versionarse:
 - Credenciales OAuth de Google Cloud.
 - Tokens OAuth de odontologos.
 - Archivos JSON de credenciales o tokens.
+
+Los tokens OAuth se guardan en la base de datos mediante `GoogleCalendarConexion`. Para desarrollo alcanza con SQLite; antes de produccion se deberia evaluar cifrado de tokens, PostgreSQL y backups.
 
 Las variables actuales para Google Calendar son:
 
@@ -282,17 +289,20 @@ Ejemplos posibles a futuro:
 
 Por ahora, `pacientes`, `turnos` y `usuarios` son suficientes.
 
-## Integracion futura con Google Calendar
+## Integracion con Google Calendar
 
 La integracion con Google Calendar no debe quedar mezclada directamente dentro del modelo `Turno`.
 
-Cuando se implemente, deberia estar aislada en un modulo propio, por ejemplo:
+Las responsabilidades se separan asi:
 
 ```text
 turnos/integrations/google_calendar.py
+turnos/google_calendar_sync.py
 ```
 
-La app deberia poder crear turnos aunque Google Calendar falle temporalmente.
+La conexion OAuth queda asociada al modelo `GoogleCalendarConexion`, mientras que el `Turno` solo conserva el `google_calendar_event_id` del evento creado.
+
+La app puede crear, editar o cancelar turnos aunque Google Calendar falle temporalmente. En ese caso, el error se registra en `GoogleCalendarConexion.ultimo_error`.
 
 Esto ayuda a mantener bajo acoplamiento entre el dominio del sistema y un servicio externo.
 

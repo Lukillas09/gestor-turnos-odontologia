@@ -34,7 +34,13 @@ from .selectors import (
     obtener_turnos_de_la_semana,
     obtener_turnos_del_dia,
 )
-from .services import cancelar_turno, confirmar_turno, crear_solicitud_turno_publica
+from .services import (
+    actualizar_turno_desde_formulario,
+    cancelar_turno,
+    confirmar_turno,
+    crear_solicitud_turno_publica,
+    crear_turno_desde_formulario,
+)
 
 
 class TurnoListView(VerTurnosRequeridoMixin, ListView):
@@ -108,8 +114,9 @@ class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):
         return context
 
     def form_valid(self, form):
+        self.object = crear_turno_desde_formulario(form)
         messages.success(self.request, "Turno creado correctamente.")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
 
     def _obtener_busqueda_form(self):
         return TurnoHorarioBusquedaForm(self.request.GET or None)
@@ -203,8 +210,9 @@ class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        self.object = actualizar_turno_desde_formulario(form)
         messages.success(self.request, "Turno actualizado correctamente.")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
 
 
 class TurnoConfirmView(GestionConsultorioRequeridaMixin, View):

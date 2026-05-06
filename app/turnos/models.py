@@ -3,6 +3,7 @@ from datetime import datetime, time, timedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class Odontologo(models.Model):
@@ -234,3 +235,92 @@ class Turno(models.Model):
 
     def __str__(self):
         return f"{self.fecha} {self.hora_inicio} - {self.paciente}"
+
+
+class GoogleCalendarConexion(models.Model):
+    odontologo = models.OneToOneField(
+        Odontologo,
+        on_delete=models.CASCADE,
+        related_name="google_calendar_conexion",
+    )
+    calendar_id = models.CharField(max_length=255, default="primary")
+    access_token = models.TextField(blank=True)
+    refresh_token = models.TextField(blank=True)
+    token_type = models.CharField(max_length=50, default="Bearer")
+    scopes = models.JSONField(default=list, blank=True)
+    token_expira_en = models.DateTimeField(null=True, blank=True)
+    activa = models.BooleanField(default=True)
+    ultimo_error = models.TextField(blank=True)
+    sincronizado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["odontologo"]
+        verbose_name = "Conexion con Google Calendar"
+        verbose_name_plural = "Conexiones con Google Calendar"
+        indexes = [
+            models.Index(fields=["activa"]),
+        ]
+
+    @property
+    def esta_conectada(self):
+        return self.activa and bool(self.refresh_token)
+
+    @property
+    def access_token_expirado(self):
+        if not self.token_expira_en:
+            return False
+
+        return self.token_expira_en <= timezone.now()
+
+    @property
+    def necesita_renovar_access_token(self):
+        return self.esta_conectada and (
+            not self.access_token or self.access_token_expirado
+        )
+
+    def clean(self):
+        errors = {}
+
+        if not isinstance(self.scopes, list):
+            errors["scopes"] = "Los permisos OAuth deben guardarse como una lista."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def registrar_tokens(
+        self,
+        *,
+        access_token,
+        refresh_token="",
+        token_expira_en=None,
+        scopes=None,
+        token_type="Bearer",
+    ):
+        self.access_token = access_token
+        self.token_type = token_type or "Bearer"
+        self.token_expira_en = token_expira_en
+        self.ultimo_error = ""
+
+        if refresh_token:
+            self.refresh_token = refresh_token
+
+        if scopes is not None:
+            self.scopes = list(scopes)
+
+    def registrar_error(self, mensaje):
+        self.ultimo_error = mensaje
+        self.save(update_fields=["ultimo_error", "actualizado_en"])
+
+    def marcar_sincronizada(self):
+        self.sincronizado_en = timezone.now()
+        self.ultimo_error = ""
+        self.save(update_fields=["sincronizado_en", "ultimo_error", "actualizado_en"])
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Google Calendar - {self.odontologo}"

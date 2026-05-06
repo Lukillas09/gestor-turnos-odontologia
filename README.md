@@ -29,6 +29,8 @@ Actualmente incluye:
 - Creación de turnos guiada por horarios disponibles.
 - Formulario público para solicitar turnos.
 - Campo preparado para guardar el ID del evento de Google Calendar.
+- Modelo para guardar la conexión OAuth de Google Calendar por odontólogo.
+- Sincronización preparada para crear, actualizar y cancelar eventos de Google Calendar.
 - Tests iniciales para la lógica de turnos.
 
 Documentación técnica:
@@ -75,6 +77,7 @@ gestor-turnos-odontologia/
     └── turnos/
         ├── admin.py
         ├── apps.py
+        ├── google_calendar_sync.py
         ├── integrations/
         │   └── google_calendar.py
         ├── models.py
@@ -136,6 +139,7 @@ Desde el panel de administración se pueden cargar y administrar:
 
 - Pacientes
 - Odontólogos
+- Conexiones de odontólogos con Google Calendar
 - Turnos
 
 ## Configuración segura
@@ -352,15 +356,24 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Mejorar el formulario público con validaciones y mensajes más detallados.
-2. Integrar Google Calendar para crear, actualizar y cancelar eventos.
+1. Implementar el flujo OAuth para conectar la cuenta de Google del odontólogo desde la web.
+2. Probar la sincronización contra una cuenta real de Google Calendar.
 3. Agregar notificaciones por email.
 4. Preparar variables de entorno para producción.
 5. Cambiar SQLite por PostgreSQL antes del despliegue.
 
-## Integración futura con Google Calendar
+## Integración con Google Calendar
 
 El modelo de turnos ya incluye un campo para guardar el identificador del evento de Google Calendar.
+
+Además, existe el modelo `GoogleCalendarConexion`, asociado uno a uno con `Odontologo`, para guardar:
+
+- `calendar_id`
+- `access_token`
+- `refresh_token`
+- `scopes`
+- vencimiento del access token
+- estado de conexión y último error de sincronización
 
 La configuración base de Google Calendar ya está preparada desde variables de entorno y existe el módulo aislado:
 
@@ -368,11 +381,19 @@ La configuración base de Google Calendar ya está preparada desde variables de 
 app/turnos/integrations/google_calendar.py
 ```
 
-Más adelante, al crear o modificar un turno, la aplicación podrá:
+La sincronización de turnos vive en:
+
+```text
+app/turnos/google_calendar_sync.py
+```
+
+Cuando hay una conexión OAuth activa para el odontólogo, la aplicación intenta:
 
 - Crear un evento en Google Calendar.
 - Actualizar el evento si cambia el horario.
 - Cancelar o eliminar el evento si el turno se cancela.
+
+Si Google Calendar falla temporalmente, el turno se mantiene guardado y el error queda registrado en la conexión del odontólogo.
 
 ## Licencia
 
