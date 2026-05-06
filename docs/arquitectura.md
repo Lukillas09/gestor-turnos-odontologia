@@ -40,6 +40,7 @@ Responsabilidad:
 - Registro de apps instaladas.
 - Configuracion de autenticacion y redirecciones de login/logout.
 - Registro del context processor de permisos.
+- Carga de variables de entorno desde `.env`.
 - Configuracion de base de datos.
 - Configuracion de idioma, zona horaria y archivos estaticos.
 - Rutas principales del proyecto.
@@ -73,6 +74,7 @@ Responsabilidad:
 - Resolver solicitudes publicas de turnos.
 - Mostrar agenda diaria y semanal simple.
 - Mostrar agenda diaria por bloques horarios con estados diferenciados visualmente.
+- Aislar la integracion futura con Google Calendar.
 - Preparar la relacion futura con Google Calendar.
 
 Modelos principales:
@@ -206,6 +208,29 @@ La separacion esperada seria:
 - `tests.py`: pruebas del comportamiento del dominio.
 
 Esta estructura se va a crear solo cuando haga falta, no antes.
+
+El modulo `turnos/integrations/google_calendar.py` ya existe como punto de entrada para leer configuracion OAuth sin mezclar credenciales ni llamadas externas con modelos, vistas o servicios.
+
+## Seguridad y secretos
+
+La configuracion sensible vive fuera del codigo fuente.
+
+El archivo `.env.example` documenta las variables necesarias, pero los valores reales deben quedar en `.env`, que esta ignorado por Git.
+
+No deben versionarse:
+
+- Secret keys de Django.
+- Credenciales OAuth de Google Cloud.
+- Tokens OAuth de odontologos.
+- Archivos JSON de credenciales o tokens.
+
+Las variables actuales para Google Calendar son:
+
+- `GOOGLE_CALENDAR_CLIENT_ID`
+- `GOOGLE_CALENDAR_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`
+- `GOOGLE_CALENDAR_REDIRECT_URI`
+- `GOOGLE_CALENDAR_SCOPES`
 
 ## Casos de uso futuros
 

@@ -41,6 +41,7 @@ Documentación técnica:
 - Django 6.0.4
 - SQLite para desarrollo local
 - Django Admin como primera interfaz de gestión
+- Variables de entorno para configuración sensible
 
 ## Estructura del proyecto
 
@@ -74,6 +75,8 @@ gestor-turnos-odontologia/
     └── turnos/
         ├── admin.py
         ├── apps.py
+        ├── integrations/
+        │   └── google_calendar.py
         ├── models.py
         ├── tests.py
         └── migrations/
@@ -88,6 +91,14 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
+
+Crear el archivo local de variables de entorno:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+El archivo `.env` es local y no se sube a Git. Ahi se configuran secretos, credenciales OAuth y valores propios del entorno.
 
 Entrar a la carpeta de la aplicación Django:
 
@@ -126,6 +137,29 @@ Desde el panel de administración se pueden cargar y administrar:
 - Pacientes
 - Odontólogos
 - Turnos
+
+## Configuración segura
+
+El proyecto lee configuración desde variables de entorno.
+
+Variables principales:
+
+- `DJANGO_SECRET_KEY`
+- `DJANGO_DEBUG`
+- `DJANGO_ALLOWED_HOSTS`
+- `DJANGO_CSRF_TRUSTED_ORIGINS`
+- `GOOGLE_CALENDAR_CLIENT_ID`
+- `GOOGLE_CALENDAR_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`
+- `GOOGLE_CALENDAR_REDIRECT_URI`
+- `GOOGLE_CALENDAR_SCOPES`
+
+No se deben versionar:
+
+- `.env`
+- Credenciales OAuth descargadas desde Google Cloud.
+- Tokens OAuth generados por usuarios.
+- Archivos `client_secret*.json`, `credentials*.json` o `token*.json`.
 
 ## Interfaz web inicial
 
@@ -327,6 +361,12 @@ Próximos pasos sugeridos:
 ## Integración futura con Google Calendar
 
 El modelo de turnos ya incluye un campo para guardar el identificador del evento de Google Calendar.
+
+La configuración base de Google Calendar ya está preparada desde variables de entorno y existe el módulo aislado:
+
+```text
+app/turnos/integrations/google_calendar.py
+```
 
 Más adelante, al crear o modificar un turno, la aplicación podrá:
 

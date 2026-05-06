@@ -12,20 +12,28 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+from .env import cargar_env, env, env_bool, env_list
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+cargar_env(BASE_DIR.parent / ".env")
+cargar_env(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-f_kw(+*r@m=es+4fs1%go(-*4$fwuxftz_j=w=%*uij&k)$#@z'
+# SECURITY WARNING: keep the secret key used in production secret.
+SECRET_KEY = env("DJANGO_SECRET_KEY", "django-insecure-local-development-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DJANGO_DEBUG", True)
 
-ALLOWED_HOSTS = []
+if not DEBUG and SECRET_KEY == "django-insecure-local-development-key":
+    raise RuntimeError("DJANGO_SECRET_KEY debe configurarse cuando DJANGO_DEBUG=False.")
+
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["127.0.0.1", "localhost", "testserver"])
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 
 # Application definition
@@ -125,3 +133,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'inicio'
 LOGOUT_REDIRECT_URL = 'login'
+
+GOOGLE_CALENDAR_CLIENT_ID = env("GOOGLE_CALENDAR_CLIENT_ID")
+GOOGLE_CALENDAR_CLIENT_SECRET = env("GOOGLE_CALENDAR_CLIENT_SECRET")
+GOOGLE_CALENDAR_CLIENT_SECRETS_FILE = env("GOOGLE_CALENDAR_CLIENT_SECRETS_FILE")
+GOOGLE_CALENDAR_REDIRECT_URI = env(
+    "GOOGLE_CALENDAR_REDIRECT_URI",
+    "http://127.0.0.1:8000/google/oauth2/callback/",
+)
+GOOGLE_CALENDAR_SCOPES = env_list(
+    "GOOGLE_CALENDAR_SCOPES",
+    ["https://www.googleapis.com/auth/calendar.events"],
+)
