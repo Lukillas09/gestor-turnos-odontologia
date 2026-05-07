@@ -32,6 +32,7 @@ Actualmente incluye:
 - Modelo para guardar la conexión OAuth de Google Calendar por odontólogo.
 - Sincronización preparada para crear, actualizar y cancelar eventos de Google Calendar.
 - Flujo OAuth visual para conectar Google Calendar desde la web.
+- Integración real con Google Calendar probada de punta a punta.
 - Tests iniciales para la lógica de turnos.
 
 Documentación técnica:
@@ -366,11 +367,11 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Configurar credenciales OAuth reales en Google Cloud.
-2. Probar la sincronización contra una cuenta real de Google Calendar.
-3. Agregar notificaciones por email.
-4. Preparar variables de entorno para producción.
-5. Cambiar SQLite por PostgreSQL antes del despliegue.
+1. Agregar notificaciones por email.
+2. Preparar variables de entorno para producción.
+3. Cambiar SQLite por PostgreSQL antes del despliegue.
+4. Evaluar cifrado de tokens OAuth antes de producción.
+5. Preparar deploy en Render, Railway, Fly.io o VPS.
 
 ## Integración con Google Calendar
 
@@ -422,6 +423,8 @@ Cuando hay una conexión OAuth activa para el odontólogo, la aplicación intent
 - Cancelar o eliminar el evento si el turno se cancela.
 
 Si Google Calendar falla temporalmente, el turno se mantiene guardado y el error queda registrado en la conexión del odontólogo.
+
+La integración fue probada contra Google Calendar real: creación, actualización y cancelación de un evento de prueba.
 
 ## Licencia
 
