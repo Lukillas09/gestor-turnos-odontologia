@@ -1,5 +1,6 @@
 from datetime import date, time, timedelta
 from io import StringIO
+from unittest.mock import patch
 
 from django.core import mail
 from django.contrib.auth import get_user_model
@@ -13,6 +14,7 @@ from django.utils import timezone
 
 from pacientes.models import Paciente
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
+from turnos.notifications import notificar_turno_confirmado
 from turnos.selectors import (
     obtener_bloques_agenda_del_dia,
     obtener_horarios_disponibles,
@@ -782,6 +784,39 @@ class TurnoEmailNotificationTests(TestCase):
 
         self.assertEqual(mail.outbox, [])
 
+    def test_error_smtp_no_interrumpe_confirmacion_del_turno(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        with self.assertLogs("turnos.notifications", level="ERROR"):
+            with patch("turnos.notifications.send_mail", side_effect=OSError("SMTP caido")):
+                response = self.client.post(reverse("turnos:confirmar", kwargs={"pk": turno.pk}))
+
+        turno.refresh_from_db()
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertEqual(turno.estado, Turno.Estado.CONFIRMADO)
+
+    def test_notificacion_puede_fallar_fuerte_para_pruebas_reales(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        with self.assertLogs("turnos.notifications", level="ERROR"):
+            with patch("turnos.notifications.send_mail", side_effect=OSError("SMTP caido")):
+                with self.assertRaises(OSError):
+                    notificar_turno_confirmado(turno, fail_silently=False)
+
 
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
@@ -802,6 +837,24 @@ class EmailManagementCommandTests(TestCase):
     def test_probar_email_rechaza_destinatario_invalido(self):
         with self.assertRaises(CommandError):
             call_command("probar_email", "email-invalido")
+
+    def test_probar_notificaciones_email_envia_los_tres_mensajes(self):
+        salida = StringIO()
+
+        call_command("probar_notificaciones_email", "destino@example.com", stdout=salida)
+
+        self.assertEqual(len(mail.outbox), 3)
+        self.assertEqual(mail.outbox[0].to, ["destino@example.com"])
+        self.assertEqual(mail.outbox[1].to, ["destino@example.com"])
+        self.assertEqual(mail.outbox[2].to, ["destino@example.com"])
+        self.assertIn("Recibimos tu solicitud de turno", mail.outbox[0].subject)
+        self.assertIn("Tu turno fue confirmado", mail.outbox[1].subject)
+        self.assertIn("Tu turno fue cancelado", mail.outbox[2].subject)
+        self.assertIn("Se enviaron 3 notificaciones a destino@example.com.", salida.getvalue())
+
+    def test_probar_notificaciones_email_rechaza_destinatario_invalido(self):
+        with self.assertRaises(CommandError):
+            call_command("probar_notificaciones_email", "email-invalido")
 
 
 class HorariosDisponiblesTests(TestCase):

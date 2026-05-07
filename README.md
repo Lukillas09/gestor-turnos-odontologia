@@ -6,7 +6,7 @@ El objetivo del proyecto es construir, paso a paso, un sistema que permita carga
 
 ## Estado actual
 
-El proyecto se encuentra en una etapa inicial funcional.
+El proyecto se encuentra en una etapa funcional de panel interno, reglas de agenda e integraciones iniciales.
 
 Actualmente incluye:
 
@@ -34,7 +34,9 @@ Actualmente incluye:
 - Flujo OAuth visual para conectar Google Calendar desde la web.
 - Integración real con Google Calendar probada de punta a punta.
 - Emails de confirmación para solicitud, confirmación y cancelación de turnos.
-- Tests iniciales para la lógica de turnos.
+- Configuración SMTP real por variables de entorno, probada con envío real.
+- Comando para probar las tres notificaciones de email con plantillas reales.
+- Tests automatizados para la lógica de turnos, permisos, agenda, Google Calendar y emails.
 
 Documentación técnica:
 
@@ -47,6 +49,7 @@ Documentación técnica:
 - SQLite para desarrollo local
 - Django Admin como primera interfaz de gestión
 - Variables de entorno para configuración sensible
+- SMTP para emails transaccionales
 
 ## Estructura del proyecto
 
@@ -84,8 +87,15 @@ gestor-turnos-odontologia/
         ├── google_calendar_sync.py
         ├── integrations/
         │   └── google_calendar.py
+        ├── management/
+        │   └── commands/
+        │       ├── probar_email.py
+        │       └── probar_notificaciones_email.py
         ├── models.py
         ├── notifications.py
+        ├── templates/
+        │   └── turnos/
+        │       └── emails/
         ├── tests.py
         └── migrations/
 ```
@@ -276,6 +286,14 @@ Emails al paciente:
 
 En desarrollo, el backend por defecto imprime los emails en consola. Para enviar emails reales hay que configurar SMTP desde `.env`.
 
+El envio se dispara desde la capa de servicios de turnos:
+
+- `crear_solicitud_turno_publica`: envia solicitud recibida al email del paciente.
+- `confirmar_turno`: envia turno confirmado al email del paciente.
+- `cancelar_turno`: envia turno cancelado al email del paciente.
+
+Si el paciente no tiene email cargado, no se intenta enviar. Si SMTP falla, el turno no se pierde y el error queda registrado para poder revisarlo.
+
 Configuración local de desarrollo:
 
 ```env
@@ -315,6 +333,14 @@ Para probar la configuracion activa de email:
 ```powershell
 python manage.py probar_email tu-email@example.com
 ```
+
+Para probar las tres notificaciones de turnos con las plantillas reales:
+
+```powershell
+python manage.py probar_notificaciones_email tu-email@example.com
+```
+
+Este comando fue validado con SMTP real en desarrollo. Para que funcione en otra máquina hay que cargar las credenciales SMTP propias en `.env`.
 
 Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
 
@@ -434,8 +460,8 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Cargar credenciales SMTP reales en `.env` y validar con `python manage.py probar_email tu-email@example.com`.
-2. Agregar recordatorios antes del turno.
+1. Agregar recordatorios antes del turno.
+2. Definir si los recordatorios se enviarán por email con un comando manual o con una tarea programada.
 3. Preparar variables de entorno para producción.
 4. Cambiar SQLite por PostgreSQL antes del despliegue.
 5. Evaluar cifrado de tokens OAuth antes de producción.

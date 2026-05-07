@@ -261,13 +261,27 @@ Los mensajes al paciente estan separados en plantillas de texto:
 - `turnos/templates/turnos/emails/turno_confirmado.txt`
 - `turnos/templates/turnos/emails/turno_cancelado.txt`
 
+Las notificaciones se ejecutan desde los casos de uso de turnos:
+
+- `crear_solicitud_turno_publica`
+- `confirmar_turno`
+- `cancelar_turno`
+
+Si el paciente no tiene email, la notificacion se omite. Si SMTP falla durante una accion real del consultorio, el turno mantiene su cambio de estado y el error queda registrado para diagnostico.
+
 La configuracion SMTP activa se puede validar con:
 
 ```powershell
 python manage.py probar_email tu-email@example.com
 ```
 
-El comando usa las variables `EMAIL_*` vigentes. Si el backend sigue siendo `console.EmailBackend`, el email aparece en consola; si se cambia a `smtp.EmailBackend`, se intenta enviar por el proveedor real.
+Las tres plantillas de notificaciones se pueden probar con:
+
+```powershell
+python manage.py probar_notificaciones_email tu-email@example.com
+```
+
+Los comandos usan las variables `EMAIL_*` vigentes. Si el backend sigue siendo `console.EmailBackend`, el email aparece en consola; si se cambia a `smtp.EmailBackend`, se intenta enviar por el proveedor real.
 
 ## Casos de uso futuros
 
