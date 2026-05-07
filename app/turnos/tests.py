@@ -1,9 +1,10 @@
 from datetime import date, time, timedelta
 
+from django.core import mail
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -672,6 +673,111 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "Elegi un odontologo.")
         self.assertContains(response, "Elegi una fecha.")
         self.assertContains(response, "Elegi un horario disponible.")
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="turnos@example.com",
+)
+class TurnoEmailNotificationTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(
+            username="recepcion.email",
+            first_name="Rocio",
+            last_name="Email",
+        )
+        asignar_rol(usuario, ROL_RECEPCIONISTA)
+        self.client.force_login(usuario)
+        self.odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-EMAIL",
+            duracion_turno_minutos=30,
+        )
+        crear_disponibilidad_laboral(self.odontologo)
+        self.paciente = Paciente.objects.create(
+            nombre="Paula",
+            apellido="Correo",
+            documento="45111222",
+            email="paula@example.com",
+        )
+
+    def test_solicitud_publica_envia_email_al_paciente(self):
+        self.client.logout()
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica"),
+            {
+                "nombre": "Lucia",
+                "apellido": "Mail",
+                "documento": "46111222",
+                "telefono": "1155667788",
+                "email": "lucia@example.com",
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+                "hora_inicio": "10:00",
+                "motivo": "Consulta inicial",
+            },
+        )
+
+        self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["lucia@example.com"])
+        self.assertIn("Recibimos tu solicitud de turno", mail.outbox[0].subject)
+        self.assertIn("Pendiente", mail.outbox[0].body)
+
+    def test_confirmar_turno_envia_email_al_paciente(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Control",
+        )
+
+        response = self.client.post(reverse("turnos:confirmar", kwargs={"pk": turno.pk}))
+
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["paula@example.com"])
+        self.assertIn("Tu turno fue confirmado", mail.outbox[0].subject)
+        self.assertIn("Confirmado", mail.outbox[0].body)
+
+    def test_cancelar_turno_envia_email_al_paciente(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control",
+        )
+
+        response = self.client.post(reverse("turnos:cancelar", kwargs={"pk": turno.pk}))
+
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["paula@example.com"])
+        self.assertIn("Tu turno fue cancelado", mail.outbox[0].subject)
+        self.assertIn("Cancelado", mail.outbox[0].body)
+
+    def test_no_envia_email_si_el_paciente_no_tiene_email(self):
+        self.paciente.email = ""
+        self.paciente.save(update_fields=["email", "actualizado_en"])
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        self.client.post(reverse("turnos:confirmar", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(mail.outbox, [])
 
 
 class HorariosDisponiblesTests(TestCase):

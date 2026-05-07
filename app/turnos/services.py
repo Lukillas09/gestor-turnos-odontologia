@@ -6,6 +6,11 @@ from .google_calendar_sync import (
     sincronizar_turno_creado,
 )
 from .models import Turno
+from .notifications import (
+    notificar_solicitud_turno_recibida,
+    notificar_turno_cancelado,
+    notificar_turno_confirmado,
+)
 
 
 def crear_turno_desde_formulario(form):
@@ -27,6 +32,7 @@ def confirmar_turno(turno):
     turno.estado = Turno.Estado.CONFIRMADO
     turno.save(update_fields=["estado", "actualizado_en"])
     sincronizar_turno_actualizado(turno)
+    notificar_turno_confirmado(turno)
     return turno
 
 
@@ -37,6 +43,7 @@ def cancelar_turno(turno):
     turno.estado = Turno.Estado.CANCELADO
     turno.save(update_fields=["estado", "actualizado_en"])
     sincronizar_turno_cancelado(turno)
+    notificar_turno_cancelado(turno)
     return turno
 
 
@@ -54,6 +61,7 @@ def crear_solicitud_turno_publica(datos):
         estado=Turno.Estado.PENDIENTE,
     )
     sincronizar_turno_creado(turno)
+    notificar_solicitud_turno_recibida(turno)
     return turno
 
 

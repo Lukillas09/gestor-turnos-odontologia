@@ -74,6 +74,7 @@ Responsabilidad:
 - Resolver solicitudes publicas de turnos.
 - Mostrar agenda diaria y semanal simple.
 - Mostrar agenda diaria por bloques horarios con estados diferenciados visualmente.
+- Enviar notificaciones por email relacionadas con turnos.
 - Aislar la integracion con Google Calendar.
 - Sincronizar turnos con eventos externos sin acoplar vistas ni formularios.
 
@@ -218,6 +219,8 @@ El modulo `turnos/google_calendar_oauth.py` guarda y desconecta tokens OAuth aso
 
 El modelo `GoogleCalendarConexion` guarda la relacion entre un `Odontologo` y su token OAuth. Es una relacion uno a uno porque cada odontologo debe conectar su propia agenda.
 
+El modulo `turnos/notifications.py` concentra los emails del dominio de turnos. Los servicios lo llaman cuando una solicitud publica queda pendiente, cuando un turno se confirma y cuando un turno se cancela.
+
 ## Seguridad y secretos
 
 La configuracion sensible vive fuera del codigo fuente.
@@ -240,6 +243,14 @@ Las variables actuales para Google Calendar son:
 - `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`
 - `GOOGLE_CALENDAR_REDIRECT_URI`
 - `GOOGLE_CALENDAR_SCOPES`
+- `EMAIL_BACKEND`
+- `EMAIL_HOST`
+- `EMAIL_PORT`
+- `EMAIL_HOST_USER`
+- `EMAIL_HOST_PASSWORD`
+- `EMAIL_USE_TLS`
+- `EMAIL_USE_SSL`
+- `DEFAULT_FROM_EMAIL`
 
 ## Casos de uso futuros
 
@@ -252,6 +263,7 @@ Los siguientes casos de uso deberian vivir fuera del modelo cuando la logica cre
 - Reprogramar turno.
 - Buscar horarios disponibles.
 - Sincronizar turno con Google Calendar.
+- Enviar notificaciones de turno.
 
 Ejemplo de nombres esperados:
 

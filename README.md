@@ -33,6 +33,7 @@ Actualmente incluye:
 - Sincronización preparada para crear, actualizar y cancelar eventos de Google Calendar.
 - Flujo OAuth visual para conectar Google Calendar desde la web.
 - Integración real con Google Calendar probada de punta a punta.
+- Emails de confirmación para solicitud, confirmación y cancelación de turnos.
 - Tests iniciales para la lógica de turnos.
 
 Documentación técnica:
@@ -84,6 +85,7 @@ gestor-turnos-odontologia/
         ├── integrations/
         │   └── google_calendar.py
         ├── models.py
+        ├── notifications.py
         ├── tests.py
         └── migrations/
 ```
@@ -155,6 +157,14 @@ Variables principales:
 - `DJANGO_DEBUG`
 - `DJANGO_ALLOWED_HOSTS`
 - `DJANGO_CSRF_TRUSTED_ORIGINS`
+- `EMAIL_BACKEND`
+- `EMAIL_HOST`
+- `EMAIL_PORT`
+- `EMAIL_HOST_USER`
+- `EMAIL_HOST_PASSWORD`
+- `EMAIL_USE_TLS`
+- `EMAIL_USE_SSL`
+- `DEFAULT_FROM_EMAIL`
 - `GOOGLE_CALENDAR_CLIENT_ID`
 - `GOOGLE_CALENDAR_CLIENT_SECRET`
 - `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`
@@ -256,6 +266,14 @@ http://127.0.0.1:8000/turnos/google-calendar/
 ```
 
 Desde esa pantalla el odontologo puede iniciar OAuth, conectar su cuenta de Google y desconectarla si lo necesita.
+
+Emails al paciente:
+
+- Al solicitar un turno público, se envía un email informando que quedó pendiente.
+- Al confirmar un turno pendiente, se envía un email de confirmación.
+- Al cancelar un turno, se envía un email de cancelación.
+
+En desarrollo, el backend por defecto imprime los emails en consola. Para enviar emails reales hay que configurar SMTP desde `.env`.
 
 ### Pacientes
 
@@ -367,11 +385,11 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Agregar notificaciones por email.
-2. Preparar variables de entorno para producción.
-3. Cambiar SQLite por PostgreSQL antes del despliegue.
-4. Evaluar cifrado de tokens OAuth antes de producción.
-5. Preparar deploy en Render, Railway, Fly.io o VPS.
+1. Configurar un proveedor SMTP real para enviar emails fuera del entorno local.
+2. Agregar recordatorios antes del turno.
+3. Preparar variables de entorno para producción.
+4. Cambiar SQLite por PostgreSQL antes del despliegue.
+5. Evaluar cifrado de tokens OAuth antes de producción.
 
 ## Integración con Google Calendar
 
