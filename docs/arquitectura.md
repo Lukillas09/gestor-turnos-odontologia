@@ -214,6 +214,8 @@ El modulo `turnos/integrations/google_calendar.py` prepara eventos de Google Cal
 
 El modulo `turnos/google_calendar_sync.py` coordina la sincronizacion desde el dominio: decide si corresponde crear, actualizar o cancelar un evento, y registra errores sin romper el guardado del turno.
 
+El modulo `turnos/google_calendar_oauth.py` guarda y desconecta tokens OAuth asociados al odontologo.
+
 El modelo `GoogleCalendarConexion` guarda la relacion entre un `Odontologo` y su token OAuth. Es una relacion uno a uno porque cada odontologo debe conectar su propia agenda.
 
 ## Seguridad y secretos
@@ -297,10 +299,13 @@ Las responsabilidades se separan asi:
 
 ```text
 turnos/integrations/google_calendar.py
+turnos/google_calendar_oauth.py
 turnos/google_calendar_sync.py
 ```
 
 La conexion OAuth queda asociada al modelo `GoogleCalendarConexion`, mientras que el `Turno` solo conserva el `google_calendar_event_id` del evento creado.
+
+La pantalla `/turnos/google-calendar/` permite al odontologo iniciar el flujo OAuth. El callback `/turnos/google-calendar/callback/` valida el `state`, intercambia el `code` por tokens y guarda la conexion.
 
 La app puede crear, editar o cancelar turnos aunque Google Calendar falle temporalmente. En ese caso, el error se registra en `GoogleCalendarConexion.ultimo_error`.
 

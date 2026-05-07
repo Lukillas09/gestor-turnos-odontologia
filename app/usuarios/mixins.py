@@ -1,7 +1,11 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 
-from .roles import puede_gestionar_consultorio, puede_ver_turnos
+from .roles import (
+    puede_conectar_google_calendar,
+    puede_gestionar_consultorio,
+    puede_ver_turnos,
+)
 
 
 class RolRequeridoMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -20,3 +24,8 @@ class GestionConsultorioRequeridaMixin(RolRequeridoMixin):
 class VerTurnosRequeridoMixin(RolRequeridoMixin):
     def test_func(self):
         return puede_ver_turnos(self.request.user)
+
+
+class GoogleCalendarRequeridoMixin(RolRequeridoMixin):
+    def test_func(self):
+        return puede_conectar_google_calendar(self.request.user)

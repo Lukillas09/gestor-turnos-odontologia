@@ -313,6 +313,25 @@ class GoogleCalendarConexion(models.Model):
         self.ultimo_error = mensaje
         self.save(update_fields=["ultimo_error", "actualizado_en"])
 
+    def desconectar(self):
+        self.access_token = ""
+        self.refresh_token = ""
+        self.token_expira_en = None
+        self.scopes = []
+        self.activa = False
+        self.ultimo_error = ""
+        self.save(
+            update_fields=[
+                "access_token",
+                "refresh_token",
+                "token_expira_en",
+                "scopes",
+                "activa",
+                "ultimo_error",
+                "actualizado_en",
+            ]
+        )
+
     def marcar_sincronizada(self):
         self.sincronizado_en = timezone.now()
         self.ultimo_error = ""

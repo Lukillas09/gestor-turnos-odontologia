@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -14,6 +14,7 @@ from turnos.models import Turno
 
 CALENDARIO_PRINCIPAL = "primary"
 GOOGLE_CALENDAR_API_BASE_URL = "https://www.googleapis.com/calendar/v3"
+GOOGLE_OAUTH_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 HTTP_TIMEOUT_SEGUNDOS = 10
 
@@ -82,6 +83,15 @@ class GoogleCalendarEvento:
             payload["extendedProperties"] = {"private": self.metadata_privada}
 
         return payload
+
+
+@dataclass(frozen=True)
+class GoogleOAuthTokens:
+    access_token: str
+    refresh_token: str
+    token_type: str
+    token_expira_en: datetime | None = None
+    scopes: list[str] | None = None
 
 
 class GoogleCalendarClient:
@@ -199,6 +209,61 @@ def obtener_configuracion_google_calendar():
     )
 
 
+def construir_url_autorizacion_google_calendar(state, login_hint=""):
+    configuracion = obtener_configuracion_google_calendar()
+
+    if not configuracion.client_id:
+        raise GoogleCalendarCredencialesOAuthIncompletasError(
+            "Falta GOOGLE_CALENDAR_CLIENT_ID para iniciar OAuth."
+        )
+
+    parametros = {
+        "client_id": configuracion.client_id,
+        "redirect_uri": configuracion.redirect_uri,
+        "response_type": "code",
+        "scope": " ".join(configuracion.scopes),
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true",
+        "state": state,
+    }
+
+    if login_hint:
+        parametros["login_hint"] = login_hint
+
+    return f"{GOOGLE_OAUTH_AUTH_URL}?{urlencode(parametros)}"
+
+
+def intercambiar_codigo_por_tokens(code):
+    configuracion = obtener_configuracion_google_calendar()
+
+    if not configuracion.client_id or not configuracion.client_secret:
+        raise GoogleCalendarCredencialesOAuthIncompletasError(
+            "Faltan GOOGLE_CALENDAR_CLIENT_ID o GOOGLE_CALENDAR_CLIENT_SECRET."
+        )
+
+    payload = urlencode(
+        {
+            "client_id": configuracion.client_id,
+            "client_secret": configuracion.client_secret,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": configuracion.redirect_uri,
+        }
+    ).encode("utf-8")
+    request = Request(
+        GOOGLE_OAUTH_TOKEN_URL,
+        data=payload,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    respuesta = _ejecutar_request_json(request)
+    return _construir_tokens_desde_respuesta(respuesta)
+
+
 def crear_cliente_desde_conexion(conexion):
     if conexion.necesita_renovar_access_token:
         renovar_access_token(conexion)
@@ -240,31 +305,14 @@ def renovar_access_token(conexion):
         method="POST",
     )
     respuesta = _ejecutar_request_json(request)
-    access_token = respuesta.get("access_token")
-
-    if not access_token:
-        raise GoogleCalendarHTTPError(
-            "Google no devolvio un access token al renovar la conexion OAuth."
-        )
-
-    expires_in = respuesta.get("expires_in")
-    token_expira_en = None
-
-    if expires_in:
-        token_expira_en = timezone.now() + timedelta(seconds=int(expires_in))
-
-    scopes = None
-    scopes_respuesta = respuesta.get("scope")
-
-    if scopes_respuesta:
-        scopes = scopes_respuesta.split()
+    tokens = _construir_tokens_desde_respuesta(respuesta)
 
     conexion.registrar_tokens(
-        access_token=access_token,
-        refresh_token=respuesta.get("refresh_token", ""),
-        token_expira_en=token_expira_en,
-        scopes=scopes,
-        token_type=respuesta.get("token_type", "Bearer"),
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_expira_en=tokens.token_expira_en,
+        scopes=tokens.scopes,
+        token_type=tokens.token_type,
     )
     conexion.save()
     return conexion
@@ -333,6 +381,35 @@ def _obtener_estado_google(turno):
         return "tentative"
 
     return "confirmed"
+
+
+def _construir_tokens_desde_respuesta(respuesta):
+    access_token = respuesta.get("access_token")
+
+    if not access_token:
+        raise GoogleCalendarHTTPError(
+            "Google no devolvio un access token en la respuesta OAuth."
+        )
+
+    expires_in = respuesta.get("expires_in")
+    token_expira_en = None
+
+    if expires_in:
+        token_expira_en = timezone.now() + timedelta(seconds=int(expires_in))
+
+    scopes = None
+    scopes_respuesta = respuesta.get("scope")
+
+    if scopes_respuesta:
+        scopes = scopes_respuesta.split()
+
+    return GoogleOAuthTokens(
+        access_token=access_token,
+        refresh_token=respuesta.get("refresh_token", ""),
+        token_type=respuesta.get("token_type", "Bearer"),
+        token_expira_en=token_expira_en,
+        scopes=scopes,
+    )
 
 
 def _ejecutar_request_json(request):

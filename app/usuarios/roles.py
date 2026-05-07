@@ -42,6 +42,10 @@ def puede_configurar_disponibilidad(usuario):
     )
 
 
+def puede_conectar_google_calendar(usuario):
+    return usuario.is_authenticated and obtener_odontologo_del_usuario(usuario) is not None
+
+
 def limitar_turnos_por_usuario(queryset, usuario):
     if puede_gestionar_consultorio(usuario):
         return queryset

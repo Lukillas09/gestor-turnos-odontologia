@@ -31,6 +31,7 @@ Actualmente incluye:
 - Campo preparado para guardar el ID del evento de Google Calendar.
 - Modelo para guardar la conexión OAuth de Google Calendar por odontólogo.
 - Sincronización preparada para crear, actualizar y cancelar eventos de Google Calendar.
+- Flujo OAuth visual para conectar Google Calendar desde la web.
 - Tests iniciales para la lógica de turnos.
 
 Documentación técnica:
@@ -77,6 +78,7 @@ gestor-turnos-odontologia/
     └── turnos/
         ├── admin.py
         ├── apps.py
+        ├── google_calendar_oauth.py
         ├── google_calendar_sync.py
         ├── integrations/
         │   └── google_calendar.py
@@ -246,6 +248,14 @@ Desde esas vistas se puede:
 
 Cuando ingresa un odontologo, la agenda queda limitada automaticamente a sus propios turnos.
 
+Conexion de Google Calendar para odontologos:
+
+```text
+http://127.0.0.1:8000/turnos/google-calendar/
+```
+
+Desde esa pantalla el odontologo puede iniciar OAuth, conectar su cuenta de Google y desconectarla si lo necesita.
+
 ### Pacientes
 
 El admin muestra columnas útiles para:
@@ -356,7 +366,7 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Implementar el flujo OAuth para conectar la cuenta de Google del odontólogo desde la web.
+1. Configurar credenciales OAuth reales en Google Cloud.
 2. Probar la sincronización contra una cuenta real de Google Calendar.
 3. Agregar notificaciones por email.
 4. Preparar variables de entorno para producción.
@@ -385,6 +395,24 @@ La sincronización de turnos vive en:
 
 ```text
 app/turnos/google_calendar_sync.py
+```
+
+El guardado de tokens OAuth vive en:
+
+```text
+app/turnos/google_calendar_oauth.py
+```
+
+La pantalla interna para conectar Google Calendar es:
+
+```text
+http://127.0.0.1:8000/turnos/google-calendar/
+```
+
+El redirect URI que debe configurarse en Google Cloud para desarrollo local es:
+
+```text
+http://127.0.0.1:8000/turnos/google-calendar/callback/
 ```
 
 Cuando hay una conexión OAuth activa para el odontólogo, la aplicación intenta:

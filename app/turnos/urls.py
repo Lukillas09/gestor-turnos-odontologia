@@ -3,6 +3,10 @@ from django.urls import path
 from .views import (
     AgendaDiaView,
     AgendaSemanaView,
+    GoogleCalendarCallbackView,
+    GoogleCalendarConectarView,
+    GoogleCalendarConexionView,
+    GoogleCalendarDesconectarView,
     SolicitudTurnoPublicaOkView,
     SolicitudTurnoPublicaView,
     TurnoCancelView,
@@ -26,6 +30,26 @@ urlpatterns = [
     ),
     path("agenda/dia/", AgendaDiaView.as_view(), name="agenda_dia"),
     path("agenda/semana/", AgendaSemanaView.as_view(), name="agenda_semana"),
+    path(
+        "google-calendar/",
+        GoogleCalendarConexionView.as_view(),
+        name="google_calendar",
+    ),
+    path(
+        "google-calendar/conectar/",
+        GoogleCalendarConectarView.as_view(),
+        name="google_calendar_conectar",
+    ),
+    path(
+        "google-calendar/callback/",
+        GoogleCalendarCallbackView.as_view(),
+        name="google_calendar_callback",
+    ),
+    path(
+        "google-calendar/desconectar/",
+        GoogleCalendarDesconectarView.as_view(),
+        name="google_calendar_desconectar",
+    ),
     path("<int:pk>/", TurnoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", TurnoUpdateView.as_view(), name="editar"),
     path("<int:pk>/confirmar/", TurnoConfirmView.as_view(), name="confirmar"),

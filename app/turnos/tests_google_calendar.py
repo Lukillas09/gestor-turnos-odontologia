@@ -1,8 +1,11 @@
 from datetime import date, time, timedelta
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from pacientes.models import Paciente
@@ -11,6 +14,8 @@ from turnos.integrations.google_calendar import (
     GoogleCalendarError,
     GoogleCalendarClienteNoConfiguradoError,
     GoogleCalendarEventoSinIdError,
+    GoogleOAuthTokens,
+    construir_url_autorizacion_google_calendar,
     construir_evento_desde_turno,
     obtener_configuracion_google_calendar,
 )
@@ -25,6 +30,7 @@ from turnos.models import (
     Odontologo,
     Turno,
 )
+from turnos.views import GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY
 
 
 class GoogleCalendarConfigTests(SimpleTestCase):
@@ -63,6 +69,34 @@ class GoogleCalendarConfigTests(SimpleTestCase):
         configuracion = obtener_configuracion_google_calendar()
 
         self.assertTrue(configuracion.esta_configurada)
+
+
+class GoogleCalendarOAuthUrlTests(SimpleTestCase):
+    @override_settings(
+        GOOGLE_CALENDAR_CLIENT_ID="client-id",
+        GOOGLE_CALENDAR_CLIENT_SECRET="client-secret",
+        GOOGLE_CALENDAR_REDIRECT_URI="http://127.0.0.1:8000/turnos/google-calendar/callback/",
+        GOOGLE_CALENDAR_SCOPES=["scope-a", "scope-b"],
+    )
+    def test_construye_url_de_autorizacion_oauth(self):
+        url = construir_url_autorizacion_google_calendar(
+            state="estado-seguro",
+            login_hint="odontologo@example.com",
+        )
+        parametros = parse_qs(urlparse(url).query)
+
+        self.assertTrue(url.startswith("https://accounts.google.com/o/oauth2/v2/auth?"))
+        self.assertEqual(parametros["client_id"], ["client-id"])
+        self.assertEqual(
+            parametros["redirect_uri"],
+            ["http://127.0.0.1:8000/turnos/google-calendar/callback/"],
+        )
+        self.assertEqual(parametros["response_type"], ["code"])
+        self.assertEqual(parametros["scope"], ["scope-a scope-b"])
+        self.assertEqual(parametros["access_type"], ["offline"])
+        self.assertEqual(parametros["prompt"], ["consent"])
+        self.assertEqual(parametros["state"], ["estado-seguro"])
+        self.assertEqual(parametros["login_hint"], ["odontologo@example.com"])
 
 
 class GoogleCalendarPayloadTests(TestCase):
@@ -206,6 +240,124 @@ class GoogleCalendarConexionModelTests(TestCase):
 
         with self.assertRaises(ValidationError):
             conexion.full_clean()
+
+
+class GoogleCalendarOAuthViewsTests(TestCase):
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_user(
+            username="dra.oauth",
+            first_name="Olivia",
+            last_name="OAuth",
+            email="olivia@example.com",
+        )
+        self.odontologo = Odontologo.objects.create(
+            usuario=self.usuario,
+            matricula="MN-OAUTH",
+        )
+        self.client.force_login(self.usuario)
+
+    def test_estado_muestra_boton_para_conectar_google_calendar(self):
+        response = self.client.get(reverse("turnos:google_calendar"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Conectar Google Calendar")
+        self.assertContains(response, "Sin conexion")
+
+    @override_settings(
+        GOOGLE_CALENDAR_CLIENT_ID="client-id",
+        GOOGLE_CALENDAR_CLIENT_SECRET="client-secret",
+        GOOGLE_CALENDAR_REDIRECT_URI="http://127.0.0.1:8000/turnos/google-calendar/callback/",
+        GOOGLE_CALENDAR_SCOPES=["scope-a"],
+    )
+    def test_conectar_redirige_a_google_y_guarda_state(self):
+        response = self.client.get(reverse("turnos:google_calendar_conectar"))
+        session = self.client.session
+        parametros = parse_qs(urlparse(response["Location"]).query)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith("https://accounts.google.com/"))
+        self.assertIn(GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY, session)
+        self.assertEqual(
+            parametros["state"],
+            [session[GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY]],
+        )
+        self.assertEqual(parametros["client_id"], ["client-id"])
+        self.assertEqual(parametros["login_hint"], ["olivia@example.com"])
+
+    def test_callback_guarda_tokens_oauth(self):
+        session = self.client.session
+        session[GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY] = "state-ok"
+        session.save()
+        expiracion = timezone.now() + timedelta(hours=1)
+        tokens = GoogleOAuthTokens(
+            access_token="access-token",
+            refresh_token="refresh-token",
+            token_type="Bearer",
+            token_expira_en=expiracion,
+            scopes=["scope-a"],
+        )
+
+        with patch("turnos.views.intercambiar_codigo_por_tokens", return_value=tokens):
+            response = self.client.get(
+                reverse("turnos:google_calendar_callback"),
+                {
+                    "code": "codigo-google",
+                    "state": "state-ok",
+                },
+            )
+
+        conexion = GoogleCalendarConexion.objects.get(odontologo=self.odontologo)
+
+        self.assertRedirects(response, reverse("turnos:google_calendar"))
+        self.assertTrue(conexion.activa)
+        self.assertEqual(conexion.access_token, "access-token")
+        self.assertEqual(conexion.refresh_token, "refresh-token")
+        self.assertEqual(conexion.scopes, ["scope-a"])
+
+    def test_callback_rechaza_state_invalido(self):
+        session = self.client.session
+        session[GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY] = "state-ok"
+        session.save()
+
+        response = self.client.get(
+            reverse("turnos:google_calendar_callback"),
+            {
+                "code": "codigo-google",
+                "state": "state-falso",
+            },
+        )
+
+        self.assertRedirects(response, reverse("turnos:google_calendar"))
+        self.assertFalse(
+            GoogleCalendarConexion.objects.filter(odontologo=self.odontologo).exists()
+        )
+
+    def test_desconectar_limpia_tokens(self):
+        conexion = GoogleCalendarConexion.objects.create(
+            odontologo=self.odontologo,
+            access_token="access-token",
+            refresh_token="refresh-token",
+            scopes=["scope-a"],
+            activa=True,
+        )
+
+        response = self.client.post(reverse("turnos:google_calendar_desconectar"))
+
+        conexion.refresh_from_db()
+
+        self.assertRedirects(response, reverse("turnos:google_calendar"))
+        self.assertFalse(conexion.activa)
+        self.assertEqual(conexion.access_token, "")
+        self.assertEqual(conexion.refresh_token, "")
+        self.assertEqual(conexion.scopes, [])
+
+    def test_usuario_sin_perfil_odontologo_no_puede_conectar(self):
+        usuario_sin_perfil = get_user_model().objects.create_user(username="sin.perfil")
+        self.client.force_login(usuario_sin_perfil)
+
+        response = self.client.get(reverse("turnos:google_calendar"))
+
+        self.assertEqual(response.status_code, 403)
 
 
 class GoogleCalendarSyncTests(TestCase):

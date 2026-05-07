@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Google Calendar | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Google Calendar</h1>
+            <p class="subtitle">Conexion de agenda para {{ odontologo }}.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'turnos:lista' %}">Volver</a>
+            <a class="button" href="{% url 'turnos:google_calendar_conectar' %}">
+                {% if conexion and conexion.esta_conectada %}
+                    Reconectar Google Calendar
+                {% else %}
+                    Conectar Google Calendar
+                {% endif %}
+            </a>
+            {% if conexion and conexion.esta_conectada %}
+                <form method="post" action="{% url 'turnos:google_calendar_desconectar' %}">
+                    {% csrf_token %}
+                    <button class="button-danger" type="submit">Desconectar</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="detail-panel">
+        <dl class="detail-grid">
+            <div>
+                <dt>Odontologo</dt>
+                <dd>{{ odontologo }}</dd>
+            </div>
+            <div>
+                <dt>Estado</dt>
+                <dd>
+                    {% if conexion and conexion.esta_conectada %}
+                        Conectado
+                    {% else %}
+                        Sin conexion
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt>Calendario</dt>
+                <dd>{{ conexion.calendar_id|default:"primary" }}</dd>
+            </div>
+            <div>
+                <dt>Access token</dt>
+                <dd>
+                    {% if conexion and conexion.access_token %}
+                        Guardado
+                        {% if conexion.access_token_expirado %}
+                            <span class="muted">(vencido)</span>
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt>Refresh token</dt>
+                <dd>
+                    {% if conexion and conexion.refresh_token %}
+                        Guardado
+                    {% else %}
+                        -
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt>Vencimiento</dt>
+                <dd>{{ conexion.token_expira_en|date:"d/m/Y H:i"|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt>Ultima sincronizacion</dt>
+                <dd>{{ conexion.sincronizado_en|date:"d/m/Y H:i"|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt>Permisos</dt>
+                <dd>
+                    {% if conexion and conexion.scopes %}
+                        {{ conexion.scopes|join:", " }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="field-full">
+                <dt>Ultimo error</dt>
+                <dd>{{ conexion.ultimo_error|default:"-" }}</dd>
+            </div>
+        </dl>
+    </section>
+{% endblock %}

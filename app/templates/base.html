@@ -14,6 +14,7 @@
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
             --danger: #b42318;
+            --danger-bg: #fef3f2;
             --success-bg: #ecfdf3;
             --success-text: #067647;
         }
@@ -428,6 +429,11 @@
             color: var(--success-text);
         }
 
+        .message.error {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
         @media (max-width: 720px) {
             .topbar-inner,
             .page {
@@ -473,6 +479,9 @@
                         <a href="{% url 'turnos:lista' %}">Turnos</a>
                         <a href="{% url 'turnos:agenda_dia' %}">Agenda dia</a>
                         <a href="{% url 'turnos:agenda_semana' %}">Agenda semana</a>
+                    {% endif %}
+                    {% if puede_conectar_google_calendar %}
+                        <a href="{% url 'turnos:google_calendar' %}">Google Calendar</a>
                     {% endif %}
                     {% if request.user.is_staff and puede_configurar_disponibilidad %}
                         <a href="{% url 'admin:index' %}">Admin</a>
