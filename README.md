@@ -164,6 +164,7 @@ Variables principales:
 - `EMAIL_HOST_PASSWORD`
 - `EMAIL_USE_TLS`
 - `EMAIL_USE_SSL`
+- `EMAIL_TIMEOUT`
 - `DEFAULT_FROM_EMAIL`
 - `GOOGLE_CALENDAR_CLIENT_ID`
 - `GOOGLE_CALENDAR_CLIENT_SECRET`
@@ -275,6 +276,29 @@ Emails al paciente:
 
 En desarrollo, el backend por defecto imprime los emails en consola. Para enviar emails reales hay que configurar SMTP desde `.env`.
 
+Configuración local de desarrollo:
+
+```env
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+DEFAULT_FROM_EMAIL=turnos@localhost
+```
+
+Configuración SMTP real:
+
+```env
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.example.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=usuario@example.com
+EMAIL_HOST_PASSWORD=clave-o-token-de-aplicacion
+EMAIL_USE_TLS=True
+EMAIL_USE_SSL=False
+EMAIL_TIMEOUT=10
+DEFAULT_FROM_EMAIL=Consultorio <turnos@example.com>
+```
+
+Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
+
 ### Pacientes
 
 El admin muestra columnas útiles para:
@@ -385,7 +409,7 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Configurar un proveedor SMTP real para enviar emails fuera del entorno local.
+1. Configurar y probar un proveedor SMTP real para enviar emails fuera del entorno local.
 2. Agregar recordatorios antes del turno.
 3. Preparar variables de entorno para producción.
 4. Cambiar SQLite por PostgreSQL antes del despliegue.

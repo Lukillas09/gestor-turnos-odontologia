@@ -250,7 +250,10 @@ Las variables actuales para Google Calendar son:
 - `EMAIL_HOST_PASSWORD`
 - `EMAIL_USE_TLS`
 - `EMAIL_USE_SSL`
+- `EMAIL_TIMEOUT`
 - `DEFAULT_FROM_EMAIL`
+
+En desarrollo se usa `django.core.mail.backends.console.EmailBackend`, que imprime los mensajes en consola y evita depender de un proveedor externo. Para produccion se debe configurar `django.core.mail.backends.smtp.EmailBackend` con credenciales de un proveedor SMTP y guardar esas credenciales solo en variables de entorno.
 
 ## Casos de uso futuros
 
