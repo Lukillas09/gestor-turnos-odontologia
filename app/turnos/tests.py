@@ -1,9 +1,12 @@
 from datetime import date, time, timedelta
+from io import StringIO
 
 from django.core import mail
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -778,6 +781,27 @@ class TurnoEmailNotificationTests(TestCase):
         self.client.post(reverse("turnos:confirmar", kwargs={"pk": turno.pk}))
 
         self.assertEqual(mail.outbox, [])
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="turnos@example.com",
+)
+class EmailManagementCommandTests(TestCase):
+    def test_probar_email_envia_mensaje_de_prueba(self):
+        salida = StringIO()
+
+        call_command("probar_email", "destino@example.com", stdout=salida)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["destino@example.com"])
+        self.assertIn("Email de prueba", mail.outbox[0].subject)
+        self.assertIn("configuracion de email", mail.outbox[0].body)
+        self.assertIn("Email de prueba enviado a destino@example.com.", salida.getvalue())
+
+    def test_probar_email_rechaza_destinatario_invalido(self):
+        with self.assertRaises(CommandError):
+            call_command("probar_email", "email-invalido")
 
 
 class HorariosDisponiblesTests(TestCase):

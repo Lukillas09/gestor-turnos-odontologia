@@ -1,0 +1,16 @@
+Hola {{ paciente.nombre }},
+
+Tu turno fue cancelado.
+
+Paciente: {{ paciente.nombre_completo }}
+Odontologo: {{ odontologo.nombre_completo }}
+Fecha: {{ turno.fecha|date:"d/m/Y" }}
+Horario: {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}
+Estado: {{ turno.get_estado_display }}
+{% if turno.motivo %}
+Motivo: {{ turno.motivo }}
+{% endif %}
+
+Si necesitas un nuevo turno, podes solicitarlo nuevamente.
+
+Gestor de Turnos

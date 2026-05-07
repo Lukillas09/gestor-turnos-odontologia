@@ -297,7 +297,32 @@ EMAIL_TIMEOUT=10
 DEFAULT_FROM_EMAIL=Consultorio <turnos@example.com>
 ```
 
+Ejemplos habituales por proveedor:
+
+| Proveedor | `EMAIL_HOST` | `EMAIL_PORT` | `EMAIL_HOST_USER` | `EMAIL_HOST_PASSWORD` | Seguridad |
+| --- | --- | ---: | --- | --- | --- |
+| Gmail / Google Workspace | `smtp.gmail.com` | `587` | Email completo | App password | `EMAIL_USE_TLS=True` |
+| SendGrid | `smtp.sendgrid.net` | `587` | `apikey` | API key de SendGrid | `EMAIL_USE_TLS=True` |
+| Brevo | `smtp-relay.brevo.com` | `587` | Login SMTP | Clave SMTP | `EMAIL_USE_TLS=True` |
+| Mailgun | `smtp.mailgun.org` | `587` | Usuario SMTP del dominio | Password SMTP | `EMAIL_USE_TLS=True` |
+
+Referencias oficiales: [Google Workspace SMTP](https://support.google.com/a/answer/176600), [Google App Passwords](https://support.google.com/accounts/answer/185833), [SendGrid SMTP](https://www.twilio.com/docs/sendgrid/for-developers/sending-email/integrating-with-the-smtp-api), [Brevo SMTP](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP), [Mailgun SMTP](https://documentation.mailgun.com/docs/mailgun/user-manual/smtp-protocol/).
+
+Si se usa el puerto `465`, hay que configurar `EMAIL_USE_SSL=True` y `EMAIL_USE_TLS=False`.
+
+Para probar la configuracion activa de email:
+
+```powershell
+python manage.py probar_email tu-email@example.com
+```
+
 Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
+
+Las plantillas de email viven en:
+
+- `turnos/templates/turnos/emails/solicitud_recibida.txt`
+- `turnos/templates/turnos/emails/turno_confirmado.txt`
+- `turnos/templates/turnos/emails/turno_cancelado.txt`
 
 ### Pacientes
 
@@ -409,7 +434,7 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Configurar y probar un proveedor SMTP real para enviar emails fuera del entorno local.
+1. Cargar credenciales SMTP reales en `.env` y validar con `python manage.py probar_email tu-email@example.com`.
 2. Agregar recordatorios antes del turno.
 3. Preparar variables de entorno para producción.
 4. Cambiar SQLite por PostgreSQL antes del despliegue.

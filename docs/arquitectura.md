@@ -255,6 +255,20 @@ Las variables actuales para Google Calendar son:
 
 En desarrollo se usa `django.core.mail.backends.console.EmailBackend`, que imprime los mensajes en consola y evita depender de un proveedor externo. Para produccion se debe configurar `django.core.mail.backends.smtp.EmailBackend` con credenciales de un proveedor SMTP y guardar esas credenciales solo en variables de entorno.
 
+Los mensajes al paciente estan separados en plantillas de texto:
+
+- `turnos/templates/turnos/emails/solicitud_recibida.txt`
+- `turnos/templates/turnos/emails/turno_confirmado.txt`
+- `turnos/templates/turnos/emails/turno_cancelado.txt`
+
+La configuracion SMTP activa se puede validar con:
+
+```powershell
+python manage.py probar_email tu-email@example.com
+```
+
+El comando usa las variables `EMAIL_*` vigentes. Si el backend sigue siendo `console.EmailBackend`, el email aparece en consola; si se cambia a `smtp.EmailBackend`, se intenta enviar por el proveedor real.
+
 ## Casos de uso futuros
 
 Los siguientes casos de uso deberian vivir fuera del modelo cuando la logica crezca:

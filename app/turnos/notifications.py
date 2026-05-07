@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 
 
 @dataclass(frozen=True)
@@ -14,8 +15,7 @@ def notificar_solicitud_turno_recibida(turno):
     return _enviar_email_turno(
         turno=turno,
         asunto="Recibimos tu solicitud de turno",
-        encabezado="Recibimos tu solicitud de turno.",
-        mensaje_estado="El turno quedo pendiente de confirmacion por el consultorio.",
+        template_name="turnos/emails/solicitud_recibida.txt",
     )
 
 
@@ -23,8 +23,7 @@ def notificar_turno_confirmado(turno):
     return _enviar_email_turno(
         turno=turno,
         asunto="Tu turno fue confirmado",
-        encabezado="Tu turno fue confirmado.",
-        mensaje_estado="Te esperamos en el dia y horario indicado.",
+        template_name="turnos/emails/turno_confirmado.txt",
     )
 
 
@@ -32,12 +31,11 @@ def notificar_turno_cancelado(turno):
     return _enviar_email_turno(
         turno=turno,
         asunto="Tu turno fue cancelado",
-        encabezado="Tu turno fue cancelado.",
-        mensaje_estado="Si necesitas un nuevo turno, comunicate con el consultorio.",
+        template_name="turnos/emails/turno_cancelado.txt",
     )
 
 
-def _enviar_email_turno(turno, asunto, encabezado, mensaje_estado):
+def _enviar_email_turno(turno, asunto, template_name):
     destinatario = turno.paciente.email
 
     if not destinatario:
@@ -48,7 +46,7 @@ def _enviar_email_turno(turno, asunto, encabezado, mensaje_estado):
 
     enviados = send_mail(
         subject=asunto,
-        message=_construir_mensaje_turno(turno, encabezado, mensaje_estado),
+        message=_renderizar_email_turno(turno, template_name),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[destinatario],
         fail_silently=True,
@@ -57,28 +55,12 @@ def _enviar_email_turno(turno, asunto, encabezado, mensaje_estado):
     return ResultadoNotificacionEmail(enviada=enviados > 0)
 
 
-def _construir_mensaje_turno(turno, encabezado, mensaje_estado):
-    lineas = [
-        f"Hola {turno.paciente.nombre},",
-        "",
-        encabezado,
-        "",
-        f"Paciente: {turno.paciente.nombre_completo}",
-        f"Odontologo: {turno.odontologo.nombre_completo}",
-        f"Fecha: {turno.fecha:%d/%m/%Y}",
-        f"Horario: {turno.hora_inicio:%H:%M} a {turno.hora_fin:%H:%M}",
-        f"Estado: {turno.get_estado_display()}",
-    ]
-
-    if turno.motivo:
-        lineas.append(f"Motivo: {turno.motivo}")
-
-    lineas.extend(
-        [
-            "",
-            mensaje_estado,
-            "",
-            "Gestor de Turnos",
-        ]
+def _renderizar_email_turno(turno, template_name):
+    return render_to_string(
+        template_name,
+        {
+            "turno": turno,
+            "paciente": turno.paciente,
+            "odontologo": turno.odontologo,
+        },
     )
-    return "\n".join(lineas)
