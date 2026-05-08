@@ -40,6 +40,14 @@ DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 
 El remitente debe estar permitido por Resend. Para enviar a pacientes reales conviene verificar un dominio propio.
 
+Para una prueba inicial sin dominio propio, Resend permite usar su remitente de sandbox:
+
+```env
+DEFAULT_FROM_EMAIL=Consultorio <onboarding@resend.dev>
+```
+
+Este modo sirve para validar la integracion, pero no reemplaza un dominio verificado para uso real del consultorio.
+
 ## Brevo
 
 Variables:

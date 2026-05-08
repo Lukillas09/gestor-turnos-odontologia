@@ -106,6 +106,7 @@ class BaseEmailApiClient:
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
+                "User-Agent": "gestor-turnos-odontologia/1.0",
                 **headers,
             },
             method="POST",

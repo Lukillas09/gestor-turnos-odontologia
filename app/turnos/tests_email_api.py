@@ -42,6 +42,7 @@ class EmailApiBackendTests(SimpleTestCase):
         self.assertEqual(enviados, 1)
         self.assertEqual(request.full_url, "https://api.resend.com/emails")
         self.assertEqual(headers["authorization"], "Bearer re_test")
+        self.assertEqual(headers["user-agent"], "gestor-turnos-odontologia/1.0")
         self.assertEqual(payload["from"], "Consultorio <turnos@example.com>")
         self.assertEqual(payload["to"], ["paciente@example.com"])
         self.assertEqual(payload["subject"], "Turno confirmado")
@@ -69,6 +70,7 @@ class EmailApiBackendTests(SimpleTestCase):
         self.assertEqual(enviados, 1)
         self.assertEqual(request.full_url, "https://api.brevo.com/v3/smtp/email")
         self.assertEqual(headers["api-key"], "brevo-test")
+        self.assertEqual(headers["user-agent"], "gestor-turnos-odontologia/1.0")
         self.assertEqual(
             payload["sender"],
             {"name": "Consultorio", "email": "turnos@example.com"},
