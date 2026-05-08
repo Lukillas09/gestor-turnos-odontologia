@@ -76,6 +76,7 @@ class HorariosDisponiblesFormMixin:
             odontologo=odontologo,
             fecha=fecha,
             duracion_minutos=duracion,
+            turno_excluido=self._obtener_turno_excluido(),
         )
 
         if not horarios:
@@ -133,6 +134,9 @@ class HorariosDisponiblesFormMixin:
 
         return self.initial.get(nombre_campo)
 
+    def _obtener_turno_excluido(self):
+        return None
+
     @staticmethod
     def _formatear_horario(horario):
         return horario.strftime("%H:%M")
@@ -149,6 +153,46 @@ class TurnoCreateForm(HorariosDisponiblesFormMixin, TurnoForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._configurar_horarios_disponibles()
+
+
+class TurnoReprogramacionForm(HorariosDisponiblesFormMixin, forms.ModelForm):
+    hora_inicio = forms.TypedChoiceField(
+        choices=(),
+        coerce=convertir_a_hora,
+        empty_value=None,
+        label="Hora de inicio",
+    )
+
+    class Meta:
+        model = Turno
+        fields = (
+            "fecha",
+            "hora_inicio",
+            "duracion_minutos",
+        )
+        labels = {
+            "hora_inicio": "Hora de inicio",
+            "duracion_minutos": "Duracion en minutos",
+        }
+        widgets = {
+            "fecha": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial.setdefault("fecha", self.instance.fecha)
+        self.initial.setdefault("hora_inicio", self._formatear_horario(self.instance.hora_inicio))
+        self.initial.setdefault("duracion_minutos", self.instance.duracion_minutos)
+        self._configurar_horarios_disponibles()
+
+    def _obtener_odontologo_seleccionado(self):
+        if self.instance and self.instance.odontologo_id and self.instance.odontologo.activo:
+            return self.instance.odontologo
+
+        return None
+
+    def _obtener_turno_excluido(self):
+        return self.instance
 
 
 class TurnoHorarioBusquedaForm(forms.Form):

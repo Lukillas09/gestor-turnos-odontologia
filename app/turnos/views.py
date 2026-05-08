@@ -25,6 +25,7 @@ from usuarios.roles import (
     limitar_turnos_por_usuario,
     obtener_odontologo_del_usuario,
     obtener_odontologo_visible,
+    puede_reprogramar_turno,
     puede_reintentar_sincronizacion_google_calendar,
 )
 
@@ -36,6 +37,7 @@ from .forms import (
     TurnoFiltroForm,
     TurnoForm,
     TurnoHorarioBusquedaForm,
+    TurnoReprogramacionForm,
 )
 from .google_calendar_oauth import (
     desconectar_google_calendar_de_odontologo,
@@ -63,6 +65,7 @@ from .services import (
     confirmar_turno,
     crear_solicitud_turno_publica,
     crear_turno_desde_formulario,
+    reprogramar_turno,
     reintentar_sincronizacion_google_calendar,
 )
 
@@ -306,6 +309,10 @@ class TurnoDetailView(VerTurnosRequeridoMixin, DetailView):
                 self.object,
             )
         )
+        context["puede_reprogramar_turno"] = puede_reprogramar_turno(
+            self.request.user,
+            self.object,
+        )
         context["google_calendar_ultimo_error"] = self._obtener_ultimo_error_google_calendar()
         return context
 
@@ -342,6 +349,44 @@ class TurnoReintentarSincronizacionGoogleCalendarView(VerTurnosRequeridoMixin, V
             messages.error(request, f"No se pudo sincronizar con Google Calendar: {mensaje}")
 
         return redirect("turnos:detalle", pk=turno.pk)
+
+
+class TurnoReprogramView(VerTurnosRequeridoMixin, UpdateView):
+    model = Turno
+    form_class = TurnoReprogramacionForm
+    template_name = "turnos/turno_form.html"
+
+    def get_queryset(self):
+        queryset = (
+            super()
+            .get_queryset()
+            .select_related("paciente", "odontologo", "odontologo__usuario")
+        )
+        return limitar_turnos_por_usuario(queryset, self.request.user)
+
+    def get_object(self, queryset=None):
+        turno = super().get_object(queryset)
+
+        if not puede_reprogramar_turno(self.request.user, turno):
+            raise PermissionDenied("No tenes permiso para reprogramar este turno.")
+
+        return turno
+
+    def get_success_url(self):
+        return reverse("turnos:detalle", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = "Reprogramar turno"
+        context["subtitulo"] = "Actualizacion de fecha, horario y duracion del turno."
+        context["texto_boton"] = "Reprogramar turno"
+        context["url_cancelar"] = self.get_success_url()
+        return context
+
+    def form_valid(self, form):
+        self.object = reprogramar_turno(self.object, form.cleaned_data)
+        messages.success(self.request, "Turno reprogramado correctamente.")
+        return redirect(self.get_success_url())
 
 
 class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):

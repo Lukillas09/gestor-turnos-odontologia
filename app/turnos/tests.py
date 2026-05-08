@@ -28,6 +28,7 @@ from turnos.selectors import (
     obtener_turnos_de_la_semana,
     obtener_turnos_del_dia,
 )
+from turnos.services import reprogramar_turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 
@@ -587,6 +588,79 @@ class TurnoViewsTests(TestCase):
         self.assertEqual(Turno.objects.count(), 2)
         self.assertEqual(turno_existente.hora_inicio, time(10, 0))
 
+    def test_detalle_muestra_boton_reprogramar_turno(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Reprogramar")
+        self.assertContains(response, reverse("turnos:reprogramar", kwargs={"pk": turno.pk}))
+
+    def test_reprogramacion_actualiza_fecha_hora_y_duracion(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.post(
+            reverse("turnos:reprogramar", kwargs={"pk": turno.pk}),
+            {
+                "fecha": "2026-05-08",
+                "hora_inicio": "11:15",
+                "duracion_minutos": 45,
+            },
+        )
+
+        turno.refresh_from_db()
+
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertEqual(turno.fecha, date(2026, 5, 8))
+        self.assertEqual(turno.hora_inicio, time(11, 15))
+        self.assertEqual(turno.duracion_minutos, 45)
+
+    def test_reprogramacion_rechaza_turno_solapado(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(11, 0),
+            duracion_minutos=30,
+        )
+
+        response = self.client.post(
+            reverse("turnos:reprogramar", kwargs={"pk": turno.pk}),
+            {
+                "fecha": "2026-05-08",
+                "hora_inicio": "10:00",
+                "duracion_minutos": 30,
+            },
+        )
+
+        turno.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("hora_inicio", response.context["form"].errors)
+        self.assertEqual(turno.hora_inicio, time(11, 0))
+
     def test_cancelacion_cambia_estado_sin_borrar_turno(self):
         turno = Turno.objects.create(
             paciente=self.paciente,
@@ -902,6 +976,35 @@ class TurnoEmailNotificationTests(TestCase):
         self.assertIn("Tu turno fue cancelado", mail.outbox[0].subject)
         self.assertIn("Cancelado", mail.outbox[0].body)
 
+    def test_reprogramar_turno_actualiza_google_calendar_y_envia_email(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control",
+        )
+
+        with patch("turnos.services.sincronizar_turno_actualizado") as sincronizar_mock:
+            reprogramar_turno(
+                turno,
+                {
+                    "fecha": date(2026, 5, 8),
+                    "hora_inicio": time(11, 0),
+                    "duracion_minutos": 30,
+                },
+            )
+
+        turno.refresh_from_db()
+        self.assertEqual(turno.hora_inicio, time(11, 0))
+        sincronizar_mock.assert_called_once()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["paula@example.com"])
+        self.assertIn("Tu turno fue reprogramado", mail.outbox[0].subject)
+        self.assertIn("Nuevo horario: 11:00", mail.outbox[0].body)
+
     def test_no_envia_email_si_el_paciente_no_tiene_email(self):
         self.paciente.email = ""
         self.paciente.save(update_fields=["email", "actualizado_en"])
@@ -1053,6 +1156,24 @@ class HorariosDisponiblesTests(TestCase):
 
         self.assertIn(time(9, 30), horarios)
 
+    def test_puede_excluir_turno_actual_al_calcular_horarios(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(9, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        horarios = obtener_horarios_disponibles(
+            self.odontologo,
+            date(2026, 5, 8),
+            turno_excluido=turno,
+        )
+
+        self.assertIn(time(9, 30), horarios)
+
     def test_dia_sin_disponibilidad_no_tiene_horarios(self):
         horarios = obtener_horarios_disponibles(self.odontologo, date(2026, 5, 9))
 
@@ -1074,6 +1195,9 @@ class TurnoAccessTests(TestCase):
 
     def test_edicion_requiere_login(self):
         self.assert_requiere_login(reverse("turnos:editar", kwargs={"pk": 1}))
+
+    def test_reprogramacion_requiere_login(self):
+        self.assert_requiere_login(reverse("turnos:reprogramar", kwargs={"pk": 1}))
 
     def test_agenda_diaria_requiere_login(self):
         self.assert_requiere_login(reverse("turnos:agenda_dia"))
@@ -1162,6 +1286,7 @@ class TurnoRoleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Turno propio")
         self.assertContains(response, "Reintentar sincronización")
+        self.assertContains(response, "Reprogramar")
         self.assertNotContains(response, "Cancelar turno")
 
     def test_odontologo_no_puede_ver_turno_ajeno(self):
@@ -1204,6 +1329,36 @@ class TurnoRoleTests(TestCase):
         self.assertEqual(response.status_code, 404)
         sincronizar_mock.assert_not_called()
 
+    def test_odontologo_puede_reprogramar_turno_propio(self):
+        response = self.client.post(
+            reverse("turnos:reprogramar", kwargs={"pk": self.turno_propio.pk}),
+            {
+                "fecha": "2026-05-08",
+                "hora_inicio": "11:00",
+                "duracion_minutos": 30,
+            },
+        )
+
+        self.turno_propio.refresh_from_db()
+
+        self.assertRedirects(
+            response,
+            reverse("turnos:detalle", kwargs={"pk": self.turno_propio.pk}),
+        )
+        self.assertEqual(self.turno_propio.hora_inicio, time(11, 0))
+
+    def test_odontologo_no_puede_reprogramar_turno_ajeno(self):
+        response = self.client.post(
+            reverse("turnos:reprogramar", kwargs={"pk": self.turno_ajeno.pk}),
+            {
+                "fecha": "2026-05-08",
+                "hora_inicio": "11:00",
+                "duracion_minutos": 30,
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_administrador_puede_ver_y_reintentar_sin_gestionar_turno(self):
         usuario_admin = get_user_model().objects.create_user(
             username="admin.turnos",
@@ -1218,6 +1373,7 @@ class TurnoRoleTests(TestCase):
 
         self.assertEqual(response_detalle.status_code, 200)
         self.assertContains(response_detalle, "Reintentar sincronización")
+        self.assertNotContains(response_detalle, "Reprogramar")
         self.assertNotContains(response_detalle, "Editar")
         self.assertNotContains(response_detalle, "Cancelar turno")
 

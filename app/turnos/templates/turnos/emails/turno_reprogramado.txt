@@ -1,0 +1,16 @@
+Hola {{ paciente.nombre }},
+
+Tu turno fue reprogramado.
+
+Paciente: {{ paciente.nombre_completo }}
+Odontologo: {{ odontologo.nombre_completo }}
+Nueva fecha: {{ turno.fecha|date:"d/m/Y" }}
+Nuevo horario: {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}
+Estado: {{ turno.get_estado_display }}
+{% if turno.motivo %}
+Motivo: {{ turno.motivo }}
+{% endif %}
+
+Te esperamos en el nuevo dia y horario indicado.
+
+Gestor de Turnos

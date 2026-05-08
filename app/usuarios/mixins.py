@@ -2,8 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 
 from .roles import (
+    puede_borrar_pacientes,
     puede_conectar_google_calendar,
     puede_gestionar_consultorio,
+    puede_ver_pacientes,
     puede_ver_turnos,
 )
 
@@ -19,6 +21,16 @@ class RolRequeridoMixin(LoginRequiredMixin, UserPassesTestMixin):
 class GestionConsultorioRequeridaMixin(RolRequeridoMixin):
     def test_func(self):
         return puede_gestionar_consultorio(self.request.user)
+
+
+class VerPacientesRequeridoMixin(RolRequeridoMixin):
+    def test_func(self):
+        return puede_ver_pacientes(self.request.user)
+
+
+class BorrarPacientesRequeridoMixin(RolRequeridoMixin):
+    def test_func(self):
+        return puede_borrar_pacientes(self.request.user)
 
 
 class VerTurnosRequeridoMixin(RolRequeridoMixin):

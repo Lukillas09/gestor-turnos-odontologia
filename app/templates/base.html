@@ -175,6 +175,10 @@
             background: #912018;
         }
 
+        .danger-link {
+            color: var(--danger);
+        }
+
         .button-success {
             background: #067647;
             color: #ffffff;
@@ -396,6 +400,10 @@
             margin-bottom: 0;
         }
 
+        .danger-panel {
+            border-color: #fecaca;
+        }
+
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -497,7 +505,7 @@
             <nav class="nav" aria-label="Principal">
                 <a href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
                 {% if request.user.is_authenticated %}
-                    {% if puede_gestionar_pacientes %}
+                    {% if puede_ver_pacientes %}
                         <a href="{% url 'pacientes:lista' %}">Pacientes</a>
                     {% endif %}
                     {% if puede_ver_turnos %}

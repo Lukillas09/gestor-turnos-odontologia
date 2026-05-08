@@ -16,6 +16,9 @@
                     <button class="button-secondary" type="submit">Reintentar sincronización</button>
                 </form>
             {% endif %}
+            {% if puede_reprogramar_turno %}
+                <a class="button button-secondary" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar</a>
+            {% endif %}
             {% if puede_gestionar_turnos %}
                 <a class="button" href="{% url 'turnos:editar' turno.pk %}">Editar</a>
                 {% if turno.estado == turno.Estado.PENDIENTE %}

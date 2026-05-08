@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Borrar paciente | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Borrar paciente</h1>
+            <p class="subtitle">Confirmacion segura para evitar borrados por error.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Volver</a>
+        </div>
+    </div>
+
+    <section class="detail-panel danger-panel">
+        <h2>{{ paciente.nombre }} {{ paciente.apellido }}</h2>
+        <p class="muted">Para confirmar el borrado, escribi exactamente los datos del paciente.</p>
+        <dl class="detail-grid">
+            <div>
+                <dt>Nombre</dt>
+                <dd>{{ paciente.nombre }}</dd>
+            </div>
+            <div>
+                <dt>Apellido</dt>
+                <dd>{{ paciente.apellido }}</dd>
+            </div>
+            <div>
+                <dt>DNI</dt>
+                <dd>{{ paciente.documento|default:"-" }}</dd>
+            </div>
+        </dl>
+    </section>
+
+    <form class="form-panel" method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="field-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-grid">
+            {% for field in form %}
+                <div>
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="field-error">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions">
+            <button class="button-danger" type="submit">Borrar paciente</button>
+            <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Cancelar</a>
+        </div>
+    </form>
+{% endblock %}

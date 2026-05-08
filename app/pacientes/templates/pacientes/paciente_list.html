@@ -8,7 +8,9 @@
             <h1>Pacientes</h1>
             <p class="subtitle">Listado de pacientes registrados en el consultorio.</p>
         </div>
-        <a class="button" href="{% url 'pacientes:crear' %}">Nuevo paciente</a>
+        {% if puede_gestionar_pacientes %}
+            <a class="button" href="{% url 'pacientes:crear' %}">Nuevo paciente</a>
+        {% endif %}
     </div>
 
     <div class="toolbar">
@@ -53,7 +55,13 @@
                             <td>{{ paciente.telefono|default:"-" }}</td>
                             <td>{{ paciente.email|default:"-" }}</td>
                             <td>
-                                <a class="text-link" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
+                                <a class="text-link" href="{% url 'pacientes:detalle' paciente.pk %}">Ver</a>
+                                {% if puede_gestionar_pacientes %}
+                                    <a class="text-link" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
+                                {% endif %}
+                                {% if puede_borrar_pacientes %}
+                                    <a class="text-link danger-link" href="{% url 'pacientes:borrar' paciente.pk %}">Borrar</a>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

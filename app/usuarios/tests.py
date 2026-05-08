@@ -11,9 +11,12 @@ from .roles import (
     ROL_ADMINISTRADOR,
     ROL_ODONTOLOGO,
     ROL_RECEPCIONISTA,
+    puede_borrar_pacientes,
     puede_configurar_disponibilidad,
     puede_gestionar_consultorio,
+    puede_reprogramar_turno,
     puede_reintentar_sincronizacion_google_calendar,
+    puede_ver_pacientes,
     puede_ver_turnos,
 )
 
@@ -29,6 +32,8 @@ class RolesTests(TestCase):
         asignar_rol(usuario, ROL_RECEPCIONISTA)
 
         self.assertTrue(puede_gestionar_consultorio(usuario))
+        self.assertTrue(puede_ver_pacientes(usuario))
+        self.assertTrue(puede_borrar_pacientes(usuario))
         self.assertTrue(puede_ver_turnos(usuario))
 
     def test_odontologo_puede_ver_turnos_sin_gestionar(self):
@@ -37,6 +42,8 @@ class RolesTests(TestCase):
         Odontologo.objects.create(usuario=usuario, matricula="MN-USU")
 
         self.assertFalse(puede_gestionar_consultorio(usuario))
+        self.assertTrue(puede_ver_pacientes(usuario))
+        self.assertTrue(puede_borrar_pacientes(usuario))
         self.assertTrue(puede_ver_turnos(usuario))
 
     def test_administrador_puede_configurar_disponibilidad(self):
@@ -44,6 +51,8 @@ class RolesTests(TestCase):
         asignar_rol(usuario, ROL_ADMINISTRADOR)
 
         self.assertTrue(puede_configurar_disponibilidad(usuario))
+        self.assertTrue(puede_ver_pacientes(usuario))
+        self.assertTrue(puede_borrar_pacientes(usuario))
         self.assertTrue(puede_ver_turnos(usuario))
 
     def test_roles_iniciales_crean_permisos_de_disponibilidad(self):
@@ -80,6 +89,21 @@ class RolesTests(TestCase):
         self.assertFalse(
             puede_reintentar_sincronizacion_google_calendar(usuario, turno_ajeno)
         )
+
+    def test_odontologo_puede_reprogramar_solo_sus_turnos_activos(self):
+        usuario = get_user_model().objects.create_user(username="odontologo.reprograma")
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula="MN-REPROG")
+        turno_propio = crear_turno_para_permiso(odontologo=odontologo)
+        turno_ajeno = crear_turno_para_permiso(matricula="MN-REPROG-AJENO")
+        turno_cancelado = crear_turno_para_permiso(matricula="MN-REPROG-CANCELADO")
+        turno_cancelado.odontologo = odontologo
+        turno_cancelado.estado = Turno.Estado.CANCELADO
+        turno_cancelado.save()
+
+        self.assertTrue(puede_reprogramar_turno(usuario, turno_propio))
+        self.assertFalse(puede_reprogramar_turno(usuario, turno_ajeno))
+        self.assertFalse(puede_reprogramar_turno(usuario, turno_cancelado))
 
 
 def crear_turno_para_permiso(odontologo=None, matricula="MN-SYNC-PERMISO"):

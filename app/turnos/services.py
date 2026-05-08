@@ -10,6 +10,7 @@ from .notifications import (
     notificar_solicitud_turno_recibida,
     notificar_turno_cancelado,
     notificar_turno_confirmado,
+    notificar_turno_reprogramado,
 )
 
 
@@ -27,6 +28,16 @@ def actualizar_turno_desde_formulario(form):
 
 def reintentar_sincronizacion_google_calendar(turno):
     return sincronizar_turno_actualizado(turno)
+
+
+def reprogramar_turno(turno, datos):
+    turno.fecha = datos["fecha"]
+    turno.hora_inicio = datos["hora_inicio"]
+    turno.duracion_minutos = datos["duracion_minutos"]
+    turno.save(update_fields=["fecha", "hora_inicio", "duracion_minutos", "actualizado_en"])
+    sincronizar_turno_actualizado(turno)
+    notificar_turno_reprogramado(turno)
+    return turno
 
 
 def confirmar_turno(turno):

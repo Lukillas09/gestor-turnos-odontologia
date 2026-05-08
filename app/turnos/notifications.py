@@ -41,6 +41,15 @@ def notificar_turno_cancelado(turno, fail_silently=True):
     )
 
 
+def notificar_turno_reprogramado(turno, fail_silently=True):
+    return _enviar_email_turno(
+        turno=turno,
+        asunto="Tu turno fue reprogramado",
+        template_name="turnos/emails/turno_reprogramado.txt",
+        fail_silently=fail_silently,
+    )
+
+
 def _enviar_email_turno(turno, asunto, template_name, fail_silently=True):
     destinatario = turno.paciente.email
 

@@ -10,7 +10,12 @@
         </div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'pacientes:lista' %}">Volver</a>
-            <a class="button" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
+            {% if puede_gestionar_pacientes %}
+                <a class="button" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
+            {% endif %}
+            {% if puede_borrar_pacientes %}
+                <a class="button button-danger" href="{% url 'pacientes:borrar' paciente.pk %}">Borrar paciente</a>
+            {% endif %}
         </div>
     </div>
 

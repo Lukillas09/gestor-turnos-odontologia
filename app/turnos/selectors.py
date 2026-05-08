@@ -102,7 +102,13 @@ def _obtener_rango_agenda(fecha, odontologo, turnos):
     return min(horas_inicio), max(horas_fin)
 
 
-def obtener_horarios_disponibles(odontologo, fecha, duracion_minutos=None, intervalo_minutos=None):
+def obtener_horarios_disponibles(
+    odontologo,
+    fecha,
+    duracion_minutos=None,
+    intervalo_minutos=None,
+    turno_excluido=None,
+):
     if not odontologo.activo:
         return []
 
@@ -122,6 +128,9 @@ def obtener_horarios_disponibles(odontologo, fecha, duracion_minutos=None, inter
         fecha=fecha,
         estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
     )
+
+    if turno_excluido and turno_excluido.pk:
+        turnos_ocupados = turnos_ocupados.exclude(pk=turno_excluido.pk)
 
     horarios = []
 
