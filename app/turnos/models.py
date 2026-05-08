@@ -148,6 +148,8 @@ class Turno(models.Model):
     )
     notas = models.TextField(blank=True)
     google_calendar_event_id = models.CharField(max_length=255, blank=True)
+    recordatorio_email_enviado_en = models.DateTimeField(null=True, blank=True)
+    recordatorio_email_ultimo_error = models.TextField(blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -166,6 +168,13 @@ class Turno(models.Model):
         return datetime.combine(self.fecha, self.hora_inicio)
 
     @property
+    def fecha_hora_inicio_local(self):
+        return timezone.make_aware(
+            self.fecha_hora_inicio,
+            timezone.get_current_timezone(),
+        )
+
+    @property
     def fecha_hora_fin(self):
         return self.fecha_hora_inicio + timedelta(minutes=self.duracion_minutos)
 
@@ -176,6 +185,10 @@ class Turno(models.Model):
     @property
     def sincronizado_con_google_calendar(self):
         return bool(self.google_calendar_event_id)
+
+    @property
+    def recordatorio_email_enviado(self):
+        return self.recordatorio_email_enviado_en is not None
 
     def clean(self):
         errors = {}

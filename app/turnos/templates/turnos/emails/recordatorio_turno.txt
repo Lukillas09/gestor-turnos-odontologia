@@ -1,0 +1,16 @@
+Hola {{ paciente.nombre }},
+
+Te recordamos que tenes un turno confirmado.
+
+Paciente: {{ paciente.nombre_completo }}
+Odontologo: {{ odontologo.nombre_completo }}
+Fecha: {{ turno.fecha|date:"d/m/Y" }}
+Horario: {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}
+Estado: {{ turno.get_estado_display }}
+{% if turno.motivo %}
+Motivo: {{ turno.motivo }}
+{% endif %}
+
+Te esperamos en el consultorio.
+
+Gestor de Turnos

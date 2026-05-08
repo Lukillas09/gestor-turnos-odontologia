@@ -212,6 +212,7 @@ class TurnoAdmin(admin.ModelAdmin):
         "hora_inicio",
         "hora_fin_display",
         "estado",
+        "recordatorio_email_enviado_en",
     )
     list_filter = (
         "estado",
@@ -236,7 +237,12 @@ class TurnoAdmin(admin.ModelAdmin):
         "odontologo__usuario",
     )
     date_hierarchy = "fecha"
-    readonly_fields = ("creado_en", "actualizado_en")
+    readonly_fields = (
+        "recordatorio_email_enviado_en",
+        "recordatorio_email_ultimo_error",
+        "creado_en",
+        "actualizado_en",
+    )
     ordering = ("fecha", "hora_inicio")
     list_per_page = 25
     fieldsets = (
@@ -266,6 +272,15 @@ class TurnoAdmin(admin.ModelAdmin):
             "Google Calendar",
             {
                 "fields": ("google_calendar_event_id",),
+            },
+        ),
+        (
+            "Recordatorio por email",
+            {
+                "fields": (
+                    "recordatorio_email_enviado_en",
+                    "recordatorio_email_ultimo_error",
+                ),
             },
         ),
         (

@@ -34,8 +34,12 @@ Actualmente incluye:
 - Flujo OAuth visual para conectar Google Calendar desde la web.
 - Integración real con Google Calendar probada de punta a punta.
 - Emails de confirmación para solicitud, confirmación y cancelación de turnos.
+- Recordatorios por email para turnos confirmados próximos.
+- Reprogramación de turnos con actualización de Google Calendar y aviso por email.
+- Borrado seguro de pacientes con confirmación por nombre, apellido y DNI.
 - Configuración SMTP real por variables de entorno, probada con envío real.
 - Comando para probar las tres notificaciones de email con plantillas reales.
+- Comando para enviar recordatorios por email.
 - Tests automatizados para la lógica de turnos, permisos, agenda, Google Calendar y emails.
 
 Documentación técnica:
@@ -89,6 +93,7 @@ gestor-turnos-odontologia/
         │   └── google_calendar.py
         ├── management/
         │   └── commands/
+        │       ├── enviar_recordatorios_email.py
         │       ├── probar_email.py
         │       └── probar_notificaciones_email.py
         ├── models.py
@@ -176,6 +181,7 @@ Variables principales:
 - `EMAIL_USE_SSL`
 - `EMAIL_TIMEOUT`
 - `DEFAULT_FROM_EMAIL`
+- `TURNOS_RECORDATORIO_HORAS`
 - `GOOGLE_CALENDAR_CLIENT_ID`
 - `GOOGLE_CALENDAR_CLIENT_SECRET`
 - `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`
@@ -250,6 +256,7 @@ Desde esa seccion se puede:
 - Ver el detalle de un turno.
 - Editar los datos de un turno.
 - Confirmar un turno pendiente sin modificar fecha ni horario.
+- Reprogramar turnos confirmados o pendientes.
 - Cancelar un turno sin borrarlo.
 
 Vistas de agenda:
@@ -283,6 +290,7 @@ Emails al paciente:
 - Al solicitar un turno público, se envía un email informando que quedó pendiente.
 - Al confirmar un turno pendiente, se envía un email de confirmación.
 - Al cancelar un turno, se envía un email de cancelación.
+- Antes de un turno confirmado, se puede enviar un recordatorio por email.
 
 En desarrollo, el backend por defecto imprime los emails en consola. Para enviar emails reales hay que configurar SMTP desde `.env`.
 
@@ -291,6 +299,8 @@ El envio se dispara desde la capa de servicios de turnos:
 - `crear_solicitud_turno_publica`: envia solicitud recibida al email del paciente.
 - `confirmar_turno`: envia turno confirmado al email del paciente.
 - `cancelar_turno`: envia turno cancelado al email del paciente.
+- `reprogramar_turno`: envia turno reprogramado al email del paciente.
+- `enviar_recordatorios_email`: envia recordatorios a turnos confirmados próximos.
 
 Si el paciente no tiene email cargado, no se intenta enviar. Si SMTP falla, el turno no se pierde y el error queda registrado para poder revisarlo.
 
@@ -342,6 +352,26 @@ python manage.py probar_notificaciones_email tu-email@example.com
 
 Este comando fue validado con SMTP real en desarrollo. Para que funcione en otra máquina hay que cargar las credenciales SMTP propias en `.env`.
 
+Para enviar recordatorios a turnos confirmados próximos:
+
+```powershell
+python manage.py enviar_recordatorios_email
+```
+
+Por defecto busca turnos dentro de las próximas 24 horas. Ese valor se puede cambiar con:
+
+```env
+TURNOS_RECORDATORIO_HORAS=24
+```
+
+También se puede pasar una ventana puntual al comando:
+
+```powershell
+python manage.py enviar_recordatorios_email --horas 48
+```
+
+Cada turno guarda cuándo se envió el recordatorio para evitar envíos duplicados.
+
 Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
 
 Las plantillas de email viven en:
@@ -349,6 +379,8 @@ Las plantillas de email viven en:
 - `turnos/templates/turnos/emails/solicitud_recibida.txt`
 - `turnos/templates/turnos/emails/turno_confirmado.txt`
 - `turnos/templates/turnos/emails/turno_cancelado.txt`
+- `turnos/templates/turnos/emails/turno_reprogramado.txt`
+- `turnos/templates/turnos/emails/recordatorio_turno.txt`
 
 ### Pacientes
 
@@ -460,11 +492,11 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Agregar recordatorios antes del turno.
-2. Definir si los recordatorios se enviarán por email con un comando manual o con una tarea programada.
-3. Preparar variables de entorno para producción.
-4. Cambiar SQLite por PostgreSQL antes del despliegue.
-5. Evaluar cifrado de tokens OAuth antes de producción.
+1. Programar la ejecución automática del comando de recordatorios en producción.
+2. Preparar variables de entorno para producción.
+3. Cambiar SQLite por PostgreSQL antes del despliegue.
+4. Evaluar cifrado de tokens OAuth antes de producción.
+5. Empezar historia clínica básica como mejora futura.
 
 ## Integración con Google Calendar
 

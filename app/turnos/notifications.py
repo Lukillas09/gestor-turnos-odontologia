@@ -50,6 +50,15 @@ def notificar_turno_reprogramado(turno, fail_silently=True):
     )
 
 
+def notificar_recordatorio_turno(turno, fail_silently=True):
+    return _enviar_email_turno(
+        turno=turno,
+        asunto="Recordatorio de tu turno",
+        template_name="turnos/emails/recordatorio_turno.txt",
+        fail_silently=fail_silently,
+    )
+
+
 def _enviar_email_turno(turno, asunto, template_name, fail_silently=True):
     destinatario = turno.paciente.email
 

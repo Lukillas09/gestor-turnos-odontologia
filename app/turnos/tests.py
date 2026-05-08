@@ -1,4 +1,4 @@
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from io import StringIO
 from unittest.mock import patch
 
@@ -20,7 +20,10 @@ from turnos.models import (
     Odontologo,
     Turno,
 )
-from turnos.notifications import notificar_turno_confirmado
+from turnos.notifications import (
+    notificar_recordatorio_turno,
+    notificar_turno_confirmado,
+)
 from turnos.selectors import (
     obtener_bloques_agenda_del_dia,
     obtener_horarios_disponibles,
@@ -28,7 +31,11 @@ from turnos.selectors import (
     obtener_turnos_de_la_semana,
     obtener_turnos_del_dia,
 )
-from turnos.services import reprogramar_turno
+from turnos.services import (
+    enviar_recordatorios_email,
+    obtener_turnos_para_recordatorio,
+    reprogramar_turno,
+)
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 
@@ -1005,6 +1012,124 @@ class TurnoEmailNotificationTests(TestCase):
         self.assertIn("Tu turno fue reprogramado", mail.outbox[0].subject)
         self.assertIn("Nuevo horario: 11:00", mail.outbox[0].body)
 
+    def test_recordatorio_turno_envia_email_al_paciente(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control",
+        )
+
+        resultado = notificar_recordatorio_turno(turno)
+
+        self.assertTrue(resultado.enviada)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["paula@example.com"])
+        self.assertIn("Recordatorio de tu turno", mail.outbox[0].subject)
+        self.assertIn("Te recordamos que tenes un turno confirmado.", mail.outbox[0].body)
+
+    def test_recordatorios_se_envian_solo_a_turnos_confirmados_proximos(self):
+        ahora = timezone.make_aware(
+            datetime(2026, 5, 7, 10, 0),
+            timezone.get_current_timezone(),
+        )
+        turno_proximo = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Recordatorio esperado",
+        )
+        turno_pendiente = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+        turno_fuera_de_ventana = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(11, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+        paciente_sin_email = Paciente.objects.create(
+            nombre="Sin",
+            apellido="Email",
+            documento="47111222",
+        )
+        turno_sin_email = Turno.objects.create(
+            paciente=paciente_sin_email,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(11, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        turnos_para_recordatorio = obtener_turnos_para_recordatorio(
+            horas_anticipacion=24,
+            ahora=ahora,
+        )
+        resultado = enviar_recordatorios_email(
+            horas_anticipacion=24,
+            ahora=ahora,
+        )
+
+        turno_proximo.refresh_from_db()
+        turno_pendiente.refresh_from_db()
+        turno_fuera_de_ventana.refresh_from_db()
+        turno_sin_email.refresh_from_db()
+
+        self.assertEqual(turnos_para_recordatorio, [turno_proximo])
+        self.assertEqual(resultado.encontrados, 1)
+        self.assertEqual(resultado.enviados, 1)
+        self.assertEqual(resultado.fallidos, 0)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["paula@example.com"])
+        self.assertIsNotNone(turno_proximo.recordatorio_email_enviado_en)
+        self.assertIsNone(turno_pendiente.recordatorio_email_enviado_en)
+        self.assertIsNone(turno_fuera_de_ventana.recordatorio_email_enviado_en)
+        self.assertIsNone(turno_sin_email.recordatorio_email_enviado_en)
+
+    def test_recordatorios_no_se_envian_dos_veces(self):
+        ahora = timezone.make_aware(
+            datetime(2026, 5, 7, 10, 0),
+            timezone.get_current_timezone(),
+        )
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        primer_resultado = enviar_recordatorios_email(
+            horas_anticipacion=24,
+            ahora=ahora,
+        )
+        segundo_resultado = enviar_recordatorios_email(
+            horas_anticipacion=24,
+            ahora=ahora,
+        )
+
+        turno.refresh_from_db()
+
+        self.assertEqual(primer_resultado.enviados, 1)
+        self.assertEqual(segundo_resultado.encontrados, 0)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIsNotNone(turno.recordatorio_email_enviado_en)
+
     def test_no_envia_email_si_el_paciente_no_tiene_email(self):
         self.paciente.email = ""
         self.paciente.save(update_fields=["email", "actualizado_en"])
@@ -1092,6 +1217,53 @@ class EmailManagementCommandTests(TestCase):
     def test_probar_notificaciones_email_rechaza_destinatario_invalido(self):
         with self.assertRaises(CommandError):
             call_command("probar_notificaciones_email", "email-invalido")
+
+    def test_enviar_recordatorios_email_envia_turnos_confirmados_proximos(self):
+        usuario = get_user_model().objects.create_user(
+            username="dra.recordatorios",
+            first_name="Rita",
+            last_name="Recordatorios",
+        )
+        odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-REC",
+            duracion_turno_minutos=30,
+        )
+        crear_disponibilidad_laboral(odontologo)
+        paciente = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Recordatorio",
+            documento="48111222",
+            email="paciente@example.com",
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+        ahora = timezone.make_aware(
+            datetime(2026, 5, 7, 10, 0),
+            timezone.get_current_timezone(),
+        )
+        salida = StringIO()
+
+        with patch("turnos.services.timezone.now", return_value=ahora):
+            call_command("enviar_recordatorios_email", "--horas", "24", stdout=salida)
+
+        turno.refresh_from_db()
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["paciente@example.com"])
+        self.assertIn("Recordatorio de tu turno", mail.outbox[0].subject)
+        self.assertIsNotNone(turno.recordatorio_email_enviado_en)
+        self.assertIn("Recordatorios encontrados: 1. Enviados: 1. Fallidos: 0.", salida.getvalue())
+
+    def test_enviar_recordatorios_email_rechaza_horas_invalidas(self):
+        with self.assertRaises(CommandError):
+            call_command("enviar_recordatorios_email", "--horas", "0")
 
 
 class HorariosDisponiblesTests(TestCase):

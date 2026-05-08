@@ -146,6 +146,7 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
 EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
 EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "10"))
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "turnos@localhost")
+TURNOS_RECORDATORIO_HORAS = int(env("TURNOS_RECORDATORIO_HORAS", "24"))
 
 if EMAIL_USE_TLS and EMAIL_USE_SSL:
     raise RuntimeError("EMAIL_USE_TLS y EMAIL_USE_SSL no pueden estar activos al mismo tiempo.")
