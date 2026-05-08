@@ -221,6 +221,8 @@ El modelo `GoogleCalendarConexion` guarda la relacion entre un `Odontologo` y su
 
 El modulo `turnos/notifications.py` concentra los emails del dominio de turnos. Los servicios lo llaman cuando una solicitud publica queda pendiente, cuando un turno se confirma y cuando un turno se cancela.
 
+El backend `config.email_backends.EmailApiBackend` permite enviar emails por API HTTP con Resend o Brevo. Esto evita depender de SMTP en proveedores gratuitos que bloquean los puertos salientes comunes.
+
 ## Seguridad y secretos
 
 La configuracion sensible vive fuera del codigo fuente.
@@ -251,6 +253,9 @@ Las variables actuales para Google Calendar son:
 - `EMAIL_USE_TLS`
 - `EMAIL_USE_SSL`
 - `EMAIL_TIMEOUT`
+- `EMAIL_API_PROVIDER`
+- `EMAIL_API_KEY`
+- `EMAIL_API_URL`
 - `DEFAULT_FROM_EMAIL`
 
 En desarrollo se usa `django.core.mail.backends.console.EmailBackend`, que imprime los mensajes en consola y evita depender de un proveedor externo. Para produccion se debe configurar `django.core.mail.backends.smtp.EmailBackend` con credenciales de un proveedor SMTP y guardar esas credenciales solo en variables de entorno.

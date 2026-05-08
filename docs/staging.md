@@ -24,19 +24,20 @@ Funciona actualmente:
 - Superusuario creado en la base de staging.
 - Google OAuth configurado para la URL publica de Render.
 - Pantalla de conexion de Google Calendar funcionando para usuarios con perfil de odontologo.
+- Backend de email por API HTTP preparado para Resend o Brevo.
 
 Pendiente:
 
 - Rotar secretos que se usaron durante la configuracion inicial.
 - Probar el flujo completo de turno en staging con datos de prueba controlados.
-- Resolver envio real de emails desde deploy.
+- Cargar una API key real de email en Render y validar envio desde staging.
 - Activar recordatorios programados con GitHub Actions.
 - Probar backup y restauracion.
 - Definir dominio real y configuracion HTTPS final antes de produccion.
 
 Nota sobre emails:
 
-En Render Free los puertos SMTP comunes estan bloqueados. Por eso, en staging los emails quedan configurados inicialmente con backend de consola y se revisan desde los logs de Render. Para envio real desde deploy falta elegir un proveedor compatible por API HTTP o un entorno que permita SMTP.
+En Render Free los puertos SMTP comunes estan bloqueados. Por eso el proyecto incluye `config.email_backends.EmailApiBackend`, que envia por API HTTP usando Resend o Brevo. Para que staging envie emails reales falta cargar `EMAIL_API_KEY`, `EMAIL_API_PROVIDER` y `DEFAULT_FROM_EMAIL` en Render.
 
 ## Decision
 
@@ -141,14 +142,16 @@ GOOGLE_CALENDAR_REDIRECT_URI=https://tu-app.onrender.com/turnos/google-calendar/
 GOOGLE_CALENDAR_SCOPES=https://www.googleapis.com/auth/calendar.events
 ```
 
-Email inicial recomendado para Render Free:
+Email recomendado para Render Free:
 
 ```env
-EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-DEFAULT_FROM_EMAIL=turnos@localhost
+EMAIL_BACKEND=config.email_backends.EmailApiBackend
+EMAIL_API_PROVIDER=resend
+EMAIL_API_KEY=clave-real-del-proveedor
+DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 ```
 
-Con esta configuracion los emails se ven en los logs de Render.
+Para desarrollo o diagnostico se puede volver temporalmente a `django.core.mail.backends.console.EmailBackend` y revisar los emails en logs.
 
 ## 4. Configurar Google OAuth
 
@@ -194,6 +197,8 @@ STAGING_EMAIL_HOST_USER
 STAGING_EMAIL_HOST_PASSWORD
 STAGING_EMAIL_USE_TLS
 STAGING_EMAIL_USE_SSL
+STAGING_EMAIL_API_PROVIDER
+STAGING_EMAIL_API_KEY
 STAGING_DEFAULT_FROM_EMAIL
 STAGING_GOOGLE_CALENDAR_CLIENT_ID
 STAGING_GOOGLE_CALENDAR_CLIENT_SECRET
@@ -206,9 +211,10 @@ El workflow se puede correr manualmente con `workflow_dispatch` o automaticament
 
 Render Free bloquea salidas SMTP por puertos comunes como `25`, `465` y `587`.
 
-Por eso el staging queda preparado con email por consola. Para enviar emails reales desde staging hay que elegir una de estas opciones:
+Por eso el staging queda preparado para email por API HTTP. Para enviar emails reales desde staging hay que elegir una de estas opciones:
 
-- Cambiar a proveedor de email con API HTTP.
+- Usar Resend con dominio o remitente verificado.
+- Usar Brevo con remitente verificado.
 - Usar un proveedor o plan que permita SMTP saliente.
 - Ejecutar envios programados desde GitHub Actions si el proveedor SMTP lo permite.
 - Pasar a un plan pago cuando el consultorio necesite uso real continuo.

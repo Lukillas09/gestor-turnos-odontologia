@@ -26,6 +26,9 @@ jobs:
       EMAIL_HOST_PASSWORD: ${{ secrets.STAGING_EMAIL_HOST_PASSWORD }}
       EMAIL_USE_TLS: ${{ secrets.STAGING_EMAIL_USE_TLS || 'False' }}
       EMAIL_USE_SSL: ${{ secrets.STAGING_EMAIL_USE_SSL || 'False' }}
+      EMAIL_API_PROVIDER: ${{ secrets.STAGING_EMAIL_API_PROVIDER || 'resend' }}
+      EMAIL_API_KEY: ${{ secrets.STAGING_EMAIL_API_KEY }}
+      EMAIL_API_URL: ${{ secrets.STAGING_EMAIL_API_URL }}
       DEFAULT_FROM_EMAIL: ${{ secrets.STAGING_DEFAULT_FROM_EMAIL || 'turnos@localhost' }}
       TURNOS_RECORDATORIO_HORAS: "24"
       GOOGLE_CALENDAR_CLIENT_ID: ${{ secrets.STAGING_GOOGLE_CALENDAR_CLIENT_ID }}
@@ -54,6 +57,9 @@ jobs:
           test -n "$DJANGO_ALLOWED_HOSTS"
           test -n "$DJANGO_CSRF_TRUSTED_ORIGINS"
           test -n "$DATABASE_URL"
+          if [ "$EMAIL_BACKEND" = "config.email_backends.EmailApiBackend" ]; then
+            test -n "$EMAIL_API_KEY"
+          fi
 
       - name: Enviar recordatorios
         working-directory: app

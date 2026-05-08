@@ -97,7 +97,10 @@ DJANGO_SECRET_KEY=clave-segura
 DJANGO_ALLOWED_HOSTS=tu-servicio.onrender.com
 DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-servicio.onrender.com
 DATABASE_URL=postgres://...
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_BACKEND=config.email_backends.EmailApiBackend
+EMAIL_API_PROVIDER=resend
+EMAIL_API_KEY=...
+DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 WEB_CONCURRENCY=2
 ```
 
@@ -130,7 +133,10 @@ DJANGO_SECRET_KEY=clave-segura
 DJANGO_ALLOWED_HOSTS=tu-dominio.up.railway.app
 DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-dominio.up.railway.app
 DATABASE_URL=postgres://...
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_BACKEND=config.email_backends.EmailApiBackend
+EMAIL_API_PROVIDER=resend
+EMAIL_API_KEY=...
+DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 WEB_CONCURRENCY=2
 ```
 

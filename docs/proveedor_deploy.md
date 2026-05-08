@@ -84,11 +84,13 @@ GOOGLE_CALENDAR_SCOPES=https://www.googleapis.com/auth/calendar.events
 Email:
 
 ```env
-EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-DEFAULT_FROM_EMAIL=turnos@localhost
+EMAIL_BACKEND=config.email_backends.EmailApiBackend
+EMAIL_API_PROVIDER=resend
+EMAIL_API_KEY=clave-real-del-proveedor
+DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 ```
 
-El email queda pendiente de resolver porque Render Free bloquea puertos SMTP comunes. Para produccion real hay que cambiar a un proveedor compatible por API HTTP o mover la app a un plan/proveedor que permita SMTP.
+El proyecto usa API HTTP para evitar el bloqueo SMTP de Render Free. Falta cargar una API key real de Resend o Brevo y validar el envio desde staging.
 
 ## Variables para GitHub Actions
 
@@ -106,6 +108,8 @@ STAGING_EMAIL_HOST_USER
 STAGING_EMAIL_HOST_PASSWORD
 STAGING_EMAIL_USE_TLS
 STAGING_EMAIL_USE_SSL
+STAGING_EMAIL_API_PROVIDER
+STAGING_EMAIL_API_KEY
 STAGING_DEFAULT_FROM_EMAIL
 STAGING_GOOGLE_CALENDAR_CLIENT_ID
 STAGING_GOOGLE_CALENDAR_CLIENT_SECRET
@@ -122,7 +126,7 @@ STAGING_RECORDATORIOS_ACTIVO=true
 
 ## Problema pendiente: SMTP
 
-Actualmente los emails del proyecto usan SMTP.
+El proyecto mantiene SMTP para desarrollo o proveedores compatibles, pero en Render Free se debe usar API HTTP.
 
 Render Free bloquea puertos salientes comunes de SMTP:
 
@@ -130,12 +134,13 @@ Render Free bloquea puertos salientes comunes de SMTP:
 - `465`
 - `587`
 
-Opciones para resolverlo mas adelante:
+Opciones:
 
-1. Cambiar notificaciones a una API HTTP de email.
-2. Usar un proveedor/plan que permita SMTP saliente.
-3. Ejecutar recordatorios y envio de emails desde GitHub Actions, si el proveedor SMTP permite conexion desde GitHub.
-4. Evaluar un plan pago minimo cuando el consultorio use el sistema con pacientes reales.
+1. Usar Resend con dominio o remitente verificado.
+2. Usar Brevo con remitente verificado.
+3. Usar un proveedor/plan que permita SMTP saliente.
+4. Ejecutar recordatorios y envio de emails desde GitHub Actions, si el proveedor SMTP permite conexion desde GitHub.
+5. Evaluar un plan pago minimo cuando el consultorio use el sistema con pacientes reales.
 
 ## Riesgos de esta arquitectura gratuita
 
@@ -156,7 +161,7 @@ Estado actual: el staging inicial ya esta desplegado en Render en:
 https://gestor-turnos-odontologia-staging.onrender.com
 ```
 
-La app conecta con Supabase PostgreSQL y Google Calendar ya fue probado desde la URL publica. Los emails en Render Free quedan por consola/logs hasta resolver una estrategia compatible para envio real.
+La app conecta con Supabase PostgreSQL y Google Calendar ya fue probado desde la URL publica. El codigo ya soporta email real por API HTTP; queda cargar una API key real y probar el envio desde Render.
 
 Antes de usarla como produccion diaria, definir:
 

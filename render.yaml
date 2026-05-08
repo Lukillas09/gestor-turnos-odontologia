@@ -37,9 +37,13 @@ services:
       - key: TURNOS_RECORDATORIO_HORAS
         value: "24"
       - key: EMAIL_BACKEND
-        value: "django.core.mail.backends.console.EmailBackend"
+        value: "config.email_backends.EmailApiBackend"
+      - key: EMAIL_API_PROVIDER
+        value: "resend"
+      - key: EMAIL_API_KEY
+        sync: false
       - key: DEFAULT_FROM_EMAIL
-        value: "turnos@localhost"
+        sync: false
       - key: GOOGLE_CALENDAR_CLIENT_ID
         sync: false
       - key: GOOGLE_CALENDAR_CLIENT_SECRET

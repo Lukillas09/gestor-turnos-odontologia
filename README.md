@@ -54,6 +54,7 @@ Actualmente incluye:
 - Staging inicial desplegado en Render.
 - Base PostgreSQL de staging configurada en Supabase.
 - Configuración SMTP real por variables de entorno, probada con envío real.
+- Backend de email por API HTTP para deploy en Render Free.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
 - Tests automatizados para la lógica de turnos, permisos, agenda, Google Calendar y emails.
@@ -67,6 +68,7 @@ Documentación técnica:
 - [Deploy](docs/deploy.md)
 - [Proveedor de deploy gratuito inicial](docs/proveedor_deploy.md)
 - [Entorno de staging](docs/staging.md)
+- [Email real por API HTTP](docs/email_api.md)
 - [Seguridad antes de producción](docs/seguridad_produccion.md)
 
 ## Tecnologías
@@ -79,7 +81,7 @@ Documentación técnica:
 - Gunicorn como servidor WSGI de producción
 - Django Admin como primera interfaz de gestión
 - Variables de entorno para configuración sensible
-- SMTP para emails transaccionales
+- SMTP o API HTTP para emails transaccionales
 
 ## Estructura del proyecto
 
@@ -376,7 +378,7 @@ Emails al paciente:
 - Al cancelar un turno, se envía un email de cancelación.
 - Antes de un turno confirmado, se puede enviar un recordatorio por email.
 
-En desarrollo, el backend por defecto imprime los emails en consola. Para enviar emails reales hay que configurar SMTP desde `.env`.
+En desarrollo, el backend por defecto imprime los emails en consola. Para enviar emails reales se puede configurar SMTP o el backend por API HTTP desde `.env`.
 
 El envio se dispara desde la capa de servicios de turnos:
 
@@ -386,7 +388,7 @@ El envio se dispara desde la capa de servicios de turnos:
 - `reprogramar_turno`: envia turno reprogramado al email del paciente.
 - `enviar_recordatorios_email`: envia recordatorios a turnos confirmados próximos.
 
-Si el paciente no tiene email cargado, no se intenta enviar. Si SMTP falla, el turno no se pierde y el error queda registrado para poder revisarlo.
+Si el paciente no tiene email cargado, no se intenta enviar. Si el proveedor de email falla, el turno no se pierde y el error queda registrado para poder revisarlo.
 
 Configuración local de desarrollo:
 
@@ -422,6 +424,23 @@ Referencias oficiales: [Google Workspace SMTP](https://support.google.com/a/answ
 
 Si se usa el puerto `465`, hay que configurar `EMAIL_USE_SSL=True` y `EMAIL_USE_TLS=False`.
 
+Configuracion por API HTTP para deploy en Render Free:
+
+```env
+EMAIL_BACKEND=config.email_backends.EmailApiBackend
+EMAIL_API_PROVIDER=resend
+EMAIL_API_KEY=clave-real-del-proveedor
+DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
+```
+
+Tambien se puede usar:
+
+```env
+EMAIL_API_PROVIDER=brevo
+```
+
+La guia especifica para email por API esta en [docs/email_api.md](docs/email_api.md).
+
 Para probar la configuracion activa de email:
 
 ```powershell
@@ -434,7 +453,7 @@ Para probar las tres notificaciones de turnos con las plantillas reales:
 python manage.py probar_notificaciones_email tu-email@example.com
 ```
 
-Este comando fue validado con SMTP real en desarrollo. Para que funcione en otra máquina hay que cargar las credenciales SMTP propias en `.env`.
+Este comando fue validado con SMTP real en desarrollo. Para deploy en Render Free conviene usar el backend por API HTTP y cargar `EMAIL_API_KEY` en variables de entorno.
 
 Para enviar recordatorios a turnos confirmados próximos:
 
@@ -606,8 +625,8 @@ Próximos pasos sugeridos:
 
 1. Rotar secretos expuestos durante la configuracion inicial de staging.
 2. Probar y documentar el flujo completo con un turno real de staging.
-3. Resolver email real en deploy con un proveedor compatible por API HTTP o plan que permita SMTP.
-4. Activar recordatorios programados desde GitHub Actions cuando el email de staging este definido.
+3. Cargar proveedor real de email por API HTTP en Render y probar envios desde staging.
+4. Activar recordatorios programados desde GitHub Actions cuando el email de staging este validado.
 5. Definir backups, prueba de restauracion, dominio real, HTTPS final y estrategia de logs.
 6. Evaluar cifrado de tokens OAuth antes de produccion.
 7. Empezar historia clinica basica como mejora futura.

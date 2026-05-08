@@ -57,6 +57,7 @@ El Cron Job debe tener las mismas variables de entorno que la app web:
 - `DJANGO_ALLOWED_HOSTS`
 - `DATABASE_URL`
 - Variables SMTP
+- Variables de email por API HTTP (`EMAIL_BACKEND`, `EMAIL_API_PROVIDER`, `EMAIL_API_KEY`, `DEFAULT_FROM_EMAIL`)
 - Variables de Google Calendar si hicieran falta
 
 ## Railway Cron Job
