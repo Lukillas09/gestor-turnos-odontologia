@@ -37,6 +37,9 @@ Actualmente incluye:
 - Recordatorios por email para turnos confirmados próximos.
 - Reprogramación de turnos con actualización de Google Calendar y aviso por email.
 - Borrado seguro de pacientes con confirmación por nombre, apellido y DNI.
+- Configuración preparada para `DEBUG=False`.
+- Configuración de base de datos por `DATABASE_URL`.
+- Soporte para PostgreSQL manteniendo SQLite como base local por defecto.
 - Configuración SMTP real por variables de entorno, probada con envío real.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
@@ -45,12 +48,14 @@ Actualmente incluye:
 Documentación técnica:
 
 - [Arquitectura del proyecto](docs/arquitectura.md)
+- [Migración a PostgreSQL](docs/postgresql.md)
 
 ## Tecnologías
 
 - Python 3.13
 - Django 6.0.4
 - SQLite para desarrollo local
+- PostgreSQL preparado para producción
 - Django Admin como primera interfaz de gestión
 - Variables de entorno para configuración sensible
 - SMTP para emails transaccionales
@@ -67,6 +72,7 @@ gestor-turnos-odontologia/
 └── app/
     ├── manage.py
     ├── config/
+    │   ├── database.py
     │   ├── settings.py
     │   ├── urls.py
     │   ├── asgi.py
@@ -172,6 +178,14 @@ Variables principales:
 - `DJANGO_DEBUG`
 - `DJANGO_ALLOWED_HOSTS`
 - `DJANGO_CSRF_TRUSTED_ORIGINS`
+- `DJANGO_SECURE_SSL_REDIRECT`
+- `DJANGO_SESSION_COOKIE_SECURE`
+- `DJANGO_CSRF_COOKIE_SECURE`
+- `DJANGO_SECURE_HSTS_SECONDS`
+- `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`
+- `DJANGO_SECURE_HSTS_PRELOAD`
+- `DJANGO_SECURE_PROXY_SSL_HEADER`
+- `DATABASE_URL`
 - `EMAIL_BACKEND`
 - `EMAIL_HOST`
 - `EMAIL_PORT`
@@ -194,6 +208,35 @@ No se deben versionar:
 - Credenciales OAuth descargadas desde Google Cloud.
 - Tokens OAuth generados por usuarios.
 - Archivos `client_secret*.json`, `credentials*.json` o `token*.json`.
+
+Para desarrollo local, si `DATABASE_URL` queda vacío, el proyecto usa SQLite en `app/db.sqlite3`.
+
+Para producción se puede configurar PostgreSQL usando una URL del proveedor:
+
+```env
+DATABASE_URL=postgres://usuario:password@host:5432/nombre_base?sslmode=require
+```
+
+La guía paso a paso para migrar datos desde SQLite está en [docs/postgresql.md](docs/postgresql.md).
+
+Cuando `DJANGO_DEBUG=False`, el proyecto exige:
+
+- `DJANGO_SECRET_KEY` real.
+- `DJANGO_ALLOWED_HOSTS` configurado con el dominio del deploy.
+
+Ejemplo base para producción:
+
+```env
+DJANGO_DEBUG=False
+DJANGO_SECRET_KEY=clave-segura-generada-para-produccion
+DJANGO_ALLOWED_HOSTS=mi-dominio.com,www.mi-dominio.com
+DJANGO_CSRF_TRUSTED_ORIGINS=https://mi-dominio.com,https://www.mi-dominio.com
+DJANGO_SESSION_COOKIE_SECURE=True
+DJANGO_CSRF_COOKIE_SECURE=True
+DJANGO_SECURE_SSL_REDIRECT=True
+DJANGO_SECURE_PROXY_SSL_HEADER=True
+DATABASE_URL=postgres://usuario:password@host:5432/nombre_base?sslmode=require
+```
 
 ## Interfaz web inicial
 
@@ -493,8 +536,8 @@ También se ignoran archivos generados como:
 Próximos pasos sugeridos:
 
 1. Programar la ejecución automática del comando de recordatorios en producción.
-2. Preparar variables de entorno para producción.
-3. Cambiar SQLite por PostgreSQL antes del despliegue.
+2. Configurar archivos estáticos para producción.
+3. Probar PostgreSQL en un entorno local o de staging.
 4. Evaluar cifrado de tokens OAuth antes de producción.
 5. Empezar historia clínica básica como mejora futura.
 
