@@ -14,6 +14,11 @@ class Command(BaseCommand):
             default=settings.TURNOS_RECORDATORIO_HORAS,
             help="Ventana de anticipacion para buscar turnos confirmados.",
         )
+        parser.add_argument(
+            "--fallar-si-hay-errores",
+            action="store_true",
+            help="Finaliza con error si algun recordatorio no pudo enviarse.",
+        )
 
     def handle(self, *args, **options):
         horas = options["horas"]
@@ -31,3 +36,6 @@ class Command(BaseCommand):
                 f"Fallidos: {resultado.fallidos}."
             )
         )
+
+        if options["fallar_si_hay_errores"] and resultado.fallidos:
+            raise CommandError("Hubo recordatorios que no pudieron enviarse.")

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from django.conf import settings
 from django.test import SimpleTestCase
 
 from .database import configurar_base_de_datos
@@ -53,3 +54,22 @@ class DatabaseConfigTests(SimpleTestCase):
     def test_rechaza_esquemas_no_soportados(self):
         with self.assertRaises(RuntimeError):
             configurar_base_de_datos("mysql://usuario:clave@host/base", Path("/proyecto/app"))
+
+
+class StaticFilesConfigTests(SimpleTestCase):
+    def test_whitenoise_esta_configurado_despues_de_security_middleware(self):
+        self.assertEqual(
+            settings.MIDDLEWARE[0],
+            "django.middleware.security.SecurityMiddleware",
+        )
+        self.assertEqual(
+            settings.MIDDLEWARE[1],
+            "whitenoise.middleware.WhiteNoiseMiddleware",
+        )
+
+    def test_staticfiles_usa_storage_comprimido_y_versionado(self):
+        self.assertEqual(
+            settings.STORAGES["staticfiles"]["BACKEND"],
+            "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        )
+        self.assertTrue(str(settings.STATIC_ROOT).endswith("staticfiles"))

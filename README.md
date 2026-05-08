@@ -40,6 +40,7 @@ Actualmente incluye:
 - Configuración preparada para `DEBUG=False`.
 - Configuración de base de datos por `DATABASE_URL`.
 - Soporte para PostgreSQL manteniendo SQLite como base local por defecto.
+- Archivos estáticos preparados con `collectstatic` y WhiteNoise.
 - Configuración SMTP real por variables de entorno, probada con envío real.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
@@ -49,6 +50,8 @@ Documentación técnica:
 
 - [Arquitectura del proyecto](docs/arquitectura.md)
 - [Migración a PostgreSQL](docs/postgresql.md)
+- [Archivos estáticos](docs/staticfiles.md)
+- [Recordatorios automáticos](docs/recordatorios.md)
 
 ## Tecnologías
 
@@ -56,6 +59,7 @@ Documentación técnica:
 - Django 6.0.4
 - SQLite para desarrollo local
 - PostgreSQL preparado para producción
+- WhiteNoise para servir archivos estáticos en producción simple
 - Django Admin como primera interfaz de gestión
 - Variables de entorno para configuración sensible
 - SMTP para emails transaccionales
@@ -413,7 +417,15 @@ También se puede pasar una ventana puntual al comando:
 python manage.py enviar_recordatorios_email --horas 48
 ```
 
+Para schedulers de producción conviene usar:
+
+```powershell
+python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
+```
+
 Cada turno guarda cuándo se envió el recordatorio para evitar envíos duplicados.
+
+La guía para programar este comando con Render, Railway, cron o Windows Task Scheduler está en [docs/recordatorios.md](docs/recordatorios.md).
 
 Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
 
@@ -519,6 +531,12 @@ Levantar el servidor de desarrollo:
 python manage.py runserver
 ```
 
+Preparar archivos estáticos para producción:
+
+```powershell
+python manage.py collectstatic --noinput
+```
+
 ## Archivos no versionados
 
 El archivo `db.sqlite3` se usa solamente para desarrollo local y está ignorado por Git.
@@ -535,9 +553,9 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Programar la ejecución automática del comando de recordatorios en producción.
-2. Configurar archivos estáticos para producción.
-3. Probar PostgreSQL en un entorno local o de staging.
+1. Probar PostgreSQL en un entorno local o de staging.
+2. Agregar `gunicorn` y archivos de arranque para deploy.
+3. Elegir proveedor de deploy y crear entorno de staging.
 4. Evaluar cifrado de tokens OAuth antes de producción.
 5. Empezar historia clínica básica como mejora futura.
 

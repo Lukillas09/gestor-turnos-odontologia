@@ -1265,6 +1265,51 @@ class EmailManagementCommandTests(TestCase):
         with self.assertRaises(CommandError):
             call_command("enviar_recordatorios_email", "--horas", "0")
 
+    def test_enviar_recordatorios_email_puede_fallar_si_hay_errores(self):
+        usuario = get_user_model().objects.create_user(
+            username="dra.recordatorios.error",
+            first_name="Rita",
+            last_name="Error",
+        )
+        odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-REC-ERR",
+            duracion_turno_minutos=30,
+        )
+        crear_disponibilidad_laboral(odontologo)
+        paciente = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Error",
+            documento="49111222",
+            email="paciente-error@example.com",
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+        ahora = timezone.make_aware(
+            datetime(2026, 5, 7, 10, 0),
+            timezone.get_current_timezone(),
+        )
+
+        salida = StringIO()
+
+        with patch("turnos.services.timezone.now", return_value=ahora):
+            with self.assertLogs("turnos.notifications", level="ERROR"):
+                with patch("turnos.notifications.send_mail", side_effect=OSError("SMTP caido")):
+                    with self.assertRaises(CommandError):
+                        call_command(
+                            "enviar_recordatorios_email",
+                            "--horas",
+                            "24",
+                            "--fallar-si-hay-errores",
+                            stdout=salida,
+                        )
+
 
 class HorariosDisponiblesTests(TestCase):
     def setUp(self):
