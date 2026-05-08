@@ -8,6 +8,14 @@ El objetivo del proyecto es construir, paso a paso, un sistema que permita carga
 
 El proyecto se encuentra en una etapa funcional de panel interno, reglas de agenda e integraciones iniciales.
 
+Staging inicial:
+
+- URL: https://gestor-turnos-odontologia-staging.onrender.com
+- Estado: desplegado en Render y conectado a Supabase PostgreSQL.
+- Admin de Django probado en staging.
+- Google Calendar probado en staging.
+- Emails en Render Free: por ahora quedan por consola/logs, no como envio SMTP real desde Render.
+
 Actualmente incluye:
 
 - Proyecto Django configurado.
@@ -43,6 +51,8 @@ Actualmente incluye:
 - Archivos estáticos preparados con `collectstatic` y WhiteNoise.
 - Servidor de producción preparado con Gunicorn.
 - Scripts de build, release y start para deploy.
+- Staging inicial desplegado en Render.
+- Base PostgreSQL de staging configurada en Supabase.
 - Configuración SMTP real por variables de entorno, probada con envío real.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
@@ -594,11 +604,11 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Crear el staging en Render con Supabase PostgreSQL.
-2. Configurar Google OAuth para la URL publica de staging.
-3. Probar el flujo completo con un turno real de staging.
-4. Resolver email real en deploy con un proveedor compatible por API HTTP o plan que permita SMTP.
-5. Definir backups, dominio real, HTTPS final y estrategia de logs.
+1. Rotar secretos expuestos durante la configuracion inicial de staging.
+2. Probar y documentar el flujo completo con un turno real de staging.
+3. Resolver email real en deploy con un proveedor compatible por API HTTP o plan que permita SMTP.
+4. Activar recordatorios programados desde GitHub Actions cuando el email de staging este definido.
+5. Definir backups, prueba de restauracion, dominio real, HTTPS final y estrategia de logs.
 6. Evaluar cifrado de tokens OAuth antes de produccion.
 7. Empezar historia clinica basica como mejora futura.
 

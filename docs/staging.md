@@ -4,6 +4,40 @@ Esta guia define el primer entorno de staging del proyecto.
 
 Staging no es produccion final. Es un ambiente publico y controlado para probar el flujo completo antes de usar el sistema con pacientes reales.
 
+## Estado actual
+
+El staging inicial ya fue creado y probado.
+
+```text
+URL: https://gestor-turnos-odontologia-staging.onrender.com
+App: Render Free Web Service
+Base de datos: Supabase Free Postgres
+```
+
+Funciona actualmente:
+
+- Deploy desde GitHub hacia Render.
+- Aplicacion Django levantada con Gunicorn.
+- Archivos estaticos servidos con WhiteNoise.
+- Base PostgreSQL de Supabase conectada y migrada.
+- Admin de Django accesible en staging.
+- Superusuario creado en la base de staging.
+- Google OAuth configurado para la URL publica de Render.
+- Pantalla de conexion de Google Calendar funcionando para usuarios con perfil de odontologo.
+
+Pendiente:
+
+- Rotar secretos que se usaron durante la configuracion inicial.
+- Probar el flujo completo de turno en staging con datos de prueba controlados.
+- Resolver envio real de emails desde deploy.
+- Activar recordatorios programados con GitHub Actions.
+- Probar backup y restauracion.
+- Definir dominio real y configuracion HTTPS final antes de produccion.
+
+Nota sobre emails:
+
+En Render Free los puertos SMTP comunes estan bloqueados. Por eso, en staging los emails quedan configurados inicialmente con backend de consola y se revisan desde los logs de Render. Para envio real desde deploy falta elegir un proveedor compatible por API HTTP o un entorno que permita SMTP.
+
 ## Decision
 
 El entorno gratuito inicial queda definido asi:

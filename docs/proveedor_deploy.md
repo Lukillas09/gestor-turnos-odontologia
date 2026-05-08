@@ -150,6 +150,14 @@ Usar esta arquitectura para staging, demo y primeras pruebas del consultorio.
 
 La guia operativa para crearlo paso a paso esta en [staging.md](staging.md).
 
+Estado actual: el staging inicial ya esta desplegado en Render en:
+
+```text
+https://gestor-turnos-odontologia-staging.onrender.com
+```
+
+La app conecta con Supabase PostgreSQL y Google Calendar ya fue probado desde la URL publica. Los emails en Render Free quedan por consola/logs hasta resolver una estrategia compatible para envio real.
+
 Antes de usarla como produccion diaria, definir:
 
 - Backups de PostgreSQL.
