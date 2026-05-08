@@ -1,8 +1,11 @@
+from datetime import date, time
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
 
-from turnos.models import Odontologo
+from pacientes.models import Paciente
+from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 
 from .roles import (
     ROL_ADMINISTRADOR,
@@ -10,6 +13,7 @@ from .roles import (
     ROL_RECEPCIONISTA,
     puede_configurar_disponibilidad,
     puede_gestionar_consultorio,
+    puede_reintentar_sincronizacion_google_calendar,
     puede_ver_turnos,
 )
 
@@ -40,6 +44,7 @@ class RolesTests(TestCase):
         asignar_rol(usuario, ROL_ADMINISTRADOR)
 
         self.assertTrue(puede_configurar_disponibilidad(usuario))
+        self.assertTrue(puede_ver_turnos(usuario))
 
     def test_roles_iniciales_crean_permisos_de_disponibilidad(self):
         grupo = Group.objects.get(name=ROL_ADMINISTRADOR)
@@ -47,3 +52,58 @@ class RolesTests(TestCase):
         self.assertTrue(
             grupo.permissions.filter(codename="change_disponibilidadodontologo").exists()
         )
+
+    def test_recepcionista_puede_reintentar_sincronizacion_google_calendar(self):
+        usuario = get_user_model().objects.create_user(username="recepcion.sync")
+        asignar_rol(usuario, ROL_RECEPCIONISTA)
+        turno = crear_turno_para_permiso()
+
+        self.assertTrue(puede_reintentar_sincronizacion_google_calendar(usuario, turno))
+
+    def test_administrador_puede_reintentar_sincronizacion_google_calendar(self):
+        usuario = get_user_model().objects.create_user(username="admin.sync", is_staff=True)
+        asignar_rol(usuario, ROL_ADMINISTRADOR)
+        turno = crear_turno_para_permiso()
+
+        self.assertTrue(puede_reintentar_sincronizacion_google_calendar(usuario, turno))
+
+    def test_odontologo_puede_reintentar_solo_sus_turnos(self):
+        usuario = get_user_model().objects.create_user(username="odontologo.sync")
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula="MN-SYNC-ROL")
+        turno_propio = crear_turno_para_permiso(odontologo=odontologo)
+        turno_ajeno = crear_turno_para_permiso(matricula="MN-SYNC-AJENO")
+
+        self.assertTrue(
+            puede_reintentar_sincronizacion_google_calendar(usuario, turno_propio)
+        )
+        self.assertFalse(
+            puede_reintentar_sincronizacion_google_calendar(usuario, turno_ajeno)
+        )
+
+
+def crear_turno_para_permiso(odontologo=None, matricula="MN-SYNC-PERMISO"):
+    if odontologo is None:
+        usuario = get_user_model().objects.create_user(username=f"usuario.{matricula.lower()}")
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula=matricula)
+
+    DisponibilidadOdontologo.objects.get_or_create(
+        odontologo=odontologo,
+        dia_semana=DisponibilidadOdontologo.DiaSemana.VIERNES,
+        defaults={
+            "hora_inicio": time(9, 0),
+            "hora_fin": time(18, 0),
+        },
+    )
+    paciente = Paciente.objects.create(
+        nombre="Paciente",
+        apellido=matricula,
+        documento=matricula,
+    )
+    return Turno.objects.create(
+        paciente=paciente,
+        odontologo=odontologo,
+        fecha=date(2026, 5, 8),
+        hora_inicio=time(10, 0),
+        duracion_minutos=30,
+    )

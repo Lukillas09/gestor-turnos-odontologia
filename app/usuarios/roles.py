@@ -30,9 +30,13 @@ def puede_gestionar_consultorio(usuario):
 
 
 def puede_ver_turnos(usuario):
-    return puede_gestionar_consultorio(usuario) or (
-        pertenece_a_rol(usuario, ROL_ODONTOLOGO)
-        and obtener_odontologo_del_usuario(usuario) is not None
+    return (
+        puede_gestionar_consultorio(usuario)
+        or puede_configurar_disponibilidad(usuario)
+        or (
+            pertenece_a_rol(usuario, ROL_ODONTOLOGO)
+            and obtener_odontologo_del_usuario(usuario) is not None
+        )
     )
 
 
@@ -46,8 +50,19 @@ def puede_conectar_google_calendar(usuario):
     return usuario.is_authenticated and obtener_odontologo_del_usuario(usuario) is not None
 
 
+def puede_reintentar_sincronizacion_google_calendar(usuario, turno):
+    if not usuario.is_authenticated:
+        return False
+
+    if puede_gestionar_consultorio(usuario) or puede_configurar_disponibilidad(usuario):
+        return True
+
+    odontologo = obtener_odontologo_del_usuario(usuario)
+    return odontologo is not None and turno.odontologo_id == odontologo.pk
+
+
 def limitar_turnos_por_usuario(queryset, usuario):
-    if puede_gestionar_consultorio(usuario):
+    if puede_gestionar_consultorio(usuario) or puede_configurar_disponibilidad(usuario):
         return queryset
 
     odontologo = obtener_odontologo_del_usuario(usuario)

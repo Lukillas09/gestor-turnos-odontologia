@@ -10,6 +10,12 @@
         </div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'turnos:lista' %}">Volver</a>
+            {% if puede_reintentar_sincronizacion_google_calendar %}
+                <form method="post" action="{% url 'turnos:reintentar_google_calendar' turno.pk %}">
+                    {% csrf_token %}
+                    <button class="button-secondary" type="submit">Reintentar sincronización</button>
+                </form>
+            {% endif %}
             {% if puede_gestionar_turnos %}
                 <a class="button" href="{% url 'turnos:editar' turno.pk %}">Editar</a>
                 {% if turno.estado == turno.Estado.PENDIENTE %}
@@ -54,6 +60,27 @@
                 <dt>Estado</dt>
                 <dd>{{ turno.get_estado_display }}</dd>
             </div>
+            <div>
+                <dt>Google Calendar</dt>
+                <dd>
+                    {% if turno.sincronizado_con_google_calendar %}
+                        <span class="status-badge status-sync-ok">Sincronizado</span>
+                    {% else %}
+                        <span class="status-badge status-sync-pending">No sincronizado</span>
+                    {% endif %}
+                </dd>
+            </div>
+            {% if google_calendar_ultimo_error %}
+                <div class="field-full sync-error">
+                    <dt>Ultimo error de sincronizacion</dt>
+                    <dd>
+                        <p>{{ google_calendar_ultimo_error }}</p>
+                        {% if puede_reintentar_sincronizacion_google_calendar %}
+                            <p class="help-text">Podes usar Reintentar sincronizacion para volver a enviar este turno a Google Calendar.</p>
+                        {% endif %}
+                    </dd>
+                </div>
+            {% endif %}
             <div class="field-full">
                 <dt>Motivo</dt>
                 <dd>{{ turno.motivo|default:"-" }}</dd>

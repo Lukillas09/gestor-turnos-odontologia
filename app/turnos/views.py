@@ -2,7 +2,7 @@ from datetime import timedelta
 from secrets import token_urlsafe
 
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -25,6 +25,7 @@ from usuarios.roles import (
     limitar_turnos_por_usuario,
     obtener_odontologo_del_usuario,
     obtener_odontologo_visible,
+    puede_reintentar_sincronizacion_google_calendar,
 )
 
 from .forms import (
@@ -45,7 +46,11 @@ from .integrations.google_calendar import (
     construir_url_autorizacion_google_calendar,
     intercambiar_codigo_por_tokens,
 )
-from .models import GoogleCalendarConexion, Turno
+from .models import (
+    GoogleCalendarConexion,
+    Turno,
+    normalizar_error_google_calendar_para_usuario,
+)
 from .selectors import (
     obtener_bloques_agenda_del_dia,
     obtener_inicio_semana,
@@ -58,6 +63,7 @@ from .services import (
     confirmar_turno,
     crear_solicitud_turno_publica,
     crear_turno_desde_formulario,
+    reintentar_sincronizacion_google_calendar,
 )
 
 
@@ -287,9 +293,55 @@ class TurnoDetailView(VerTurnosRequeridoMixin, DetailView):
                 "paciente",
                 "odontologo",
                 "odontologo__usuario",
+                "odontologo__google_calendar_conexion",
             )
         )
         return limitar_turnos_por_usuario(queryset, self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["puede_reintentar_sincronizacion_google_calendar"] = (
+            puede_reintentar_sincronizacion_google_calendar(
+                self.request.user,
+                self.object,
+            )
+        )
+        context["google_calendar_ultimo_error"] = self._obtener_ultimo_error_google_calendar()
+        return context
+
+    def _obtener_ultimo_error_google_calendar(self):
+        try:
+            conexion = self.object.odontologo.google_calendar_conexion
+        except GoogleCalendarConexion.DoesNotExist:
+            return ""
+
+        return conexion.ultimo_error_para_usuario
+
+
+class TurnoReintentarSincronizacionGoogleCalendarView(VerTurnosRequeridoMixin, View):
+    def post(self, request, pk):
+        turno = get_object_or_404(
+            limitar_turnos_por_usuario(
+                Turno.objects.select_related("odontologo", "odontologo__usuario"),
+                request.user,
+            ),
+            pk=pk,
+        )
+
+        if not puede_reintentar_sincronizacion_google_calendar(request.user, turno):
+            raise PermissionDenied("No tenes permiso para reintentar esta sincronizacion.")
+
+        resultado = reintentar_sincronizacion_google_calendar(turno)
+
+        if resultado.realizada:
+            messages.success(request, "Turno sincronizado con Google Calendar correctamente.")
+        else:
+            mensaje = normalizar_error_google_calendar_para_usuario(resultado.mensaje) or (
+                "No se pudo sincronizar el turno."
+            )
+            messages.error(request, f"No se pudo sincronizar con Google Calendar: {mensaje}")
+
+        return redirect("turnos:detalle", pk=turno.pk)
 
 
 class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):

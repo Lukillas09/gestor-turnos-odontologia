@@ -14,6 +14,7 @@ from .views import (
     TurnoCreateView,
     TurnoDetailView,
     TurnoListView,
+    TurnoReintentarSincronizacionGoogleCalendarView,
     TurnoUpdateView,
 )
 
@@ -54,4 +55,9 @@ urlpatterns = [
     path("<int:pk>/editar/", TurnoUpdateView.as_view(), name="editar"),
     path("<int:pk>/confirmar/", TurnoConfirmView.as_view(), name="confirmar"),
     path("<int:pk>/cancelar/", TurnoCancelView.as_view(), name="cancelar"),
+    path(
+        "<int:pk>/google-calendar/reintentar/",
+        TurnoReintentarSincronizacionGoogleCalendarView.as_view(),
+        name="reintentar_google_calendar",
+    ),
 ]

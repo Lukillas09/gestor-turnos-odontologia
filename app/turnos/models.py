@@ -173,6 +173,10 @@ class Turno(models.Model):
     def hora_fin(self):
         return self.fecha_hora_fin.time()
 
+    @property
+    def sincronizado_con_google_calendar(self):
+        return bool(self.google_calendar_event_id)
+
     def clean(self):
         errors = {}
 
@@ -280,6 +284,10 @@ class GoogleCalendarConexion(models.Model):
             not self.access_token or self.access_token_expirado
         )
 
+    @property
+    def ultimo_error_para_usuario(self):
+        return normalizar_error_google_calendar_para_usuario(self.ultimo_error)
+
     def clean(self):
         errors = {}
 
@@ -343,3 +351,59 @@ class GoogleCalendarConexion(models.Model):
 
     def __str__(self):
         return f"Google Calendar - {self.odontologo}"
+
+
+def normalizar_error_google_calendar_para_usuario(mensaje):
+    if not mensaje:
+        return ""
+
+    mensaje_normalizado = mensaje.lower()
+
+    if any(
+        patron in mensaje_normalizado
+        for patron in (
+            "token",
+            "oauth",
+            "credential",
+            "credencial",
+            "unauthorized",
+            "invalid_grant",
+            "401",
+            "403",
+            "refresh token",
+            "access token",
+        )
+    ):
+        return (
+            "No se pudo autorizar la conexion con Google Calendar. "
+            "Revisa la conexion del odontologo y volve a intentar."
+        )
+
+    if "conexion activa" in mensaje_normalizado:
+        return (
+            "El odontologo no tiene una conexion activa con Google Calendar. "
+            "Conecta Google Calendar y volve a intentar."
+        )
+
+    if any(
+        patron in mensaje_normalizado
+        for patron in ("not found", "no se encontro", "404")
+    ):
+        return (
+            "No se encontro el evento en Google Calendar. "
+            "Podes reintentar la sincronizacion para crear o actualizar el evento."
+        )
+
+    if any(
+        patron in mensaje_normalizado
+        for patron in ("timeout", "connection", "conectar", "red")
+    ):
+        return (
+            "No se pudo conectar con Google Calendar. "
+            "Reintenta en unos minutos."
+        )
+
+    return (
+        "No se pudo sincronizar el turno con Google Calendar. "
+        "Revisa la conexion del odontologo o reintenta la sincronizacion."
+    )

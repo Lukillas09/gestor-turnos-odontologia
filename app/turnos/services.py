@@ -25,6 +25,10 @@ def actualizar_turno_desde_formulario(form):
     return turno
 
 
+def reintentar_sincronizacion_google_calendar(turno):
+    return sincronizar_turno_actualizado(turno)
+
+
 def confirmar_turno(turno):
     if turno.estado != Turno.Estado.PENDIENTE:
         return turno

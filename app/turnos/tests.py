@@ -13,7 +13,13 @@ from django.urls import reverse
 from django.utils import timezone
 
 from pacientes.models import Paciente
-from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
+from turnos.google_calendar_sync import ResultadoSincronizacionGoogleCalendar
+from turnos.models import (
+    DisponibilidadOdontologo,
+    GoogleCalendarConexion,
+    Odontologo,
+    Turno,
+)
 from turnos.notifications import notificar_turno_confirmado
 from turnos.selectors import (
     obtener_bloques_agenda_del_dia,
@@ -22,7 +28,7 @@ from turnos.selectors import (
     obtener_turnos_de_la_semana,
     obtener_turnos_del_dia,
 )
-from usuarios.roles import ROL_ODONTOLOGO, ROL_RECEPCIONISTA
+from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 
 def asignar_rol(usuario, nombre_rol):
@@ -330,6 +336,134 @@ class TurnoViewsTests(TestCase):
         self.assertContains(response, "Diaz")
         self.assertContains(response, "Control")
         self.assertContains(response, "10:00")
+
+    def test_detalle_muestra_turno_sincronizado_con_google_calendar(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            google_calendar_event_id="evento-google-123",
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Google Calendar")
+        self.assertContains(response, "Sincronizado")
+        self.assertContains(response, "status-sync-ok")
+        self.assertNotContains(response, "evento-google-123")
+
+    def test_detalle_muestra_turno_no_sincronizado_con_google_calendar(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Google Calendar")
+        self.assertContains(response, "No sincronizado")
+        self.assertContains(response, "status-sync-pending")
+
+    def test_detalle_muestra_ultimo_error_google_calendar_con_mensaje_claro(self):
+        GoogleCalendarConexion.objects.create(
+            odontologo=self.odontologo,
+            refresh_token="refresh-token",
+            ultimo_error="HTTP 401 invalid_grant access_token=secreto-tecnico",
+        )
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ultimo error de sincronizacion")
+        self.assertContains(response, "No se pudo autorizar la conexion con Google Calendar")
+        self.assertContains(response, "Reintentar sincronizacion")
+        self.assertNotContains(response, "invalid_grant")
+        self.assertNotContains(response, "access_token")
+        self.assertNotContains(response, "secreto-tecnico")
+
+    def test_detalle_muestra_boton_reintentar_sincronizacion(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Reintentar sincronización")
+        self.assertContains(response, reverse("turnos:reintentar_google_calendar", kwargs={"pk": turno.pk}))
+
+    def test_reintentar_sincronizacion_muestra_mensaje_de_exito(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        with patch(
+            "turnos.views.reintentar_sincronizacion_google_calendar",
+            return_value=ResultadoSincronizacionGoogleCalendar(
+                realizada=True,
+                accion="crear",
+                event_id="evento-creado",
+            ),
+        ) as sincronizar_mock:
+            response = self.client.post(
+                reverse("turnos:reintentar_google_calendar", kwargs={"pk": turno.pk}),
+                follow=True,
+            )
+
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertContains(response, "Turno sincronizado con Google Calendar correctamente.")
+        sincronizar_mock.assert_called_once()
+
+    def test_reintentar_sincronizacion_muestra_mensaje_de_error(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+        )
+
+        with patch(
+            "turnos.views.reintentar_sincronizacion_google_calendar",
+            return_value=ResultadoSincronizacionGoogleCalendar(
+                realizada=False,
+                accion="crear",
+                mensaje="HTTP 401 invalid_grant access_token=secreto-tecnico",
+            ),
+        ):
+            response = self.client.post(
+                reverse("turnos:reintentar_google_calendar", kwargs={"pk": turno.pk}),
+                follow=True,
+            )
+
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertContains(response, "No se pudo sincronizar con Google Calendar")
+        self.assertContains(response, "No se pudo autorizar la conexion con Google Calendar")
+        self.assertNotContains(response, "invalid_grant")
+        self.assertNotContains(response, "access_token")
+        self.assertNotContains(response, "secreto-tecnico")
 
     def test_detalle_muestra_boton_confirmar_si_el_turno_esta_pendiente(self):
         turno = Turno.objects.create(
@@ -957,6 +1091,11 @@ class TurnoAccessTests(TestCase):
 
         self.assertRedirects(self.client.post(url), f"{reverse('login')}?next={url}")
 
+    def test_reintentar_sincronizacion_requiere_login(self):
+        url = reverse("turnos:reintentar_google_calendar", kwargs={"pk": 1})
+
+        self.assertRedirects(self.client.post(url), f"{reverse('login')}?next={url}")
+
 
 class TurnoRoleTests(TestCase):
     def setUp(self):
@@ -1022,6 +1161,7 @@ class TurnoRoleTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Turno propio")
+        self.assertContains(response, "Reintentar sincronización")
         self.assertNotContains(response, "Cancelar turno")
 
     def test_odontologo_no_puede_ver_turno_ajeno(self):
@@ -1030,6 +1170,76 @@ class TurnoRoleTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_odontologo_puede_reintentar_sincronizacion_de_turno_propio(self):
+        with patch(
+            "turnos.views.reintentar_sincronizacion_google_calendar",
+            return_value=ResultadoSincronizacionGoogleCalendar(
+                realizada=True,
+                accion="actualizar",
+            ),
+        ) as sincronizar_mock:
+            response = self.client.post(
+                reverse(
+                    "turnos:reintentar_google_calendar",
+                    kwargs={"pk": self.turno_propio.pk},
+                )
+            )
+
+        self.assertRedirects(
+            response,
+            reverse("turnos:detalle", kwargs={"pk": self.turno_propio.pk}),
+        )
+        sincronizar_mock.assert_called_once()
+
+    def test_odontologo_no_puede_reintentar_sincronizacion_de_turno_ajeno(self):
+        with patch("turnos.views.reintentar_sincronizacion_google_calendar") as sincronizar_mock:
+            response = self.client.post(
+                reverse(
+                    "turnos:reintentar_google_calendar",
+                    kwargs={"pk": self.turno_ajeno.pk},
+                )
+            )
+
+        self.assertEqual(response.status_code, 404)
+        sincronizar_mock.assert_not_called()
+
+    def test_administrador_puede_ver_y_reintentar_sin_gestionar_turno(self):
+        usuario_admin = get_user_model().objects.create_user(
+            username="admin.turnos",
+            is_staff=True,
+        )
+        asignar_rol(usuario_admin, ROL_ADMINISTRADOR)
+        self.client.force_login(usuario_admin)
+
+        response_detalle = self.client.get(
+            reverse("turnos:detalle", kwargs={"pk": self.turno_propio.pk})
+        )
+
+        self.assertEqual(response_detalle.status_code, 200)
+        self.assertContains(response_detalle, "Reintentar sincronización")
+        self.assertNotContains(response_detalle, "Editar")
+        self.assertNotContains(response_detalle, "Cancelar turno")
+
+        with patch(
+            "turnos.views.reintentar_sincronizacion_google_calendar",
+            return_value=ResultadoSincronizacionGoogleCalendar(
+                realizada=True,
+                accion="actualizar",
+            ),
+        ) as sincronizar_mock:
+            response_reintentar = self.client.post(
+                reverse(
+                    "turnos:reintentar_google_calendar",
+                    kwargs={"pk": self.turno_propio.pk},
+                )
+            )
+
+        self.assertRedirects(
+            response_reintentar,
+            reverse("turnos:detalle", kwargs={"pk": self.turno_propio.pk}),
+        )
+        sincronizar_mock.assert_called_once()
 
     def test_odontologo_no_puede_gestionar_turnos(self):
         response_crear = self.client.get(reverse("turnos:crear"))
