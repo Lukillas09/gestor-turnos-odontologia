@@ -144,7 +144,16 @@ class GoogleCalendarConexionAdmin(admin.ModelAdmin):
         "calendar_id",
     )
     autocomplete_fields = ("odontologo",)
-    readonly_fields = ("creado_en", "actualizado_en", "sincronizado_en")
+    readonly_fields = (
+        "access_token_estado",
+        "refresh_token_estado",
+        "scopes_display",
+        "token_type",
+        "token_expira_en",
+        "creado_en",
+        "actualizado_en",
+        "sincronizado_en",
+    )
     ordering = ("odontologo",)
     fieldsets = (
         (
@@ -162,15 +171,15 @@ class GoogleCalendarConexionAdmin(admin.ModelAdmin):
             {
                 "classes": ("collapse",),
                 "fields": (
-                    "access_token",
-                    "refresh_token",
+                    "access_token_estado",
+                    "refresh_token_estado",
                     "token_type",
-                    "scopes",
+                    "scopes_display",
                     "token_expira_en",
                 ),
                 "description": (
                     "Estos valores los debe escribir el flujo OAuth. "
-                    "No deben subirse al repositorio."
+                    "Por seguridad, los tokens reales no se muestran en el admin."
                 ),
             },
         ),
@@ -201,6 +210,18 @@ class GoogleCalendarConexionAdmin(admin.ModelAdmin):
     @admin.display(boolean=True, description="Access token expirado")
     def access_token_expirado_display(self, obj):
         return obj.access_token_expirado
+
+    @admin.display(description="Access token")
+    def access_token_estado(self, obj):
+        return "Guardado" if obj.access_token else "-"
+
+    @admin.display(description="Refresh token")
+    def refresh_token_estado(self, obj):
+        return "Guardado" if obj.refresh_token else "-"
+
+    @admin.display(description="Permisos OAuth")
+    def scopes_display(self, obj):
+        return ", ".join(obj.scopes) if obj.scopes else "-"
 
 
 @admin.register(Turno)

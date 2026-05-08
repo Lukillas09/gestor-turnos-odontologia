@@ -41,6 +41,8 @@ Actualmente incluye:
 - Configuración de base de datos por `DATABASE_URL`.
 - Soporte para PostgreSQL manteniendo SQLite como base local por defecto.
 - Archivos estáticos preparados con `collectstatic` y WhiteNoise.
+- Servidor de producción preparado con Gunicorn.
+- Scripts de build, release y start para deploy.
 - Configuración SMTP real por variables de entorno, probada con envío real.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
@@ -52,6 +54,10 @@ Documentación técnica:
 - [Migración a PostgreSQL](docs/postgresql.md)
 - [Archivos estáticos](docs/staticfiles.md)
 - [Recordatorios automáticos](docs/recordatorios.md)
+- [Deploy](docs/deploy.md)
+- [Proveedor de deploy gratuito inicial](docs/proveedor_deploy.md)
+- [Entorno de staging](docs/staging.md)
+- [Seguridad antes de producción](docs/seguridad_produccion.md)
 
 ## Tecnologías
 
@@ -60,6 +66,7 @@ Documentación técnica:
 - SQLite para desarrollo local
 - PostgreSQL preparado para producción
 - WhiteNoise para servir archivos estáticos en producción simple
+- Gunicorn como servidor WSGI de producción
 - Django Admin como primera interfaz de gestión
 - Variables de entorno para configuración sensible
 - SMTP para emails transaccionales
@@ -71,8 +78,19 @@ gestor-turnos-odontologia/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── .env.render-supabase.example
 ├── requirements.txt
+├── Procfile
+├── render.yaml
+├── .github/
+│   └── workflows/
+│       └── staging_recordatorios.yml
 ├── docs/
+├── scripts/
+│   ├── build.sh
+│   ├── backup_postgresql.sh
+│   ├── release.sh
+│   └── start.sh
 └── app/
     ├── manage.py
     ├── config/
@@ -133,6 +151,14 @@ Copy-Item .env.example .env
 
 El archivo `.env` es local y no se sube a Git. Ahi se configuran secretos, credenciales OAuth y valores propios del entorno.
 
+Para el escenario gratuito inicial de deploy existe un ejemplo separado:
+
+```powershell
+Copy-Item .env.render-supabase.example .env
+```
+
+Ese archivo documenta la combinacion Render Free + Supabase Free + GitHub Actions.
+
 Entrar a la carpeta de la aplicación Django:
 
 ```powershell
@@ -189,6 +215,7 @@ Variables principales:
 - `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`
 - `DJANGO_SECURE_HSTS_PRELOAD`
 - `DJANGO_SECURE_PROXY_SSL_HEADER`
+- `DJANGO_LOG_LEVEL`
 - `DATABASE_URL`
 - `EMAIL_BACKEND`
 - `EMAIL_HOST`
@@ -537,6 +564,20 @@ Preparar archivos estáticos para producción:
 python manage.py collectstatic --noinput
 ```
 
+Comandos de deploy en Linux:
+
+```bash
+bash scripts/build.sh
+bash scripts/release.sh
+bash scripts/start.sh
+```
+
+La guía de build/start para Render o Railway está en [docs/deploy.md](docs/deploy.md).
+
+La guía del primer entorno de staging está en [docs/staging.md](docs/staging.md).
+
+La guía de endurecimiento antes de producción está en [docs/seguridad_produccion.md](docs/seguridad_produccion.md).
+
 ## Archivos no versionados
 
 El archivo `db.sqlite3` se usa solamente para desarrollo local y está ignorado por Git.
@@ -553,11 +594,13 @@ También se ignoran archivos generados como:
 
 Próximos pasos sugeridos:
 
-1. Probar PostgreSQL en un entorno local o de staging.
-2. Agregar `gunicorn` y archivos de arranque para deploy.
-3. Elegir proveedor de deploy y crear entorno de staging.
-4. Evaluar cifrado de tokens OAuth antes de producción.
-5. Empezar historia clínica básica como mejora futura.
+1. Crear el staging en Render con Supabase PostgreSQL.
+2. Configurar Google OAuth para la URL publica de staging.
+3. Probar el flujo completo con un turno real de staging.
+4. Resolver email real en deploy con un proveedor compatible por API HTTP o plan que permita SMTP.
+5. Definir backups, dominio real, HTTPS final y estrategia de logs.
+6. Evaluar cifrado de tokens OAuth antes de produccion.
+7. Empezar historia clinica basica como mejora futura.
 
 ## Integración con Google Calendar
 

@@ -2,6 +2,7 @@ from datetime import date, time, timedelta
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -24,6 +25,7 @@ from turnos.google_calendar_sync import (
     sincronizar_turno_cancelado,
     sincronizar_turno_creado,
 )
+from turnos.admin import GoogleCalendarConexionAdmin
 from turnos.models import (
     DisponibilidadOdontologo,
     GoogleCalendarConexion,
@@ -242,6 +244,20 @@ class GoogleCalendarConexionModelTests(TestCase):
             conexion.full_clean()
 
 
+class GoogleCalendarConexionAdminTests(SimpleTestCase):
+    def test_admin_no_expone_campos_reales_de_tokens(self):
+        model_admin = GoogleCalendarConexionAdmin(GoogleCalendarConexion, admin.site)
+        campos = []
+
+        for _, opciones in model_admin.fieldsets:
+            campos.extend(opciones["fields"])
+
+        self.assertNotIn("access_token", campos)
+        self.assertNotIn("refresh_token", campos)
+        self.assertIn("access_token_estado", campos)
+        self.assertIn("refresh_token_estado", campos)
+
+
 class GoogleCalendarOAuthViewsTests(TestCase):
     def setUp(self):
         self.usuario = get_user_model().objects.create_user(
@@ -262,6 +278,24 @@ class GoogleCalendarOAuthViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Conectar Google Calendar")
         self.assertContains(response, "Sin conexion")
+
+    def test_estado_no_expone_tokens_ni_error_tecnico(self):
+        GoogleCalendarConexion.objects.create(
+            odontologo=self.odontologo,
+            access_token="access-token-secreto",
+            refresh_token="refresh-token-secreto",
+            ultimo_error="HTTP 401 invalid_grant access_token=secreto-tecnico",
+        )
+
+        response = self.client.get(reverse("turnos:google_calendar"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Guardado")
+        self.assertContains(response, "No se pudo autorizar la conexion con Google Calendar")
+        self.assertNotContains(response, "access-token-secreto")
+        self.assertNotContains(response, "refresh-token-secreto")
+        self.assertNotContains(response, "invalid_grant")
+        self.assertNotContains(response, "secreto-tecnico")
 
     @override_settings(
         GOOGLE_CALENDAR_CLIENT_ID="client-id",

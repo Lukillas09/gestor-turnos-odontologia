@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: gestor-turnos-odontologia-staging
+    runtime: python
+    plan: free
+    buildCommand: bash scripts/build.sh
+    startCommand: bash scripts/start.sh
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: DJANGO_SECURE_SSL_REDIRECT
+        value: "True"
+      - key: DJANGO_SESSION_COOKIE_SECURE
+        value: "True"
+      - key: DJANGO_CSRF_COOKIE_SECURE
+        value: "True"
+      - key: DJANGO_SECURE_HSTS_SECONDS
+        value: "0"
+      - key: DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS
+        value: "False"
+      - key: DJANGO_SECURE_HSTS_PRELOAD
+        value: "False"
+      - key: DJANGO_SECURE_PROXY_SSL_HEADER
+        value: "True"
+      - key: DJANGO_LOG_LEVEL
+        value: "INFO"
+      - key: DATABASE_URL
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: TURNOS_RECORDATORIO_HORAS
+        value: "24"
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.console.EmailBackend"
+      - key: DEFAULT_FROM_EMAIL
+        value: "turnos@localhost"
+      - key: GOOGLE_CALENDAR_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CALENDAR_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALENDAR_REDIRECT_URI
+        sync: false
+      - key: GOOGLE_CALENDAR_SCOPES
+        value: "https://www.googleapis.com/auth/calendar.events"

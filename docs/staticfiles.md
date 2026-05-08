@@ -48,32 +48,32 @@ Esa carpeta esta ignorada por Git porque es salida generada.
 Build command sugerido:
 
 ```bash
-pip install -r requirements.txt && cd app && python manage.py collectstatic --noinput && python manage.py migrate
+bash scripts/build.sh
 ```
 
 Start command sugerido:
 
 ```bash
-cd app && gunicorn config.wsgi:application
+bash scripts/start.sh
 ```
 
-Todavia falta agregar `gunicorn` cuando se avance con el deploy real.
+Las migraciones pueden ejecutarse con `bash scripts/release.sh` como comando de pre-deploy o tarea manual controlada.
 
 ## Railway
 
 Build command sugerido:
 
 ```bash
-pip install -r requirements.txt && cd app && python manage.py collectstatic --noinput
+bash scripts/build.sh
 ```
 
 Start command sugerido:
 
 ```bash
-cd app && gunicorn config.wsgi:application
+bash scripts/start.sh
 ```
 
-Tambien falta agregar `gunicorn` cuando se cierre el bloque de deploy.
+Las migraciones pueden ejecutarse con `bash scripts/release.sh` antes de abrir el servicio a usuarios reales.
 
 ## Recomendaciones
 
