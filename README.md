@@ -483,6 +483,19 @@ Cada turno guarda cuándo se envió el recordatorio para evitar envíos duplicad
 
 La guía para programar este comando con Render, Railway, cron o Windows Task Scheduler está en [docs/recordatorios.md](docs/recordatorios.md).
 
+## Backups de staging
+
+Los backups de PostgreSQL se guardan fuera del repositorio en `backups/`, carpeta ignorada por Git.
+
+En Windows, con Docker Desktop iniciado:
+
+```powershell
+.\scripts\backup_postgresql_docker.ps1
+.\scripts\probar_restore_postgresql_docker.ps1
+```
+
+El primer comando crea un backup logico del esquema `public` de Supabase. El segundo levanta una base PostgreSQL temporal, restaura el backup y valida tablas principales.
+
 Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
 
 Las plantillas de email viven en:

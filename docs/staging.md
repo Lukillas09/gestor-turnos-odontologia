@@ -240,7 +240,9 @@ Checklist del primer staging:
 - Revisar emails en logs o en casilla real segun backend configurado.
 - Ejecutar el workflow de recordatorios en GitHub Actions.
 - Crear un backup logico de prueba con `bash scripts/backup_postgresql.sh`.
+- En Windows, crear backup con `.\scripts\backup_postgresql_docker.ps1`.
 - Probar restauracion en una base separada antes de usar datos reales.
+- En Windows, probar restauracion con `.\scripts\probar_restore_postgresql_docker.ps1`.
 
 ## Listo para avanzar cuando
 

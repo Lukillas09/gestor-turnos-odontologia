@@ -11,6 +11,6 @@ mkdir -p backups
 timestamp="$(date -u +"%Y%m%dT%H%M%SZ")"
 output="backups/postgresql-${timestamp}.dump"
 
-pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl --file "$output"
+pg_dump "$DATABASE_URL" --format=custom --no-owner --no-acl --schema=public --file "$output"
 
 echo "Backup creado en $output"

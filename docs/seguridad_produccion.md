@@ -36,6 +36,14 @@ DATABASE_URL="postgres://usuario:password@host:5432/postgres?sslmode=require" ba
 
 Ese script usa `pg_dump`, por lo que el equipo o runner donde se ejecute debe tener instalado el cliente de PostgreSQL.
 
+En Windows se puede usar Docker sin instalar PostgreSQL local:
+
+```powershell
+.\scripts\backup_postgresql_docker.ps1
+```
+
+Ese script toma `DATABASE_URL` desde la variable de entorno o desde `.env`, crea un backup logico del esquema `public` y deja el archivo en `backups/`.
+
 Los archivos quedan en:
 
 ```text
@@ -50,6 +58,14 @@ Antes de produccion:
 - Probar restauracion, no solo creacion.
 - Guardar una copia fuera del proveedor principal.
 - Documentar quien puede acceder a esos backups.
+
+Para probar restauracion en una base PostgreSQL temporal con Docker:
+
+```powershell
+.\scripts\probar_restore_postgresql_docker.ps1
+```
+
+La prueba levanta un contenedor temporal, restaura el ultimo backup y consulta tablas clave. Al terminar elimina el contenedor.
 
 ## 3. Logs
 
