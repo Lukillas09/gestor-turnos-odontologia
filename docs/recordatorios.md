@@ -12,6 +12,7 @@ Este comando busca turnos confirmados proximos, envia el recordatorio por email 
 
 Por ahora no se agrega Celery ni un scheduler dentro de Django. Para esta etapa conviene usar un scheduler externo:
 
+- GitHub Actions para staging gratuito.
 - Render Cron Job.
 - Railway Cron Job.
 - Cron en Linux.
@@ -36,6 +37,50 @@ cd app && python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay
 ```
 
 El sistema marca cada turno con `recordatorio_email_enviado_en`, por eso no envia el mismo recordatorio dos veces aunque el comando corra cada hora.
+
+## GitHub Actions para staging
+
+El repositorio incluye el workflow:
+
+```text
+.github/workflows/staging_recordatorios.yml
+```
+
+Para activarlo en GitHub:
+
+1. Ir a `Settings` -> `Secrets and variables` -> `Actions`.
+2. Crear la variable:
+
+```text
+STAGING_RECORDATORIOS_ACTIVO=true
+```
+
+3. Crear los secrets minimos:
+
+```text
+STAGING_DJANGO_SECRET_KEY
+STAGING_DJANGO_ALLOWED_HOSTS
+STAGING_DJANGO_CSRF_TRUSTED_ORIGINS
+STAGING_DATABASE_URL
+STAGING_EMAIL_BACKEND
+STAGING_EMAIL_API_PROVIDER
+STAGING_EMAIL_API_KEY
+STAGING_DEFAULT_FROM_EMAIL
+```
+
+Valores esperados para staging:
+
+```text
+STAGING_DJANGO_ALLOWED_HOSTS=gestor-turnos-odontologia-staging.onrender.com
+STAGING_DJANGO_CSRF_TRUSTED_ORIGINS=https://gestor-turnos-odontologia-staging.onrender.com
+STAGING_EMAIL_BACKEND=config.email_backends.EmailApiBackend
+STAGING_EMAIL_API_PROVIDER=resend
+STAGING_DEFAULT_FROM_EMAIL=Consultorio Odontologico <onboarding@resend.dev>
+```
+
+El workflow corre automaticamente cada hora. Tambien se puede ejecutar manualmente desde `Actions` -> `Staging recordatorios` -> `Run workflow`.
+
+En ejecucion manual se puede cambiar `horas` para probar una ventana mas amplia, por ejemplo `72`.
 
 ## Render Cron Job
 
