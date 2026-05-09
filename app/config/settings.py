@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'pacientes',
     'turnos',
+    'historias',
     'usuarios.apps.UsuariosConfig',
 ]
 
@@ -188,6 +189,11 @@ LOGGING = {
             "propagate": False,
         },
         "turnos": {
+            "handlers": ["console"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+        "historias": {
             "handlers": ["console"],
             "level": DJANGO_LOG_LEVEL,
             "propagate": False,

@@ -65,6 +65,15 @@ def puede_conectar_google_calendar(usuario):
     return usuario.is_authenticated and obtener_odontologo_del_usuario(usuario) is not None
 
 
+def puede_gestionar_historias_clinicas(usuario):
+    return usuario.is_authenticated and obtener_odontologo_del_usuario(usuario) is not None
+
+
+def puede_editar_historia_clinica(usuario, historia):
+    odontologo = obtener_odontologo_del_usuario(usuario)
+    return odontologo is not None and historia.odontologo_id == odontologo.pk
+
+
 def puede_reintentar_sincronizacion_google_calendar(usuario, turno):
     if not usuario.is_authenticated:
         return False

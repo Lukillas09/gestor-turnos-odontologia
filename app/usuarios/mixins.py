@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from .roles import (
     puede_borrar_pacientes,
     puede_conectar_google_calendar,
+    puede_gestionar_historias_clinicas,
     puede_gestionar_consultorio,
     puede_ver_pacientes,
     puede_ver_turnos,
@@ -41,3 +42,8 @@ class VerTurnosRequeridoMixin(RolRequeridoMixin):
 class GoogleCalendarRequeridoMixin(RolRequeridoMixin):
     def test_func(self):
         return puede_conectar_google_calendar(self.request.user)
+
+
+class HistoriaClinicaOdontologoRequeridoMixin(RolRequeridoMixin):
+    def test_func(self):
+        return puede_gestionar_historias_clinicas(self.request.user)

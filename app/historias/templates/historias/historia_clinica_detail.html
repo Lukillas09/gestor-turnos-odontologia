@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Entrada clinica de {{ historia.paciente }} | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Entrada de historia clinica</h1>
+            <p class="subtitle">{{ historia.paciente }} - {{ historia.fecha|date:"d/m/Y" }}</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'historias:lista_paciente' historia.paciente.pk %}">Volver</a>
+            {% if puede_editar_historia %}
+                <a class="button" href="{% url 'historias:editar' historia.pk %}">Editar</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="detail-panel">
+        <dl class="detail-grid">
+            <div>
+                <dt>Paciente</dt>
+                <dd>{{ historia.paciente }}</dd>
+            </div>
+            <div>
+                <dt>Odontologo</dt>
+                <dd>{{ historia.odontologo }}</dd>
+            </div>
+            <div>
+                <dt>Fecha</dt>
+                <dd>{{ historia.fecha|date:"d/m/Y" }}</dd>
+            </div>
+            <div>
+                <dt>Pieza dental</dt>
+                <dd>{{ historia.pieza_dental|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt>Proximo control</dt>
+                <dd>{{ historia.proximo_control|date:"d/m/Y"|default:"-" }}</dd>
+            </div>
+            <div>
+                <dt>Ultima actualizacion</dt>
+                <dd>{{ historia.actualizado_en|date:"d/m/Y H:i" }}</dd>
+            </div>
+            <div class="field-full">
+                <dt>Motivo de consulta</dt>
+                <dd>{{ historia.motivo_consulta|linebreaksbr }}</dd>
+            </div>
+            <div class="field-full">
+                <dt>Diagnostico</dt>
+                <dd>{{ historia.diagnostico|linebreaksbr|default:"-" }}</dd>
+            </div>
+            <div class="field-full">
+                <dt>Tratamiento realizado</dt>
+                <dd>{{ historia.tratamiento_realizado|linebreaksbr|default:"-" }}</dd>
+            </div>
+            <div class="field-full">
+                <dt>Observaciones</dt>
+                <dd>{{ historia.observaciones|linebreaksbr|default:"-" }}</dd>
+            </div>
+        </dl>
+    </section>
+{% endblock %}

@@ -51,4 +51,10 @@
             </div>
         </dl>
     </section>
+
+    {% if puede_gestionar_historias_clinicas %}
+        <div class="form-actions">
+            <a class="button" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clinica</a>
+        </div>
+    {% endif %}
 {% endblock %}

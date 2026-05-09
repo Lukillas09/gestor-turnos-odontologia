@@ -60,6 +60,15 @@ def crear_disponibilidad_laboral(odontologo, hora_inicio=time(9, 0), hora_fin=ti
     return disponibilidades
 
 
+def obtener_fecha_laboral_futura():
+    fecha = timezone.localdate() + timedelta(days=1)
+
+    while fecha.weekday() >= 5:
+        fecha += timedelta(days=1)
+
+    return fecha
+
+
 class TurnoModelTests(TestCase):
     def setUp(self):
         usuario = get_user_model().objects.create_user(
@@ -699,6 +708,7 @@ class SolicitudTurnoPublicaTests(TestCase):
             duracion_turno_minutos=30,
         )
         crear_disponibilidad_laboral(self.odontologo)
+        self.fecha_turno = obtener_fecha_laboral_futura()
 
     def test_formulario_publico_no_requiere_login(self):
         response = self.client.get(reverse("turnos:solicitud_publica"))
@@ -716,7 +726,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         Turno.objects.create(
             paciente=paciente,
             odontologo=self.odontologo,
-            fecha=date(2026, 5, 8),
+            fecha=self.fecha_turno,
             hora_inicio=time(9, 30),
             duracion_minutos=30,
             estado=Turno.Estado.CONFIRMADO,
@@ -726,7 +736,7 @@ class SolicitudTurnoPublicaTests(TestCase):
             reverse("turnos:solicitud_publica"),
             {
                 "odontologo": self.odontologo.pk,
-                "fecha": "2026-05-08",
+                "fecha": self.fecha_turno.isoformat(),
             },
         )
 
@@ -759,7 +769,7 @@ class SolicitudTurnoPublicaTests(TestCase):
                 "telefono": "1155667788",
                 "email": "lucia@example.com",
                 "odontologo": self.odontologo.pk,
-                "fecha": "2026-05-08",
+                "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": "10:00",
                 "motivo": "Consulta inicial",
             },
@@ -782,7 +792,7 @@ class SolicitudTurnoPublicaTests(TestCase):
                 "telefono": "1155667788",
                 "email": "lucia@example.com",
                 "odontologo": self.odontologo.pk,
-                "fecha": "2026-05-08",
+                "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": "10:00",
                 "motivo": "Consulta inicial",
             },
@@ -793,7 +803,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Paz, Lucia")
         self.assertContains(response, "Paula Publica")
-        self.assertContains(response, "08/05/2026")
+        self.assertContains(response, self.fecha_turno.strftime("%d/%m/%Y"))
         self.assertContains(response, "10:00 a 10:30")
         self.assertContains(response, "Pendiente")
 
@@ -813,7 +823,7 @@ class SolicitudTurnoPublicaTests(TestCase):
                 "telefono": "1199999999",
                 "email": "nadia@example.com",
                 "odontologo": self.odontologo.pk,
-                "fecha": "2026-05-08",
+                "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": "11:00",
                 "motivo": "Control",
             },
@@ -837,7 +847,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         Turno.objects.create(
             paciente=paciente,
             odontologo=self.odontologo,
-            fecha=date(2026, 5, 8),
+            fecha=self.fecha_turno,
             hora_inicio=time(10, 0),
             duracion_minutos=30,
         )
@@ -851,7 +861,7 @@ class SolicitudTurnoPublicaTests(TestCase):
                 "telefono": "",
                 "email": "",
                 "odontologo": self.odontologo.pk,
-                "fecha": "2026-05-08",
+                "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": "10:00",
                 "motivo": "Horario ocupado",
             },
@@ -914,6 +924,7 @@ class TurnoEmailNotificationTests(TestCase):
             duracion_turno_minutos=30,
         )
         crear_disponibilidad_laboral(self.odontologo)
+        self.fecha_turno = obtener_fecha_laboral_futura()
         self.paciente = Paciente.objects.create(
             nombre="Paula",
             apellido="Correo",
@@ -933,7 +944,7 @@ class TurnoEmailNotificationTests(TestCase):
                 "telefono": "1155667788",
                 "email": "lucia@example.com",
                 "odontologo": self.odontologo.pk,
-                "fecha": "2026-05-08",
+                "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": "10:00",
                 "motivo": "Consulta inicial",
             },

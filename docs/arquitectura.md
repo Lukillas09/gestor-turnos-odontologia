@@ -87,6 +87,22 @@ Modelos principales:
 
 Esta app concentra las reglas iniciales del dominio de agenda.
 
+### historias
+
+Responsabilidad:
+
+- Representar entradas de historia clinica por paciente.
+- Registrar el odontologo responsable de cada entrada.
+- Separar datos clinicos de los datos personales del paciente.
+- Proteger el acceso para que solo usuarios odontologos puedan entrar.
+- Permitir que solo el odontologo responsable edite su propia entrada.
+
+Modelo principal:
+
+- `HistoriaClinica`
+
+Esta app no gestiona turnos ni pacientes. Usa esas entidades como referencia y concentra la informacion clinica evolutiva.
+
 ### usuarios
 
 Responsabilidad:
@@ -145,6 +161,8 @@ El sistema usa grupos de Django para separar responsabilidades:
 
 Los permisos de acceso viven en `usuarios/roles.py` y los mixins de vistas en `usuarios/mixins.py`.
 Para acceder a Django Admin, el usuario tambien debe tener `is_staff` activo.
+
+La historia clinica queda restringida a usuarios con perfil de odontologo. Recepcionistas y administradores no acceden desde las vistas internas porque la informacion clinica requiere una barrera mas estricta que la agenda o los datos administrativos.
 
 ## Decisiones tomadas
 

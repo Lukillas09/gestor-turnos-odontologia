@@ -21,6 +21,7 @@ Actualmente incluye:
 - Proyecto Django configurado.
 - App `pacientes` para gestionar datos de pacientes.
 - App `turnos` para gestionar odontólogos y turnos.
+- App `historias` para gestionar historia clínica básica por paciente.
 - Panel de administración de Django mejorado.
 - Login interno con autenticación de Django.
 - Roles internos basados en grupos de Django.
@@ -45,6 +46,9 @@ Actualmente incluye:
 - Recordatorios por email para turnos confirmados próximos.
 - Reprogramación de turnos con actualización de Google Calendar y aviso por email.
 - Borrado seguro de pacientes con confirmación por nombre, apellido y DNI.
+- Historia clínica básica accesible solo por odontólogos.
+- Creación, detalle y edición de entradas clínicas con odontólogo responsable.
+- Protección para no borrar pacientes que ya tienen historia clínica cargada.
 - Configuración preparada para `DEBUG=False`.
 - Configuración de base de datos por `DATABASE_URL`.
 - Soporte para PostgreSQL manteniendo SQLite como base local por defecto.
@@ -57,7 +61,7 @@ Actualmente incluye:
 - Backend de email por API HTTP para deploy en Render Free.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
-- Tests automatizados para la lógica de turnos, permisos, agenda, Google Calendar y emails.
+- Tests automatizados para la lógica de turnos, permisos, agenda, Google Calendar, emails e historia clínica.
 
 Documentación técnica:
 
@@ -642,7 +646,7 @@ Próximos pasos sugeridos:
 4. Activar recordatorios programados desde GitHub Actions cuando el email de staging este validado.
 5. Definir backups, prueba de restauracion, dominio real, HTTPS final y estrategia de logs.
 6. Evaluar cifrado de tokens OAuth antes de produccion.
-7. Empezar historia clinica basica como mejora futura.
+7. Profundizar historia clínica: adjuntos, odontograma, evolución y auditoría.
 
 ## Integración con Google Calendar
 

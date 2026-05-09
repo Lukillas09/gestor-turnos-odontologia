@@ -130,6 +130,17 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
             )
             return super().form_invalid(form)
 
+        if self._tiene_historias_clinicas():
+            form.add_error(
+                None,
+                "No se puede borrar el paciente porque tiene historia clinica cargada.",
+            )
+            messages.error(
+                self.request,
+                "No se puede borrar el paciente porque tiene historia clinica cargada.",
+            )
+            return super().form_invalid(form)
+
         self._borrar_turnos_que_no_bloquean()
         self.paciente.delete()
         messages.success(self.request, f"Paciente {nombre_completo} borrado correctamente.")
@@ -144,3 +155,6 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
         self.paciente.turnos.exclude(
             estado__in=self.estados_que_bloquean_borrado
         ).delete()
+
+    def _tiene_historias_clinicas(self):
+        return self.paciente.historias_clinicas.exists()
