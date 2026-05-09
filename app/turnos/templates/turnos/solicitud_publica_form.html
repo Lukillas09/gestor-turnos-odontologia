@@ -10,7 +10,7 @@
         </div>
     </div>
 
-    <form class="filter-panel" method="get" novalidate>
+    <form class="filter-panel" method="get" novalidate data-horarios-search>
         {% if busqueda_form.non_field_errors %}
             <div class="field-error field-full">{{ busqueda_form.non_field_errors }}</div>
         {% endif %}
@@ -35,7 +35,13 @@
         </div>
     </form>
 
-    <form class="form-panel" method="post" novalidate>
+    <form
+        class="form-panel"
+        method="post"
+        novalidate
+        data-horarios-form
+        data-horarios-url="{% url 'turnos:horarios_disponibles' %}"
+    >
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -61,4 +67,6 @@
             <button type="submit">Enviar solicitud</button>
         </div>
     </form>
+
+    {% include "turnos/includes/horarios_disponibles_script.html" %}
 {% endblock %}

@@ -14,37 +14,56 @@
         </div>
     </div>
 
+    <section class="metric-grid">
+        <div class="metric-card">
+            <span class="metric-label">Paciente</span>
+            <strong>{{ paciente.apellido }}</strong>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">DNI</span>
+            <strong>{{ paciente.documento|default:"-" }}</strong>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Entradas</span>
+            <strong>{{ page_obj.paginator.count }}</strong>
+        </div>
+    </section>
+
     {% if historias %}
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Odontologo</th>
-                        <th>Motivo</th>
-                        <th>Pieza dental</th>
-                        <th>Proximo control</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for historia in historias %}
-                        <tr>
-                            <td>{{ historia.fecha|date:"d/m/Y" }}</td>
-                            <td>{{ historia.odontologo }}</td>
-                            <td>{{ historia.motivo_consulta|truncatechars:80 }}</td>
-                            <td>{{ historia.pieza_dental|default:"-" }}</td>
-                            <td>{{ historia.proximo_control|date:"d/m/Y"|default:"-" }}</td>
-                            <td>
-                                <a class="text-link" href="{% url 'historias:detalle' historia.pk %}">Ver</a>
-                                {% if historia.odontologo.usuario_id == request.user.id %}
-                                    <a class="text-link" href="{% url 'historias:editar' historia.pk %}">Editar</a>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="timeline-list">
+            {% for historia in historias %}
+                <article class="timeline-item">
+                    <div class="timeline-meta">
+                        <div>
+                            <strong>{{ historia.fecha|date:"d/m/Y" }}</strong>
+                            <span>{{ historia.odontologo }}</span>
+                        </div>
+                        {% if historia.proximo_control %}
+                            <span class="status-badge status-sync-ok">Control {{ historia.proximo_control|date:"d/m/Y" }}</span>
+                        {% endif %}
+                    </div>
+                    <dl class="detail-grid">
+                        <div class="field-full">
+                            <dt>Motivo</dt>
+                            <dd>{{ historia.motivo_consulta|linebreaksbr }}</dd>
+                        </div>
+                        <div>
+                            <dt>Pieza dental</dt>
+                            <dd>{{ historia.pieza_dental|default:"-" }}</dd>
+                        </div>
+                        <div>
+                            <dt>Diagnostico</dt>
+                            <dd>{{ historia.diagnostico|truncatechars:90|default:"-" }}</dd>
+                        </div>
+                    </dl>
+                    <div class="timeline-actions">
+                        <a class="text-link" href="{% url 'historias:detalle' historia.pk %}">Ver detalle</a>
+                        {% if historia.odontologo.usuario_id == request.user.id %}
+                            <a class="text-link" href="{% url 'historias:editar' historia.pk %}">Editar</a>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
         </div>
     {% else %}
         <div class="empty-state">

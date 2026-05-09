@@ -11,7 +11,7 @@
     </div>
 
     {% if busqueda_form %}
-        <form class="filter-panel" method="get" novalidate>
+        <form class="filter-panel" method="get" novalidate data-horarios-search>
             {% if busqueda_form.non_field_errors %}
                 <div class="field-error field-full">{{ busqueda_form.non_field_errors }}</div>
             {% endif %}
@@ -37,7 +37,15 @@
         </form>
     {% endif %}
 
-    <form class="form-panel" method="post" novalidate>
+    <form
+        class="form-panel"
+        method="post"
+        novalidate
+        data-horarios-form
+        data-horarios-url="{% url 'turnos:horarios_disponibles' %}"
+        {% if horarios_odontologo_id %}data-odontologo-id="{{ horarios_odontologo_id }}"{% endif %}
+        {% if form.instance.pk %}data-turno-id="{{ form.instance.pk }}"{% endif %}
+    >
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -64,4 +72,6 @@
             <a class="button button-secondary" href="{{ url_cancelar }}">Cancelar</a>
         </div>
     </form>
+
+    {% include "turnos/includes/horarios_disponibles_script.html" %}
 {% endblock %}

@@ -22,7 +22,7 @@ class LoginInternoTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ingresar")
 
-    def test_login_redirige_a_pacientes_con_credenciales_validas(self):
+    def test_login_redirige_al_panel_con_credenciales_validas(self):
         usuario = get_user_model().objects.create_user(
             username="recepcion",
             password="Password123!",
@@ -37,7 +37,7 @@ class LoginInternoTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("pacientes:lista"))
+        self.assertRedirects(response, reverse("inicio"))
 
     def test_logout_redirige_al_login(self):
         usuario = get_user_model().objects.create_user(
@@ -205,6 +205,19 @@ class PacienteViewsTests(TestCase):
         self.assertEqual(paciente.telefono, "2222")
         self.assertEqual(paciente.email, "sofia@example.com")
         self.assertEqual(paciente.observaciones, "Paciente actualizada")
+
+    def test_edicion_muestra_fecha_de_nacimiento_cargada(self):
+        paciente = Paciente.objects.create(
+            nombre="Sofia",
+            apellido="Mendez",
+            documento="22111223",
+            fecha_nacimiento=date(1990, 4, 15),
+        )
+
+        response = self.client.get(reverse("pacientes:editar", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="1990-04-15"')
 
     def test_edicion_no_permite_documento_duplicado(self):
         Paciente.objects.create(nombre="Ana", apellido="Gomez", documento="12345678")

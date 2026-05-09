@@ -3,6 +3,7 @@ from datetime import date, time
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
+from django.urls import reverse
 
 from pacientes.models import Paciente
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
@@ -104,6 +105,25 @@ class RolesTests(TestCase):
         self.assertTrue(puede_reprogramar_turno(usuario, turno_propio))
         self.assertFalse(puede_reprogramar_turno(usuario, turno_ajeno))
         self.assertFalse(puede_reprogramar_turno(usuario, turno_cancelado))
+
+
+class InicioDashboardTests(TestCase):
+    def test_inicio_requiere_login(self):
+        response = self.client.get("/")
+
+        self.assertRedirects(response, f"{reverse('login')}?next=%2F")
+
+    def test_recepcionista_ve_dashboard_interno(self):
+        usuario = get_user_model().objects.create_user(username="recepcion.dashboard")
+        asignar_rol(usuario, ROL_RECEPCIONISTA)
+        self.client.force_login(usuario)
+
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Panel interno")
+        self.assertContains(response, "Turnos hoy")
+        self.assertContains(response, "Accesos rapidos")
 
 
 def crear_turno_para_permiso(odontologo=None, matricula="MN-SYNC-PERMISO"):

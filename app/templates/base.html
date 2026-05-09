@@ -15,8 +15,13 @@
             --primary-dark: #1d4ed8;
             --danger: #b42318;
             --danger-bg: #fef3f2;
+            --warning-bg: #fff7ed;
+            --warning-text: #9a3412;
+            --info-bg: #eff6ff;
+            --info-text: #1d4ed8;
             --success-bg: #ecfdf3;
             --success-text: #067647;
+            --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
         }
 
         * {
@@ -38,6 +43,9 @@
         .topbar {
             background: var(--surface);
             border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .topbar-inner,
@@ -58,12 +66,15 @@
             font-size: 18px;
             font-weight: 700;
             text-decoration: none;
+            white-space: nowrap;
         }
 
         .nav {
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: flex-end;
+            gap: 4px;
+            flex-wrap: wrap;
         }
 
         .nav a {
@@ -72,9 +83,21 @@
             text-decoration: none;
         }
 
+        .nav-link {
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+
+        .nav-link:hover,
+        .nav-link.is-active {
+            background: #eef2f7;
+            color: var(--text);
+        }
+
         .nav-user {
             color: var(--muted);
             font-size: 14px;
+            padding: 6px 4px;
         }
 
         .logout-form {
@@ -120,6 +143,8 @@
 
         .header-actions {
             display: flex;
+            align-items: center;
+            flex-wrap: wrap;
             gap: 10px;
         }
 
@@ -127,6 +152,20 @@
             margin: 0;
             font-size: 28px;
             line-height: 1.2;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.3;
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
         .subtitle {
@@ -149,6 +188,12 @@
             font-weight: 700;
             text-decoration: none;
             cursor: pointer;
+        }
+
+        .button-small {
+            min-height: 32px;
+            padding: 5px 10px;
+            font-size: 13px;
         }
 
         .button:hover,
@@ -228,10 +273,15 @@
         .detail-panel,
         .filter-panel,
         .form-panel,
-        .empty-state {
+        .empty-state,
+        .panel-section,
+        .metric-card,
+        .quick-action,
+        .timeline-item {
             background: var(--surface);
             border: 1px solid var(--line);
             border-radius: 8px;
+            box-shadow: var(--shadow);
         }
 
         .table-wrap {
@@ -268,8 +318,106 @@
         .form-panel,
         .detail-panel,
         .filter-panel,
-        .empty-state {
+        .empty-state,
+        .panel-section {
             padding: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .dashboard-grid,
+        .patient-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .metric-card {
+            padding: 18px;
+        }
+
+        .metric-card strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .metric-label {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .quick-actions,
+        .compact-list,
+        .timeline-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .quick-action,
+        .compact-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            text-decoration: none;
+        }
+
+        .quick-action {
+            display: grid;
+        }
+
+        .quick-action:hover,
+        .compact-item:hover {
+            border-color: #b9c7dd;
+            background: #f8fafc;
+        }
+
+        .quick-action span,
+        .compact-item span span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .timeline-item {
+            padding: 14px;
+        }
+
+        .timeline-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .timeline-body {
+            margin: 0 0 10px;
+        }
+
+        .timeline-actions {
+            display: flex;
+            gap: 10px;
         }
 
         .filter-panel {
@@ -300,6 +448,47 @@
             color: var(--muted);
             font-weight: 700;
             vertical-align: top;
+        }
+
+        .schedule-list,
+        .week-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .schedule-row {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr);
+            gap: 12px;
+            align-items: stretch;
+            border-bottom: 1px solid var(--line);
+            padding: 12px 0;
+        }
+
+        .schedule-row:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .schedule-slot {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .week-day {
+            display: grid;
+            grid-template-columns: 140px minmax(0, 1fr);
+            gap: 12px;
+            border-bottom: 1px solid var(--line);
+            padding: 14px 0;
+        }
+
+        .week-day:last-child {
+            border-bottom: 0;
+        }
+
+        .week-date strong {
+            display: block;
         }
 
         .agenda-turno {
@@ -353,8 +542,8 @@
 
         .status-pendiente {
             border-color: #fed7aa;
-            background: #fff7ed;
-            color: #9a3412;
+            background: var(--warning-bg);
+            color: var(--warning-text);
         }
 
         .status-confirmado {
@@ -377,8 +566,8 @@
 
         .status-sync-ok {
             border-color: #bfdbfe;
-            background: #eff6ff;
-            color: #1d4ed8;
+            background: var(--info-bg);
+            color: var(--info-text);
         }
 
         .status-sync-pending {
@@ -442,6 +631,7 @@
 
         .form-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
             margin-top: 24px;
         }
@@ -455,16 +645,25 @@
         .message {
             border-radius: 6px;
             padding: 10px 12px;
+            border: 1px solid transparent;
         }
 
         .message.success {
+            border-color: #abefc6;
             background: var(--success-bg);
             color: var(--success-text);
         }
 
         .message.error {
+            border-color: #fecdca;
             background: var(--danger-bg);
             color: var(--danger);
+        }
+
+        .message.warning {
+            border-color: #fed7aa;
+            background: var(--warning-bg);
+            color: var(--warning-text);
         }
 
         @media (max-width: 720px) {
@@ -487,8 +686,23 @@
 
             .filter-panel,
             .form-grid,
-            .detail-grid {
+            .detail-grid,
+            .dashboard-grid,
+            .patient-layout,
+            .schedule-row,
+            .week-day {
                 grid-template-columns: 1fr;
+            }
+
+            .nav {
+                justify-content: flex-start;
+            }
+
+            .quick-action,
+            .compact-item,
+            .timeline-meta {
+                align-items: flex-start;
+                flex-direction: column;
             }
 
             th,
@@ -503,21 +717,21 @@
         <div class="topbar-inner">
             <a class="brand" href="{% url 'inicio' %}">Gestor de Turnos</a>
             <nav class="nav" aria-label="Principal">
-                <a href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
                 {% if request.user.is_authenticated %}
+                    <a class="nav-link {% if request.resolver_match.url_name == 'inicio' %}is-active{% endif %}" href="{% url 'inicio' %}">Inicio</a>
                     {% if puede_ver_pacientes %}
-                        <a href="{% url 'pacientes:lista' %}">Pacientes</a>
+                        <a class="nav-link {% if request.resolver_match.namespace == 'pacientes' %}is-active{% endif %}" href="{% url 'pacientes:lista' %}">Pacientes</a>
                     {% endif %}
                     {% if puede_ver_turnos %}
-                        <a href="{% url 'turnos:lista' %}">Turnos</a>
-                        <a href="{% url 'turnos:agenda_dia' %}">Agenda dia</a>
-                        <a href="{% url 'turnos:agenda_semana' %}">Agenda semana</a>
+                        <a class="nav-link {% if request.resolver_match.namespace == 'turnos' and request.resolver_match.url_name == 'lista' %}is-active{% endif %}" href="{% url 'turnos:lista' %}">Turnos</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'agenda_dia' %}is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}">Agenda dia</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'agenda_semana' %}is-active{% endif %}" href="{% url 'turnos:agenda_semana' %}">Agenda semana</a>
                     {% endif %}
                     {% if puede_conectar_google_calendar %}
-                        <a href="{% url 'turnos:google_calendar' %}">Google Calendar</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'google_calendar' %}is-active{% endif %}" href="{% url 'turnos:google_calendar' %}">Google Calendar</a>
                     {% endif %}
                     {% if request.user.is_staff and puede_configurar_disponibilidad %}
-                        <a href="{% url 'admin:index' %}">Admin</a>
+                        <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
                     {% endif %}
                     <span class="nav-user">{{ request.user.get_username }}</span>
                     <form class="logout-form" method="post" action="{% url 'logout' %}">
@@ -525,7 +739,8 @@
                         <button class="nav-button" type="submit">Salir</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'login' %}">Ingresar</a>
+                    <a class="nav-link" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
+                    <a class="nav-link" href="{% url 'login' %}">Ingresar</a>
                 {% endif %}
             </nav>
         </div>

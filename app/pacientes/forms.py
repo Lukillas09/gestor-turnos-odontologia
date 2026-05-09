@@ -1,5 +1,7 @@
 from django import forms
 
+from config.form_widgets import HtmlDateInput
+
 from .models import Paciente
 
 
@@ -21,7 +23,7 @@ class PacienteForm(forms.ModelForm):
         }
         widgets = {
             "nombre": forms.TextInput(attrs={"autofocus": True}),
-            "fecha_nacimiento": forms.DateInput(attrs={"type": "date"}),
+            "fecha_nacimiento": HtmlDateInput(),
             "observaciones": forms.Textarea(attrs={"rows": 4}),
         }
 

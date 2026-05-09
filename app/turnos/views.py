@@ -3,9 +3,11 @@ from secrets import token_urlsafe
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -50,10 +52,12 @@ from .integrations.google_calendar import (
 )
 from .models import (
     GoogleCalendarConexion,
+    Odontologo,
     Turno,
     normalizar_error_google_calendar_para_usuario,
 )
 from .selectors import (
+    obtener_horarios_disponibles,
     obtener_bloques_agenda_del_dia,
     obtener_inicio_semana,
     obtener_turnos_de_la_semana,
@@ -71,6 +75,96 @@ from .services import (
 
 
 GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY = "google_calendar_oauth_state"
+
+
+class HorariosDisponiblesJsonView(View):
+    def get(self, request):
+        odontologo = self._obtener_odontologo(request.GET.get("odontologo"))
+        fecha = self._obtener_fecha(request.GET.get("fecha"))
+
+        if not odontologo or not fecha:
+            return JsonResponse(
+                {
+                    "horarios": [],
+                    "mensaje": "Elegi odontologo y fecha para ver horarios disponibles.",
+                }
+            )
+
+        duracion_minutos = self._obtener_duracion_minutos(
+            request.GET.get("duracion_minutos"),
+            odontologo,
+        )
+        turno_excluido = self._obtener_turno_excluido(
+            request.GET.get("turno_id"),
+            request.user,
+        )
+        horarios = obtener_horarios_disponibles(
+            odontologo=odontologo,
+            fecha=fecha,
+            duracion_minutos=duracion_minutos,
+            turno_excluido=turno_excluido,
+        )
+
+        if not horarios:
+            return JsonResponse(
+                {
+                    "horarios": [],
+                    "mensaje": "No hay horarios libres para esa fecha.",
+                }
+            )
+
+        return JsonResponse(
+            {
+                "horarios": [
+                    {"value": horario.strftime("%H:%M"), "label": horario.strftime("%H:%M")}
+                    for horario in horarios
+                ],
+                "mensaje": "Solo se muestran horarios libres.",
+            }
+        )
+
+    def _obtener_odontologo(self, odontologo_id):
+        if not odontologo_id:
+            return None
+
+        try:
+            return Odontologo.objects.filter(pk=odontologo_id, activo=True).first()
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _obtener_fecha(valor):
+        if not valor:
+            return None
+
+        return parse_date(valor)
+
+    @staticmethod
+    def _obtener_duracion_minutos(valor, odontologo):
+        if not valor:
+            return odontologo.duracion_turno_minutos
+
+        try:
+            duracion = int(valor)
+        except (TypeError, ValueError):
+            return odontologo.duracion_turno_minutos
+
+        if duracion <= 0:
+            return odontologo.duracion_turno_minutos
+
+        return duracion
+
+    @staticmethod
+    def _obtener_turno_excluido(turno_id, usuario):
+        if not turno_id or not usuario.is_authenticated:
+            return None
+
+        try:
+            return limitar_turnos_por_usuario(Turno.objects.all(), usuario).filter(
+                pk=turno_id,
+            ).first()
+        except (TypeError, ValueError):
+            return None
 
 
 class TurnoListView(VerTurnosRequeridoMixin, ListView):
@@ -149,7 +243,7 @@ class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):
         return redirect(self.get_success_url())
 
     def _obtener_busqueda_form(self):
-        return TurnoHorarioBusquedaForm(self.request.GET or None)
+        return TurnoHorarioBusquedaForm(self.request.GET or None, auto_id="id_busqueda_%s")
 
 
 class SolicitudTurnoPublicaView(FormView):
@@ -184,7 +278,10 @@ class SolicitudTurnoPublicaView(FormView):
         return super().form_valid(form)
 
     def _obtener_busqueda_form(self):
-        return SolicitudTurnoBusquedaPublicaForm(self.request.GET or None)
+        return SolicitudTurnoBusquedaPublicaForm(
+            self.request.GET or None,
+            auto_id="id_busqueda_%s",
+        )
 
 
 class SolicitudTurnoPublicaOkView(TemplateView):
@@ -381,6 +478,7 @@ class TurnoReprogramView(VerTurnosRequeridoMixin, UpdateView):
         context["subtitulo"] = "Actualizacion de fecha, horario y duracion del turno."
         context["texto_boton"] = "Reprogramar turno"
         context["url_cancelar"] = self.get_success_url()
+        context["horarios_odontologo_id"] = self.object.odontologo_id
         return context
 
     def form_valid(self, form):

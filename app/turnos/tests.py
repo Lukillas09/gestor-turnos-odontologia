@@ -257,6 +257,7 @@ class TurnoViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="2026-05-08"', count=2)
         self.assertContains(response, 'value="09:00"')
         self.assertContains(response, 'value="10:00"')
         self.assertNotContains(response, 'value="09:30"')
@@ -272,6 +273,41 @@ class TurnoViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Sin horarios disponibles")
+
+    def test_horarios_disponibles_json_devuelve_horarios_libres(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(9, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(
+            reverse("turnos:horarios_disponibles"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": "2026-05-08",
+                "duracion_minutos": 30,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        horarios = [horario["value"] for horario in response.json()["horarios"]]
+        self.assertIn("09:00", horarios)
+        self.assertIn("10:00", horarios)
+        self.assertNotIn("09:30", horarios)
+
+    def test_horarios_disponibles_json_indica_si_faltan_datos(self):
+        response = self.client.get(reverse("turnos:horarios_disponibles"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["horarios"], [])
+        self.assertEqual(
+            response.json()["mensaje"],
+            "Elegi odontologo y fecha para ver horarios disponibles.",
+        )
 
     def test_creacion_de_turno_valido(self):
         response = self.client.post(
@@ -741,6 +777,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'value="{self.fecha_turno.isoformat()}"', count=2)
         self.assertContains(response, 'value="09:00"')
         self.assertContains(response, 'value="10:00"')
         self.assertNotContains(response, 'value="09:30"')

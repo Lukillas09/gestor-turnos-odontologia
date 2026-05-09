@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <p class="eyebrow">{{ rol_principal }}</p>
+            <h1>Panel interno</h1>
+            <p class="subtitle">{{ hoy|date:"l d/m/Y" }}</p>
+        </div>
+        <div class="header-actions">
+            {% if puede_gestionar_turnos %}
+                <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
+            {% endif %}
+            {% if puede_ver_turnos %}
+                <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Ver agenda</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="metric-grid">
+        <div class="metric-card">
+            <span class="metric-label">Turnos hoy</span>
+            <strong>{{ turnos_hoy }}</strong>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Confirmados hoy</span>
+            <strong>{{ turnos_confirmados_hoy }}</strong>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Pendientes</span>
+            <strong>{{ turnos_pendientes }}</strong>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Pacientes</span>
+            <strong>{{ pacientes_total }}</strong>
+        </div>
+        {% if puede_gestionar_historias_clinicas %}
+            <div class="metric-card">
+                <span class="metric-label">Historias clinicas</span>
+                <strong>{{ historias_total }}</strong>
+            </div>
+        {% endif %}
+    </section>
+
+    <div class="dashboard-grid">
+        <section class="panel-section">
+            <div class="section-header">
+                <div>
+                    <h2>Proximos turnos</h2>
+                    <p class="subtitle">Pendientes y confirmados.</p>
+                </div>
+                {% if puede_ver_turnos %}
+                    <a class="text-link" href="{% url 'turnos:lista' %}">Ver todos</a>
+                {% endif %}
+            </div>
+
+            {% if proximos_turnos %}
+                <div class="compact-list">
+                    {% for turno in proximos_turnos %}
+                        <a class="compact-item" href="{% url 'turnos:detalle' turno.pk %}">
+                            <span>
+                                <strong>{{ turno.fecha|date:"d/m" }} {{ turno.hora_inicio|time:"H:i" }}</strong>
+                                <span>{{ turno.paciente }} con {{ turno.odontologo }}</span>
+                            </span>
+                            <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted">No hay turnos proximos para mostrar.</p>
+            {% endif %}
+        </section>
+
+        <section class="panel-section">
+            <div class="section-header">
+                <div>
+                    <h2>Accesos rapidos</h2>
+                    <p class="subtitle">Tareas frecuentes segun tu rol.</p>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                {% if puede_ver_pacientes %}
+                    <a class="quick-action" href="{% url 'pacientes:lista' %}">
+                        <strong>Pacientes</strong>
+                        <span>Buscar datos, turnos e historia clinica.</span>
+                    </a>
+                {% endif %}
+                {% if puede_ver_turnos %}
+                    <a class="quick-action" href="{% url 'turnos:agenda_semana' %}">
+                        <strong>Agenda semanal</strong>
+                        <span>Revisar carga de trabajo de la semana.</span>
+                    </a>
+                {% endif %}
+                {% if puede_conectar_google_calendar %}
+                    <a class="quick-action" href="{% url 'turnos:google_calendar' %}">
+                        <strong>Google Calendar</strong>
+                        <span>Ver estado de sincronizacion.</span>
+                    </a>
+                {% endif %}
+                {% if request.user.is_staff and puede_configurar_disponibilidad %}
+                    <a class="quick-action" href="{% url 'admin:index' %}">
+                        <strong>Admin</strong>
+                        <span>Configurar odontologos y disponibilidad.</span>
+                    </a>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+{% endblock %}

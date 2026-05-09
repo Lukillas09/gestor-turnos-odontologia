@@ -3,6 +3,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 
+from config.form_widgets import HtmlDateInput
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
 
 from .models import Odontologo, Turno
@@ -39,7 +40,7 @@ class TurnoForm(forms.ModelForm):
             "duracion_minutos": "Duracion en minutos",
         }
         widgets = {
-            "fecha": forms.DateInput(attrs={"type": "date"}),
+            "fecha": HtmlDateInput(),
             "hora_inicio": forms.TimeInput(attrs={"type": "time"}),
             "motivo": forms.TextInput(attrs={"placeholder": "Ej: control, limpieza, urgencia"}),
             "notas": forms.Textarea(attrs={"rows": 4}),
@@ -67,7 +68,7 @@ class HorariosDisponiblesFormMixin:
         if not odontologo or not fecha:
             self.fields["hora_inicio"].choices = [("", "Elegir odontologo y fecha")]
             self.fields["hora_inicio"].help_text = (
-                "Primero busca horarios por odontologo y fecha para ver opciones disponibles."
+                "Elegi odontologo y fecha para ver opciones disponibles."
             )
             return
 
@@ -175,7 +176,7 @@ class TurnoReprogramacionForm(HorariosDisponiblesFormMixin, forms.ModelForm):
             "duracion_minutos": "Duracion en minutos",
         }
         widgets = {
-            "fecha": forms.DateInput(attrs={"type": "date"}),
+            "fecha": HtmlDateInput(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -201,7 +202,7 @@ class TurnoHorarioBusquedaForm(forms.Form):
         empty_label="Seleccionar odontologo",
     )
     fecha = forms.DateField(
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=HtmlDateInput(),
     )
 
 
@@ -211,7 +212,7 @@ class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
             "required": "Elegi una fecha para ver horarios.",
             "invalid": "Ingresa una fecha valida.",
         },
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=HtmlDateInput(),
     )
 
     def clean_fecha(self):
@@ -248,7 +249,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
             "required": "Elegi una fecha.",
             "invalid": "Ingresa una fecha valida.",
         },
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=HtmlDateInput(),
     )
     hora_inicio = forms.TypedChoiceField(
         choices=(),
@@ -286,7 +287,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
 class TurnoFiltroForm(forms.Form):
     fecha = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=HtmlDateInput(),
     )
     estado = forms.ChoiceField(
         required=False,
@@ -306,7 +307,7 @@ class TurnoFiltroForm(forms.Form):
 class AgendaFiltroForm(forms.Form):
     fecha = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=HtmlDateInput(),
     )
     odontologo = forms.ModelChoiceField(
         required=False,

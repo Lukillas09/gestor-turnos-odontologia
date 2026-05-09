@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
+from historias.models import HistoriaClinica
 from turnos.models import Turno
 
 from usuarios.mixins import (
@@ -11,6 +12,7 @@ from usuarios.mixins import (
     GestionConsultorioRequeridaMixin,
     VerPacientesRequeridoMixin,
 )
+from usuarios.roles import puede_gestionar_historias_clinicas
 
 from .forms import PacienteDeleteConfirmationForm, PacienteForm
 from .models import Paciente
@@ -64,6 +66,26 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
     model = Paciente
     template_name = "pacientes/paciente_detail.html"
     context_object_name = "paciente"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        puede_ver_historia = puede_gestionar_historias_clinicas(self.request.user)
+        context["turnos_recientes"] = (
+            self.object.turnos.select_related("odontologo", "odontologo__usuario")
+            .order_by("-fecha", "-hora_inicio")[:5]
+        )
+        context["turnos_pendientes_o_confirmados"] = self.object.turnos.filter(
+            estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
+        ).count()
+        context["puede_ver_historia_clinica"] = puede_ver_historia
+        context["historias_recientes"] = (
+            HistoriaClinica.objects.filter(paciente=self.object)
+            .select_related("odontologo", "odontologo__usuario")
+            .order_by("-fecha", "-creado_en")[:3]
+            if puede_ver_historia
+            else []
+        )
+        return context
 
 
 class PacienteUpdateView(GestionConsultorioRequeridaMixin, UpdateView):

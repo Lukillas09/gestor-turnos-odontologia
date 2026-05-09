@@ -1,0 +1,204 @@
+<script>
+    (function () {
+        const turnoForm = document.querySelector("[data-horarios-form]");
+
+        if (!turnoForm) {
+            return;
+        }
+
+        const horariosUrl = turnoForm.dataset.horariosUrl;
+        const searchForm = document.querySelector("[data-horarios-search]");
+        const horaControl = turnoForm.elements.namedItem("hora_inicio");
+
+        if (!horariosUrl || !horaControl || horaControl.tagName !== "SELECT") {
+            return;
+        }
+
+        const odontologoControl = turnoForm.elements.namedItem("odontologo");
+        const fechaControl = turnoForm.elements.namedItem("fecha");
+        const duracionControl = turnoForm.elements.namedItem("duracion_minutos");
+        const status = obtenerEstadoHorarios();
+        let ultimoAbortController = null;
+        let sincronizando = false;
+
+        function obtenerEstadoHorarios() {
+            let elemento = turnoForm.querySelector("[data-horarios-status]");
+
+            if (elemento) {
+                return elemento;
+            }
+
+            elemento = document.createElement("p");
+            elemento.className = "muted";
+            elemento.dataset.horariosStatus = "true";
+            horaControl.insertAdjacentElement("afterend", elemento);
+            return elemento;
+        }
+
+        function obtenerCampo(formulario, nombre) {
+            if (!formulario) {
+                return null;
+            }
+
+            return formulario.elements.namedItem(nombre);
+        }
+
+        function obtenerOdontologoId() {
+            if (odontologoControl) {
+                return odontologoControl.value;
+            }
+
+            return turnoForm.dataset.odontologoId || "";
+        }
+
+        function obtenerFecha() {
+            return fechaControl ? fechaControl.value : "";
+        }
+
+        function obtenerDuracion() {
+            return duracionControl ? duracionControl.value : "";
+        }
+
+        function setOpciones(opciones, placeholder, valorSeleccionado) {
+            horaControl.replaceChildren();
+            horaControl.append(new Option(placeholder, ""));
+
+            opciones.forEach((horario) => {
+                horaControl.append(new Option(horario.label, horario.value));
+            });
+
+            if (valorSeleccionado && opciones.some((horario) => horario.value === valorSeleccionado)) {
+                horaControl.value = valorSeleccionado;
+            }
+        }
+
+        function marcarSinDatos(mensaje) {
+            setOpciones([], "Elegir odontologo y fecha", "");
+            status.textContent = mensaje;
+        }
+
+        function copiarBusquedaAlFormulario() {
+            if (!searchForm || sincronizando) {
+                return;
+            }
+
+            sincronizando = true;
+
+            const odontologoBusqueda = obtenerCampo(searchForm, "odontologo");
+            const fechaBusqueda = obtenerCampo(searchForm, "fecha");
+
+            if (odontologoBusqueda && odontologoControl) {
+                odontologoControl.value = odontologoBusqueda.value;
+            }
+
+            if (fechaBusqueda && fechaControl) {
+                fechaControl.value = fechaBusqueda.value;
+            }
+
+            sincronizando = false;
+        }
+
+        function copiarFormularioABusqueda() {
+            if (!searchForm || sincronizando) {
+                return;
+            }
+
+            sincronizando = true;
+
+            const odontologoBusqueda = obtenerCampo(searchForm, "odontologo");
+            const fechaBusqueda = obtenerCampo(searchForm, "fecha");
+
+            if (odontologoBusqueda && odontologoControl) {
+                odontologoBusqueda.value = odontologoControl.value;
+            }
+
+            if (fechaBusqueda && fechaControl) {
+                fechaBusqueda.value = fechaControl.value;
+            }
+
+            sincronizando = false;
+        }
+
+        async function actualizarHorarios() {
+            const odontologoId = obtenerOdontologoId();
+            const fecha = obtenerFecha();
+            const valorActual = horaControl.value;
+
+            if (!odontologoId || !fecha) {
+                marcarSinDatos("Elegi odontologo y fecha para ver horarios disponibles.");
+                return;
+            }
+
+            const parametros = new URLSearchParams({
+                odontologo: odontologoId,
+                fecha: fecha,
+                duracion_minutos: obtenerDuracion(),
+            });
+
+            if (turnoForm.dataset.turnoId) {
+                parametros.set("turno_id", turnoForm.dataset.turnoId);
+            }
+
+            if (ultimoAbortController) {
+                ultimoAbortController.abort();
+            }
+
+            ultimoAbortController = new AbortController();
+            horaControl.disabled = true;
+            setOpciones([], "Buscando horarios...", "");
+            status.textContent = "Buscando horarios disponibles...";
+
+            try {
+                const respuesta = await fetch(`${horariosUrl}?${parametros}`, {
+                    headers: {"Accept": "application/json"},
+                    signal: ultimoAbortController.signal,
+                });
+                const datos = await respuesta.json();
+
+                if (!datos.horarios || datos.horarios.length === 0) {
+                    setOpciones([], "Sin horarios disponibles", "");
+                    status.textContent = datos.mensaje || "No hay horarios libres para esa fecha.";
+                    return;
+                }
+
+                setOpciones(datos.horarios, "Seleccionar horario", valorActual);
+                status.textContent = datos.mensaje || "Solo se muestran horarios libres.";
+            } catch (error) {
+                if (error.name === "AbortError") {
+                    return;
+                }
+
+                setOpciones([], "No se pudieron cargar horarios", "");
+                status.textContent = "No se pudieron cargar los horarios. Proba nuevamente.";
+            } finally {
+                horaControl.disabled = false;
+            }
+        }
+
+        if (searchForm) {
+            ["odontologo", "fecha"].forEach((nombre) => {
+                const campo = obtenerCampo(searchForm, nombre);
+
+                if (campo) {
+                    campo.addEventListener("change", function () {
+                        copiarBusquedaAlFormulario();
+                        actualizarHorarios();
+                    });
+                }
+            });
+
+            copiarBusquedaAlFormulario();
+        }
+
+        [odontologoControl, fechaControl, duracionControl].forEach((campo) => {
+            if (campo) {
+                campo.addEventListener("change", function () {
+                    copiarFormularioABusqueda();
+                    actualizarHorarios();
+                });
+            }
+        });
+
+        actualizarHorarios();
+    }());
+</script>

@@ -56,6 +56,9 @@
                             <td>{{ paciente.email|default:"-" }}</td>
                             <td>
                                 <a class="text-link" href="{% url 'pacientes:detalle' paciente.pk %}">Ver</a>
+                                {% if puede_gestionar_historias_clinicas %}
+                                    <a class="text-link" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia</a>
+                                {% endif %}
                                 {% if puede_gestionar_pacientes %}
                                     <a class="text-link" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
                                 {% endif %}

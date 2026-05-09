@@ -1,5 +1,7 @@
 from django import forms
 
+from config.form_widgets import HtmlDateInput
+
 from .models import HistoriaClinica
 
 
@@ -23,10 +25,10 @@ class HistoriaClinicaForm(forms.ModelForm):
             "proximo_control": "Proximo control",
         }
         widgets = {
-            "fecha": forms.DateInput(attrs={"type": "date"}),
+            "fecha": HtmlDateInput(),
             "motivo_consulta": forms.Textarea(attrs={"rows": 3, "autofocus": True}),
             "diagnostico": forms.Textarea(attrs={"rows": 3}),
             "tratamiento_realizado": forms.Textarea(attrs={"rows": 3}),
             "observaciones": forms.Textarea(attrs={"rows": 3}),
-            "proximo_control": forms.DateInput(attrs={"type": "date"}),
+            "proximo_control": HtmlDateInput(),
         }
