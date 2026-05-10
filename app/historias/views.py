@@ -1,7 +1,10 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from pacientes.models import Paciente
@@ -11,8 +14,8 @@ from usuarios.roles import (
     puede_editar_historia_clinica,
 )
 
-from .forms import HistoriaClinicaForm
-from .models import HistoriaClinica
+from .forms import HistoriaClinicaFiltroForm, HistoriaClinicaForm
+from .models import HistoriaClinica, HistoriaClinicaAdjunto
 
 
 class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
@@ -35,11 +38,50 @@ class HistoriaClinicaListView(PacienteHistoriaClinicaMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        return (
+        queryset = (
             HistoriaClinica.objects.filter(paciente=self.paciente)
-            .select_related("paciente", "odontologo", "odontologo__usuario")
+            .select_related(
+                "paciente",
+                "odontologo",
+                "odontologo__usuario",
+                "creado_por",
+                "actualizado_por",
+            )
+            .prefetch_related("adjuntos")
             .order_by("-fecha", "-creado_en")
         )
+        self.filtros_form = HistoriaClinicaFiltroForm(self.request.GET)
+
+        if self.filtros_form.is_valid():
+            filtros = self.filtros_form.cleaned_data
+
+            if filtros["q"]:
+                busqueda = filtros["q"]
+                queryset = queryset.filter(
+                    Q(motivo_consulta__icontains=busqueda)
+                    | Q(diagnostico__icontains=busqueda)
+                    | Q(tratamiento_realizado__icontains=busqueda)
+                    | Q(pieza_dental__icontains=busqueda)
+                    | Q(observaciones__icontains=busqueda)
+                    | Q(odontologo__usuario__first_name__icontains=busqueda)
+                    | Q(odontologo__usuario__last_name__icontains=busqueda)
+                )
+
+            if filtros["fecha_desde"]:
+                queryset = queryset.filter(fecha__gte=filtros["fecha_desde"])
+
+            if filtros["fecha_hasta"]:
+                queryset = queryset.filter(fecha__lte=filtros["fecha_hasta"])
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context["filtros_form"] = self.filtros_form
+        context["filtros_querystring"] = query_params.urlencode()
+        return context
 
 
 class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
@@ -72,8 +114,12 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
 
         form.instance.paciente = self.paciente
         form.instance.odontologo = odontologo
+        form.instance.creado_por = self.request.user
+        form.instance.actualizado_por = self.request.user
+        response = super().form_valid(form)
+        form.guardar_adjuntos(self.object, self.request.user)
         messages.success(self.request, "Entrada de historia clinica creada correctamente.")
-        return super().form_valid(form)
+        return response
 
 
 class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailView):
@@ -85,7 +131,14 @@ class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailV
         return (
             super()
             .get_queryset()
-            .select_related("paciente", "odontologo", "odontologo__usuario")
+            .select_related(
+                "paciente",
+                "odontologo",
+                "odontologo__usuario",
+                "creado_por",
+                "actualizado_por",
+            )
+            .prefetch_related("adjuntos", "adjuntos__subido_por")
         )
 
     def get_context_data(self, **kwargs):
@@ -131,5 +184,28 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
         return context
 
     def form_valid(self, form):
+        form.instance.actualizado_por = self.request.user
+        response = super().form_valid(form)
+        form.guardar_adjuntos(self.object, self.request.user)
         messages.success(self.request, "Entrada de historia clinica actualizada correctamente.")
-        return super().form_valid(form)
+        return response
+
+
+class HistoriaClinicaAdjuntoDownloadView(HistoriaClinicaOdontologoRequeridoMixin, View):
+    def get(self, request, pk):
+        adjunto = get_object_or_404(
+            HistoriaClinicaAdjunto.objects.select_related(
+                "historia",
+                "historia__paciente",
+                "historia__odontologo",
+                "historia__odontologo__usuario",
+                "subido_por",
+            ),
+            pk=pk,
+        )
+
+        return FileResponse(
+            adjunto.archivo.open("rb"),
+            as_attachment=False,
+            filename=adjunto.nombre_archivo,
+        )

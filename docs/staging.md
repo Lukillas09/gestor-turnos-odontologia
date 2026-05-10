@@ -25,6 +25,7 @@ Funciona actualmente:
 - Google OAuth configurado para la URL publica de Render.
 - Pantalla de conexion de Google Calendar funcionando para usuarios con perfil de odontologo.
 - Backend de email por API HTTP preparado para Resend o Brevo.
+- Adjuntos clinicos preparados para bucket privado de Supabase Storage.
 
 Pendiente:
 
@@ -33,6 +34,7 @@ Pendiente:
 - Cargar una API key real de email en Render y validar envio desde staging.
 - Activar recordatorios programados con GitHub Actions.
 - Probar backup y restauracion.
+- Crear bucket privado de Supabase Storage y probar adjuntos clinicos.
 - Definir dominio real y configuracion HTTPS final antes de produccion.
 
 Nota sobre emails:
@@ -132,6 +134,20 @@ DJANGO_LOG_LEVEL=INFO
 DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
 WEB_CONCURRENCY=2
 ```
+
+Adjuntos clinicos:
+
+```env
+MEDIA_STORAGE_BACKEND=config.storage_backends.SupabaseStorage
+SUPABASE_STORAGE_URL=https://tu-proyecto.supabase.co
+SUPABASE_STORAGE_BUCKET=historias-clinicas
+SUPABASE_STORAGE_SERVICE_ROLE_KEY=valor-real
+SUPABASE_STORAGE_TIMEOUT=30
+SUPABASE_STORAGE_CACHE_CONTROL=3600
+SUPABASE_STORAGE_SIGNED_URL_SECONDS=300
+```
+
+El bucket `historias-clinicas` debe ser privado. La clave `SUPABASE_STORAGE_SERVICE_ROLE_KEY` no debe exponerse ni subirse al repositorio.
 
 Google Calendar:
 

@@ -142,9 +142,23 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_STORAGE_BACKEND = env(
+    "MEDIA_STORAGE_BACKEND",
+    "django.core.files.storage.FileSystemStorage",
+)
+SUPABASE_STORAGE_URL = env("SUPABASE_STORAGE_URL")
+SUPABASE_STORAGE_BUCKET = env("SUPABASE_STORAGE_BUCKET", "historias-clinicas")
+SUPABASE_STORAGE_SERVICE_ROLE_KEY = env("SUPABASE_STORAGE_SERVICE_ROLE_KEY")
+SUPABASE_STORAGE_TIMEOUT = int(env("SUPABASE_STORAGE_TIMEOUT", "30"))
+SUPABASE_STORAGE_CACHE_CONTROL = env("SUPABASE_STORAGE_CACHE_CONTROL", "3600")
+SUPABASE_STORAGE_SIGNED_URL_SECONDS = int(
+    env("SUPABASE_STORAGE_SIGNED_URL_SECONDS", "300")
+)
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": MEDIA_STORAGE_BACKEND,
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",

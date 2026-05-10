@@ -1,16 +1,18 @@
+import tempfile
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from pacientes.models import Paciente
 from turnos.models import Odontologo
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
-from .models import HistoriaClinica
+from .models import HistoriaClinica, HistoriaClinicaAdjunto
 
 
 def asignar_rol(usuario, nombre_rol):
@@ -91,6 +93,21 @@ class HistoriaClinicaAccessTests(TestCase):
 
 class HistoriaClinicaViewsTests(TestCase):
     def setUp(self):
+        self.media_dir = tempfile.TemporaryDirectory()
+        self.media_override = override_settings(
+            MEDIA_ROOT=self.media_dir.name,
+            STORAGES={
+                "default": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                },
+                "staticfiles": {
+                    "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+                },
+            },
+        )
+        self.media_override.enable()
+        self.addCleanup(self.media_override.disable)
+        self.addCleanup(self.media_dir.cleanup)
         self.paciente = Paciente.objects.create(
             nombre="Lucas",
             apellido="Paciente",
@@ -126,6 +143,8 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(historia.odontologo, self.odontologo)
         self.assertEqual(historia.motivo_consulta, "Dolor molar")
         self.assertEqual(historia.pieza_dental, "16")
+        self.assertEqual(historia.creado_por, self.usuario_odontologo)
+        self.assertEqual(historia.actualizado_por, self.usuario_odontologo)
 
     def test_listado_muestra_historia_clinica_del_paciente(self):
         HistoriaClinica.objects.create(
@@ -142,6 +161,40 @@ class HistoriaClinicaViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Control")
+
+    def test_listado_filtra_por_busqueda_y_fecha(self):
+        fecha_actual = timezone.localdate()
+        fecha_anterior = fecha_actual - timedelta(days=10)
+        HistoriaClinica.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=fecha_actual,
+            motivo_consulta="Dolor molar",
+            diagnostico="Caries profunda",
+            pieza_dental="36",
+        )
+        HistoriaClinica.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=fecha_anterior,
+            motivo_consulta="Control de rutina",
+            diagnostico="Sin lesiones",
+            pieza_dental="11",
+        )
+
+        response = self.client.get(
+            reverse("historias:lista_paciente", kwargs={"paciente_pk": self.paciente.pk}),
+            {
+                "q": "caries",
+                "fecha_desde": fecha_actual.isoformat(),
+                "fecha_hasta": fecha_actual.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dolor molar")
+        self.assertContains(response, "Caries profunda")
+        self.assertNotContains(response, "Control de rutina")
 
     def test_detalle_muestra_datos_clinicos(self):
         historia = HistoriaClinica.objects.create(
@@ -186,6 +239,85 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertRedirects(response, reverse("historias:detalle", kwargs={"pk": historia.pk}))
         self.assertEqual(historia.motivo_consulta, "Control actualizado")
         self.assertEqual(historia.diagnostico, "Evolucion favorable")
+        self.assertEqual(historia.actualizado_por, self.usuario_odontologo)
+
+    def test_creacion_guarda_adjuntos_clinicos(self):
+        fecha = timezone.localdate()
+        archivo = SimpleUploadedFile(
+            "radiografia.png",
+            b"contenido-radiografia",
+            content_type="image/png",
+        )
+
+        response = self.client.post(
+            reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
+            {
+                "fecha": fecha.isoformat(),
+                "motivo_consulta": "Control con radiografia",
+                "diagnostico": "Evaluacion radiografica",
+                "tratamiento_realizado": "",
+                "pieza_dental": "36",
+                "observaciones": "",
+                "proximo_control": "",
+                "adjuntos": [archivo],
+            },
+        )
+
+        historia = HistoriaClinica.objects.get()
+        adjunto = HistoriaClinicaAdjunto.objects.get()
+
+        self.assertRedirects(response, reverse("historias:detalle", kwargs={"pk": historia.pk}))
+        self.assertEqual(adjunto.historia, historia)
+        self.assertEqual(adjunto.subido_por, self.usuario_odontologo)
+        self.assertTrue(adjunto.nombre_archivo.endswith("radiografia.png"))
+
+    def test_rechaza_adjunto_no_permitido(self):
+        fecha = timezone.localdate()
+        archivo = SimpleUploadedFile(
+            "archivo.exe",
+            b"contenido",
+            content_type="application/octet-stream",
+        )
+
+        response = self.client.post(
+            reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
+            {
+                "fecha": fecha.isoformat(),
+                "motivo_consulta": "Control con archivo invalido",
+                "diagnostico": "",
+                "tratamiento_realizado": "",
+                "pieza_dental": "",
+                "observaciones": "",
+                "proximo_control": "",
+                "adjuntos": [archivo],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(HistoriaClinica.objects.exists())
+        self.assertContains(response, "PDF, imagen o DICOM")
+
+    def test_detalle_muestra_adjuntos_y_auditoria(self):
+        historia = HistoriaClinica.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            creado_por=self.usuario_odontologo,
+            actualizado_por=self.usuario_odontologo,
+            fecha=timezone.localdate(),
+            motivo_consulta="Consulta con adjunto",
+        )
+        HistoriaClinicaAdjunto.objects.create(
+            historia=historia,
+            archivo=SimpleUploadedFile("radiografia.pdf", b"pdf", content_type="application/pdf"),
+            subido_por=self.usuario_odontologo,
+        )
+
+        response = self.client.get(reverse("historias:detalle", kwargs={"pk": historia.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Adjuntos")
+        self.assertContains(response, "radiografia.pdf")
+        self.assertContains(response, self.usuario_odontologo.username)
 
     def test_otro_odontologo_no_edita_historia_clinica(self):
         historia = HistoriaClinica.objects.create(
@@ -223,6 +355,34 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(HistoriaClinica.objects.exists())
         self.assertContains(response, "no puede ser futura")
+
+    def test_descarga_adjunto_requiere_odontologo(self):
+        historia = HistoriaClinica.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=timezone.localdate(),
+            motivo_consulta="Consulta con radiografia",
+        )
+        adjunto = HistoriaClinicaAdjunto.objects.create(
+            historia=historia,
+            archivo=SimpleUploadedFile("radiografia.pdf", b"contenido", content_type="application/pdf"),
+            subido_por=self.usuario_odontologo,
+        )
+        url = reverse("historias:descargar_adjunto", kwargs={"pk": adjunto.pk})
+
+        response_odontologo = self.client.get(url)
+        self.assertEqual(response_odontologo.status_code, 200)
+        self.assertEqual(b"".join(response_odontologo.streaming_content), b"contenido")
+
+        usuario_recepcionista = get_user_model().objects.create_user(
+            username="recepcion.adjunto"
+        )
+        asignar_rol(usuario_recepcionista, ROL_RECEPCIONISTA)
+        self.client.force_login(usuario_recepcionista)
+
+        response_recepcionista = self.client.get(url)
+
+        self.assertEqual(response_recepcionista.status_code, 403)
 
     def test_no_borra_paciente_con_historia_clinica(self):
         HistoriaClinica.objects.create(

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    HistoriaClinicaAdjuntoDownloadView,
     HistoriaClinicaCreateView,
     HistoriaClinicaDetailView,
     HistoriaClinicaListView,
@@ -22,4 +23,9 @@ urlpatterns = [
     ),
     path("<int:pk>/", HistoriaClinicaDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", HistoriaClinicaUpdateView.as_view(), name="editar"),
+    path(
+        "adjuntos/<int:pk>/descargar/",
+        HistoriaClinicaAdjuntoDownloadView.as_view(),
+        name="descargar_adjunto",
+    ),
 ]

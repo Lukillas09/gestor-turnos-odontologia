@@ -10,7 +10,7 @@
         </div>
     </div>
 
-    <form class="form-panel" method="post" novalidate>
+    <form class="form-panel" method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -19,7 +19,7 @@
 
         <div class="form-grid">
             {% for field in form %}
-                <div class="{% if field.name == 'motivo_consulta' or field.name == 'diagnostico' or field.name == 'tratamiento_realizado' or field.name == 'observaciones' %}field-full{% endif %}">
+                <div class="{% if field.name == 'motivo_consulta' or field.name == 'diagnostico' or field.name == 'tratamiento_realizado' or field.name == 'observaciones' or field.name == 'adjuntos' %}field-full{% endif %}">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
                     {% if field.help_text %}

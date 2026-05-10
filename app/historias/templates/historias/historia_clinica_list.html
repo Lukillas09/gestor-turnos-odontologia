@@ -29,6 +29,38 @@
         </div>
     </section>
 
+    <form class="filter-panel" method="get" novalidate>
+        {% if filtros_form.non_field_errors %}
+            <div class="field-error field-full">{{ filtros_form.non_field_errors }}</div>
+        {% endif %}
+
+        <div>
+            <label for="{{ filtros_form.q.id_for_label }}">{{ filtros_form.q.label }}</label>
+            {{ filtros_form.q }}
+            {% if filtros_form.q.errors %}
+                <div class="field-error">{{ filtros_form.q.errors }}</div>
+            {% endif %}
+        </div>
+        <div>
+            <label for="{{ filtros_form.fecha_desde.id_for_label }}">{{ filtros_form.fecha_desde.label }}</label>
+            {{ filtros_form.fecha_desde }}
+            {% if filtros_form.fecha_desde.errors %}
+                <div class="field-error">{{ filtros_form.fecha_desde.errors }}</div>
+            {% endif %}
+        </div>
+        <div>
+            <label for="{{ filtros_form.fecha_hasta.id_for_label }}">{{ filtros_form.fecha_hasta.label }}</label>
+            {{ filtros_form.fecha_hasta }}
+            {% if filtros_form.fecha_hasta.errors %}
+                <div class="field-error">{{ filtros_form.fecha_hasta.errors }}</div>
+            {% endif %}
+        </div>
+        <div class="filter-actions">
+            <button type="submit">Filtrar</button>
+            <a class="button button-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Limpiar</a>
+        </div>
+    </form>
+
     {% if historias %}
         <div class="timeline-list">
             {% for historia in historias %}
@@ -42,6 +74,14 @@
                             <span class="status-badge status-sync-ok">Control {{ historia.proximo_control|date:"d/m/Y" }}</span>
                         {% endif %}
                     </div>
+                    <p class="muted">
+                        {% if historia.creado_por %}
+                            Cargado por {{ historia.creado_por.get_full_name|default:historia.creado_por.username }}
+                        {% else %}
+                            Cargado por -
+                        {% endif %}
+                        - Adjuntos: {{ historia.adjuntos.count }}
+                    </p>
                     <dl class="detail-grid">
                         <div class="field-full">
                             <dt>Motivo</dt>
@@ -74,11 +114,11 @@
     {% if is_paginated %}
         <div class="form-actions">
             {% if page_obj.has_previous %}
-                <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                <a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
             {% endif %}
             <span class="muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
             {% if page_obj.has_next %}
-                <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                <a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
             {% endif %}
         </div>
     {% endif %}

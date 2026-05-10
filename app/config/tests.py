@@ -1,9 +1,31 @@
+from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.core.exceptions import ImproperlyConfigured
+from django.core.files.base import ContentFile
+from django.test import SimpleTestCase, override_settings
 
 from .database import configurar_base_de_datos
+from .storage_backends import SupabaseStorage
+
+
+class FakeHttpResponse:
+    def __init__(self, status=200, body=b"", headers=None):
+        self.status = status
+        self._body = body
+        self.headers = headers or {}
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
 
 
 class DatabaseConfigTests(SimpleTestCase):
@@ -73,3 +95,77 @@ class StaticFilesConfigTests(SimpleTestCase):
             "whitenoise.storage.CompressedManifestStaticFilesStorage",
         )
         self.assertTrue(str(settings.STATIC_ROOT).endswith("staticfiles"))
+
+
+class SupabaseStorageTests(SimpleTestCase):
+    @override_settings(
+        SUPABASE_STORAGE_URL="https://proyecto.supabase.co",
+        SUPABASE_STORAGE_BUCKET="historias-clinicas",
+        SUPABASE_STORAGE_SERVICE_ROLE_KEY="service-role",
+        SUPABASE_STORAGE_TIMEOUT=30,
+        SUPABASE_STORAGE_CACHE_CONTROL="3600",
+        SUPABASE_STORAGE_SIGNED_URL_SECONDS=300,
+    )
+    def test_guarda_archivo_en_bucket_configurado(self):
+        with patch(
+            "config.storage_backends.urlopen",
+            side_effect=[
+                HTTPError(
+                    url="https://proyecto.supabase.co/storage/v1/object/historias-clinicas/historias/1/radiografia.txt",
+                    code=404,
+                    msg="Not Found",
+                    hdrs=None,
+                    fp=BytesIO(b"{}"),
+                ),
+                FakeHttpResponse(status=201, body=b"{}"),
+            ],
+        ) as urlopen_mock:
+            storage = SupabaseStorage()
+            nombre = storage.save("historias/1/radiografia.txt", ContentFile(b"contenido"))
+
+        request = urlopen_mock.call_args_list[1].args[0]
+
+        self.assertEqual(nombre, "historias/1/radiografia.txt")
+        self.assertEqual(request.get_method(), "POST")
+        self.assertEqual(request.data, b"contenido")
+        self.assertIn(
+            "/storage/v1/object/historias-clinicas/historias/1/radiografia.txt",
+            request.full_url,
+        )
+        self.assertEqual(request.headers["Authorization"], "Bearer service-role")
+
+    @override_settings(
+        SUPABASE_STORAGE_URL="https://proyecto.supabase.co/storage/v1",
+        SUPABASE_STORAGE_BUCKET="historias-clinicas",
+        SUPABASE_STORAGE_SERVICE_ROLE_KEY="service-role",
+        SUPABASE_STORAGE_TIMEOUT=30,
+        SUPABASE_STORAGE_CACHE_CONTROL="3600",
+        SUPABASE_STORAGE_SIGNED_URL_SECONDS=300,
+    )
+    def test_genera_url_firmada_temporal(self):
+        response = b'{"signedURL": "/object/sign/historias-clinicas/archivo.pdf?token=abc"}'
+
+        with patch(
+            "config.storage_backends.urlopen",
+            return_value=FakeHttpResponse(status=200, body=response),
+        ):
+            storage = SupabaseStorage()
+            url = storage.url("archivo.pdf")
+
+        self.assertEqual(
+            url,
+            "https://proyecto.supabase.co/storage/v1/object/sign/"
+            "historias-clinicas/archivo.pdf?token=abc",
+        )
+
+    @override_settings(
+        SUPABASE_STORAGE_URL="",
+        SUPABASE_STORAGE_BUCKET="historias-clinicas",
+        SUPABASE_STORAGE_SERVICE_ROLE_KEY="service-role",
+        SUPABASE_STORAGE_TIMEOUT=30,
+        SUPABASE_STORAGE_CACHE_CONTROL="3600",
+        SUPABASE_STORAGE_SIGNED_URL_SECONDS=300,
+    )
+    def test_requiere_url_de_supabase(self):
+        with self.assertRaises(ImproperlyConfigured):
+            SupabaseStorage()

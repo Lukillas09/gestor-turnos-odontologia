@@ -48,6 +48,8 @@ Actualmente incluye:
 - Borrado seguro de pacientes con confirmación por nombre, apellido y DNI.
 - Historia clínica básica accesible solo por odontólogos.
 - Creación, detalle y edición de entradas clínicas con odontólogo responsable.
+- Filtros, búsqueda, auditoría y adjuntos para historia clínica.
+- Storage externo preparado para adjuntos clínicos en Supabase Storage privado.
 - Protección para no borrar pacientes que ya tienen historia clínica cargada.
 - Configuración preparada para `DEBUG=False`.
 - Configuración de base de datos por `DATABASE_URL`.
@@ -73,6 +75,7 @@ Documentación técnica:
 - [Proveedor de deploy gratuito inicial](docs/proveedor_deploy.md)
 - [Entorno de staging](docs/staging.md)
 - [Email real por API HTTP](docs/email_api.md)
+- [Supabase Storage para adjuntos clínicos](docs/supabase_storage.md)
 - [Seguridad antes de producción](docs/seguridad_produccion.md)
 
 ## Tecnologías

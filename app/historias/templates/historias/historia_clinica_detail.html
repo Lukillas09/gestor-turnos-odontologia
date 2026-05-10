@@ -42,6 +42,26 @@
                 <dt>Ultima actualizacion</dt>
                 <dd>{{ historia.actualizado_en|date:"d/m/Y H:i" }}</dd>
             </div>
+            <div>
+                <dt>Cargado por</dt>
+                <dd>
+                    {% if historia.creado_por %}
+                        {{ historia.creado_por.get_full_name|default:historia.creado_por.username }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt>Modificado por</dt>
+                <dd>
+                    {% if historia.actualizado_por %}
+                        {{ historia.actualizado_por.get_full_name|default:historia.actualizado_por.username }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </dd>
+            </div>
             <div class="field-full">
                 <dt>Motivo de consulta</dt>
                 <dd>{{ historia.motivo_consulta|linebreaksbr }}</dd>
@@ -59,5 +79,38 @@
                 <dd>{{ historia.observaciones|linebreaksbr|default:"-" }}</dd>
             </div>
         </dl>
+    </section>
+
+    <section class="panel-section">
+        <div class="section-heading">
+            <div>
+                <h2>Adjuntos</h2>
+                <p>Radiografias, imagenes o documentos asociados a esta entrada.</p>
+            </div>
+        </div>
+
+        {% if historia.adjuntos.exists %}
+            <div class="compact-list">
+                {% for adjunto in historia.adjuntos.all %}
+                    <article class="compact-item">
+                        <div>
+                            <strong>{{ adjunto.nombre_archivo }}</strong>
+                            <span>
+                                {{ adjunto.tamano_legible }}
+                                - Subido el {{ adjunto.creado_en|date:"d/m/Y H:i" }}
+                                {% if adjunto.subido_por %}
+                                    por {{ adjunto.subido_por.get_full_name|default:adjunto.subido_por.username }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <a class="text-link" href="{% url 'historias:descargar_adjunto' adjunto.pk %}" target="_blank" rel="noopener">Abrir</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <p>No hay adjuntos cargados para esta entrada.</p>
+            </div>
+        {% endif %}
     </section>
 {% endblock %}
