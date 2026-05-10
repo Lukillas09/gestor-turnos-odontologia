@@ -58,6 +58,7 @@ Antes de produccion:
 - Probar restauracion, no solo creacion.
 - Guardar una copia fuera del proveedor principal.
 - Documentar quien puede acceder a esos backups.
+- Respaldar tambien Supabase Storage, porque PostgreSQL solo guarda referencias a adjuntos.
 
 Para probar restauracion en una base PostgreSQL temporal con Docker:
 
@@ -66,6 +67,17 @@ Para probar restauracion en una base PostgreSQL temporal con Docker:
 ```
 
 La prueba levanta un contenedor temporal, restaura el ultimo backup y consulta tablas clave. Al terminar elimina el contenedor.
+
+Para adjuntos clinicos en Supabase Storage:
+
+```powershell
+.\scripts\backup_storage_historias.ps1 -DryRun
+.\scripts\backup_storage_historias.ps1
+```
+
+El backup queda en `backups/storage/` e incluye `manifest.json` con ids internos, rutas y `sha256`.
+
+La guia completa esta en `docs/backups.md`.
 
 ## 3. Logs
 

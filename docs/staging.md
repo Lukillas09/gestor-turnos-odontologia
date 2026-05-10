@@ -259,6 +259,8 @@ Checklist del primer staging:
 - En Windows, crear backup con `.\scripts\backup_postgresql_docker.ps1`.
 - Probar restauracion en una base separada antes de usar datos reales.
 - En Windows, probar restauracion con `.\scripts\probar_restore_postgresql_docker.ps1`.
+- Crear backup de adjuntos clinicos con `.\scripts\backup_storage_historias.ps1`.
+- Verificar que el backup de Storage tenga `manifest.json` y archivos descargados.
 
 ## Listo para avanzar cuando
 
@@ -268,4 +270,4 @@ Checklist del primer staging:
 - El flujo de turno completo funciona.
 - Los emails quedan validados por consola o por un proveedor compatible.
 - El workflow de recordatorios corre sin errores.
-- Existe una estrategia de backup y restauracion probada.
+- Existe una estrategia de backup y restauracion probada para PostgreSQL y Storage.

@@ -76,6 +76,7 @@ Documentación técnica:
 - [Entorno de staging](docs/staging.md)
 - [Email real por API HTTP](docs/email_api.md)
 - [Supabase Storage para adjuntos clínicos](docs/supabase_storage.md)
+- [Backups completos](docs/backups.md)
 - [Seguridad antes de producción](docs/seguridad_produccion.md)
 
 ## Tecnologías
@@ -492,7 +493,7 @@ La guía para programar este comando con Render, Railway, cron o Windows Task Sc
 
 ## Backups de staging
 
-Los backups de PostgreSQL se guardan fuera del repositorio en `backups/`, carpeta ignorada por Git.
+Los backups de PostgreSQL y Storage se guardan fuera del repositorio en `backups/`, carpeta ignorada por Git.
 
 En Windows, con Docker Desktop iniciado:
 
@@ -502,6 +503,17 @@ En Windows, con Docker Desktop iniciado:
 ```
 
 El primer comando crea un backup logico del esquema `public` de Supabase. El segundo levanta una base PostgreSQL temporal, restaura el backup y valida tablas principales.
+
+Para respaldar adjuntos clinicos de Supabase Storage:
+
+```powershell
+.\scripts\backup_storage_historias.ps1 -DryRun
+.\scripts\backup_storage_historias.ps1
+```
+
+El comando descarga los adjuntos referenciados por la base y crea un `manifest.json` con ids internos, rutas, tamanos y `sha256`.
+
+Guia completa: [docs/backups.md](docs/backups.md).
 
 Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
 

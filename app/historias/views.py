@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
@@ -16,6 +18,13 @@ from usuarios.roles import (
 
 from .forms import HistoriaClinicaFiltroForm, HistoriaClinicaForm
 from .models import HistoriaClinica, HistoriaClinicaAdjunto
+from .permissions import (
+    limitar_historias_clinicas_por_usuario,
+    puede_ver_historia_de_paciente,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
@@ -23,6 +32,21 @@ class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
 
     def dispatch(self, request, *args, **kwargs):
         self.paciente = get_object_or_404(Paciente, pk=kwargs["paciente_pk"])
+
+        if request.user.is_authenticated and not puede_ver_historia_de_paciente(
+            request.user,
+            self.paciente,
+        ):
+            _registrar_evento_clinico(
+                request,
+                "acceso_denegado_paciente",
+                paciente=self.paciente,
+                detalle="Intento de acceso a historia de paciente no relacionado.",
+            )
+            raise PermissionDenied(
+                "No tenes permiso para ver la historia clinica de este paciente."
+            )
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -39,7 +63,10 @@ class HistoriaClinicaListView(PacienteHistoriaClinicaMixin, ListView):
 
     def get_queryset(self):
         queryset = (
-            HistoriaClinica.objects.filter(paciente=self.paciente)
+            limitar_historias_clinicas_por_usuario(
+                HistoriaClinica.objects.filter(paciente=self.paciente),
+                self.request.user,
+            )
             .select_related(
                 "paciente",
                 "odontologo",
@@ -79,6 +106,12 @@ class HistoriaClinicaListView(PacienteHistoriaClinicaMixin, ListView):
         context = super().get_context_data(**kwargs)
         query_params = self.request.GET.copy()
         query_params.pop("page", None)
+        _registrar_evento_clinico(
+            self.request,
+            "ver_historia_paciente",
+            paciente=self.paciente,
+            detalle="Listado clinico consultado.",
+        )
         context["filtros_form"] = self.filtros_form
         context["filtros_querystring"] = query_params.urlencode()
         return context
@@ -118,6 +151,13 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
         form.instance.actualizado_por = self.request.user
         response = super().form_valid(form)
         form.guardar_adjuntos(self.object, self.request.user)
+        _registrar_evento_clinico(
+            self.request,
+            "crear_historia",
+            historia=self.object,
+            paciente=self.paciente,
+            detalle="Entrada clinica creada.",
+        )
         messages.success(self.request, "Entrada de historia clinica creada correctamente.")
         return response
 
@@ -128,21 +168,25 @@ class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailV
     context_object_name = "historia"
 
     def get_queryset(self):
-        return (
-            super()
-            .get_queryset()
-            .select_related(
-                "paciente",
-                "odontologo",
-                "odontologo__usuario",
-                "creado_por",
-                "actualizado_por",
-            )
-            .prefetch_related("adjuntos", "adjuntos__subido_por")
-        )
+        queryset = super().get_queryset()
+        queryset = limitar_historias_clinicas_por_usuario(queryset, self.request.user)
+        return queryset.select_related(
+            "paciente",
+            "odontologo",
+            "odontologo__usuario",
+            "creado_por",
+            "actualizado_por",
+        ).prefetch_related("adjuntos", "adjuntos__subido_por")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        _registrar_evento_clinico(
+            self.request,
+            "ver_detalle_historia",
+            historia=self.object,
+            paciente=self.object.paciente,
+            detalle="Detalle clinico consultado.",
+        )
         context["puede_editar_historia"] = puede_editar_historia_clinica(
             self.request.user,
             self.object,
@@ -157,11 +201,9 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
     context_object_name = "historia"
 
     def get_queryset(self):
-        return (
-            super()
-            .get_queryset()
-            .select_related("paciente", "odontologo", "odontologo__usuario")
-        )
+        queryset = super().get_queryset()
+        queryset = limitar_historias_clinicas_por_usuario(queryset, self.request.user)
+        return queryset.select_related("paciente", "odontologo", "odontologo__usuario")
 
     def get_object(self, queryset=None):
         historia = super().get_object(queryset)
@@ -187,6 +229,13 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
         form.instance.actualizado_por = self.request.user
         response = super().form_valid(form)
         form.guardar_adjuntos(self.object, self.request.user)
+        _registrar_evento_clinico(
+            self.request,
+            "editar_historia",
+            historia=self.object,
+            paciente=self.object.paciente,
+            detalle="Entrada clinica modificada.",
+        )
         messages.success(self.request, "Entrada de historia clinica actualizada correctamente.")
         return response
 
@@ -194,14 +243,15 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
 class HistoriaClinicaAdjuntoDownloadView(HistoriaClinicaOdontologoRequeridoMixin, View):
     def get(self, request, pk):
         adjunto = get_object_or_404(
-            HistoriaClinicaAdjunto.objects.select_related(
-                "historia",
-                "historia__paciente",
-                "historia__odontologo",
-                "historia__odontologo__usuario",
-                "subido_por",
-            ),
+            self._get_queryset(request),
             pk=pk,
+        )
+        _registrar_evento_clinico(
+            request,
+            "abrir_adjunto",
+            historia=adjunto.historia,
+            paciente=adjunto.historia.paciente,
+            detalle=f"Adjunto clinico abierto: {adjunto.pk}.",
         )
 
         return FileResponse(
@@ -209,3 +259,30 @@ class HistoriaClinicaAdjuntoDownloadView(HistoriaClinicaOdontologoRequeridoMixin
             as_attachment=False,
             filename=adjunto.nombre_archivo,
         )
+
+    @staticmethod
+    def _get_queryset(request):
+        historias_visibles = limitar_historias_clinicas_por_usuario(
+            HistoriaClinica.objects.all(),
+            request.user,
+        )
+        return HistoriaClinicaAdjunto.objects.filter(
+            historia__in=historias_visibles,
+        ).select_related(
+            "historia",
+            "historia__paciente",
+            "historia__odontologo",
+            "historia__odontologo__usuario",
+            "subido_por",
+        )
+
+
+def _registrar_evento_clinico(request, accion, paciente=None, historia=None, detalle=""):
+    logger.info(
+        "auditoria_clinica accion=%s usuario_id=%s paciente_id=%s historia_id=%s detalle=%s",
+        accion,
+        request.user.pk if request.user.is_authenticated else None,
+        paciente.pk if paciente else None,
+        historia.pk if historia else None,
+        detalle,
+    )

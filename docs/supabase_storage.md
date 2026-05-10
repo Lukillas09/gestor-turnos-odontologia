@@ -108,8 +108,26 @@ Los backups de PostgreSQL no incluyen automaticamente los archivos de Storage. H
 Estrategia minima:
 
 1. Mantener backup logico de PostgreSQL con los scripts del repo.
-2. Descargar periodicamente los archivos del bucket privado o definir una politica de exportacion.
+2. Descargar periodicamente los archivos del bucket privado con `python manage.py backup_storage_historias`.
 3. Probar restauracion completa: base + archivos.
 4. Documentar quien puede acceder a esos backups.
+
+Comandos utiles:
+
+```powershell
+cd app
+python manage.py backup_storage_historias --dry-run
+python manage.py backup_storage_historias
+```
+
+En Windows tambien se puede ejecutar:
+
+```powershell
+.\scripts\backup_storage_historias.ps1
+```
+
+El backup genera una carpeta en `backups/storage/` con los archivos y un `manifest.json` con `sha256`, rutas e ids internos.
+
+La guia completa esta en [backups.md](backups.md).
 
 Antes de usar datos reales de pacientes, esta estrategia debe quedar probada.
