@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 
 from .integrations.google_calendar import (
     GoogleCalendarError,
@@ -10,6 +11,9 @@ from .models import GoogleCalendarConexion, Turno
 ACCION_CREAR = "crear"
 ACCION_ACTUALIZAR = "actualizar"
 ACCION_CANCELAR = "cancelar"
+MENSAJE_ERROR_INESPERADO = "Error inesperado al sincronizar con Google Calendar."
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -96,6 +100,17 @@ def _sincronizar(turno, accion, operacion, cliente_factory):
             realizada=False,
             accion=accion,
             mensaje=str(error),
+        )
+    except Exception:
+        logger.exception(
+            "Error inesperado al sincronizar el turno %s con Google Calendar.",
+            turno.pk,
+        )
+        conexion.registrar_error(MENSAJE_ERROR_INESPERADO)
+        return ResultadoSincronizacionGoogleCalendar(
+            realizada=False,
+            accion=accion,
+            mensaje=MENSAJE_ERROR_INESPERADO,
         )
 
     conexion.marcar_sincronizada()

@@ -21,6 +21,7 @@ from turnos.integrations.google_calendar import (
     obtener_configuracion_google_calendar,
 )
 from turnos.google_calendar_sync import (
+    MENSAJE_ERROR_INESPERADO,
     sincronizar_turno_actualizado,
     sincronizar_turno_cancelado,
     sincronizar_turno_creado,
@@ -504,6 +505,22 @@ class GoogleCalendarSyncTests(TestCase):
         self.assertIn("Fallo simulado", self.conexion.ultimo_error)
         self.assertTrue(Turno.objects.filter(pk=self.turno.pk).exists())
 
+    def test_sincronizacion_registra_error_inesperado_sin_romper_turno(self):
+        with self.assertLogs("turnos.google_calendar_sync", level="ERROR"):
+            resultado = sincronizar_turno_creado(
+                self.turno,
+                lambda conexion: GoogleCalendarClientErrorInesperadoFake(),
+            )
+
+        self.turno.refresh_from_db()
+        self.conexion.refresh_from_db()
+
+        self.assertFalse(resultado.realizada)
+        self.assertEqual(resultado.mensaje, MENSAJE_ERROR_INESPERADO)
+        self.assertEqual(self.turno.google_calendar_event_id, "")
+        self.assertEqual(self.conexion.ultimo_error, MENSAJE_ERROR_INESPERADO)
+        self.assertTrue(Turno.objects.filter(pk=self.turno.pk).exists())
+
     def _cliente_factory(self, conexion):
         return GoogleCalendarClient(
             servicio=self.servicio,
@@ -656,3 +673,8 @@ class GoogleCalendarClientErrorFake:
 
     def cancelar_evento(self, turno):
         raise GoogleCalendarError("Fallo simulado al cancelar evento.")
+
+
+class GoogleCalendarClientErrorInesperadoFake:
+    def crear_evento(self, turno):
+        raise RuntimeError("Fallo externo inesperado con token tecnico")
