@@ -428,9 +428,30 @@
             margin-bottom: 16px;
         }
 
+        .agenda-filter {
+            grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) auto;
+        }
+
         .filter-actions {
             display: flex;
             gap: 8px;
+        }
+
+        .agenda-legend,
+        .agenda-turno-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .agenda-legend {
+            margin: 0 0 16px;
+        }
+
+        .agenda-professional-list {
+            display: grid;
+            gap: 16px;
         }
 
         .agenda-items {
@@ -527,6 +548,14 @@
             flex-wrap: wrap;
             gap: 8px;
             align-items: center;
+        }
+
+        .agenda-turno-actions {
+            margin-top: 6px;
+        }
+
+        .inline-form {
+            margin: 0;
         }
 
         .status-badge {
@@ -685,6 +714,7 @@
             }
 
             .filter-panel,
+            .agenda-filter,
             .form-grid,
             .detail-grid,
             .dashboard-grid,

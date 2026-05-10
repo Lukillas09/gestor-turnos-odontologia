@@ -57,9 +57,12 @@ from .models import (
     normalizar_error_google_calendar_para_usuario,
 )
 from .selectors import (
+    obtener_agenda_diaria_por_odontologo,
+    obtener_agenda_semanal_por_odontologo,
     obtener_horarios_disponibles,
     obtener_bloques_agenda_del_dia,
     obtener_inicio_semana,
+    obtener_resumen_estados,
     obtener_turnos_de_la_semana,
     obtener_turnos_del_dia,
 )
@@ -547,6 +550,11 @@ class AgendaDiaView(VerTurnosRequeridoMixin, TemplateView):
         context["fecha_siguiente"] = fecha + timedelta(days=1)
         context["turnos"] = obtener_turnos_del_dia(fecha, odontologo)
         context["bloques_agenda"] = obtener_bloques_agenda_del_dia(fecha, odontologo)
+        context["agenda_odontologos"] = obtener_agenda_diaria_por_odontologo(
+            fecha,
+            odontologo,
+        )
+        context["resumen_estados"] = obtener_resumen_estados(context["turnos"])
         return context
 
 
@@ -573,4 +581,14 @@ class AgendaSemanaView(VerTurnosRequeridoMixin, TemplateView):
         context["semana_anterior"] = inicio_semana - timedelta(days=7)
         context["semana_siguiente"] = inicio_semana + timedelta(days=7)
         context["dias"] = obtener_turnos_de_la_semana(fecha_referencia, odontologo)
+        turnos_semana = [
+            turno
+            for dia in context["dias"]
+            for turno in dia["turnos"]
+        ]
+        context["agenda_odontologos"] = obtener_agenda_semanal_por_odontologo(
+            fecha_referencia,
+            odontologo,
+        )
+        context["resumen_estados"] = obtener_resumen_estados(turnos_semana)
         return context

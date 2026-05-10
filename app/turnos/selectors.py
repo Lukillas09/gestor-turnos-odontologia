@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from .models import DisponibilidadOdontologo, Turno
+from .models import DisponibilidadOdontologo, Odontologo, Turno
 
 
 def obtener_turnos_del_dia(fecha, odontologo=None):
@@ -43,6 +43,19 @@ def obtener_bloques_agenda_del_dia(fecha, odontologo=None, intervalo_minutos=30)
     return bloques
 
 
+def obtener_agenda_diaria_por_odontologo(fecha, odontologo=None):
+    odontologos = _obtener_odontologos_para_agenda(fecha, fecha, odontologo)
+
+    return [
+        {
+            "odontologo": odontologo_agenda,
+            "bloques": obtener_bloques_agenda_del_dia(fecha, odontologo_agenda),
+            "turnos": list(obtener_turnos_del_dia(fecha, odontologo_agenda)),
+        }
+        for odontologo_agenda in odontologos
+    ]
+
+
 def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None):
     inicio_semana = obtener_inicio_semana(fecha_referencia)
     fin_semana = inicio_semana + timedelta(days=6)
@@ -66,6 +79,59 @@ def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None):
         }
         for dia in range(7)
     ]
+
+
+def obtener_agenda_semanal_por_odontologo(fecha_referencia, odontologo=None):
+    inicio_semana = obtener_inicio_semana(fecha_referencia)
+    fin_semana = inicio_semana + timedelta(days=6)
+    odontologos = _obtener_odontologos_para_agenda(
+        inicio_semana,
+        fin_semana,
+        odontologo,
+    )
+
+    return [
+        {
+            "odontologo": odontologo_agenda,
+            "dias": obtener_turnos_de_la_semana(fecha_referencia, odontologo_agenda),
+            "turnos": list(
+                obtener_turnos_de_la_semana_como_queryset(
+                    inicio_semana,
+                    fin_semana,
+                    odontologo_agenda,
+                )
+            ),
+        }
+        for odontologo_agenda in odontologos
+    ]
+
+
+def obtener_turnos_de_la_semana_como_queryset(inicio_semana, fin_semana, odontologo=None):
+    turnos = _turnos_con_relaciones().filter(
+        fecha__gte=inicio_semana,
+        fecha__lte=fin_semana,
+    )
+
+    if odontologo:
+        turnos = turnos.filter(odontologo=odontologo)
+
+    return turnos
+
+
+def obtener_resumen_estados(turnos):
+    resumen = {
+        "total": 0,
+        Turno.Estado.PENDIENTE: 0,
+        Turno.Estado.CONFIRMADO: 0,
+        Turno.Estado.CANCELADO: 0,
+        Turno.Estado.REALIZADO: 0,
+    }
+
+    for turno in turnos:
+        resumen["total"] += 1
+        resumen[turno.estado] = resumen.get(turno.estado, 0) + 1
+
+    return resumen
 
 
 def obtener_inicio_semana(fecha):
@@ -100,6 +166,35 @@ def _obtener_rango_agenda(fecha, odontologo, turnos):
         return None
 
     return min(horas_inicio), max(horas_fin)
+
+
+def _obtener_odontologos_para_agenda(fecha_desde, fecha_hasta, odontologo=None):
+    if odontologo:
+        return [odontologo]
+
+    dias_semana = {
+        (fecha_desde + timedelta(days=offset)).weekday()
+        for offset in range((fecha_hasta - fecha_desde).days + 1)
+    }
+    ids_con_disponibilidad = DisponibilidadOdontologo.objects.filter(
+        dia_semana__in=dias_semana,
+        activo=True,
+        odontologo__activo=True,
+    ).values_list("odontologo_id", flat=True)
+    ids_con_turnos = Turno.objects.filter(
+        fecha__gte=fecha_desde,
+        fecha__lte=fecha_hasta,
+    ).values_list("odontologo_id", flat=True)
+    odontologo_ids = set(ids_con_disponibilidad) | set(ids_con_turnos)
+
+    if not odontologo_ids:
+        return []
+
+    return list(
+        Odontologo.objects.filter(pk__in=odontologo_ids)
+        .select_related("usuario")
+        .order_by("usuario__last_name", "usuario__first_name", "usuario__username")
+    )
 
 
 def obtener_horarios_disponibles(

@@ -1854,6 +1854,27 @@ class AgendaViewsTests(TestCase):
         self.assertContains(response, "Turno visible")
         self.assertNotContains(response, "Turno filtrado")
 
+    def test_agenda_diaria_agrupa_por_odontologo_y_muestra_acciones_rapidas(self):
+        turno_pendiente = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Control con acciones",
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        response = self.client.get(reverse("turnos:agenda_dia"), {"fecha": "2026-05-08"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(self.odontologo))
+        self.assertContains(response, "1 turno")
+        self.assertContains(response, "Pendiente")
+        self.assertContains(response, reverse("turnos:confirmar", kwargs={"pk": turno_pendiente.pk}))
+        self.assertContains(response, reverse("turnos:reprogramar", kwargs={"pk": turno_pendiente.pk}))
+        self.assertContains(response, reverse("turnos:cancelar", kwargs={"pk": turno_pendiente.pk}))
+
     def test_agenda_semanal_muestra_turnos_de_la_semana(self):
         Turno.objects.create(
             paciente=self.paciente,
@@ -1915,6 +1936,25 @@ class AgendaViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Semana visible")
         self.assertNotContains(response, "Semana filtrada")
+
+    def test_agenda_semanal_muestra_bloques_por_odontologo(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Semana por odontologo",
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(reverse("turnos:agenda_semana"), {"fecha": "2026-05-08"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(self.odontologo))
+        self.assertContains(response, "1 turno")
+        self.assertContains(response, "Confirmado")
+        self.assertContains(response, "Semana por odontologo")
 
     def test_odontologo_inactivo_no_tiene_horarios_disponibles(self):
         self.odontologo.activo = False
