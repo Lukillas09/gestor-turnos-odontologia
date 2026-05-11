@@ -70,9 +70,19 @@ class PacienteDeleteConfirmationForm(forms.Form):
     apellido = forms.CharField(max_length=100)
     documento = forms.CharField(max_length=20, label="DNI")
 
-    def __init__(self, *args, paciente, **kwargs):
+    def __init__(self, *args, paciente, requiere_confirmacion_clinica=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.paciente = paciente
+        self.requiere_confirmacion_clinica = requiere_confirmacion_clinica
+
+        if requiere_confirmacion_clinica:
+            self.fields["confirmacion_clinica"] = forms.CharField(
+                label="Confirmacion clinica",
+                help_text=(
+                    "Este paciente tiene datos clinicos cargados. "
+                    "Para borrarlos, escribi CONFIRMAR en mayusculas."
+                ),
+            )
 
     def clean(self):
         datos = super().clean()
@@ -99,5 +109,14 @@ class PacienteDeleteConfirmationForm(forms.Form):
             raise forms.ValidationError(
                 "Los datos ingresados no coinciden con el paciente."
             )
+
+        if self.requiere_confirmacion_clinica:
+            confirmacion = datos.get("confirmacion_clinica", "").strip()
+
+            if confirmacion != "CONFIRMAR":
+                self.add_error(
+                    "confirmacion_clinica",
+                    "Para borrar datos clinicos, escribi CONFIRMAR en mayusculas.",
+                )
 
         return datos

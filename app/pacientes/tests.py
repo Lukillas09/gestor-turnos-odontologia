@@ -2,8 +2,10 @@ from datetime import date, time
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
@@ -13,6 +15,16 @@ from .models import FichaOdontologica, Paciente
 def asignar_rol(usuario, nombre_rol):
     grupo, _ = Group.objects.get_or_create(name=nombre_rol)
     usuario.groups.add(grupo)
+
+
+TEST_STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.InMemoryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 
 class LoginInternoTests(TestCase):
@@ -431,14 +443,98 @@ class PacienteViewsTests(TestCase):
         self.assertFalse(Paciente.objects.filter(pk=paciente.pk).exists())
         self.assertFalse(Turno.objects.filter(pk=turno.pk).exists())
 
+    def test_borrado_con_ficha_odontologica_exige_confirmacion_clinica(self):
+        paciente = Paciente.objects.create(
+            nombre="Clara",
+            apellido="Ficha",
+            documento="47111222",
+        )
+        FichaOdontologica.objects.create(
+            paciente=paciente,
+            alergias="Penicilina",
+        )
+
+        response_get = self.client.get(reverse("pacientes:borrar", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response_get.status_code, 200)
+        self.assertContains(response_get, "Atencion: datos clinicos cargados")
+        self.assertContains(response_get, "CONFIRMAR")
+
+        response_post = self.client.post(
+            reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
+            {
+                "nombre": "Clara",
+                "apellido": "Ficha",
+                "documento": "47111222",
+                "confirmacion_clinica": "confirmar",
+            },
+        )
+
+        self.assertEqual(response_post.status_code, 200)
+        self.assertTrue(Paciente.objects.filter(pk=paciente.pk).exists())
+        self.assertTrue(FichaOdontologica.objects.filter(paciente=paciente).exists())
+        self.assertContains(response_post, "escribi CONFIRMAR en mayusculas")
+
+    @override_settings(STORAGES=TEST_STORAGES)
+    def test_borrado_confirmado_elimina_historia_ficha_adjuntos_y_turnos_no_activos(self):
+        paciente = Paciente.objects.create(
+            nombre="Clara",
+            apellido="Clinica",
+            documento="48111222",
+        )
+        odontologo = self._crear_odontologo_para_paciente(paciente, "CLINICA")
+        DisponibilidadOdontologo.objects.create(
+            odontologo=odontologo,
+            dia_semana=DisponibilidadOdontologo.DiaSemana.VIERNES,
+            hora_inicio=time(9, 0),
+            hora_fin=time(18, 0),
+        )
+        historia = HistoriaClinica.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=date(2026, 5, 8),
+            motivo_consulta="Control",
+        )
+        adjunto = HistoriaClinicaAdjunto.objects.create(
+            historia=historia,
+            archivo=SimpleUploadedFile(
+                "radiografia.jpg",
+                b"contenido",
+                content_type="image/jpeg",
+            ),
+        )
+        FichaOdontologica.objects.create(
+            paciente=paciente,
+            antecedentes_medicos="Asma",
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.REALIZADO,
+        )
+
+        response = self.client.post(
+            reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
+            {
+                "nombre": "Clara",
+                "apellido": "Clinica",
+                "documento": "48111222",
+                "confirmacion_clinica": "CONFIRMAR",
+            },
+        )
+
+        self.assertRedirects(response, reverse("pacientes:lista"))
+        self.assertFalse(Paciente.objects.filter(pk=paciente.pk).exists())
+        self.assertFalse(FichaOdontologica.objects.filter(paciente_id=paciente.pk).exists())
+        self.assertFalse(HistoriaClinica.objects.filter(pk=historia.pk).exists())
+        self.assertFalse(HistoriaClinicaAdjunto.objects.filter(pk=adjunto.pk).exists())
+        self.assertFalse(Turno.objects.filter(pk=turno.pk).exists())
+
     def _crear_turno_para_paciente(self, paciente, estado):
-        usuario_odontologo = get_user_model().objects.create_user(
-            username=f"dr.{paciente.documento}"
-        )
-        odontologo = Odontologo.objects.create(
-            usuario=usuario_odontologo,
-            matricula=f"MN-{paciente.documento}",
-        )
+        odontologo = self._crear_odontologo_para_paciente(paciente, "TURNO")
         DisponibilidadOdontologo.objects.create(
             odontologo=odontologo,
             dia_semana=DisponibilidadOdontologo.DiaSemana.VIERNES,
@@ -452,6 +548,15 @@ class PacienteViewsTests(TestCase):
             hora_inicio=time(10, 0),
             duracion_minutos=30,
             estado=estado,
+        )
+
+    def _crear_odontologo_para_paciente(self, paciente, sufijo):
+        usuario_odontologo = get_user_model().objects.create_user(
+            username=f"dr.{paciente.documento}.{sufijo.lower()}"
+        )
+        return Odontologo.objects.create(
+            usuario=usuario_odontologo,
+            matricula=f"MN-{paciente.documento}-{sufijo}",
         )
 
 

@@ -1,10 +1,13 @@
+import logging
+
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from historias.models import HistoriaClinica
+from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
 from historias.permissions import (
     limitar_historias_clinicas_por_usuario,
     puede_ver_historia_de_paciente,
@@ -20,6 +23,9 @@ from usuarios.roles import puede_gestionar_historias_clinicas
 
 from .forms import FichaOdontologicaForm, PacienteDeleteConfirmationForm, PacienteForm
 from .models import FichaOdontologica, Paciente
+
+
+logger = logging.getLogger(__name__)
 
 
 class PacienteListView(VerPacientesRequeridoMixin, ListView):
@@ -181,15 +187,21 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["paciente"] = self.paciente
+        kwargs["requiere_confirmacion_clinica"] = self._tiene_datos_clinicos()
         return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["paciente"] = self.paciente
+        context["cantidad_historias_clinicas"] = self._cantidad_historias_clinicas()
+        context["cantidad_adjuntos_clinicos"] = self._cantidad_adjuntos_clinicos()
+        context["tiene_ficha_odontologica"] = self._tiene_ficha_odontologica()
+        context["requiere_confirmacion_clinica"] = self._tiene_datos_clinicos()
         return context
 
     def form_valid(self, form):
         nombre_completo = self.paciente.nombre_completo
+        tiene_datos_clinicos = self._tiene_datos_clinicos()
 
         if self._tiene_turnos_que_bloquean_borrado():
             form.add_error(
@@ -202,20 +214,31 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
             )
             return super().form_invalid(form)
 
-        if self._tiene_historias_clinicas():
+        try:
+            with transaction.atomic():
+                self._borrar_datos_clinicos()
+                self._borrar_turnos_que_no_bloquean()
+                self.paciente.delete()
+        except Exception:
+            logger.exception("No se pudo borrar el paciente y sus datos asociados.")
             form.add_error(
                 None,
-                "No se puede borrar el paciente porque tiene historia clinica cargada.",
+                "No se pudo completar el borrado. Revisa los adjuntos clinicos e intenta nuevamente.",
             )
             messages.error(
                 self.request,
-                "No se puede borrar el paciente porque tiene historia clinica cargada.",
+                "No se pudo completar el borrado del paciente.",
             )
             return super().form_invalid(form)
 
-        self._borrar_turnos_que_no_bloquean()
-        self.paciente.delete()
-        messages.success(self.request, f"Paciente {nombre_completo} borrado correctamente.")
+        if tiene_datos_clinicos:
+            messages.success(
+                self.request,
+                f"Paciente {nombre_completo} y sus datos clinicos fueron borrados correctamente.",
+            )
+        else:
+            messages.success(self.request, f"Paciente {nombre_completo} borrado correctamente.")
+
         return super().form_valid(form)
 
     def _tiene_turnos_que_bloquean_borrado(self):
@@ -228,5 +251,28 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
             estado__in=self.estados_que_bloquean_borrado
         ).delete()
 
-    def _tiene_historias_clinicas(self):
-        return self.paciente.historias_clinicas.exists()
+    def _borrar_datos_clinicos(self):
+        adjuntos = HistoriaClinicaAdjunto.objects.filter(
+            historia__paciente=self.paciente,
+        )
+
+        for adjunto in adjuntos:
+            if adjunto.archivo:
+                adjunto.archivo.delete(save=False)
+
+        HistoriaClinica.objects.filter(paciente=self.paciente).delete()
+        FichaOdontologica.objects.filter(paciente=self.paciente).delete()
+
+    def _tiene_datos_clinicos(self):
+        return self._cantidad_historias_clinicas() > 0 or self._tiene_ficha_odontologica()
+
+    def _cantidad_historias_clinicas(self):
+        return self.paciente.historias_clinicas.count()
+
+    def _cantidad_adjuntos_clinicos(self):
+        return HistoriaClinicaAdjunto.objects.filter(
+            historia__paciente=self.paciente,
+        ).count()
+
+    def _tiene_ficha_odontologica(self):
+        return FichaOdontologica.objects.filter(paciente=self.paciente).exists()

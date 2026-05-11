@@ -32,6 +32,32 @@
         </dl>
     </section>
 
+    {% if requiere_confirmacion_clinica %}
+        <section class="detail-panel danger-panel">
+            <h2>Atencion: datos clinicos cargados</h2>
+            <p>
+                Este paciente tiene historia clinica cargada o ficha odontologica creada.
+                Si confirmas el borrado, tambien se eliminaran la ficha odontologica,
+                historias clinicas y adjuntos.
+            </p>
+            <dl class="detail-grid">
+                <div>
+                    <dt>Ficha odontologica</dt>
+                    <dd>{% if tiene_ficha_odontologica %}Cargada{% else %}-{% endif %}</dd>
+                </div>
+                <div>
+                    <dt>Historias clinicas</dt>
+                    <dd>{{ cantidad_historias_clinicas }}</dd>
+                </div>
+                <div>
+                    <dt>Adjuntos clinicos</dt>
+                    <dd>{{ cantidad_adjuntos_clinicos }}</dd>
+                </div>
+            </dl>
+            <p class="muted">Como filtro extra, escribi CONFIRMAR en mayusculas en el campo de confirmacion clinica.</p>
+        </section>
+    {% endif %}
+
     <form class="form-panel" method="post" novalidate>
         {% csrf_token %}
 
@@ -41,9 +67,12 @@
 
         <div class="form-grid">
             {% for field in form %}
-                <div>
+                <div class="{% if field.name == 'confirmacion_clinica' %}field-full{% endif %}">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
+                    {% if field.help_text %}
+                        <p class="muted">{{ field.help_text }}</p>
+                    {% endif %}
                     {% if field.errors %}
                         <div class="field-error">{{ field.errors }}</div>
                     {% endif %}
