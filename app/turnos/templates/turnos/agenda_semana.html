@@ -46,7 +46,7 @@
             {{ filtros_form.fecha }}
         </div>
         <div>
-            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontologo</label>
+            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
             {{ filtros_form.odontologo }}
         </div>
         <div>
@@ -114,7 +114,7 @@
     {% else %}
         <div class="empty-state">
             {% if busqueda %}
-                <p>No hay turnos que coincidan con la busqueda para esta semana.</p>
+                <p>No hay turnos que coincidan con la búsqueda para esta semana.</p>
             {% else %}
                 <p>No hay disponibilidad ni turnos cargados para esta semana.</p>
             {% endif %}

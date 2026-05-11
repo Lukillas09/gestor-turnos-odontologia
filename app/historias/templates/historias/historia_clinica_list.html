@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Historia clinica de {{ paciente }} | Gestor de Turnos{% endblock %}
+{% block title %}Historia clínica de {{ paciente }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
     <div class="page-header">
         <div>
-            <h1>Historia clinica</h1>
+            <h1>Historia clínica</h1>
             <p class="subtitle">{{ paciente.nombre_completo }}</p>
         </div>
         <div class="header-actions">
@@ -92,7 +92,7 @@
                             <dd>{{ historia.pieza_dental|default:"-" }}</dd>
                         </div>
                         <div>
-                            <dt>Diagnostico</dt>
+                            <dt>Diagnóstico</dt>
                             <dd>{{ historia.diagnostico|truncatechars:90|default:"-" }}</dd>
                         </div>
                     </dl>
@@ -107,7 +107,7 @@
         </div>
     {% else %}
         <div class="empty-state">
-            <p>No hay entradas de historia clinica para este paciente.</p>
+            <p>No hay entradas de historia clínica para este paciente.</p>
         </div>
     {% endif %}
 
@@ -116,7 +116,7 @@
             {% if page_obj.has_previous %}
                 <a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
             {% endif %}
-            <span class="muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
             {% if page_obj.has_next %}
                 <a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
             {% endif %}

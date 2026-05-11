@@ -165,8 +165,8 @@ class GoogleCalendarClient:
     def _eventos(self):
         if self.servicio is None:
             raise GoogleCalendarClienteNoConfiguradoError(
-                "Todavia no hay un servicio autenticado de Google Calendar. "
-                "Primero hay que implementar OAuth y guardar el token del odontologo."
+                "Todavía no hay un servicio autenticado de Google Calendar. "
+                "Primero hay que implementar OAuth y guardar el token del odontólogo."
             )
 
         return self.servicio.events()
@@ -284,7 +284,7 @@ def renovar_access_token(conexion):
 
     if not conexion.refresh_token:
         raise GoogleCalendarCredencialesOAuthIncompletasError(
-            "La conexion no tiene refresh token para renovar el access token."
+            "La conexión no tiene refresh token para renovar el access token."
         )
 
     payload = urlencode(
@@ -323,7 +323,7 @@ def construir_evento_desde_turno(turno):
     fin = _con_zona_horaria(turno.fecha_hora_fin)
 
     return GoogleCalendarEvento(
-        resumen=f"Turno odontologico - {turno.paciente.nombre_completo}",
+        resumen=f"Turno odontológico - {turno.paciente.nombre_completo}",
         descripcion=_construir_descripcion(turno),
         inicio=inicio.isoformat(),
         fin=fin.isoformat(),
@@ -336,7 +336,7 @@ def construir_evento_desde_turno(turno):
 def _construir_descripcion(turno):
     lineas = [
         f"Paciente: {turno.paciente.nombre_completo}",
-        f"Odontologo: {turno.odontologo.nombre_completo}",
+        f"Odontólogo: {turno.odontologo.nombre_completo}",
         f"Estado: {turno.get_estado_display()}",
     ]
 

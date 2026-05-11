@@ -5,7 +5,7 @@ from turnos.services import enviar_recordatorios_email
 
 
 class Command(BaseCommand):
-    help = "Envia recordatorios por email para turnos confirmados proximos."
+    help = "Envía recordatorios por email para turnos confirmados próximos."
 
     def add_arguments(self, parser):
         parser.add_argument(

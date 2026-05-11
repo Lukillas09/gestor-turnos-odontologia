@@ -9,8 +9,8 @@
             <p class="subtitle">{{ fecha|date:"l d/m/Y" }}</p>
         </div>
         <div class="header-actions">
-            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Dia anterior</a>
-            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Dia siguiente</a>
+            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Día anterior</a>
+            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Día siguiente</a>
             {% if puede_gestionar_turnos %}
                 <a class="button" href="{% url 'turnos:crear' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Nuevo turno</a>
             {% endif %}
@@ -46,7 +46,7 @@
             {{ filtros_form.fecha }}
         </div>
         <div>
-            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontologo</label>
+            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
             {{ filtros_form.odontologo }}
         </div>
         <div>
@@ -79,7 +79,7 @@
                         <div>
                             <h2>{{ agenda.odontologo }}</h2>
                             <p class="subtitle">
-                                {{ agenda.turnos|length }} turno{% if agenda.turnos|length != 1 %}s{% endif %} para este dia.
+                                {{ agenda.turnos|length }} turno{% if agenda.turnos|length != 1 %}s{% endif %} para este día.
                             </p>
                         </div>
                         {% if puede_gestionar_turnos %}
@@ -88,7 +88,7 @@
                     </div>
 
                     {% if busqueda and not agenda.turnos %}
-                        <p class="muted">No hay turnos que coincidan con la busqueda para este odontologo.</p>
+                        <p class="muted">No hay turnos que coincidan con la búsqueda para este odontólogo.</p>
                     {% elif agenda.bloques %}
                         <div class="schedule-list">
                             {% for bloque in agenda.bloques %}
@@ -109,7 +109,7 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="muted">No hay disponibilidad ni turnos para este odontologo.</p>
+                        <p class="muted">No hay disponibilidad ni turnos para este odontólogo.</p>
                     {% endif %}
                 </section>
             {% endfor %}
@@ -117,9 +117,9 @@
     {% else %}
         <div class="empty-state">
             {% if busqueda %}
-                <p>No hay turnos que coincidan con la busqueda para este dia.</p>
+                <p>No hay turnos que coincidan con la búsqueda para este día.</p>
             {% else %}
-                <p>No hay disponibilidad ni turnos cargados para este dia.</p>
+                <p>No hay disponibilidad ni turnos cargados para este día.</p>
             {% endif %}
         </div>
     {% endif %}

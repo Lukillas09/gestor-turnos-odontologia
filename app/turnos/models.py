@@ -64,14 +64,14 @@ class Odontologo(models.Model):
 
     class Meta:
         ordering = ["usuario__last_name", "usuario__first_name", "usuario__username"]
-        verbose_name = "Odontologo"
-        verbose_name_plural = "Odontologos"
+        verbose_name = "Odontólogo"
+        verbose_name_plural = "Odontólogos"
 
     def clean(self):
         errors = {}
 
         if self.duracion_turno_minutos <= 0:
-            errors["duracion_turno_minutos"] = "La duracion debe ser mayor a 0."
+            errors["duracion_turno_minutos"] = "La duración debe ser mayor a 0."
 
         if self.hora_inicio_atencion >= self.hora_fin_atencion:
             errors["hora_fin_atencion"] = "La hora de fin debe ser posterior al inicio."
@@ -107,10 +107,10 @@ class DisponibilidadOdontologo(models.Model):
     class DiaSemana(models.IntegerChoices):
         LUNES = 0, "Lunes"
         MARTES = 1, "Martes"
-        MIERCOLES = 2, "Miercoles"
+        MIERCOLES = 2, "Miércoles"
         JUEVES = 3, "Jueves"
         VIERNES = 4, "Viernes"
-        SABADO = 5, "Sabado"
+        SABADO = 5, "Sábado"
         DOMINGO = 6, "Domingo"
 
     odontologo = models.ForeignKey(
@@ -127,8 +127,8 @@ class DisponibilidadOdontologo(models.Model):
 
     class Meta:
         ordering = ["odontologo", "dia_semana", "hora_inicio"]
-        verbose_name = "Disponibilidad de odontologo"
-        verbose_name_plural = "Disponibilidades de odontologos"
+        verbose_name = "Disponibilidad de odontólogo"
+        verbose_name_plural = "Disponibilidades de odontólogos"
         indexes = [
             models.Index(fields=["odontologo", "dia_semana", "activo"]),
         ]
@@ -154,7 +154,7 @@ class DisponibilidadOdontologo(models.Model):
                     self.hora_inicio < disponibilidad.hora_fin
                     and self.hora_fin > disponibilidad.hora_inicio
                 ):
-                    errors["hora_inicio"] = "Ya existe una disponibilidad superpuesta para ese dia."
+                    errors["hora_inicio"] = "Ya existe una disponibilidad superpuesta para ese día."
                     break
 
         if errors:
@@ -245,7 +245,7 @@ class Turno(models.Model):
         errors = {}
 
         if self.duracion_minutos <= 0:
-            errors["duracion_minutos"] = "La duracion debe ser mayor a 0."
+            errors["duracion_minutos"] = "La duración debe ser mayor a 0."
 
         if not errors and self.fecha and self.hora_inicio and self.odontologo_id:
             if self.estado != self.Estado.CANCELADO:
@@ -262,11 +262,11 @@ class Turno(models.Model):
 
     def _validar_odontologo_activo(self, errors):
         if not self.odontologo.activo:
-            errors["odontologo"] = "No se pueden cargar turnos para un odontologo inactivo."
+            errors["odontologo"] = "No se pueden cargar turnos para un odontólogo inactivo."
 
     def _validar_disponibilidad(self, errors):
         if self.fecha_hora_fin.date() != self.fecha:
-            errors["duracion_minutos"] = "El turno debe terminar el mismo dia."
+            errors["duracion_minutos"] = "El turno debe terminar el mismo día."
             return
 
         disponibilidad = DisponibilidadOdontologo.objects.filter(
@@ -278,7 +278,7 @@ class Turno(models.Model):
         ).exists()
 
         if not disponibilidad:
-            errors["hora_inicio"] = "El odontologo no atiende en ese dia y horario."
+            errors["hora_inicio"] = "El odontólogo no atiende en ese día y horario."
 
     def _validar_solapamiento(self, errors):
         if self.estado == self.Estado.CANCELADO:
@@ -298,7 +298,7 @@ class Turno(models.Model):
                 self.fecha_hora_inicio < turno.fecha_hora_fin
                 and self.fecha_hora_fin > turno.fecha_hora_inicio
             ):
-                errors["hora_inicio"] = "Ya existe un turno para ese odontologo en ese horario."
+                errors["hora_inicio"] = "Ya existe un turno para ese odontólogo en ese horario."
                 return
 
     def __str__(self):
@@ -325,7 +325,7 @@ class GoogleCalendarConexion(models.Model):
 
     class Meta:
         ordering = ["odontologo"]
-        verbose_name = "Conexion con Google Calendar"
+        verbose_name = "Conexión con Google Calendar"
         verbose_name_plural = "Conexiones con Google Calendar"
         indexes = [
             models.Index(fields=["activa"]),
@@ -439,14 +439,14 @@ def normalizar_error_google_calendar_para_usuario(mensaje):
         )
     ):
         return (
-            "No se pudo autorizar la conexion con Google Calendar. "
-            "Revisa la conexion del odontologo y volve a intentar."
+            "No se pudo autorizar la conexión con Google Calendar. "
+            "Revisá la conexión del odontólogo y volvé a intentar."
         )
 
     if "conexion activa" in mensaje_normalizado:
         return (
-            "El odontologo no tiene una conexion activa con Google Calendar. "
-            "Conecta Google Calendar y volve a intentar."
+            "El odontólogo no tiene una conexión activa con Google Calendar. "
+            "Conectá Google Calendar y volvé a intentar."
         )
 
     if any(
@@ -454,8 +454,8 @@ def normalizar_error_google_calendar_para_usuario(mensaje):
         for patron in ("not found", "no se encontro", "404")
     ):
         return (
-            "No se encontro el evento en Google Calendar. "
-            "Podes reintentar la sincronizacion para crear o actualizar el evento."
+            "No se encontró el evento en Google Calendar. "
+            "Podés reintentar la sincronización para crear o actualizar el evento."
         )
 
     if any(
@@ -469,5 +469,5 @@ def normalizar_error_google_calendar_para_usuario(mensaje):
 
     return (
         "No se pudo sincronizar el turno con Google Calendar. "
-        "Revisa la conexion del odontologo o reintenta la sincronizacion."
+        "Revisá la conexión del odontólogo o reintentá la sincronización."
     )

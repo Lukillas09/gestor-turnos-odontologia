@@ -13,7 +13,7 @@ class PerfilUsuarioForm(forms.Form):
     duracion_turno_minutos = forms.IntegerField(
         min_value=1,
         required=False,
-        label="Duracion del turno",
+        label="Duración del turno",
     )
     foto_perfil = forms.FileField(
         required=False,
@@ -85,7 +85,7 @@ class PerfilUsuarioForm(forms.Form):
             existentes = existentes.exclude(pk=self.odontologo.pk)
 
         if existentes.exists():
-            raise forms.ValidationError("Ya existe un odontologo con esa matricula.")
+            raise forms.ValidationError("Ya existe un odontólogo con esa matrícula.")
 
         return matricula
 

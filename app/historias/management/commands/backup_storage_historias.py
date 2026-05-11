@@ -10,7 +10,7 @@ from historias.models import HistoriaClinicaAdjunto
 
 
 class Command(BaseCommand):
-    help = "Crea un backup local de los adjuntos de historia clinica."
+    help = "Crea un backup local de los adjuntos de historia clínica."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -21,7 +21,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Muestra cuantos adjuntos se respaldarian sin descargar archivos.",
+            help="Muestra cuántos adjuntos se respaldarían sin descargar archivos.",
         )
 
     def handle(self, *args, **options):
@@ -34,7 +34,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(
                     f"Adjuntos a respaldar: {len(adjuntos)}. "
-                    f"Tamano registrado: {total_bytes} bytes."
+                    f"Tamaño registrado: {total_bytes} bytes."
                 )
             )
             return

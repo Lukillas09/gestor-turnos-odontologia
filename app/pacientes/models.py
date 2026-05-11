@@ -100,8 +100,8 @@ class FichaOdontologica(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Ficha odontologica"
-        verbose_name_plural = "Fichas odontologicas"
+        verbose_name = "Ficha odontológica"
+        verbose_name_plural = "Fichas odontológicas"
 
     def __str__(self):
-        return f"Ficha odontologica de {self.paciente}"
+        return f"Ficha odontológica de {self.paciente}"

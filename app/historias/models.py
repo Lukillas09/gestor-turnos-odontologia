@@ -82,8 +82,8 @@ class HistoriaClinica(models.Model):
 
     class Meta:
         ordering = ["-fecha", "-creado_en"]
-        verbose_name = "Historia clinica"
-        verbose_name_plural = "Historias clinicas"
+        verbose_name = "Historia clínica"
+        verbose_name_plural = "Historias clínicas"
         indexes = [
             models.Index(fields=["paciente", "-fecha"]),
             models.Index(fields=["odontologo", "-fecha"]),
@@ -93,11 +93,11 @@ class HistoriaClinica(models.Model):
         errors = {}
 
         if self.fecha and self.fecha > timezone.localdate():
-            errors["fecha"] = "La fecha de la atencion no puede ser futura."
+            errors["fecha"] = "La fecha de la atención no puede ser futura."
 
         if self.proximo_control and self.fecha and self.proximo_control < self.fecha:
             errors["proximo_control"] = (
-                "El proximo control no puede ser anterior a la fecha de atencion."
+                "El próximo control no puede ser anterior a la fecha de atención."
             )
 
         if errors:
@@ -132,8 +132,8 @@ class HistoriaClinicaAdjunto(models.Model):
 
     class Meta:
         ordering = ["-creado_en"]
-        verbose_name = "Adjunto de historia clinica"
-        verbose_name_plural = "Adjuntos de historia clinica"
+        verbose_name = "Adjunto de historia clínica"
+        verbose_name_plural = "Adjuntos de historia clínica"
         indexes = [
             models.Index(fields=["historia", "-creado_en"]),
         ]

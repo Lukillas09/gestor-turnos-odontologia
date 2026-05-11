@@ -210,7 +210,7 @@ class InicioDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Dashboard del consultorio")
         self.assertContains(response, "Turnos hoy")
-        self.assertContains(response, "Accesos rapidos")
+        self.assertContains(response, "Accesos rápidos")
 
     def test_dashboard_muestra_datos_operativos_del_consultorio(self):
         usuario = get_user_model().objects.create_user(username="recepcion.operativa")
@@ -271,10 +271,10 @@ class InicioDashboardTests(TestCase):
         self.assertContains(response, "Consulta dashboard")
         self.assertContains(response, "Pendientes de confirmar")
         self.assertContains(response, reverse("turnos:confirmar", kwargs={"pk": turno_hoy.pk}))
-        self.assertContains(response, "Proximos controles")
+        self.assertContains(response, "Próximos controles")
         self.assertContains(response, "Control, Ana")
         self.assertContains(response, "Google Calendar")
-        self.assertContains(response, "No se pudo autorizar la conexion")
+        self.assertContains(response, "No se pudo autorizar la conexión")
         self.assertContains(response, "Recordatorios")
         self.assertContains(response, "1 enviados. 1 fallidos.")
         self.assertNotContains(response, "invalid_grant")

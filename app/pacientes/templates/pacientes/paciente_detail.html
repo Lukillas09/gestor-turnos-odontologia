@@ -3,51 +3,44 @@
 {% block title %}{{ paciente.nombre_completo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
+    <div class="patient-backline">
+        <a class="button button-secondary button-small button-subtle" href="{% url 'pacientes:lista' %}">&larr; Volver a pacientes</a>
+    </div>
+
     <section class="clinical-profile-card">
         <div class="clinical-profile-main">
-            <span class="eyebrow">Perfil clinico</span>
+            <span class="eyebrow">Perfil clínico</span>
             <h1>{{ paciente.nombre }} {{ paciente.apellido }}</h1>
             <div class="clinical-profile-meta">
                 <span>DNI {{ paciente.documento|default:"-" }}</span>
-                <span>{% if edad_paciente %}{{ edad_paciente }} anos{% else %}Edad no cargada{% endif %}</span>
+                <span>{% if edad_paciente %}{{ edad_paciente }} años{% else %}Edad no cargada{% endif %}</span>
                 <span>{{ paciente.obra_social|default:"Sin obra social" }}</span>
                 <span>{{ paciente.localidad|default:"Sin localidad" }}</span>
             </div>
             <div class="clinical-contact-strip">
-                <span>{{ paciente.telefono|default:"Telefono no cargado" }}</span>
+                <span>{{ paciente.telefono|default:"Teléfono no cargado" }}</span>
                 <span>{{ paciente.email|default:"Email no cargado" }}</span>
             </div>
         </div>
 
-        <div class="clinical-actions">
-            <div class="clinical-action-group">
-                <a class="button button-secondary" href="{% url 'pacientes:lista' %}">Volver</a>
-                {% if puede_gestionar_pacientes %}
-                    <a class="button" href="{% url 'pacientes:editar' paciente.pk %}">Editar paciente</a>
-                {% endif %}
-            </div>
-            <div class="clinical-action-group">
+        {% if puede_ver_pacientes or puede_ver_historia_clinica %}
+            <div class="clinical-actions" aria-label="Acciones clínicas">
                 {% if puede_ver_pacientes %}
                     <a class="button button-secondary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">
                         {% if ficha_odontologica %}Editar ficha{% else %}Cargar ficha{% endif %}
                     </a>
                 {% endif %}
                 {% if puede_ver_historia_clinica %}
-                    <a class="button button-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clinica</a>
+                    <a class="button button-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clínica</a>
                 {% endif %}
             </div>
-            {% if puede_borrar_pacientes %}
-                <div class="clinical-action-group clinical-action-danger">
-                    <a class="button button-danger" href="{% url 'pacientes:borrar' paciente.pk %}">Borrar paciente</a>
-                </div>
-            {% endif %}
-        </div>
+        {% endif %}
     </section>
 
     <section class="panel-section clinical-alert-panel">
         <div class="section-header">
             <div>
-                <h2>Alertas clinicas</h2>
+                <h2>Alertas clínicas</h2>
                 <p class="subtitle">Datos a revisar antes de atender al paciente.</p>
             </div>
         </div>
@@ -63,13 +56,13 @@
             </div>
         {% else %}
             <div class="clinical-empty-state">
-                <strong>Sin alertas clinicas registradas</strong>
-                <span>Cuando se carguen alergias, medicacion o condiciones relevantes van a aparecer aca.</span>
+                <strong>Sin alertas clínicas registradas</strong>
+                <span>Cuando se carguen alergias, medicación o condiciones relevantes van a aparecer acá.</span>
             </div>
         {% endif %}
     </section>
 
-    <section class="clinical-summary-grid" aria-label="Resumen rapido del paciente">
+    <section class="clinical-summary-grid" aria-label="Resumen rápido del paciente">
         {% for item in resumen_rapido %}
             <article class="clinical-summary-card">
                 <span>{{ item.etiqueta }}</span>
@@ -87,8 +80,8 @@
                 <section class="panel-section">
                     <div class="section-header">
                         <div>
-                            <h2>Historia clinica reciente</h2>
-                            <p class="subtitle">Ultimas atenciones registradas.</p>
+                            <h2>Historia clínica reciente</h2>
+                            <p class="subtitle">Últimas atenciones registradas.</p>
                         </div>
                         <a class="text-link" href="{% url 'historias:lista_paciente' paciente.pk %}">Ver historia</a>
                     </div>
@@ -106,7 +99,7 @@
                                         {% if historia.diagnostico %}
                                             <p>{{ historia.diagnostico|truncatechars:150 }}</p>
                                         {% else %}
-                                            <p class="muted">Sin diagnostico cargado.</p>
+                                            <p class="muted">Sin diagnóstico cargado.</p>
                                         {% endif %}
                                         <div class="clinical-inline-meta">
                                             <span>{{ historia.cantidad_adjuntos }} adjunto{% if historia.cantidad_adjuntos != 1 %}s{% endif %}</span>
@@ -118,8 +111,8 @@
                         </div>
                     {% else %}
                         <div class="clinical-empty-state">
-                            <strong>Sin entradas clinicas</strong>
-                            <span>Todavia no hay atenciones registradas para este paciente.</span>
+                            <strong>Sin entradas clínicas</strong>
+                            <span>Todavía no hay atenciones registradas para este paciente.</span>
                         </div>
                     {% endif %}
                 </section>
@@ -128,8 +121,8 @@
             <section class="panel-section">
                 <div class="section-header">
                     <div>
-                        <h2>Ficha odontologica</h2>
-                        <p class="subtitle">Resumen clinico general y antecedentes.</p>
+                        <h2>Ficha odontológica</h2>
+                        <p class="subtitle">Resumen clínico general y antecedentes.</p>
                     </div>
                     {% if puede_ver_pacientes %}
                         <a class="text-link" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">
@@ -157,7 +150,7 @@
                         {% endfor %}
                     </dl>
                 {% else %}
-                    <p class="muted">Todavia no hay ficha odontologica cargada.</p>
+                    <p class="muted">Todavía no hay ficha odontológica cargada.</p>
                 {% endif %}
             </section>
         </div>
@@ -166,8 +159,8 @@
             <section class="panel-section">
                 <div class="section-header">
                     <div>
-                        <h2>Proximo turno</h2>
-                        <p class="subtitle">Siguiente atencion activa.</p>
+                        <h2>Próximo turno</h2>
+                        <p class="subtitle">Siguiente atención activa.</p>
                     </div>
                 </div>
 
@@ -180,7 +173,7 @@
                     </a>
                 {% else %}
                     <div class="clinical-empty-state compact">
-                        <strong>Sin proximo turno</strong>
+                        <strong>Sin próximo turno</strong>
                         <span>No hay turnos pendientes o confirmados a futuro.</span>
                     </div>
                 {% endif %}
@@ -190,7 +183,7 @@
                 <div class="section-header">
                     <div>
                         <h2>Turnos recientes</h2>
-                        <p class="subtitle">Ultimos movimientos del paciente.</p>
+                        <p class="subtitle">Últimos movimientos del paciente.</p>
                     </div>
                 </div>
 
@@ -208,7 +201,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="muted">Este paciente todavia no tiene turnos cargados.</p>
+                    <p class="muted">Este paciente todavía no tiene turnos cargados.</p>
                 {% endif %}
             </section>
         </aside>
@@ -218,7 +211,7 @@
         <div class="section-header">
             <div>
                 <h2>Datos administrativos</h2>
-                <p class="subtitle">Informacion de identificacion, contacto y cobertura.</p>
+                <p class="subtitle">Información de identificación, contacto y cobertura.</p>
             </div>
         </div>
 
@@ -243,4 +236,24 @@
             <p>{{ paciente.observaciones|linebreaksbr|default:"Sin observaciones cargadas." }}</p>
         </div>
     </section>
+
+    {% if puede_gestionar_pacientes or puede_borrar_pacientes %}
+        <section class="panel-section admin-actions-panel">
+            <div class="section-header">
+                <div>
+                    <h2>Acciones administrativas</h2>
+                    <p class="subtitle">Cambios de gestión del paciente, separados de la lectura clínica.</p>
+                </div>
+            </div>
+
+            <div class="admin-actions">
+                {% if puede_gestionar_pacientes %}
+                    <a class="button button-soft-primary" href="{% url 'pacientes:editar' paciente.pk %}">Editar paciente</a>
+                {% endif %}
+                {% if puede_borrar_pacientes %}
+                    <a class="button button-danger" href="{% url 'pacientes:borrar' paciente.pk %}">Borrar paciente</a>
+                {% endif %}
+            </div>
+        </section>
+    {% endif %}
 {% endblock %}

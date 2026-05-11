@@ -6,7 +6,7 @@
     <div class="page-header">
         <div>
             <h1>Solicitud recibida</h1>
-            <p class="subtitle">El turno quedo registrado como pendiente.</p>
+            <p class="subtitle">El turno quedó registrado como pendiente.</p>
         </div>
         <div class="header-actions">
             <a class="button" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
@@ -21,7 +21,7 @@
                     <dd>{{ turno.paciente }}</dd>
                 </div>
                 <div>
-                    <dt>Odontologo</dt>
+                    <dt>Odontólogo</dt>
                     <dd>{{ turno.odontologo }}</dd>
                 </div>
                 <div>
@@ -44,7 +44,7 @@
         </section>
     {% else %}
         <section class="empty-state">
-            <p>El consultorio podra confirmar o reprogramar la solicitud desde el panel interno.</p>
+            <p>El consultorio podrá confirmar o reprogramar la solicitud desde el panel interno.</p>
         </section>
     {% endif %}
 {% endblock %}

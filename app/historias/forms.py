@@ -25,7 +25,7 @@ class HistoriaClinicaFiltroForm(forms.Form):
         required=False,
         label="Buscar",
         widget=forms.TextInput(
-            attrs={"placeholder": "Motivo, diagnostico, tratamiento, pieza..."}
+            attrs={"placeholder": "Motivo, diagnóstico, tratamiento, pieza..."}
         ),
     )
     fecha_desde = forms.DateField(
@@ -54,7 +54,7 @@ class HistoriaClinicaForm(forms.ModelForm):
     adjuntos = MultipleFileField(
         required=False,
         label="Adjuntos",
-        help_text="Podes adjuntar radiografias, imagenes o PDF. Maximo 10 MB por archivo.",
+        help_text="Podés adjuntar radiografías, imágenes o PDF. Máximo 10 MB por archivo.",
     )
 
     class Meta:
@@ -69,11 +69,11 @@ class HistoriaClinicaForm(forms.ModelForm):
             "proximo_control",
         )
         labels = {
-            "fecha": "Fecha de atencion",
+            "fecha": "Fecha de atención",
             "motivo_consulta": "Motivo de consulta",
             "tratamiento_realizado": "Tratamiento realizado",
             "pieza_dental": "Pieza dental",
-            "proximo_control": "Proximo control",
+            "proximo_control": "Próximo control",
         }
         widgets = {
             "fecha": HtmlDateInput(),

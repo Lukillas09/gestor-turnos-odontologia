@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Entrada clinica de {{ historia.paciente }} | Gestor de Turnos{% endblock %}
+{% block title %}Entrada clínica de {{ historia.paciente }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
     <div class="page-header">
         <div>
-            <h1>Entrada de historia clinica</h1>
+            <h1>Entrada de historia clínica</h1>
             <p class="subtitle">{{ historia.paciente }} - {{ historia.fecha|date:"d/m/Y" }}</p>
         </div>
         <div class="header-actions">
@@ -23,7 +23,7 @@
                 <dd>{{ historia.paciente }}</dd>
             </div>
             <div>
-                <dt>Odontologo</dt>
+                <dt>Odontólogo</dt>
                 <dd>{{ historia.odontologo }}</dd>
             </div>
             <div>
@@ -35,11 +35,11 @@
                 <dd>{{ historia.pieza_dental|default:"-" }}</dd>
             </div>
             <div>
-                <dt>Proximo control</dt>
+                <dt>Próximo control</dt>
                 <dd>{{ historia.proximo_control|date:"d/m/Y"|default:"-" }}</dd>
             </div>
             <div>
-                <dt>Ultima actualizacion</dt>
+                <dt>Última actualización</dt>
                 <dd>{{ historia.actualizado_en|date:"d/m/Y H:i" }}</dd>
             </div>
             <div>
@@ -67,7 +67,7 @@
                 <dd>{{ historia.motivo_consulta|linebreaksbr }}</dd>
             </div>
             <div class="field-full">
-                <dt>Diagnostico</dt>
+                <dt>Diagnóstico</dt>
                 <dd>{{ historia.diagnostico|linebreaksbr|default:"-" }}</dd>
             </div>
             <div class="field-full">
@@ -85,7 +85,7 @@
         <div class="section-heading">
             <div>
                 <h2>Adjuntos</h2>
-                <p>Radiografias, imagenes o documentos asociados a esta entrada.</p>
+                <p>Radiografías, imágenes o documentos asociados a esta entrada.</p>
             </div>
         </div>
 

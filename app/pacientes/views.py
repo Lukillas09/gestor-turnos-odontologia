@@ -198,7 +198,7 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         alertas = []
         campos_texto = [
             ("Alergias", ficha.alergias, "danger"),
-            ("Medicacion actual", ficha.medicacion_actual, "warning"),
+            ("Medicación actual", ficha.medicacion_actual, "warning"),
             ("Enfermedades relevantes", ficha.enfermedades_relevantes, "warning"),
         ]
 
@@ -231,8 +231,8 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 for etiqueta in (
                     "Alergias",
                     "Diabetes",
-                    "Hipertension",
-                    "Problemas cardiacos",
+                    "Hipertensión",
+                    "Problemas cardíacos",
                     "Embarazo",
                 )
             ]
@@ -260,15 +260,15 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
     def _obtener_respuestas_clinicas(ficha):
         return [
             ("Diabetes", ficha.diabetes),
-            ("Hipertension", ficha.hipertension),
-            ("Problemas cardiacos", ficha.problemas_cardiacos),
+            ("Hipertensión", ficha.hipertension),
+            ("Problemas cardíacos", ficha.problemas_cardiacos),
             ("Embarazo", ficha.embarazo),
         ]
 
     @staticmethod
     def _mostrar_respuesta_clinica(valor):
         if valor == FichaOdontologica.RespuestaClinica.SI:
-            return "Si"
+            return "Sí"
 
         if valor == FichaOdontologica.RespuestaClinica.NO:
             return "No"
@@ -291,8 +291,8 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             return []
 
         return [
-            ("Antecedentes medicos", ficha.antecedentes_medicos),
-            ("Medicacion actual", ficha.medicacion_actual),
+            ("Antecedentes médicos", ficha.antecedentes_medicos),
+            ("Medicación actual", ficha.medicacion_actual),
             ("Enfermedades relevantes", ficha.enfermedades_relevantes),
             ("Observaciones generales", ficha.observaciones_generales),
         ]
@@ -306,18 +306,18 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         )
         return [
             {
-                "titulo": "Identificacion",
+                "titulo": "Identificación",
                 "campos": [
                     ("DNI", paciente.documento or "-"),
                     ("Fecha de nacimiento", fecha_nacimiento),
-                    ("Edad", f"{edad} anos" if edad is not None else "-"),
-                    ("Sexo / genero", paciente.get_genero_display() or "-"),
+                    ("Edad", f"{edad} años" if edad is not None else "-"),
+                    ("Sexo / género", paciente.get_genero_display() or "-"),
                 ],
             },
             {
                 "titulo": "Contacto",
                 "campos": [
-                    ("Telefono", paciente.telefono or "-"),
+                    ("Teléfono", paciente.telefono or "-"),
                     ("Email", paciente.email or "-"),
                     ("Contacto de emergencia", paciente.contacto_emergencia or "-"),
                 ],
@@ -326,11 +326,11 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 "titulo": "Cobertura",
                 "campos": [
                     ("Obra social", paciente.obra_social or "-"),
-                    ("Numero de afiliado", paciente.numero_afiliado or "-"),
+                    ("Número de afiliado", paciente.numero_afiliado or "-"),
                 ],
             },
             {
-                "titulo": "Direccion",
+                "titulo": "Dirección",
                 "campos": [
                     ("Domicilio", paciente.domicilio or "-"),
                     ("Localidad", paciente.localidad or "-"),
@@ -355,16 +355,16 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 "detalle": "Pendientes o confirmados",
             },
             {
-                "etiqueta": "Proximo turno",
+                "etiqueta": "Próximo turno",
                 "valor": (
                     f"{proximo_turno.fecha:%d/%m} {proximo_turno.hora_inicio:%H:%M}"
                     if proximo_turno
-                    else "Sin proximo turno"
+                    else "Sin próximo turno"
                 ),
                 "detalle": proximo_turno.motivo if proximo_turno else "",
             },
             {
-                "etiqueta": "Ultimo turno",
+                "etiqueta": "Último turno",
                 "valor": (
                     f"{ultimo_turno.fecha:%d/%m} {ultimo_turno.hora_inicio:%H:%M}"
                     if ultimo_turno
@@ -378,21 +378,21 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             resumen.extend(
                 [
                     {
-                        "etiqueta": "Ultima entrada clinica",
+                        "etiqueta": "Última entrada clínica",
                         "valor": (
                             f"{ultima_historia.fecha:%d/%m/%Y}"
                             if ultima_historia
-                            else "Sin entradas clinicas"
+                            else "Sin entradas clínicas"
                         ),
                         "detalle": ultima_historia.motivo_consulta if ultima_historia else "",
                     },
                     {
-                        "etiqueta": "Entradas clinicas",
+                        "etiqueta": "Entradas clínicas",
                         "valor": cantidad_historias,
                         "detalle": "Registros visibles",
                     },
                     {
-                        "etiqueta": "Adjuntos clinicos",
+                        "etiqueta": "Adjuntos clínicos",
                         "valor": cantidad_adjuntos,
                         "detalle": "Archivos cargados",
                     },
@@ -422,14 +422,14 @@ class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["paciente"] = self.paciente
-        context["titulo"] = "Ficha odontologica"
-        context["subtitulo"] = "Antecedentes y datos clinicos generales del paciente."
+        context["titulo"] = "Ficha odontológica"
+        context["subtitulo"] = "Antecedentes y datos clínicos generales del paciente."
         return context
 
     def form_valid(self, form):
         form.instance.paciente = self.paciente
         form.instance.actualizado_por = self.request.user
-        messages.success(self.request, "Ficha odontologica actualizada correctamente.")
+        messages.success(self.request, "Ficha odontológica actualizada correctamente.")
         return super().form_valid(form)
 
 
@@ -444,7 +444,7 @@ class PacienteUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Editar paciente"
-        context["subtitulo"] = "Actualizacion de datos personales y de contacto."
+        context["subtitulo"] = "Actualización de datos personales y de contacto."
         context["texto_boton"] = "Guardar cambios"
         context["url_cancelar"] = self.get_success_url()
         return context
@@ -512,7 +512,7 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
             logger.exception("No se pudo borrar el paciente y sus datos asociados.")
             form.add_error(
                 None,
-                "No se pudo completar el borrado. Revisa los adjuntos clinicos e intenta nuevamente.",
+                "No se pudo completar el borrado. Revisá los adjuntos clínicos e intentá nuevamente.",
             )
             messages.error(
                 self.request,
@@ -523,7 +523,7 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
         if tiene_datos_clinicos:
             messages.success(
                 self.request,
-                f"Paciente {nombre_completo} y sus datos clinicos fueron borrados correctamente.",
+                f"Paciente {nombre_completo} y sus datos clínicos fueron borrados correctamente.",
             )
         else:
             messages.success(self.request, f"Paciente {nombre_completo} borrado correctamente.")

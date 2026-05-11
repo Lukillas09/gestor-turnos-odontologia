@@ -6,7 +6,7 @@ from django.core.validators import validate_email
 
 
 class Command(BaseCommand):
-    help = "Envia un email de prueba usando la configuracion EMAIL_* actual."
+    help = "Envía un email de prueba usando la configuración EMAIL_* actual."
 
     def add_arguments(self, parser):
         parser.add_argument("destinatario", help="Email que recibira el mensaje de prueba.")
@@ -29,7 +29,7 @@ class Command(BaseCommand):
             subject=asunto,
             message=(
                 "Este es un email de prueba del Gestor de Turnos.\n\n"
-                "Si recibiste este mensaje, la configuracion de email esta funcionando.\n"
+                "Si recibiste este mensaje, la configuración de email está funcionando.\n"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[destinatario],

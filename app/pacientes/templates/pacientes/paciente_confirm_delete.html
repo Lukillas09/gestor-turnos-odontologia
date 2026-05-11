@@ -6,7 +6,7 @@
     <div class="page-header">
         <div>
             <h1>Borrar paciente</h1>
-            <p class="subtitle">Confirmacion segura para evitar borrados por error.</p>
+            <p class="subtitle">Confirmación segura para evitar borrados por error.</p>
         </div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Volver</a>
@@ -15,7 +15,7 @@
 
     <section class="detail-panel danger-panel">
         <h2>{{ paciente.nombre }} {{ paciente.apellido }}</h2>
-        <p class="muted">Para confirmar el borrado, escribi exactamente los datos del paciente.</p>
+        <p class="muted">Para confirmar el borrado, escribí exactamente los datos del paciente.</p>
         <dl class="detail-grid">
             <div>
                 <dt>Nombre</dt>
@@ -34,27 +34,27 @@
 
     {% if requiere_confirmacion_clinica %}
         <section class="detail-panel danger-panel">
-            <h2>Atencion: datos clinicos cargados</h2>
+            <h2>Atención: datos clínicos cargados</h2>
             <p>
-                Este paciente tiene historia clinica cargada o ficha odontologica creada.
-                Si confirmas el borrado, tambien se eliminaran la ficha odontologica,
-                historias clinicas y adjuntos.
+                Este paciente tiene historia clínica cargada o ficha odontológica creada.
+                Si confirmás el borrado, también se eliminarán la ficha odontológica,
+                historias clínicas y adjuntos.
             </p>
             <dl class="detail-grid">
                 <div>
-                    <dt>Ficha odontologica</dt>
+                    <dt>Ficha odontológica</dt>
                     <dd>{% if tiene_ficha_odontologica %}Cargada{% else %}-{% endif %}</dd>
                 </div>
                 <div>
-                    <dt>Historias clinicas</dt>
+                    <dt>Historias clínicas</dt>
                     <dd>{{ cantidad_historias_clinicas }}</dd>
                 </div>
                 <div>
-                    <dt>Adjuntos clinicos</dt>
+                    <dt>Adjuntos clínicos</dt>
                     <dd>{{ cantidad_adjuntos_clinicos }}</dd>
                 </div>
             </dl>
-            <p class="muted">Como filtro extra, escribi CONFIRMAR en mayusculas en el campo de confirmacion clinica.</p>
+            <p class="muted">Como filtro extra, escribí CONFIRMAR en mayúsculas en el campo de confirmación clínica.</p>
         </section>
     {% endif %}
 

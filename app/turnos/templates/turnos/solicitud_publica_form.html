@@ -27,7 +27,7 @@
                 {% endif %}
             </div>
             <div>
-                <span class="public-pill">{{ odontologo.especialidad|default:"Odontologia general" }}</span>
+                <span class="public-pill">{{ odontologo.especialidad|default:"Odontología general" }}</span>
                 <h2>{{ odontologo }}</h2>
                 <p>{{ fecha|date:"l d/m/Y" }} de {{ hora_inicio|time:"H:i" }} a {{ hora_fin|time:"H:i" }}</p>
                 {% if odontologo.celular %}

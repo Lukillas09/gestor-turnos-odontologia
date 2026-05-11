@@ -418,6 +418,21 @@
             background: #eef2f7;
         }
 
+        .button-subtle {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .button-soft-primary {
+            border-color: #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .button-soft-primary:hover {
+            background: #dbeafe;
+        }
+
         .button-danger {
             background: var(--danger);
             color: #ffffff;
@@ -561,15 +576,17 @@
             box-shadow: var(--shadow);
         }
 
+        .patient-backline {
+            margin-bottom: 12px;
+        }
+
         .clinical-profile-main h1 {
             font-size: 34px;
         }
 
         .clinical-profile-meta,
         .clinical-contact-strip,
-        .clinical-inline-meta,
-        .clinical-actions,
-        .clinical-action-group {
+        .clinical-inline-meta {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
@@ -599,17 +616,14 @@
         }
 
         .clinical-actions {
-            justify-content: flex-end;
+            display: grid;
+            gap: 10px;
+            justify-items: stretch;
+            align-content: start;
         }
 
-        .clinical-action-group {
-            justify-content: flex-end;
-        }
-
-        .clinical-action-danger {
+        .clinical-actions .button {
             width: 100%;
-            border-top: 1px solid #fde2df;
-            padding-top: 10px;
         }
 
         .clinical-alert-panel {
@@ -858,6 +872,17 @@
         .admin-observations p {
             margin: 0;
             color: #344054;
+        }
+
+        .admin-actions-panel {
+            margin-top: 18px;
+        }
+
+        .admin-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-start;
         }
 
         .dashboard-grid-secondary {
@@ -1687,13 +1712,13 @@
         <header class="app-topbar">
             <div class="app-topbar-title">
                 <strong>Panel interno</strong>
-                <span>Gestor de turnos odontologicos</span>
+                <span>Gestor de turnos odontológicos</span>
             </div>
             <div class="app-user-menu">
                 <a class="app-user-profile-link" href="{% url 'perfil' %}">
                     <div class="app-user-text">
                         <strong>{{ request.user.get_username }}</strong>
-                        <span>{% if request.user.is_staff %}Administrador{% elif puede_conectar_google_calendar %}Odontologo{% elif puede_gestionar_turnos %}Recepcion{% else %}Usuario interno{% endif %}</span>
+                        <span>{% if request.user.is_staff %}Administrador{% elif puede_conectar_google_calendar %}Odontólogo{% elif puede_gestionar_turnos %}Recepción{% else %}Usuario interno{% endif %}</span>
                     </div>
                     <div class="app-avatar">
                         {% if odontologo_usuario and odontologo_usuario.foto_perfil_url %}
@@ -1735,7 +1760,7 @@
                     <span class="app-sidebar-label">Agenda</span>
                     <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_dia' %}is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}">
                         <span class="app-sidebar-link-icon">□</span>
-                        Agenda dia
+                        Agenda día
                     </a>
                     <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_semana' %}is-active{% endif %}" href="{% url 'turnos:agenda_semana' %}">
                         <span class="app-sidebar-link-icon">▦</span>
@@ -1743,7 +1768,7 @@
                     </a>
                 {% endif %}
                 {% if puede_conectar_google_calendar or request.user.is_staff %}
-                    <span class="app-sidebar-label">Configuracion</span>
+                    <span class="app-sidebar-label">Configuración</span>
                 {% endif %}
                 {% if puede_conectar_google_calendar %}
                     <a class="app-sidebar-link {% if request.resolver_match.url_name == 'google_calendar' %}is-active{% endif %}" href="{% url 'turnos:google_calendar' %}">

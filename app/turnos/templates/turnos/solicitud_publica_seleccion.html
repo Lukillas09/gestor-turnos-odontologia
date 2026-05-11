@@ -19,16 +19,16 @@
                 {% endif %}
             </div>
             <div>
-                <span class="public-pill">{{ odontologo.especialidad|default:"Odontologia general" }}</span>
+                <span class="public-pill">{{ odontologo.especialidad|default:"Odontología general" }}</span>
                 <h1>{% if odontologo %}{{ odontologo }}{% else %}Solicitar turno{% endif %}</h1>
                 {% if odontologo %}
                     <p>{{ odontologo.duracion_turno_minutos }} minutos por turno</p>
-                    <p>Matricula {{ odontologo.matricula }}</p>
+                    <p>Matrícula {{ odontologo.matricula }}</p>
                     {% if odontologo.celular %}
                         <p>Contacto {{ odontologo.celular }}</p>
                     {% endif %}
                 {% else %}
-                    <p>Elegir odontologo y fecha para ver horarios disponibles.</p>
+                    <p>Elegir odontólogo y fecha para ver horarios disponibles.</p>
                 {% endif %}
             </div>
         </div>
@@ -37,12 +37,12 @@
     <section class="public-appointment-panel">
         <div class="public-section-title">
             <h2>Opciones de turnos disponibles</h2>
-            <p>Elegi un horario y despues completa tus datos para enviar la solicitud.</p>
+            <p>Elegí un horario y después completá tus datos para enviar la solicitud.</p>
         </div>
 
         <form class="public-search-panel" method="get" novalidate>
             <div>
-                <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontologo</label>
+                <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontólogo</label>
                 {{ busqueda_form.odontologo }}
                 {% if busqueda_form.odontologo.errors %}
                     <div class="field-error">{{ busqueda_form.odontologo.errors }}</div>
@@ -77,7 +77,7 @@
                 <section class="public-slot-card">
                     <div class="public-slot-card-header">
                         <div>
-                            <h3>Turnos por la manana</h3>
+                            <h3>Turnos por la mañana</h3>
                             <p>{{ fecha|date:"l d/m/Y" }}</p>
                         </div>
                         <span>{{ odontologo.duracion_turno_minutos }} min</span>
@@ -93,7 +93,7 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="muted">No hay horarios por la manana para esta fecha.</p>
+                        <p class="muted">No hay horarios por la mañana para esta fecha.</p>
                     {% endif %}
                 </section>
 
@@ -122,7 +122,7 @@
             </div>
         {% elif not busqueda_form.errors %}
             <div class="empty-state">
-                <p>No hay odontologos activos para solicitar turnos.</p>
+                <p>No hay odontólogos activos para solicitar turnos.</p>
             </div>
         {% endif %}
     </section>

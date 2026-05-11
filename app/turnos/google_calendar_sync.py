@@ -81,14 +81,14 @@ def _sincronizar(turno, accion, operacion, cliente_factory):
         return ResultadoSincronizacionGoogleCalendar(
             realizada=False,
             accion=accion,
-            mensaje="El odontologo no tiene una conexion activa con Google Calendar.",
+            mensaje="El odontólogo no tiene una conexión activa con Google Calendar.",
         )
 
     if not conexion.esta_conectada:
         return ResultadoSincronizacionGoogleCalendar(
             realizada=False,
             accion=accion,
-            mensaje="La conexion de Google Calendar no tiene refresh token.",
+            mensaje="La conexión de Google Calendar no tiene refresh token.",
         )
 
     try:

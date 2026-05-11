@@ -90,7 +90,7 @@ class HorariosDisponiblesJsonView(View):
             return JsonResponse(
                 {
                     "horarios": [],
-                    "mensaje": "Elegi odontologo y fecha para ver horarios disponibles.",
+                    "mensaje": "Elegí odontólogo y fecha para ver horarios disponibles.",
                 }
             )
 
@@ -235,7 +235,7 @@ class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Nuevo turno"
-        context["subtitulo"] = "Elegi odontologo y fecha para usar horarios disponibles."
+        context["subtitulo"] = "Elegí odontólogo y fecha para usar horarios disponibles."
         context["texto_boton"] = "Guardar turno"
         context["url_cancelar"] = reverse_lazy("turnos:lista")
         context["busqueda_form"] = self._obtener_busqueda_form()
@@ -401,7 +401,7 @@ class SolicitudTurnoPublicaDatosView(FormView):
         if not self._obtener_reserva_desde_get():
             messages.error(
                 request,
-                "Elegi un horario disponible antes de completar tus datos.",
+                "Elegí un horario disponible antes de completar tus datos.",
             )
             return redirect("turnos:solicitud_publica")
 
@@ -532,7 +532,7 @@ class GoogleCalendarCallbackView(GoogleCalendarOdontologoMixin, View):
         error_google = request.GET.get("error")
 
         if error_google:
-            messages.error(request, f"Google no autorizo la conexion: {error_google}.")
+            messages.error(request, f"Google no autorizó la conexión: {error_google}.")
             return redirect("turnos:google_calendar")
 
         state_recibido = request.GET.get("state")
@@ -622,7 +622,7 @@ class TurnoReintentarSincronizacionGoogleCalendarView(VerTurnosRequeridoMixin, V
         )
 
         if not puede_reintentar_sincronizacion_google_calendar(request.user, turno):
-            raise PermissionDenied("No tenes permiso para reintentar esta sincronizacion.")
+            raise PermissionDenied("No tenés permiso para reintentar esta sincronización.")
 
         resultado = reintentar_sincronizacion_google_calendar(turno)
 
@@ -654,7 +654,7 @@ class TurnoReprogramView(VerTurnosRequeridoMixin, UpdateView):
         turno = super().get_object(queryset)
 
         if not puede_reprogramar_turno(self.request.user, turno):
-            raise PermissionDenied("No tenes permiso para reprogramar este turno.")
+            raise PermissionDenied("No tenés permiso para reprogramar este turno.")
 
         return turno
 
@@ -664,7 +664,7 @@ class TurnoReprogramView(VerTurnosRequeridoMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Reprogramar turno"
-        context["subtitulo"] = "Actualizacion de fecha, horario y duracion del turno."
+        context["subtitulo"] = "Actualización de fecha, horario y duración del turno."
         context["texto_boton"] = "Reprogramar turno"
         context["url_cancelar"] = self.get_success_url()
         context["horarios_odontologo_id"] = self.object.odontologo_id
@@ -687,7 +687,7 @@ class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["titulo"] = "Editar turno"
-        context["subtitulo"] = "Actualizacion de paciente, odontologo, horario y estado."
+        context["subtitulo"] = "Actualización de paciente, odontólogo, horario y estado."
         context["texto_boton"] = "Guardar cambios"
         context["url_cancelar"] = self.get_success_url()
         return context

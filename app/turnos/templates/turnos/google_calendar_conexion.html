@@ -6,7 +6,7 @@
     <div class="page-header">
         <div>
             <h1>Google Calendar</h1>
-            <p class="subtitle">Conexion de agenda para {{ odontologo }}.</p>
+            <p class="subtitle">Conexión de agenda para {{ odontologo }}.</p>
         </div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'turnos:lista' %}">Volver</a>
@@ -29,7 +29,7 @@
     <section class="detail-panel">
         <dl class="detail-grid">
             <div>
-                <dt>Odontologo</dt>
+                <dt>Odontólogo</dt>
                 <dd>{{ odontologo }}</dd>
             </div>
             <div>
@@ -38,7 +38,7 @@
                     {% if conexion and conexion.esta_conectada %}
                         Conectado
                     {% else %}
-                        Sin conexion
+                        Sin conexión
                     {% endif %}
                 </dd>
             </div>
@@ -74,7 +74,7 @@
                 <dd>{{ conexion.token_expira_en|date:"d/m/Y H:i"|default:"-" }}</dd>
             </div>
             <div>
-                <dt>Ultima sincronizacion</dt>
+                <dt>Última sincronización</dt>
                 <dd>{{ conexion.sincronizado_en|date:"d/m/Y H:i"|default:"-" }}</dd>
             </div>
             <div>
@@ -88,7 +88,7 @@
                 </dd>
             </div>
             <div class="field-full">
-                <dt>Ultimo error</dt>
+                <dt>Último error</dt>
                 <dd>{{ conexion.ultimo_error_para_usuario|default:"-" }}</dd>
             </div>
         </dl>

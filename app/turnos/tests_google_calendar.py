@@ -134,13 +134,13 @@ class GoogleCalendarPayloadTests(TestCase):
         evento = construir_evento_desde_turno(self.turno)
         payload = evento.como_payload()
 
-        self.assertEqual(payload["summary"], "Turno odontologico - Paredes, Lucas")
+        self.assertEqual(payload["summary"], "Turno odontológico - Paredes, Lucas")
         self.assertEqual(payload["start"]["timeZone"], "America/Argentina/Buenos_Aires")
         self.assertEqual(payload["end"]["timeZone"], "America/Argentina/Buenos_Aires")
         self.assertIn("2026-05-08T10:00:00", payload["start"]["dateTime"])
         self.assertIn("2026-05-08T10:45:00", payload["end"]["dateTime"])
         self.assertIn("Paciente: Paredes, Lucas", payload["description"])
-        self.assertIn("Odontologo: Carla Calendar", payload["description"])
+        self.assertIn("Odontólogo: Carla Calendar", payload["description"])
         self.assertIn("Motivo: Limpieza", payload["description"])
         self.assertEqual(payload["status"], "confirmed")
         self.assertEqual(
@@ -278,7 +278,7 @@ class GoogleCalendarOAuthViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Conectar Google Calendar")
-        self.assertContains(response, "Sin conexion")
+        self.assertContains(response, "Sin conexión")
 
     def test_estado_no_expone_tokens_ni_error_tecnico(self):
         GoogleCalendarConexion.objects.create(
@@ -292,7 +292,7 @@ class GoogleCalendarOAuthViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Guardado")
-        self.assertContains(response, "No se pudo autorizar la conexion con Google Calendar")
+        self.assertContains(response, "No se pudo autorizar la conexión con Google Calendar")
         self.assertNotContains(response, "access-token-secreto")
         self.assertNotContains(response, "refresh-token-secreto")
         self.assertNotContains(response, "invalid_grant")
@@ -566,7 +566,7 @@ class GoogleCalendarClientTests(TestCase):
         self.assertEqual(servicio.eventos.acciones[0]["calendarId"], "primary")
         self.assertEqual(
             servicio.eventos.acciones[0]["body"]["summary"],
-            "Turno odontologico - Gomez, Ana",
+            "Turno odontológico - Gomez, Ana",
         )
 
     def test_actualiza_evento_existente(self):

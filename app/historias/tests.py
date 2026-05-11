@@ -103,7 +103,7 @@ class HistoriaClinicaAccessTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Historia clinica")
+        self.assertContains(response, "Historia clínica")
 
     def test_odontologo_sin_turno_propio_no_ve_boton_de_historia(self):
         self.client.force_login(self.usuario_odontologo)
@@ -113,7 +113,7 @@ class HistoriaClinicaAccessTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Historia clinica")
+        self.assertNotContains(response, "Historia clínica")
 
     def test_odontologo_sin_relacion_no_accede_a_historia_del_paciente(self):
         self.client.force_login(self.usuario_odontologo)
@@ -134,7 +134,7 @@ class HistoriaClinicaAccessTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Historia clinica")
+        self.assertNotContains(response, "Historia clínica")
 
 
 class HistoriaClinicaViewsTests(TestCase):
@@ -537,7 +537,7 @@ class HistoriaClinicaViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Paciente.objects.filter(pk=self.paciente.pk).exists())
-        self.assertContains(response, "tiene historia clinica cargada")
+        self.assertContains(response, "tiene historia clínica cargada")
 
 
 class HistoriaClinicaStorageBackupTests(TestCase):

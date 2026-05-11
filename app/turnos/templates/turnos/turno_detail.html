@@ -44,7 +44,7 @@
                 <dd>{{ turno.paciente }}</dd>
             </div>
             <div>
-                <dt>Odontologo</dt>
+                <dt>Odontólogo</dt>
                 <dd>{{ turno.odontologo }}</dd>
             </div>
             <div>
@@ -56,7 +56,7 @@
                 <dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd>
             </div>
             <div>
-                <dt>Duracion</dt>
+                <dt>Duración</dt>
                 <dd>{{ turno.duracion_minutos }} minutos</dd>
             </div>
             <div>
@@ -75,11 +75,11 @@
             </div>
             {% if google_calendar_ultimo_error %}
                 <div class="field-full sync-error">
-                    <dt>Ultimo error de sincronizacion</dt>
+                    <dt>Último error de sincronización</dt>
                     <dd>
                         <p>{{ google_calendar_ultimo_error }}</p>
                         {% if puede_reintentar_sincronizacion_google_calendar %}
-                            <p class="help-text">Podes usar Reintentar sincronizacion para volver a enviar este turno a Google Calendar.</p>
+                            <p class="help-text">Podés usar Reintentar sincronización para volver a enviar este turno a Google Calendar.</p>
                         {% endif %}
                     </dd>
                 </div>

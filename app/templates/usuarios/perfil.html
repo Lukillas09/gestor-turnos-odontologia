@@ -30,16 +30,16 @@
                 <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
                 <span class="muted">{{ request.user.email|default:"Sin email cargado" }}</span>
                 {% if odontologo %}
-                    <span class="muted">{{ odontologo.especialidad|default:"Odontologia general" }} - Matricula {{ odontologo.matricula }}</span>
+                    <span class="muted">{{ odontologo.especialidad|default:"Odontología general" }} - Matrícula {{ odontologo.matricula }}</span>
                     <span class="muted">Celular {{ odontologo.celular|default:"Sin celular cargado" }}</span>
                 {% else %}
-                    <span class="muted">Este usuario no tiene perfil de odontologo asociado.</span>
+                    <span class="muted">Este usuario no tiene perfil de odontólogo asociado.</span>
                 {% endif %}
             </div>
 
             <form class="logout-form" method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
-                <button class="button button-secondary" type="submit">Cerrar sesion</button>
+                <button class="button button-secondary" type="submit">Cerrar sesión</button>
             </form>
         </section>
 

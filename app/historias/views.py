@@ -44,7 +44,7 @@ class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
                 detalle="Intento de acceso a historia de paciente no relacionado.",
             )
             raise PermissionDenied(
-                "No tenes permiso para ver la historia clinica de este paciente."
+                "No tenés permiso para ver la historia clínica de este paciente."
             )
 
         return super().dispatch(request, *args, **kwargs)
@@ -110,7 +110,7 @@ class HistoriaClinicaListView(PacienteHistoriaClinicaMixin, ListView):
             self.request,
             "ver_historia_paciente",
             paciente=self.paciente,
-            detalle="Listado clinico consultado.",
+            detalle="Listado clínico consultado.",
         )
         context["filtros_form"] = self.filtros_form
         context["filtros_querystring"] = query_params.urlencode()
@@ -130,8 +130,8 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["titulo"] = "Nueva entrada de historia clinica"
-        context["subtitulo"] = f"Registro clinico de {self.paciente}."
+        context["titulo"] = "Nueva entrada de historia clínica"
+        context["subtitulo"] = f"Registro clínico de {self.paciente}."
         context["texto_boton"] = "Guardar entrada"
         context["url_cancelar"] = reverse(
             "historias:lista_paciente",
@@ -143,7 +143,7 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
         odontologo = obtener_odontologo_del_usuario(self.request.user)
 
         if odontologo is None:
-            raise PermissionDenied("Solo un odontologo puede cargar historia clinica.")
+            raise PermissionDenied("Solo un odontólogo puede cargar historia clínica.")
 
         form.instance.paciente = self.paciente
         form.instance.odontologo = odontologo
@@ -156,9 +156,9 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
             "crear_historia",
             historia=self.object,
             paciente=self.paciente,
-            detalle="Entrada clinica creada.",
+            detalle="Entrada clínica creada.",
         )
-        messages.success(self.request, "Entrada de historia clinica creada correctamente.")
+        messages.success(self.request, "Entrada de historia clínica creada correctamente.")
         return response
 
 
@@ -185,7 +185,7 @@ class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailV
             "ver_detalle_historia",
             historia=self.object,
             paciente=self.object.paciente,
-            detalle="Detalle clinico consultado.",
+            detalle="Detalle clínico consultado.",
         )
         context["puede_editar_historia"] = puede_editar_historia_clinica(
             self.request.user,
@@ -209,7 +209,7 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
         historia = super().get_object(queryset)
 
         if not puede_editar_historia_clinica(self.request.user, historia):
-            raise PermissionDenied("Solo el odontologo responsable puede editar esta entrada.")
+            raise PermissionDenied("Solo el odontólogo responsable puede editar esta entrada.")
 
         return historia
 
@@ -219,8 +219,8 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["paciente"] = self.object.paciente
-        context["titulo"] = "Editar entrada de historia clinica"
-        context["subtitulo"] = f"Registro clinico de {self.object.paciente}."
+        context["titulo"] = "Editar entrada de historia clínica"
+        context["subtitulo"] = f"Registro clínico de {self.object.paciente}."
         context["texto_boton"] = "Guardar cambios"
         context["url_cancelar"] = self.get_success_url()
         return context
@@ -234,9 +234,9 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
             "editar_historia",
             historia=self.object,
             paciente=self.object.paciente,
-            detalle="Entrada clinica modificada.",
+            detalle="Entrada clínica modificada.",
         )
-        messages.success(self.request, "Entrada de historia clinica actualizada correctamente.")
+        messages.success(self.request, "Entrada de historia clínica actualizada correctamente.")
         return response
 
 
@@ -251,7 +251,7 @@ class HistoriaClinicaAdjuntoDownloadView(HistoriaClinicaOdontologoRequeridoMixin
             "abrir_adjunto",
             historia=adjunto.historia,
             paciente=adjunto.historia.paciente,
-            detalle=f"Adjunto clinico abierto: {adjunto.pk}.",
+            detalle=f"Adjunto clínico abierto: {adjunto.pk}.",
         )
 
         return FileResponse(

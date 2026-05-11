@@ -18,7 +18,7 @@ def convertir_a_hora(valor):
     hora = parse_time(str(valor))
 
     if hora is None:
-        raise ValueError("Hora invalida")
+        raise ValueError("Hora inválida")
 
     return hora
 
@@ -38,7 +38,7 @@ class TurnoForm(forms.ModelForm):
         )
         labels = {
             "hora_inicio": "Hora de inicio",
-            "duracion_minutos": "Duracion en minutos",
+            "duracion_minutos": "Duración en minutos",
         }
         widgets = {
             "fecha": HtmlDateInput(),
@@ -58,7 +58,7 @@ class TurnoForm(forms.ModelForm):
             )
 
         self.fields["odontologo"].queryset = odontologos
-        self.fields["odontologo"].empty_label = "Seleccionar odontologo"
+        self.fields["odontologo"].empty_label = "Seleccionar odontólogo"
 
 
 class HorariosDisponiblesFormMixin:
@@ -67,9 +67,9 @@ class HorariosDisponiblesFormMixin:
         fecha = self._obtener_fecha_seleccionada()
 
         if not odontologo or not fecha:
-            self.fields["hora_inicio"].choices = [("", "Elegir odontologo y fecha")]
+            self.fields["hora_inicio"].choices = [("", "Elegir odontólogo y fecha")]
             self.fields["hora_inicio"].help_text = (
-                "Elegi odontologo y fecha para ver opciones disponibles."
+                "Elegí odontólogo y fecha para ver opciones disponibles."
             )
             return
 
@@ -84,7 +84,7 @@ class HorariosDisponiblesFormMixin:
         if not horarios:
             self.fields["hora_inicio"].choices = [("", "Sin horarios disponibles")]
             self.fields["hora_inicio"].help_text = (
-                "No hay horarios libres para esa fecha con la duracion indicada."
+                "No hay horarios libres para esa fecha con la duración indicada."
             )
             return
 
@@ -174,7 +174,7 @@ class TurnoReprogramacionForm(HorariosDisponiblesFormMixin, forms.ModelForm):
         )
         labels = {
             "hora_inicio": "Hora de inicio",
-            "duracion_minutos": "Duracion en minutos",
+            "duracion_minutos": "Duración en minutos",
         }
         widgets = {
             "fecha": HtmlDateInput(),
@@ -200,7 +200,7 @@ class TurnoReprogramacionForm(HorariosDisponiblesFormMixin, forms.ModelForm):
 class TurnoHorarioBusquedaForm(forms.Form):
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True),
-        empty_label="Seleccionar odontologo",
+        empty_label="Seleccionar odontólogo",
     )
     fecha = forms.DateField(
         widget=HtmlDateInput(),
@@ -210,8 +210,8 @@ class TurnoHorarioBusquedaForm(forms.Form):
 class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
     fecha = forms.DateField(
         error_messages={
-            "required": "Elegi una fecha para ver horarios.",
-            "invalid": "Ingresa una fecha valida.",
+            "required": "Elegí una fecha para ver horarios.",
+            "invalid": "Ingresá una fecha válida.",
         },
         widget=HtmlDateInput(),
     )
@@ -228,28 +228,28 @@ class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
 class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     nombre = forms.CharField(
         max_length=100,
-        error_messages={"required": "Ingresa tu nombre."},
+        error_messages={"required": "Ingresá tu nombre."},
     )
     apellido = forms.CharField(
         max_length=100,
-        error_messages={"required": "Ingresa tu apellido."},
+        error_messages={"required": "Ingresá tu apellido."},
     )
     documento = forms.CharField(max_length=20, required=False, label="DNI")
     fecha_nacimiento = forms.DateField(
         required=False,
         label="Fecha de nacimiento",
         widget=HtmlDateInput(),
-        error_messages={"invalid": "Ingresa una fecha valida."},
+        error_messages={"invalid": "Ingresá una fecha válida."},
     )
     genero = forms.ChoiceField(
         choices=[("", "Seleccionar")] + list(Paciente.Genero.choices),
         required=False,
-        label="Sexo / genero",
+        label="Sexo / género",
     )
-    telefono = forms.CharField(max_length=30, required=False)
+    telefono = forms.CharField(max_length=30, required=False, label="Teléfono")
     email = forms.EmailField(
         required=False,
-        error_messages={"invalid": "Ingresa un email valido o deja el campo vacio."},
+        error_messages={"invalid": "Ingresá un email válido o dejá el campo vacío."},
     )
     domicilio = forms.CharField(max_length=200, required=False)
     localidad = forms.CharField(max_length=100, required=False)
@@ -257,7 +257,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     numero_afiliado = forms.CharField(
         max_length=50,
         required=False,
-        label="Numero de afiliado",
+        label="Número de afiliado",
     )
     contacto_emergencia = forms.CharField(
         max_length=150,
@@ -266,13 +266,13 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     )
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True),
-        empty_label="Seleccionar odontologo",
-        error_messages={"required": "Elegi un odontologo."},
+        empty_label="Seleccionar odontólogo",
+        error_messages={"required": "Elegí un odontólogo."},
     )
     fecha = forms.DateField(
         error_messages={
-            "required": "Elegi una fecha.",
-            "invalid": "Ingresa una fecha valida.",
+            "required": "Elegí una fecha.",
+            "invalid": "Ingresá una fecha válida.",
         },
         widget=HtmlDateInput(),
     )
@@ -281,8 +281,8 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         coerce=convertir_a_hora,
         empty_value=None,
         error_messages={
-            "required": "Elegi un horario disponible.",
-            "invalid_choice": "Ese horario ya no esta disponible. Volve a buscar horarios.",
+            "required": "Elegí un horario disponible.",
+            "invalid_choice": "Ese horario ya no está disponible. Volvé a buscar horarios.",
         },
         label="Horario",
     )
@@ -321,7 +321,7 @@ class TurnoFiltroForm(forms.Form):
     odontologo = forms.ModelChoiceField(
         required=False,
         queryset=Odontologo.objects.filter(activo=True),
-        empty_label="Todos los odontologos",
+        empty_label="Todos los odontólogos",
     )
 
     def __init__(self, *args, usuario=None, **kwargs):
@@ -337,14 +337,14 @@ class AgendaFiltroForm(forms.Form):
     odontologo = forms.ModelChoiceField(
         required=False,
         queryset=Odontologo.objects.filter(activo=True),
-        empty_label="Todos los odontologos",
+        empty_label="Todos los odontólogos",
     )
     buscar = forms.CharField(
         required=False,
         label="Buscar",
         widget=forms.TextInput(
             attrs={
-                "placeholder": "Paciente, telefono, email o motivo",
+                "placeholder": "Paciente, teléfono, email o motivo",
             }
         ),
     )

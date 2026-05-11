@@ -38,7 +38,7 @@
         </div>
         {% if puede_gestionar_historias_clinicas %}
             <div class="metric-card">
-                <span class="metric-label">Historias clinicas</span>
+                <span class="metric-label">Historias clínicas</span>
                 <strong>{{ historias_total }}</strong>
             </div>
         {% endif %}
@@ -68,7 +68,7 @@
             <div class="section-header">
                 <div>
                     <h2>Turnos de hoy</h2>
-                    <p class="subtitle">Agenda operativa del dia.</p>
+                    <p class="subtitle">Agenda operativa del día.</p>
                 </div>
                 {% if puede_ver_turnos %}
                     <a class="text-link" href="{% url 'turnos:agenda_dia' %}">Ver agenda</a>
@@ -124,7 +124,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="muted">No hay solicitudes pendientes de confirmacion.</p>
+                <p class="muted">No hay solicitudes pendientes de confirmación.</p>
             {% endif %}
         </section>
     </div>
@@ -133,8 +133,8 @@
         <section class="panel-section">
             <div class="section-header">
                 <div>
-                    <h2>Proximos controles</h2>
-                    <p class="subtitle">Fechas de control registradas sin mostrar datos clinicos.</p>
+                    <h2>Próximos controles</h2>
+                    <p class="subtitle">Fechas de control registradas sin mostrar datos clínicos.</p>
                 </div>
             </div>
 
@@ -151,7 +151,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="muted">No hay proximos controles cargados.</p>
+                <p class="muted">No hay próximos controles cargados.</p>
             {% endif %}
         </section>
 
@@ -167,9 +167,9 @@
                 <div class="quick-action">
                     <strong>Google Calendar</strong>
                     {% if errores_google_calendar %}
-                        <span>{{ errores_google_calendar|length }} conexion{% if errores_google_calendar|length != 1 %}es{% endif %} con error.</span>
+                        <span>{{ errores_google_calendar|length }} conexión{% if errores_google_calendar|length != 1 %}es{% endif %} con error.</span>
                     {% else %}
-                        <span>Sin errores recientes de sincronizacion.</span>
+                        <span>Sin errores recientes de sincronización.</span>
                     {% endif %}
                 </div>
                 <div class="quick-action">
@@ -211,8 +211,8 @@
     <section class="panel-section">
         <div class="section-header">
             <div>
-                <h2>Accesos rapidos</h2>
-                <p class="subtitle">Tareas frecuentes segun tu rol.</p>
+                <h2>Accesos rápidos</h2>
+                <p class="subtitle">Tareas frecuentes según tu rol.</p>
             </div>
         </div>
 
@@ -220,7 +220,7 @@
             {% if puede_ver_pacientes %}
                 <a class="quick-action" href="{% url 'pacientes:lista' %}">
                     <strong>Pacientes</strong>
-                    <span>Buscar datos, turnos e historia clinica.</span>
+                    <span>Buscar datos, turnos e historia clínica.</span>
                 </a>
             {% endif %}
             {% if puede_ver_turnos %}
@@ -232,13 +232,13 @@
             {% if puede_conectar_google_calendar %}
                 <a class="quick-action" href="{% url 'turnos:google_calendar' %}">
                     <strong>Google Calendar</strong>
-                    <span>Ver estado de sincronizacion.</span>
+                    <span>Ver estado de sincronización.</span>
                 </a>
             {% endif %}
             {% if request.user.is_staff and puede_configurar_disponibilidad %}
                 <a class="quick-action" href="{% url 'admin:index' %}">
                     <strong>Admin</strong>
-                    <span>Configurar odontologos y disponibilidad.</span>
+                    <span>Configurar odontólogos y disponibilidad.</span>
                 </a>
             {% endif %}
         </div>

@@ -26,8 +26,8 @@ class PacienteForm(forms.ModelForm):
         labels = {
             "documento": "DNI",
             "fecha_nacimiento": "Fecha de nacimiento",
-            "genero": "Sexo / genero",
-            "numero_afiliado": "Numero de afiliado",
+            "genero": "Sexo / género",
+            "numero_afiliado": "Número de afiliado",
             "contacto_emergencia": "Contacto de emergencia",
         }
         widgets = {
@@ -52,9 +52,9 @@ class FichaOdontologicaForm(forms.ModelForm):
             "observaciones_generales",
         )
         labels = {
-            "medicacion_actual": "Medicacion actual",
-            "hipertension": "Hipertension",
-            "problemas_cardiacos": "Problemas cardiacos",
+            "medicacion_actual": "Medicación actual",
+            "hipertension": "Hipertensión",
+            "problemas_cardiacos": "Problemas cardíacos",
         }
         widgets = {
             "antecedentes_medicos": forms.Textarea(attrs={"rows": 4}),
@@ -77,10 +77,10 @@ class PacienteDeleteConfirmationForm(forms.Form):
 
         if requiere_confirmacion_clinica:
             self.fields["confirmacion_clinica"] = forms.CharField(
-                label="Confirmacion clinica",
+                label="Confirmación clínica",
                 help_text=(
-                    "Este paciente tiene datos clinicos cargados. "
-                    "Para borrarlos, escribi CONFIRMAR en mayusculas."
+                    "Este paciente tiene datos clínicos cargados. "
+                    "Para borrarlos, escribí CONFIRMAR en mayúsculas."
                 ),
             )
 
@@ -89,7 +89,7 @@ class PacienteDeleteConfirmationForm(forms.Form):
 
         if not self.paciente.documento:
             raise forms.ValidationError(
-                "El paciente no tiene DNI cargado. Agrega el DNI antes de borrar."
+                "El paciente no tiene DNI cargado. Agregá el DNI antes de borrar."
             )
 
         if not all(datos.get(campo) for campo in ("nombre", "apellido", "documento")):
@@ -116,7 +116,7 @@ class PacienteDeleteConfirmationForm(forms.Form):
             if confirmacion != "CONFIRMAR":
                 self.add_error(
                     "confirmacion_clinica",
-                    "Para borrar datos clinicos, escribi CONFIRMAR en mayusculas.",
+                    "Para borrar datos clínicos, escribí CONFIRMAR en mayúsculas.",
                 )
 
         return datos

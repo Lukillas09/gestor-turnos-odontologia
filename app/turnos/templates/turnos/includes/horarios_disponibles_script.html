@@ -73,7 +73,7 @@
         }
 
         function marcarSinDatos(mensaje) {
-            setOpciones([], "Elegir odontologo y fecha", "");
+            setOpciones([], "Elegir odontólogo y fecha", "");
             status.textContent = mensaje;
         }
 
@@ -125,7 +125,7 @@
             const valorActual = horaControl.value;
 
             if (!odontologoId || !fecha) {
-                marcarSinDatos("Elegi odontologo y fecha para ver horarios disponibles.");
+                marcarSinDatos("Elegí odontólogo y fecha para ver horarios disponibles.");
                 return;
             }
 
@@ -169,7 +169,7 @@
                 }
 
                 setOpciones([], "No se pudieron cargar horarios", "");
-                status.textContent = "No se pudieron cargar los horarios. Proba nuevamente.";
+                status.textContent = "No se pudieron cargar los horarios. Probá nuevamente.";
             } finally {
                 horaControl.disabled = false;
             }

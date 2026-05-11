@@ -23,7 +23,7 @@
             {{ filtros_form.estado }}
         </div>
         <div>
-            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontologo</label>
+            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
             {{ filtros_form.odontologo }}
         </div>
         <div class="filter-actions">
@@ -38,7 +38,7 @@
                 <thead>
                     <tr>
                         <th>Paciente</th>
-                        <th>Odontologo</th>
+                        <th>Odontólogo</th>
                         <th>Fecha</th>
                         <th>Hora inicio</th>
                         <th>Hora fin</th>
@@ -83,7 +83,7 @@
             {% if page_obj.has_previous %}
                 <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Anterior</a>
             {% endif %}
-            <span class="muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
             {% if page_obj.has_next %}
                 <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Siguiente</a>
             {% endif %}

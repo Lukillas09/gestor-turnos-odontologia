@@ -112,7 +112,7 @@ class OdontologoAdmin(admin.ModelAdmin):
     def email(self, obj):
         return obj.usuario.email or "-"
 
-    @admin.display(description="Horario de atencion")
+    @admin.display(description="Horario de atención")
     def horario_atencion(self, obj):
         return f"{obj.hora_inicio_atencion:%H:%M} a {obj.hora_fin_atencion:%H:%M}"
 
@@ -164,7 +164,7 @@ class GoogleCalendarConexionAdmin(admin.ModelAdmin):
     ordering = ("odontologo",)
     fieldsets = (
         (
-            "Odontologo",
+            "Odontólogo",
             {
                 "fields": (
                     "odontologo",
@@ -191,7 +191,7 @@ class GoogleCalendarConexionAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Sincronizacion",
+            "Sincronización",
             {
                 "fields": (
                     "sincronizado_en",

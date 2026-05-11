@@ -19,7 +19,7 @@
                 type="search"
                 name="q"
                 value="{{ busqueda }}"
-                placeholder="Buscar por nombre, DNI, telefono, email u obra social"
+                placeholder="Buscar por nombre, DNI, teléfono, email u obra social"
                 aria-label="Buscar pacientes"
             >
             <button type="submit">Buscar</button>
@@ -37,7 +37,7 @@
                         <th>Apellido</th>
                         <th>Nombre</th>
                         <th>DNI</th>
-                        <th>Telefono</th>
+                        <th>Teléfono</th>
                         <th>Email</th>
                         <th>Obra social</th>
                         <th>Acciones</th>
@@ -88,7 +88,7 @@
             {% if page_obj.has_previous %}
                 <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Anterior</a>
             {% endif %}
-            <span class="muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
             {% if page_obj.has_next %}
                 <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Siguiente</a>
             {% endif %}

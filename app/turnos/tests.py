@@ -236,7 +236,7 @@ class TurnoViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Buscar horarios")
-        self.assertContains(response, "Elegir odontologo y fecha")
+        self.assertContains(response, "Elegir odontólogo y fecha")
 
     def test_creacion_muestra_solo_horarios_disponibles(self):
         Turno.objects.create(
@@ -306,7 +306,7 @@ class TurnoViewsTests(TestCase):
         self.assertEqual(response.json()["horarios"], [])
         self.assertEqual(
             response.json()["mensaje"],
-            "Elegi odontologo y fecha para ver horarios disponibles.",
+            "Elegí odontólogo y fecha para ver horarios disponibles.",
         )
 
     def test_creacion_de_turno_valido(self):
@@ -441,9 +441,9 @@ class TurnoViewsTests(TestCase):
         response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Ultimo error de sincronizacion")
-        self.assertContains(response, "No se pudo autorizar la conexion con Google Calendar")
-        self.assertContains(response, "Reintentar sincronizacion")
+        self.assertContains(response, "Último error de sincronización")
+        self.assertContains(response, "No se pudo autorizar la conexión con Google Calendar")
+        self.assertContains(response, "Reintentar sincronización")
         self.assertNotContains(response, "invalid_grant")
         self.assertNotContains(response, "access_token")
         self.assertNotContains(response, "secreto-tecnico")
@@ -513,7 +513,7 @@ class TurnoViewsTests(TestCase):
 
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
         self.assertContains(response, "No se pudo sincronizar con Google Calendar")
-        self.assertContains(response, "No se pudo autorizar la conexion con Google Calendar")
+        self.assertContains(response, "No se pudo autorizar la conexión con Google Calendar")
         self.assertNotContains(response, "invalid_grant")
         self.assertNotContains(response, "access_token")
         self.assertNotContains(response, "secreto-tecnico")
@@ -753,7 +753,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Solicitar turno")
         self.assertContains(response, "Opciones de turnos disponibles")
-        self.assertContains(response, "Turnos por la manana")
+        self.assertContains(response, "Turnos por la mañana")
         self.assertContains(response, "Turnos por la tarde")
         self.assertContains(response, "Reservar turno")
         self.assertContains(response, "https://example.com/paula.jpg")
@@ -971,11 +971,11 @@ class SolicitudTurnoPublicaTests(TestCase):
         response = self.client.post(reverse("turnos:solicitud_publica_datos"), {})
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Ingresa tu nombre.")
-        self.assertContains(response, "Ingresa tu apellido.")
-        self.assertContains(response, "Elegi un odontologo.")
-        self.assertContains(response, "Elegi una fecha.")
-        self.assertContains(response, "Elegi un horario disponible.")
+        self.assertContains(response, "Ingresá tu nombre.")
+        self.assertContains(response, "Ingresá tu apellido.")
+        self.assertContains(response, "Elegí un odontólogo.")
+        self.assertContains(response, "Elegí una fecha.")
+        self.assertContains(response, "Elegí un horario disponible.")
 
 
 @override_settings(
@@ -1277,7 +1277,7 @@ class EmailManagementCommandTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["destino@example.com"])
         self.assertIn("Email de prueba", mail.outbox[0].subject)
-        self.assertIn("configuracion de email", mail.outbox[0].body)
+        self.assertIn("configuración de email", mail.outbox[0].body)
         self.assertIn("Email de prueba enviado a destino@example.com.", salida.getvalue())
 
     def test_probar_email_rechaza_destinatario_invalido(self):
@@ -2047,7 +2047,7 @@ class AgendaViewsTests(TestCase):
             fecha=date(2026, 5, 8),
             hora_inicio=time(10, 0),
             duracion_minutos=30,
-            motivo="Semana por odontologo",
+            motivo="Semana por odontólogo",
             estado=Turno.Estado.CONFIRMADO,
         )
 
@@ -2057,7 +2057,7 @@ class AgendaViewsTests(TestCase):
         self.assertContains(response, str(self.odontologo))
         self.assertContains(response, "1 turno")
         self.assertContains(response, "Confirmado")
-        self.assertContains(response, "Semana por odontologo")
+        self.assertContains(response, "Semana por odontólogo")
 
     def test_odontologo_inactivo_no_tiene_horarios_disponibles(self):
         self.odontologo.activo = False

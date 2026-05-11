@@ -122,10 +122,10 @@ class InicioView(TemplateView):
 
     def _obtener_rol_principal(self, usuario):
         if puede_gestionar_consultorio(usuario):
-            return "Recepcion"
+            return "Recepción"
 
         if puede_gestionar_historias_clinicas(usuario):
-            return "Odontologo"
+            return "Odontólogo"
 
         if usuario.is_staff and puede_configurar_disponibilidad(usuario):
             return "Administrador"

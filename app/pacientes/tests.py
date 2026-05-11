@@ -237,14 +237,14 @@ class PacienteViewsTests(TestCase):
         response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Perfil clinico")
-        self.assertContains(response, "Alertas clinicas")
+        self.assertContains(response, "Perfil clínico")
+        self.assertContains(response, "Alertas clínicas")
         self.assertContains(response, "Penicilina")
         self.assertContains(response, "Losartan")
         self.assertContains(response, "Diabetes")
         self.assertContains(response, "Turnos activos")
-        self.assertContains(response, "Proximo turno")
-        self.assertContains(response, "Historia clinica reciente")
+        self.assertContains(response, "Próximo turno")
+        self.assertContains(response, "Historia clínica reciente")
         self.assertContains(response, "Dolor molar")
 
     def test_detalle_sin_ficha_muestra_alertas_vacias(self):
@@ -257,8 +257,8 @@ class PacienteViewsTests(TestCase):
         response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Sin alertas clinicas registradas")
-        self.assertContains(response, "Sin proximo turno")
+        self.assertContains(response, "Sin alertas clínicas registradas")
+        self.assertContains(response, "Sin próximo turno")
 
     def test_edicion_actualiza_paciente(self):
         paciente = Paciente.objects.create(
@@ -375,7 +375,7 @@ class PacienteViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Borrar paciente")
-        self.assertContains(response, "Confirmacion segura")
+        self.assertContains(response, "Confirmación segura")
         self.assertContains(response, "40111222")
 
     def test_borrado_rechaza_datos_que_no_coinciden(self):
@@ -527,7 +527,7 @@ class PacienteViewsTests(TestCase):
         response_get = self.client.get(reverse("pacientes:borrar", kwargs={"pk": paciente.pk}))
 
         self.assertEqual(response_get.status_code, 200)
-        self.assertContains(response_get, "Atencion: datos clinicos cargados")
+        self.assertContains(response_get, "Atención: datos clínicos cargados")
         self.assertContains(response_get, "CONFIRMAR")
 
         response_post = self.client.post(
@@ -543,7 +543,7 @@ class PacienteViewsTests(TestCase):
         self.assertEqual(response_post.status_code, 200)
         self.assertTrue(Paciente.objects.filter(pk=paciente.pk).exists())
         self.assertTrue(FichaOdontologica.objects.filter(paciente=paciente).exists())
-        self.assertContains(response_post, "escribi CONFIRMAR en mayusculas")
+        self.assertContains(response_post, "escribí CONFIRMAR en mayúsculas")
 
     @override_settings(STORAGES=TEST_STORAGES)
     def test_borrado_confirmado_elimina_historia_ficha_adjuntos_y_turnos_no_activos(self):
