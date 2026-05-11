@@ -24,6 +24,9 @@
                 {% if odontologo %}
                     <p>{{ odontologo.duracion_turno_minutos }} minutos por turno</p>
                     <p>Matricula {{ odontologo.matricula }}</p>
+                    {% if odontologo.celular %}
+                        <p>Contacto {{ odontologo.celular }}</p>
+                    {% endif %}
                 {% else %}
                     <p>Elegir odontologo y fecha para ver horarios disponibles.</p>
                 {% endif %}

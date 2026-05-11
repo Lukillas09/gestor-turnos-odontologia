@@ -2,7 +2,7 @@ from django import forms
 
 from config.form_widgets import HtmlDateInput
 
-from .models import Paciente
+from .models import FichaOdontologica, Paciente
 
 
 class PacienteForm(forms.ModelForm):
@@ -15,16 +15,53 @@ class PacienteForm(forms.ModelForm):
             "telefono",
             "email",
             "fecha_nacimiento",
+            "genero",
+            "domicilio",
+            "localidad",
+            "obra_social",
+            "numero_afiliado",
+            "contacto_emergencia",
             "observaciones",
         )
         labels = {
             "documento": "DNI",
             "fecha_nacimiento": "Fecha de nacimiento",
+            "genero": "Sexo / genero",
+            "numero_afiliado": "Numero de afiliado",
+            "contacto_emergencia": "Contacto de emergencia",
         }
         widgets = {
             "nombre": forms.TextInput(attrs={"autofocus": True}),
             "fecha_nacimiento": HtmlDateInput(),
             "observaciones": forms.Textarea(attrs={"rows": 4}),
+        }
+
+
+class FichaOdontologicaForm(forms.ModelForm):
+    class Meta:
+        model = FichaOdontologica
+        fields = (
+            "antecedentes_medicos",
+            "alergias",
+            "medicacion_actual",
+            "enfermedades_relevantes",
+            "embarazo",
+            "hipertension",
+            "diabetes",
+            "problemas_cardiacos",
+            "observaciones_generales",
+        )
+        labels = {
+            "medicacion_actual": "Medicacion actual",
+            "hipertension": "Hipertension",
+            "problemas_cardiacos": "Problemas cardiacos",
+        }
+        widgets = {
+            "antecedentes_medicos": forms.Textarea(attrs={"rows": 4}),
+            "alergias": forms.Textarea(attrs={"rows": 3}),
+            "medicacion_actual": forms.Textarea(attrs={"rows": 3}),
+            "enfermedades_relevantes": forms.Textarea(attrs={"rows": 3}),
+            "observaciones_generales": forms.Textarea(attrs={"rows": 4}),
         }
 
 

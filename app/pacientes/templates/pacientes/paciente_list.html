@@ -19,7 +19,7 @@
                 type="search"
                 name="q"
                 value="{{ busqueda }}"
-                placeholder="Buscar por nombre, apellido o DNI"
+                placeholder="Buscar por nombre, DNI, telefono, email u obra social"
                 aria-label="Buscar pacientes"
             >
             <button type="submit">Buscar</button>
@@ -39,6 +39,7 @@
                         <th>DNI</th>
                         <th>Telefono</th>
                         <th>Email</th>
+                        <th>Obra social</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -54,6 +55,7 @@
                             <td>{{ paciente.documento|default:"-" }}</td>
                             <td>{{ paciente.telefono|default:"-" }}</td>
                             <td>{{ paciente.email|default:"-" }}</td>
+                            <td>{{ paciente.obra_social|default:"-" }}</td>
                             <td>
                                 <a class="text-link" href="{% url 'pacientes:detalle' paciente.pk %}">Ver</a>
                                 {% if puede_gestionar_historias_clinicas %}

@@ -19,7 +19,7 @@
 
         <div class="form-grid">
             {% for field in form %}
-                <div class="{% if field.name == 'observaciones' %}field-full{% endif %}">
+                <div class="{% if field.name == 'domicilio' or field.name == 'contacto_emergencia' or field.name == 'observaciones' %}field-full{% endif %}">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
                     {% if field.errors %}

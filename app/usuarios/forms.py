@@ -7,6 +7,7 @@ class PerfilUsuarioForm(forms.Form):
     first_name = forms.CharField(max_length=150, required=False, label="Nombre")
     last_name = forms.CharField(max_length=150, required=False, label="Apellido")
     email = forms.EmailField(required=False, label="Email")
+    celular = forms.CharField(max_length=30, required=False, label="Celular profesional")
     especialidad = forms.CharField(max_length=100, required=False)
     matricula = forms.CharField(max_length=50, required=False)
     duracion_turno_minutos = forms.IntegerField(
@@ -49,6 +50,7 @@ class PerfilUsuarioForm(forms.Form):
         if odontologo and not self.is_bound:
             self.initial.update(
                 {
+                    "celular": odontologo.celular,
                     "especialidad": odontologo.especialidad,
                     "matricula": odontologo.matricula,
                     "duracion_turno_minutos": odontologo.duracion_turno_minutos,
@@ -63,6 +65,7 @@ class PerfilUsuarioForm(forms.Form):
         else:
             for field_name in (
                 "especialidad",
+                "celular",
                 "matricula",
                 "duracion_turno_minutos",
                 "foto_perfil",
@@ -102,6 +105,7 @@ class PerfilUsuarioForm(forms.Form):
             return usuario
 
         odontologo = self.odontologo
+        odontologo.celular = self.cleaned_data["celular"]
         odontologo.especialidad = self.cleaned_data["especialidad"]
         odontologo.matricula = self.cleaned_data["matricula"]
         odontologo.duracion_turno_minutos = self.cleaned_data["duracion_turno_minutos"]

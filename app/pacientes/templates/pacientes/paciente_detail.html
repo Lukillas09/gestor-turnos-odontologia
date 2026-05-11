@@ -13,6 +13,9 @@
             {% if puede_gestionar_pacientes %}
                 <a class="button" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
             {% endif %}
+            {% if puede_ver_pacientes %}
+                <a class="button button-secondary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">Ficha odontologica</a>
+            {% endif %}
             {% if puede_ver_historia_clinica %}
                 <a class="button button-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clinica</a>
             {% endif %}
@@ -69,6 +72,30 @@
                     <dt>Fecha de nacimiento</dt>
                     <dd>{{ paciente.fecha_nacimiento|date:"d/m/Y"|default:"-" }}</dd>
                 </div>
+                <div>
+                    <dt>Sexo / genero</dt>
+                    <dd>{{ paciente.get_genero_display|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt>Domicilio</dt>
+                    <dd>{{ paciente.domicilio|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt>Localidad</dt>
+                    <dd>{{ paciente.localidad|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt>Obra social</dt>
+                    <dd>{{ paciente.obra_social|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt>Numero de afiliado</dt>
+                    <dd>{{ paciente.numero_afiliado|default:"-" }}</dd>
+                </div>
+                <div class="field-full">
+                    <dt>Contacto de emergencia</dt>
+                    <dd>{{ paciente.contacto_emergencia|default:"-" }}</dd>
+                </div>
                 <div class="field-full">
                     <dt>Observaciones</dt>
                     <dd>{{ paciente.observaciones|linebreaksbr|default:"-" }}</dd>
@@ -101,6 +128,63 @@
             {% endif %}
         </section>
     </div>
+
+    {% if puede_ver_pacientes %}
+        <section class="panel-section">
+            <div class="section-header">
+                <div>
+                    <h2>Ficha odontologica</h2>
+                    <p class="subtitle">Antecedentes medicos y alertas utiles para la atencion.</p>
+                </div>
+                <a class="button button-secondary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">
+                    {% if ficha_odontologica %}Editar ficha{% else %}Cargar ficha{% endif %}
+                </a>
+            </div>
+
+            {% if ficha_odontologica %}
+                <dl class="detail-grid">
+                    <div class="field-full">
+                        <dt>Antecedentes medicos</dt>
+                        <dd>{{ ficha_odontologica.antecedentes_medicos|linebreaksbr|default:"-" }}</dd>
+                    </div>
+                    <div class="field-full">
+                        <dt>Alergias</dt>
+                        <dd>{{ ficha_odontologica.alergias|linebreaksbr|default:"-" }}</dd>
+                    </div>
+                    <div class="field-full">
+                        <dt>Medicacion actual</dt>
+                        <dd>{{ ficha_odontologica.medicacion_actual|linebreaksbr|default:"-" }}</dd>
+                    </div>
+                    <div class="field-full">
+                        <dt>Enfermedades relevantes</dt>
+                        <dd>{{ ficha_odontologica.enfermedades_relevantes|linebreaksbr|default:"-" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Embarazo</dt>
+                        <dd>{{ ficha_odontologica.get_embarazo_display }}</dd>
+                    </div>
+                    <div>
+                        <dt>Hipertension</dt>
+                        <dd>{{ ficha_odontologica.get_hipertension_display }}</dd>
+                    </div>
+                    <div>
+                        <dt>Diabetes</dt>
+                        <dd>{{ ficha_odontologica.get_diabetes_display }}</dd>
+                    </div>
+                    <div>
+                        <dt>Problemas cardiacos</dt>
+                        <dd>{{ ficha_odontologica.get_problemas_cardiacos_display }}</dd>
+                    </div>
+                    <div class="field-full">
+                        <dt>Observaciones generales</dt>
+                        <dd>{{ ficha_odontologica.observaciones_generales|linebreaksbr|default:"-" }}</dd>
+                    </div>
+                </dl>
+            {% else %}
+                <p class="muted">Todavia no hay ficha odontologica cargada.</p>
+            {% endif %}
+        </section>
+    {% endif %}
 
     {% if puede_ver_historia_clinica %}
         <section class="panel-section">

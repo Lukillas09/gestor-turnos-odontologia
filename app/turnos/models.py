@@ -44,6 +44,7 @@ class Odontologo(models.Model):
         related_name="perfil_odontologo",
     )
     matricula = models.CharField(max_length=50, unique=True)
+    celular = models.CharField(max_length=30, blank=True)
     especialidad = models.CharField(max_length=100, blank=True)
     duracion_turno_minutos = models.PositiveSmallIntegerField(default=30)
     hora_inicio_atencion = models.TimeField(default=time(9, 0))

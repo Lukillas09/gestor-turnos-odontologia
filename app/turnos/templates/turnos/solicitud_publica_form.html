@@ -30,6 +30,9 @@
                 <span class="public-pill">{{ odontologo.especialidad|default:"Odontologia general" }}</span>
                 <h2>{{ odontologo }}</h2>
                 <p>{{ fecha|date:"l d/m/Y" }} de {{ hora_inicio|time:"H:i" }} a {{ hora_fin|time:"H:i" }}</p>
+                {% if odontologo.celular %}
+                    <p>Contacto {{ odontologo.celular }}</p>
+                {% endif %}
             </div>
         </section>
     {% endif %}
@@ -76,6 +79,20 @@
                 {% endif %}
             </div>
             <div>
+                <label for="{{ form.fecha_nacimiento.id_for_label }}">{{ form.fecha_nacimiento.label }}</label>
+                {{ form.fecha_nacimiento }}
+                {% if form.fecha_nacimiento.errors %}
+                    <div class="field-error">{{ form.fecha_nacimiento.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.genero.id_for_label }}">{{ form.genero.label }}</label>
+                {{ form.genero }}
+                {% if form.genero.errors %}
+                    <div class="field-error">{{ form.genero.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
                 <label for="{{ form.telefono.id_for_label }}">{{ form.telefono.label }}</label>
                 {{ form.telefono }}
                 {% if form.telefono.errors %}
@@ -87,6 +104,41 @@
                 {{ form.email }}
                 {% if form.email.errors %}
                     <div class="field-error">{{ form.email.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="field-full">
+                <label for="{{ form.domicilio.id_for_label }}">{{ form.domicilio.label }}</label>
+                {{ form.domicilio }}
+                {% if form.domicilio.errors %}
+                    <div class="field-error">{{ form.domicilio.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.localidad.id_for_label }}">{{ form.localidad.label }}</label>
+                {{ form.localidad }}
+                {% if form.localidad.errors %}
+                    <div class="field-error">{{ form.localidad.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.obra_social.id_for_label }}">{{ form.obra_social.label }}</label>
+                {{ form.obra_social }}
+                {% if form.obra_social.errors %}
+                    <div class="field-error">{{ form.obra_social.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.numero_afiliado.id_for_label }}">{{ form.numero_afiliado.label }}</label>
+                {{ form.numero_afiliado }}
+                {% if form.numero_afiliado.errors %}
+                    <div class="field-error">{{ form.numero_afiliado.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.contacto_emergencia.id_for_label }}">{{ form.contacto_emergencia.label }}</label>
+                {{ form.contacto_emergencia }}
+                {% if form.contacto_emergencia.errors %}
+                    <div class="field-error">{{ form.contacto_emergencia.errors }}</div>
                 {% endif %}
             </div>
             <div>

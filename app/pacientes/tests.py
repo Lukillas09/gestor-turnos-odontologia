@@ -7,7 +7,7 @@ from django.test import TestCase
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
-from .models import Paciente
+from .models import FichaOdontologica, Paciente
 
 
 def asignar_rol(usuario, nombre_rol):
@@ -195,6 +195,12 @@ class PacienteViewsTests(TestCase):
                 "telefono": "2222",
                 "email": "sofia@example.com",
                 "fecha_nacimiento": "",
+                "genero": Paciente.Genero.FEMENINO,
+                "domicilio": "Av. Siempre Viva 123",
+                "localidad": "Rosario",
+                "obra_social": "OSDE",
+                "numero_afiliado": "A123",
+                "contacto_emergencia": "Maria 3415550000",
                 "observaciones": "Paciente actualizada",
             },
         )
@@ -204,7 +210,41 @@ class PacienteViewsTests(TestCase):
         self.assertRedirects(response, reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
         self.assertEqual(paciente.telefono, "2222")
         self.assertEqual(paciente.email, "sofia@example.com")
+        self.assertEqual(paciente.genero, Paciente.Genero.FEMENINO)
+        self.assertEqual(paciente.domicilio, "Av. Siempre Viva 123")
+        self.assertEqual(paciente.localidad, "Rosario")
+        self.assertEqual(paciente.obra_social, "OSDE")
+        self.assertEqual(paciente.numero_afiliado, "A123")
+        self.assertEqual(paciente.contacto_emergencia, "Maria 3415550000")
         self.assertEqual(paciente.observaciones, "Paciente actualizada")
+
+    def test_ficha_odontologica_puede_cargarse_desde_detalle(self):
+        paciente = Paciente.objects.create(
+            nombre="Camila",
+            apellido="Clinica",
+            documento="23111222",
+        )
+
+        response = self.client.post(
+            reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
+            {
+                "antecedentes_medicos": "Asma leve",
+                "alergias": "Penicilina",
+                "medicacion_actual": "Salbutamol",
+                "enfermedades_relevantes": "Sin otras enfermedades",
+                "embarazo": FichaOdontologica.RespuestaClinica.NO,
+                "hipertension": FichaOdontologica.RespuestaClinica.NO,
+                "diabetes": FichaOdontologica.RespuestaClinica.NO,
+                "problemas_cardiacos": FichaOdontologica.RespuestaClinica.SI,
+                "observaciones_generales": "Avisar antes de anestesia.",
+            },
+        )
+
+        self.assertRedirects(response, reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+        ficha = paciente.ficha_odontologica
+        self.assertEqual(ficha.alergias, "Penicilina")
+        self.assertEqual(ficha.problemas_cardiacos, FichaOdontologica.RespuestaClinica.SI)
+        self.assertEqual(ficha.actualizado_por, self.usuario)
 
     def test_edicion_muestra_fecha_de_nacimiento_cargada(self):
         paciente = Paciente.objects.create(

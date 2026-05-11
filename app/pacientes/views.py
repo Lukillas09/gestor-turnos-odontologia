@@ -18,8 +18,8 @@ from usuarios.mixins import (
 )
 from usuarios.roles import puede_gestionar_historias_clinicas
 
-from .forms import PacienteDeleteConfirmationForm, PacienteForm
-from .models import Paciente
+from .forms import FichaOdontologicaForm, PacienteDeleteConfirmationForm, PacienteForm
+from .models import FichaOdontologica, Paciente
 
 
 class PacienteListView(VerPacientesRequeridoMixin, ListView):
@@ -37,6 +37,10 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 Q(nombre__icontains=busqueda)
                 | Q(apellido__icontains=busqueda)
                 | Q(documento__icontains=busqueda)
+                | Q(telefono__icontains=busqueda)
+                | Q(email__icontains=busqueda)
+                | Q(localidad__icontains=busqueda)
+                | Q(obra_social__icontains=busqueda)
             )
 
         return queryset
@@ -84,6 +88,11 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         context["turnos_pendientes_o_confirmados"] = self.object.turnos.filter(
             estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
         ).count()
+        context["ficha_odontologica"] = getattr(
+            self.object,
+            "ficha_odontologica",
+            None,
+        )
         context["puede_ver_historia_clinica"] = puede_ver_historia
         context["historias_recientes"] = (
             limitar_historias_clinicas_por_usuario(
@@ -96,6 +105,37 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             else []
         )
         return context
+
+
+class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, UpdateView):
+    model = FichaOdontologica
+    form_class = FichaOdontologicaForm
+    template_name = "pacientes/ficha_odontologica_form.html"
+    context_object_name = "ficha"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.paciente = get_object_or_404(Paciente, pk=self.kwargs["pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        ficha, _ = FichaOdontologica.objects.get_or_create(paciente=self.paciente)
+        return ficha
+
+    def get_success_url(self):
+        return reverse_lazy("pacientes:detalle", kwargs={"pk": self.paciente.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["paciente"] = self.paciente
+        context["titulo"] = "Ficha odontologica"
+        context["subtitulo"] = "Antecedentes y datos clinicos generales del paciente."
+        return context
+
+    def form_valid(self, form):
+        form.instance.paciente = self.paciente
+        form.instance.actualizado_por = self.request.user
+        messages.success(self.request, "Ficha odontologica actualizada correctamente.")
+        return super().form_valid(form)
 
 
 class PacienteUpdateView(GestionConsultorioRequeridaMixin, UpdateView):

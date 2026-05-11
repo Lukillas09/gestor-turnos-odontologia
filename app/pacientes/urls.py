@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    FichaOdontologicaUpdateView,
     PacienteCreateView,
     PacienteDeleteView,
     PacienteDetailView,
@@ -15,5 +16,10 @@ urlpatterns = [
     path("nuevo/", PacienteCreateView.as_view(), name="crear"),
     path("<int:pk>/", PacienteDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", PacienteUpdateView.as_view(), name="editar"),
+    path(
+        "<int:pk>/ficha-odontologica/",
+        FichaOdontologicaUpdateView.as_view(),
+        name="ficha_odontologica",
+    ),
     path("<int:pk>/borrar/", PacienteDeleteView.as_view(), name="borrar"),
 ]

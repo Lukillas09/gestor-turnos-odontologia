@@ -31,6 +31,7 @@
                 <span class="muted">{{ request.user.email|default:"Sin email cargado" }}</span>
                 {% if odontologo %}
                     <span class="muted">{{ odontologo.especialidad|default:"Odontologia general" }} - Matricula {{ odontologo.matricula }}</span>
+                    <span class="muted">Celular {{ odontologo.celular|default:"Sin celular cargado" }}</span>
                 {% else %}
                     <span class="muted">Este usuario no tiene perfil de odontologo asociado.</span>
                 {% endif %}
@@ -79,6 +80,13 @@
                             {{ form.matricula }}
                             {% if form.matricula.errors %}
                                 <div class="field-error">{{ form.matricula.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.celular.id_for_label }}">{{ form.celular.label }}</label>
+                            {{ form.celular }}
+                            {% if form.celular.errors %}
+                                <div class="field-error">{{ form.celular.errors }}</div>
                             {% endif %}
                         </div>
                         <div>

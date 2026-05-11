@@ -169,6 +169,7 @@ class PerfilUsuarioTests(TestCase):
                 "first_name": "Lucia",
                 "last_name": "Perez",
                 "email": "lucia@example.com",
+                "celular": "3415550000",
                 "especialidad": "Ortodoncia",
                 "matricula": "MN-PERFIL-2",
                 "duracion_turno_minutos": "45",
@@ -185,6 +186,7 @@ class PerfilUsuarioTests(TestCase):
         self.assertEqual(usuario.last_name, "Perez")
         self.assertEqual(usuario.email, "lucia@example.com")
         self.assertEqual(odontologo.especialidad, "Ortodoncia")
+        self.assertEqual(odontologo.celular, "3415550000")
         self.assertEqual(odontologo.matricula, "MN-PERFIL-2")
         self.assertEqual(odontologo.duracion_turno_minutos, 45)
         self.assertEqual(odontologo.foto_posicion_x, 35)

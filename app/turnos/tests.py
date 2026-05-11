@@ -825,8 +825,15 @@ class SolicitudTurnoPublicaTests(TestCase):
                 "nombre": "Lucia",
                 "apellido": "Paz",
                 "documento": "38111222",
+                "fecha_nacimiento": "1995-03-20",
+                "genero": Paciente.Genero.FEMENINO,
                 "telefono": "1155667788",
                 "email": "lucia@example.com",
+                "domicilio": "Italia 123",
+                "localidad": "Rosario",
+                "obra_social": "Swiss Medical",
+                "numero_afiliado": "SM-123",
+                "contacto_emergencia": "Carlos 3415550000",
                 "odontologo": self.odontologo.pk,
                 "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": "10:00",
@@ -839,6 +846,13 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
         self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
         self.assertEqual(turno.paciente.documento, "38111222")
+        self.assertEqual(turno.paciente.fecha_nacimiento, date(1995, 3, 20))
+        self.assertEqual(turno.paciente.genero, Paciente.Genero.FEMENINO)
+        self.assertEqual(turno.paciente.domicilio, "Italia 123")
+        self.assertEqual(turno.paciente.localidad, "Rosario")
+        self.assertEqual(turno.paciente.obra_social, "Swiss Medical")
+        self.assertEqual(turno.paciente.numero_afiliado, "SM-123")
+        self.assertEqual(turno.paciente.contacto_emergencia, "Carlos 3415550000")
         self.assertEqual(turno.hora_inicio, time(10, 0))
 
     def test_confirmacion_publica_muestra_datos_del_turno(self):

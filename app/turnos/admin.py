@@ -35,6 +35,7 @@ class OdontologoAdmin(admin.ModelAdmin):
         "nombre",
         "apellido",
         "matricula",
+        "celular",
         "email",
         "especialidad",
         "horario_atencion",
@@ -46,6 +47,7 @@ class OdontologoAdmin(admin.ModelAdmin):
         "usuario__username",
         "usuario__email",
         "matricula",
+        "celular",
         "especialidad",
     )
     list_filter = ("activo", "especialidad")
@@ -66,6 +68,7 @@ class OdontologoAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "matricula",
+                    "celular",
                     "especialidad",
                     "foto_url",
                     "foto_perfil",

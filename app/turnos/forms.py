@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 
 from config.form_widgets import HtmlDateInput
+from pacientes.models import Paciente
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
 
 from .models import Odontologo, Turno
@@ -234,10 +235,34 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         error_messages={"required": "Ingresa tu apellido."},
     )
     documento = forms.CharField(max_length=20, required=False, label="DNI")
+    fecha_nacimiento = forms.DateField(
+        required=False,
+        label="Fecha de nacimiento",
+        widget=HtmlDateInput(),
+        error_messages={"invalid": "Ingresa una fecha valida."},
+    )
+    genero = forms.ChoiceField(
+        choices=[("", "Seleccionar")] + list(Paciente.Genero.choices),
+        required=False,
+        label="Sexo / genero",
+    )
     telefono = forms.CharField(max_length=30, required=False)
     email = forms.EmailField(
         required=False,
         error_messages={"invalid": "Ingresa un email valido o deja el campo vacio."},
+    )
+    domicilio = forms.CharField(max_length=200, required=False)
+    localidad = forms.CharField(max_length=100, required=False)
+    obra_social = forms.CharField(max_length=100, required=False)
+    numero_afiliado = forms.CharField(
+        max_length=50,
+        required=False,
+        label="Numero de afiliado",
+    )
+    contacto_emergencia = forms.CharField(
+        max_length=150,
+        required=False,
+        label="Contacto de emergencia",
     )
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True),
