@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -175,7 +176,7 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
     model = Turno
     template_name = "turnos/turno_list.html"
     context_object_name = "turnos"
-    paginate_by = 20
+    paginate_by = 10
 
     def get_queryset(self):
         queryset = (
@@ -202,6 +203,11 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
             if filtros["odontologo"]:
                 queryset = queryset.filter(odontologo=filtros["odontologo"])
 
+        self.turnos_filtrados = queryset
+        self.hay_filtros_activos = any(
+            self.request.GET.get(campo)
+            for campo in ("fecha", "estado", "odontologo")
+        )
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -211,7 +217,53 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
 
         context["filtros_form"] = self.filtros_form
         context["filtros_querystring"] = query_params.urlencode()
+        context["resumen_turnos"] = self._obtener_resumen_turnos(self.turnos_filtrados)
+        context["hay_filtros_activos"] = self.hay_filtros_activos
+        context["accesos_rapidos_turnos"] = self._obtener_accesos_rapidos()
         return context
+
+    @staticmethod
+    def _obtener_resumen_turnos(queryset):
+        conteos = {
+            item["estado"]: item["cantidad"]
+            for item in queryset.order_by().values("estado").annotate(cantidad=Count("id"))
+        }
+
+        return {
+            "total": sum(conteos.values()),
+            Turno.Estado.PENDIENTE: conteos.get(Turno.Estado.PENDIENTE, 0),
+            Turno.Estado.CONFIRMADO: conteos.get(Turno.Estado.CONFIRMADO, 0),
+            Turno.Estado.CANCELADO: conteos.get(Turno.Estado.CANCELADO, 0),
+            Turno.Estado.REALIZADO: conteos.get(Turno.Estado.REALIZADO, 0),
+        }
+
+    def _obtener_accesos_rapidos(self):
+        hoy = timezone.localdate()
+        manana = hoy + timedelta(days=1)
+        fecha_actual = self.request.GET.get("fecha", "")
+
+        return [
+            {
+                "label": "Hoy",
+                "url": f"{reverse('turnos:lista')}?fecha={hoy:%Y-%m-%d}",
+                "activo": fecha_actual == f"{hoy:%Y-%m-%d}" and not self.request.GET.get("estado"),
+            },
+            {
+                "label": "Mañana",
+                "url": f"{reverse('turnos:lista')}?fecha={manana:%Y-%m-%d}",
+                "activo": fecha_actual == f"{manana:%Y-%m-%d}" and not self.request.GET.get("estado"),
+            },
+            {
+                "label": "Esta semana",
+                "url": reverse("turnos:agenda_semana"),
+                "activo": False,
+            },
+            {
+                "label": "Todos",
+                "url": reverse("turnos:lista"),
+                "activo": not self.hay_filtros_activos,
+            },
+        ]
 
 
 class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):

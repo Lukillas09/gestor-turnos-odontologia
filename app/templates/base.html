@@ -1108,6 +1108,270 @@
             margin-top: 18px;
         }
 
+        .turnos-filter-panel {
+            margin-bottom: 18px;
+            border-color: #cfe4ea;
+        }
+
+        .turnos-filter-form {
+            display: grid;
+            grid-template-columns: minmax(170px, 0.7fr) minmax(180px, 0.7fr) minmax(240px, 1fr) auto;
+            gap: 14px;
+            align-items: end;
+        }
+
+        .turnos-filter-actions,
+        .quick-filter-row,
+        .turno-detail-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .quick-filter-row {
+            margin-top: 16px;
+        }
+
+        .quick-filter-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            border: 1px solid #cfe4ea;
+            border-radius: 999px;
+            padding: 6px 12px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+            transition:
+                background-color 160ms ease,
+                border-color 160ms ease,
+                color 160ms ease;
+        }
+
+        .quick-filter-pill:hover,
+        .quick-filter-pill.is-active {
+            border-color: #0f766e;
+            background: #ecfdf3;
+            color: #0f766e;
+        }
+
+        .turno-card-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .turno-list-card {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(136px, 0.28fr) minmax(0, 1fr) auto;
+            gap: 18px;
+            align-items: center;
+            border: 1px solid #d7e8ee;
+            border-left: 5px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 18px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .turno-list-card-pendiente {
+            border-left-color: #eab308;
+        }
+
+        .turno-list-card-confirmado {
+            border-left-color: #059669;
+        }
+
+        .turno-list-card-cancelado {
+            border-left-color: #dc2626;
+        }
+
+        .turno-list-card-realizado {
+            border-left-color: #4f46e5;
+        }
+
+        .turno-card-time {
+            display: grid;
+            gap: 4px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .turno-card-time strong {
+            color: #0f766e;
+            font-size: 18px;
+        }
+
+        .turno-card-main {
+            min-width: 0;
+        }
+
+        .turno-card-main h2 {
+            margin-bottom: 5px;
+            font-size: 21px;
+        }
+
+        .turno-card-main p {
+            margin: 0;
+            color: #475467;
+        }
+
+        .turno-card-main-link {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .turno-card-main-link::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            border-radius: 8px;
+        }
+
+        .turno-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .turno-card-meta span {
+            display: inline-flex;
+            border-radius: 999px;
+            padding: 4px 9px;
+            background: #f1f5f9;
+            color: #475467;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .turno-card-status {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            justify-items: end;
+            gap: 10px;
+        }
+
+        .turno-detail-hero {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: flex-start;
+            margin-bottom: 18px;
+            border: 1px solid #cfe4ea;
+            border-radius: 8px;
+            padding: 26px;
+            background:
+                linear-gradient(135deg, rgba(240, 253, 250, 0.95), rgba(255, 255, 255, 0.98)),
+                var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .turno-detail-hero h1 {
+            font-size: 32px;
+        }
+
+        .turno-detail-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .turno-detail-meta span {
+            display: inline-flex;
+            border: 1px solid #d7e8ee;
+            border-radius: 999px;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.74);
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .turno-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .turno-info-card {
+            display: grid;
+            gap: 12px;
+            border: 1px solid #d7e8ee;
+            border-radius: 8px;
+            padding: 18px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .turno-info-card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .turno-info-card-header span,
+        .turno-info-card dt,
+        .turno-notes-grid dt {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .turno-info-card h2 {
+            font-size: 20px;
+        }
+
+        .turno-info-card dl,
+        .turno-notes-grid {
+            display: grid;
+            gap: 10px;
+            margin: 0;
+        }
+
+        .turno-info-card dd,
+        .turno-notes-grid dd {
+            margin: 3px 0 0;
+            color: #263645;
+            overflow-wrap: anywhere;
+        }
+
+        .turno-status-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .turno-sync-note {
+            border-left: 3px solid #f04438;
+            padding-left: 12px;
+            color: #344054;
+        }
+
+        .turno-sync-note p {
+            margin: 4px 0 0;
+            color: var(--muted);
+        }
+
+        .turno-notes-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .turno-actions-panel {
+            margin-top: 18px;
+        }
+
         .dashboard-grid-secondary {
             margin-top: 18px;
         }
@@ -1961,6 +2225,10 @@
             .patient-search-form,
             .patient-list-card,
             .patient-card-info,
+            .turnos-filter-form,
+            .turno-list-card,
+            .turno-detail-grid,
+            .turno-notes-grid,
             .public-reservation-details,
             .public-profile,
             .public-slot-grid,
@@ -1974,6 +2242,9 @@
             .clinical-action-group,
             .patient-search-actions,
             .patient-card-actions,
+            .turnos-filter-actions,
+            .turno-detail-hero,
+            .turno-detail-actions,
             .pagination-actions,
             .public-reservation-details,
             .public-form-actions {
@@ -1982,7 +2253,15 @@
                 flex-direction: column;
             }
 
+            .turno-card-status {
+                justify-items: stretch;
+            }
+
             .clinical-profile-main h1 {
+                font-size: 28px;
+            }
+
+            .turno-detail-hero h1 {
                 font-size: 28px;
             }
 

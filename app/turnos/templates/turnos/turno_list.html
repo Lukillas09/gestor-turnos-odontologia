@@ -5,73 +5,108 @@
 {% block content %}
     <div class="page-header animate-fade-up">
         <div>
-            <h1>Turnos</h1>
-            <p class="subtitle">Agenda de turnos del consultorio.</p>
+            <p class="eyebrow">Turnos</p>
+            <h1>Agenda de turnos</h1>
+            <p class="subtitle">Identificá paciente, horario, odontólogo y estado sin leer una tabla densa.</p>
         </div>
         {% if puede_gestionar_turnos %}
             <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
         {% endif %}
     </div>
 
-    <form class="filter-panel animate-fade-up" method="get" style="--stagger-index: 1;">
-        <div>
-            <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
-            {{ filtros_form.fecha }}
+    <section class="turnos-filter-panel panel-section animate-fade-up" style="--stagger-index: 1;" aria-label="Filtros de turnos">
+        <div class="section-header">
+            <div>
+                <h2>Filtrar turnos</h2>
+                <p class="subtitle">Usá fecha, estado u odontólogo para encontrar rápido el turno correcto.</p>
+            </div>
+            {% if hay_filtros_activos %}
+                <span class="status-badge status-sync-ok">Mostrando turnos filtrados</span>
+            {% endif %}
         </div>
-        <div>
-            <label for="{{ filtros_form.estado.id_for_label }}">Estado</label>
-            {{ filtros_form.estado }}
+
+        <form class="turnos-filter-form" method="get">
+            <div>
+                <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
+                {{ filtros_form.fecha }}
+            </div>
+            <div>
+                <label for="{{ filtros_form.estado.id_for_label }}">Estado</label>
+                {{ filtros_form.estado }}
+            </div>
+            <div>
+                <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
+                {{ filtros_form.odontologo }}
+            </div>
+            <div class="turnos-filter-actions">
+                <button type="submit">Filtrar</button>
+                <a class="button button-secondary" href="{% url 'turnos:lista' %}">Limpiar</a>
+            </div>
+        </form>
+
+        <div class="quick-filter-row" aria-label="Accesos rápidos">
+            {% for acceso in accesos_rapidos_turnos %}
+                <a class="quick-filter-pill{% if acceso.activo %} is-active{% endif %}" href="{{ acceso.url }}">
+                    {{ acceso.label }}
+                </a>
+            {% endfor %}
         </div>
-        <div>
-            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
-            {{ filtros_form.odontologo }}
-        </div>
-        <div class="filter-actions">
-            <button type="submit">Filtrar</button>
-            <a class="button button-secondary" href="{% url 'turnos:lista' %}">Limpiar</a>
-        </div>
-    </form>
+    </section>
+
+    <section class="metric-grid stagger-list" aria-label="Resumen de turnos">
+        <article class="metric-card metric-card-total animate-fade-up card-hover" style="--stagger-index: 0;">
+            <span class="metric-label">Total</span>
+            <strong>{{ resumen_turnos.total }}</strong>
+        </article>
+        <article class="metric-card metric-card-pendiente animate-fade-up card-hover" style="--stagger-index: 1;">
+            <span class="metric-label">Pendientes</span>
+            <strong>{{ resumen_turnos.pendiente }}</strong>
+        </article>
+        <article class="metric-card metric-card-confirmado animate-fade-up card-hover" style="--stagger-index: 2;">
+            <span class="metric-label">Confirmados</span>
+            <strong>{{ resumen_turnos.confirmado }}</strong>
+        </article>
+        <article class="metric-card metric-card-cancelado animate-fade-up card-hover" style="--stagger-index: 3;">
+            <span class="metric-label">Cancelados</span>
+            <strong>{{ resumen_turnos.cancelado }}</strong>
+        </article>
+        <article class="metric-card metric-card-realizado animate-fade-up card-hover" style="--stagger-index: 4;">
+            <span class="metric-label">Realizados</span>
+            <strong>{{ resumen_turnos.realizado }}</strong>
+        </article>
+    </section>
 
     {% if turnos %}
-        <div class="table-wrap animate-fade-up" style="--stagger-index: 2;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Paciente</th>
-                        <th>Odontólogo</th>
-                        <th>Fecha</th>
-                        <th>Hora inicio</th>
-                        <th>Hora fin</th>
-                        <th>Estado</th>
-                        {% if puede_gestionar_turnos %}
-                            <th>Acciones</th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for turno in turnos %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'turnos:detalle' turno.pk %}">{{ turno.paciente }}</a>
-                            </td>
-                            <td>{{ turno.odontologo }}</td>
-                            <td>{{ turno.fecha|date:"d/m/Y" }}</td>
-                            <td>{{ turno.hora_inicio|time:"H:i" }}</td>
-                            <td>{{ turno.hora_fin|time:"H:i" }}</td>
-                            <td>
-                                <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-                            </td>
-                            {% if puede_gestionar_turnos %}
-                                <td>
-                                    <a class="text-link" href="{% url 'turnos:detalle' turno.pk %}">Ver</a>
-                                    <a class="text-link" href="{% url 'turnos:editar' turno.pk %}">Editar</a>
-                                </td>
+        <section class="turno-card-list stagger-list" aria-label="Listado de turnos">
+            {% for turno in turnos %}
+                <article class="turno-list-card turno-list-card-{{ turno.estado }} animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
+                    <div class="turno-card-time">
+                        <span>{{ turno.fecha|date:"d/m/Y" }}</span>
+                        <strong>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</strong>
+                    </div>
+
+                    <div class="turno-card-main">
+                        <h2>
+                            <a class="turno-card-main-link" href="{% url 'turnos:detalle' turno.pk %}">
+                                {{ turno.paciente }}
+                            </a>
+                        </h2>
+                        <p>{{ turno.motivo|default:"Sin motivo cargado" }}</p>
+                        <div class="turno-card-meta">
+                            <span>Odontólogo: {{ turno.odontologo }}</span>
+                            {% if turno.paciente.telefono %}
+                                <span>Teléfono: {{ turno.paciente.telefono }}</span>
                             {% endif %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        </div>
+                    </div>
+
+                    <div class="turno-card-status">
+                        <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+                        <a class="button button-small" href="{% url 'turnos:detalle' turno.pk %}">Ver</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </section>
     {% else %}
         <div class="empty-state animate-fade-up">
             <p>No hay turnos para los filtros seleccionados.</p>
@@ -79,7 +114,7 @@
     {% endif %}
 
     {% if is_paginated %}
-        <div class="form-actions animate-fade-up">
+        <nav class="pagination-actions animate-fade-up" aria-label="Paginación de turnos">
             {% if page_obj.has_previous %}
                 <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Anterior</a>
             {% endif %}
@@ -87,6 +122,6 @@
             {% if page_obj.has_next %}
                 <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Siguiente</a>
             {% endif %}
-        </div>
+        </nav>
     {% endif %}
 {% endblock %}
