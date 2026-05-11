@@ -63,6 +63,7 @@ Actualmente incluye:
 - Backend de email por API HTTP para deploy en Render Free.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
+- Paginación liviana de pacientes y microinteracciones visuales suaves.
 - Tests automatizados para la lógica de turnos, permisos, agenda, Google Calendar, emails e historia clínica.
 
 Documentación técnica:
@@ -77,6 +78,7 @@ Documentación técnica:
 - [Email real por API HTTP](docs/email_api.md)
 - [Supabase Storage para adjuntos clínicos](docs/supabase_storage.md)
 - [Backups completos](docs/backups.md)
+- [Rendimiento y fluidez visual](docs/rendimiento_y_fluidez.md)
 - [Seguridad antes de producción](docs/seguridad_produccion.md)
 
 ## Tecnologías

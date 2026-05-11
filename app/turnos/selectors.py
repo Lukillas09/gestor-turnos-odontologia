@@ -23,6 +23,20 @@ def obtener_bloques_agenda_del_dia(
     busqueda="",
 ):
     turnos = list(obtener_turnos_del_dia(fecha, odontologo, busqueda))
+    return _construir_bloques_agenda_del_dia(
+        fecha,
+        odontologo,
+        turnos,
+        intervalo_minutos,
+    )
+
+
+def _construir_bloques_agenda_del_dia(
+    fecha,
+    odontologo,
+    turnos,
+    intervalo_minutos=30,
+):
     rango_agenda = _obtener_rango_agenda(fecha, odontologo, turnos)
 
     if not rango_agenda:
@@ -55,18 +69,23 @@ def obtener_bloques_agenda_del_dia(
 def obtener_agenda_diaria_por_odontologo(fecha, odontologo=None, busqueda=""):
     odontologos = _obtener_odontologos_para_agenda(fecha, fecha, odontologo, busqueda)
 
-    return [
-        {
-            "odontologo": odontologo_agenda,
-            "bloques": obtener_bloques_agenda_del_dia(
-                fecha,
-                odontologo_agenda,
-                busqueda=busqueda,
-            ),
-            "turnos": list(obtener_turnos_del_dia(fecha, odontologo_agenda, busqueda)),
-        }
-        for odontologo_agenda in odontologos
-    ]
+    agendas = []
+
+    for odontologo_agenda in odontologos:
+        turnos = list(obtener_turnos_del_dia(fecha, odontologo_agenda, busqueda))
+        agendas.append(
+            {
+                "odontologo": odontologo_agenda,
+                "bloques": _construir_bloques_agenda_del_dia(
+                    fecha,
+                    odontologo_agenda,
+                    turnos,
+                ),
+                "turnos": turnos,
+            }
+        )
+
+    return agendas
 
 
 def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None, busqueda=""):
@@ -82,6 +101,10 @@ def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None, busqueda=""):
 
     turnos = _filtrar_turnos_por_busqueda(turnos, busqueda)
 
+    return _construir_dias_semana(inicio_semana, turnos)
+
+
+def _construir_dias_semana(inicio_semana, turnos):
     turnos_por_fecha = {}
 
     for turno in turnos:
@@ -106,25 +129,26 @@ def obtener_agenda_semanal_por_odontologo(fecha_referencia, odontologo=None, bus
         busqueda,
     )
 
-    return [
-        {
-            "odontologo": odontologo_agenda,
-            "dias": obtener_turnos_de_la_semana(
-                fecha_referencia,
+    agendas = []
+
+    for odontologo_agenda in odontologos:
+        turnos = list(
+            obtener_turnos_de_la_semana_como_queryset(
+                inicio_semana,
+                fin_semana,
                 odontologo_agenda,
                 busqueda,
-            ),
-            "turnos": list(
-                obtener_turnos_de_la_semana_como_queryset(
-                    inicio_semana,
-                    fin_semana,
-                    odontologo_agenda,
-                    busqueda,
-                )
-            ),
-        }
-        for odontologo_agenda in odontologos
-    ]
+            )
+        )
+        agendas.append(
+            {
+                "odontologo": odontologo_agenda,
+                "dias": _construir_dias_semana(inicio_semana, turnos),
+                "turnos": turnos,
+            }
+        )
+
+    return agendas
 
 
 def obtener_turnos_de_la_semana_como_queryset(

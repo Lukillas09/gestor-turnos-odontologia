@@ -336,6 +336,59 @@
             text-decoration: underline;
         }
 
+        @keyframes fade-up-in {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-transition,
+        .animate-fade-up {
+            animation: fade-up-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .animate-fade-up {
+            animation-delay: calc(var(--stagger-index, 0) * 35ms);
+        }
+
+        .smooth-action,
+        .button,
+        button,
+        .text-link,
+        .nav-link,
+        .app-sidebar-link,
+        .app-user-profile-link,
+        .public-date-chip,
+        .public-slot-button {
+            transition:
+                background-color 160ms ease,
+                border-color 160ms ease,
+                box-shadow 160ms ease,
+                color 160ms ease,
+                transform 160ms ease;
+        }
+
+        .card-hover {
+            transition:
+                border-color 180ms ease,
+                box-shadow 180ms ease,
+                transform 180ms ease,
+                background-color 180ms ease;
+        }
+
+        .card-hover:hover,
+        .card-hover:focus-within {
+            border-color: #b7dfe5;
+            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
+            transform: translateY(-1px);
+        }
+
         .page {
             padding: 32px 0;
         }
@@ -1796,6 +1849,29 @@
             color: var(--warning-text);
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .page-transition,
+            .animate-fade-up {
+                animation: none !important;
+                opacity: 1 !important;
+                transform: none !important;
+            }
+
+            .card-hover:hover,
+            .card-hover:focus-within {
+                transform: none;
+            }
+        }
+
         @media (max-width: 720px) {
             .topbar-inner,
             .page,
@@ -2022,7 +2098,7 @@
         </header>
     {% endif %}
 
-    <main class="{% if request.user.is_authenticated %}app-page{% else %}page{% endif %}">
+    <main class="{% if request.user.is_authenticated %}app-page{% else %}page{% endif %} page-transition">
         {% if messages %}
             <ul class="messages">
                 {% for message in messages %}

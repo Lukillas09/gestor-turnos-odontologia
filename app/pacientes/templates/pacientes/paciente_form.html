@@ -3,14 +3,14 @@
 {% block title %}{{ titulo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <h1>{{ titulo }}</h1>
             <p class="subtitle">{{ subtitulo }}</p>
         </div>
     </div>
 
-    <form class="form-panel" method="post" novalidate>
+    <form class="form-panel animate-fade-up" method="post" novalidate>
         {% csrf_token %}
 
         {% if form.non_field_errors %}

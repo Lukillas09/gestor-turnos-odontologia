@@ -3,7 +3,7 @@
 {% block title %}Historia clínica de {{ paciente }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <h1>Historia clínica</h1>
             <p class="subtitle">{{ paciente.nombre_completo }}</p>
@@ -14,22 +14,22 @@
         </div>
     </div>
 
-    <section class="metric-grid">
-        <div class="metric-card">
+    <section class="metric-grid stagger-list">
+        <div class="metric-card animate-fade-up card-hover" style="--stagger-index: 0;">
             <span class="metric-label">Paciente</span>
             <strong>{{ paciente.apellido }}</strong>
         </div>
-        <div class="metric-card">
+        <div class="metric-card animate-fade-up card-hover" style="--stagger-index: 1;">
             <span class="metric-label">DNI</span>
             <strong>{{ paciente.documento|default:"-" }}</strong>
         </div>
-        <div class="metric-card">
+        <div class="metric-card animate-fade-up card-hover" style="--stagger-index: 2;">
             <span class="metric-label">Entradas</span>
             <strong>{{ page_obj.paginator.count }}</strong>
         </div>
     </section>
 
-    <form class="filter-panel" method="get" novalidate>
+    <form class="filter-panel animate-fade-up" method="get" novalidate>
         {% if filtros_form.non_field_errors %}
             <div class="field-error field-full">{{ filtros_form.non_field_errors }}</div>
         {% endif %}
@@ -62,9 +62,9 @@
     </form>
 
     {% if historias %}
-        <div class="timeline-list">
+        <div class="timeline-list stagger-list">
             {% for historia in historias %}
-                <article class="timeline-item">
+                <article class="timeline-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
                     <div class="timeline-meta">
                         <div>
                             <strong>{{ historia.fecha|date:"d/m/Y" }}</strong>
@@ -80,7 +80,7 @@
                         {% else %}
                             Cargado por -
                         {% endif %}
-                        - Adjuntos: {{ historia.adjuntos.count }}
+                        - Adjuntos: {{ historia.cantidad_adjuntos }}
                     </p>
                     <dl class="detail-grid">
                         <div class="field-full">
@@ -106,13 +106,13 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state">
+        <div class="empty-state animate-fade-up">
             <p>No hay entradas de historia clínica para este paciente.</p>
         </div>
     {% endif %}
 
     {% if is_paginated %}
-        <div class="form-actions">
+        <div class="form-actions animate-fade-up">
             {% if page_obj.has_previous %}
                 <a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
             {% endif %}

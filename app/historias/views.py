@@ -2,7 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -74,7 +74,7 @@ class HistoriaClinicaListView(PacienteHistoriaClinicaMixin, ListView):
                 "creado_por",
                 "actualizado_por",
             )
-            .prefetch_related("adjuntos")
+            .annotate(cantidad_adjuntos=Count("adjuntos"))
             .order_by("-fecha", "-creado_en")
         )
         self.filtros_form = HistoriaClinicaFiltroForm(self.request.GET)

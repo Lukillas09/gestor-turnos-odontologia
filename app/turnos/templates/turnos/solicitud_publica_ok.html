@@ -3,7 +3,7 @@
 {% block title %}Solicitud recibida | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <h1>Solicitud recibida</h1>
             <p class="subtitle">El turno quedó registrado como pendiente.</p>
@@ -14,7 +14,7 @@
     </div>
 
     {% if turno %}
-        <section class="detail-panel">
+        <section class="detail-panel animate-fade-up card-hover">
             <dl class="detail-grid">
                 <div>
                     <dt>Paciente</dt>
@@ -43,7 +43,7 @@
             </dl>
         </section>
     {% else %}
-        <section class="empty-state">
+        <section class="empty-state animate-fade-up">
             <p>El consultorio podrá confirmar o reprogramar la solicitud desde el panel interno.</p>
         </section>
     {% endif %}

@@ -3,11 +3,11 @@
 {% block title %}{{ paciente.nombre_completo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="patient-backline">
+    <div class="patient-backline animate-fade-up">
         <a class="button button-secondary button-small button-subtle" href="{% url 'pacientes:lista' %}">&larr; Volver a pacientes</a>
     </div>
 
-    <section class="clinical-profile-card">
+    <section class="clinical-profile-card animate-fade-up card-hover" style="--stagger-index: 1;">
         <div class="clinical-profile-main">
             <span class="eyebrow">Perfil clínico</span>
             <h1>{{ paciente.nombre }} {{ paciente.apellido }}</h1>
@@ -37,7 +37,7 @@
         {% endif %}
     </section>
 
-    <section class="panel-section clinical-alert-panel">
+    <section class="panel-section clinical-alert-panel animate-fade-up" style="--stagger-index: 2;">
         <div class="section-header">
             <div>
                 <h2>Alertas clínicas</h2>
@@ -46,9 +46,9 @@
         </div>
 
         {% if alertas_clinicas %}
-            <div class="clinical-alert-grid">
+            <div class="clinical-alert-grid stagger-list">
                 {% for alerta in alertas_clinicas %}
-                    <article class="clinical-alert clinical-alert-{{ alerta.estado }}">
+                    <article class="clinical-alert clinical-alert-{{ alerta.estado }} animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
                         <span>{{ alerta.etiqueta }}</span>
                         <strong>{{ alerta.valor|linebreaksbr }}</strong>
                     </article>
@@ -62,9 +62,9 @@
         {% endif %}
     </section>
 
-    <section class="clinical-summary-grid" aria-label="Resumen rápido del paciente">
+    <section class="clinical-summary-grid stagger-list" aria-label="Resumen rápido del paciente">
         {% for item in resumen_rapido %}
-            <article class="clinical-summary-card">
+            <article class="clinical-summary-card animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
                 <span>{{ item.etiqueta }}</span>
                 <strong>{{ item.valor }}</strong>
                 {% if item.detalle %}
@@ -77,7 +77,7 @@
     <div class="clinical-layout">
         <div class="clinical-main-column">
             {% if puede_ver_historia_clinica %}
-                <section class="panel-section">
+                <section class="panel-section animate-fade-up">
                     <div class="section-header">
                         <div>
                             <h2>Historia clínica reciente</h2>
@@ -87,9 +87,9 @@
                     </div>
 
                     {% if historias_recientes %}
-                        <div class="clinical-timeline">
+                        <div class="clinical-timeline stagger-list">
                             {% for historia in historias_recientes %}
-                                <article class="clinical-timeline-item">
+                                <article class="clinical-timeline-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
                                     <div class="clinical-timeline-date">
                                         <strong>{{ historia.fecha|date:"d/m/Y" }}</strong>
                                         <span>{{ historia.odontologo }}</span>
@@ -118,7 +118,7 @@
                 </section>
             {% endif %}
 
-            <section class="panel-section">
+            <section class="panel-section animate-fade-up">
                 <div class="section-header">
                     <div>
                         <h2>Ficha odontológica</h2>
@@ -131,9 +131,9 @@
                     {% endif %}
                 </div>
 
-                <div class="clinical-indicator-grid">
+                <div class="clinical-indicator-grid stagger-list">
                     {% for indicador in indicadores_ficha %}
-                        <article class="clinical-indicator clinical-indicator-{{ indicador.estado }}">
+                        <article class="clinical-indicator clinical-indicator-{{ indicador.estado }} animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
                             <span>{{ indicador.etiqueta }}</span>
                             <strong>{{ indicador.valor|linebreaksbr }}</strong>
                         </article>
@@ -156,7 +156,7 @@
         </div>
 
         <aside class="clinical-side-column">
-            <section class="panel-section">
+            <section class="panel-section animate-fade-up">
                 <div class="section-header">
                     <div>
                         <h2>Próximo turno</h2>
@@ -165,7 +165,7 @@
                 </div>
 
                 {% if proximo_turno %}
-                    <a class="clinical-turn-card clinical-turn-card-featured" href="{% url 'turnos:detalle' proximo_turno.pk %}">
+                    <a class="clinical-turn-card clinical-turn-card-featured card-hover" href="{% url 'turnos:detalle' proximo_turno.pk %}">
                         <span class="status-badge status-{{ proximo_turno.estado }}">{{ proximo_turno.get_estado_display }}</span>
                         <strong>{{ proximo_turno.fecha|date:"d/m/Y" }} {{ proximo_turno.hora_inicio|time:"H:i" }}</strong>
                         <span>{{ proximo_turno.motivo|default:"Sin motivo" }}</span>
@@ -179,7 +179,7 @@
                 {% endif %}
             </section>
 
-            <section class="panel-section">
+            <section class="panel-section animate-fade-up">
                 <div class="section-header">
                     <div>
                         <h2>Turnos recientes</h2>
@@ -188,9 +188,9 @@
                 </div>
 
                 {% if turnos_recientes %}
-                    <div class="clinical-turn-list">
+                    <div class="clinical-turn-list stagger-list">
                         {% for turno in turnos_recientes %}
-                            <a class="clinical-turn-card" href="{% url 'turnos:detalle' turno.pk %}">
+                            <a class="clinical-turn-card animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};" href="{% url 'turnos:detalle' turno.pk %}">
                                 <div>
                                     <strong>{{ turno.fecha|date:"d/m/Y" }} {{ turno.hora_inicio|time:"H:i" }}</strong>
                                     <span>{{ turno.motivo|default:"Sin motivo" }}</span>
@@ -207,7 +207,7 @@
         </aside>
     </div>
 
-    <section class="panel-section">
+    <section class="panel-section animate-fade-up">
         <div class="section-header">
             <div>
                 <h2>Datos administrativos</h2>
@@ -215,9 +215,9 @@
             </div>
         </div>
 
-        <div class="admin-data-grid">
+        <div class="admin-data-grid stagger-list">
             {% for grupo in datos_administrativos %}
-                <article class="admin-data-group">
+                <article class="admin-data-group animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
                     <h3>{{ grupo.titulo }}</h3>
                     <dl>
                         {% for etiqueta, valor in grupo.campos %}
@@ -238,7 +238,7 @@
     </section>
 
     {% if puede_gestionar_pacientes or puede_borrar_pacientes %}
-        <section class="panel-section admin-actions-panel">
+        <section class="panel-section admin-actions-panel animate-fade-up">
             <div class="section-header">
                 <div>
                     <h2>Acciones administrativas</h2>

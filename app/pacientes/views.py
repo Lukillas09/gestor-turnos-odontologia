@@ -2,7 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -33,11 +33,15 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
     model = Paciente
     template_name = "pacientes/paciente_list.html"
     context_object_name = "pacientes"
-    paginate_by = 20
+    paginate_by = 10
 
     def get_queryset(self):
         queryset = super().get_queryset()
         busqueda = self.request.GET.get("q", "").strip()
+        ultimo_turno = Turno.objects.filter(paciente=OuterRef("pk")).order_by(
+            "-fecha",
+            "-hora_inicio",
+        )
 
         if busqueda:
             queryset = queryset.filter(
@@ -50,23 +54,42 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 | Q(obra_social__icontains=busqueda)
             )
 
-        return queryset.prefetch_related(
-            Prefetch(
-                "turnos",
-                queryset=Turno.objects.select_related(
-                    "odontologo",
-                    "odontologo__usuario",
-                ).order_by("-fecha", "-hora_inicio"),
-                to_attr="turnos_ordenados",
+        return (
+            queryset.only(
+                "id",
+                "nombre",
+                "apellido",
+                "documento",
+                "telefono",
+                "email",
+                "obra_social",
+            )
+            .annotate(
+                ultimo_turno_fecha=Subquery(ultimo_turno.values("fecha")[:1]),
+                ultimo_turno_hora_inicio=Subquery(
+                    ultimo_turno.values("hora_inicio")[:1],
+                ),
+                ultimo_turno_estado=Subquery(ultimo_turno.values("estado")[:1]),
             )
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["busqueda"] = self.request.GET.get("q", "").strip()
+        estados_turno = dict(Turno.Estado.choices)
+
         for paciente in context["pacientes"]:
-            turnos = getattr(paciente, "turnos_ordenados", [])
-            paciente.ultimo_turno = turnos[0] if turnos else None
+            paciente.ultimo_turno_resumen = (
+                {
+                    "fecha": paciente.ultimo_turno_fecha,
+                    "hora_inicio": paciente.ultimo_turno_hora_inicio,
+                    "estado": paciente.ultimo_turno_estado,
+                    "estado_label": estados_turno.get(paciente.ultimo_turno_estado, ""),
+                }
+                if paciente.ultimo_turno_fecha
+                else None
+            )
+
         return context
 
 
@@ -99,11 +122,6 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             super()
             .get_queryset()
             .select_related("ficha_odontologica")
-            .prefetch_related(
-                "turnos",
-                "turnos__odontologo",
-                "turnos__odontologo__usuario",
-            )
         )
 
     def get_context_data(self, **kwargs):
@@ -121,6 +139,7 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         turnos_activos = turnos.filter(
             estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
         )
+        cantidad_turnos_activos = turnos_activos.count()
         proximo_turno = (
             turnos_activos.filter(Q(fecha__gt=hoy) | Q(fecha=hoy, hora_inicio__gte=ahora))
             .order_by("fecha", "hora_inicio")
@@ -164,7 +183,7 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                     hoy,
                 ),
                 "turnos_recientes": turnos_recientes,
-                "turnos_pendientes_o_confirmados": turnos_activos.count(),
+                "turnos_pendientes_o_confirmados": cantidad_turnos_activos,
                 "proximo_turno": proximo_turno,
                 "ultimo_turno": ultimo_turno,
                 "puede_ver_historia_clinica": puede_ver_historia,
@@ -173,7 +192,7 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 "cantidad_historias_clinicas": cantidad_historias,
                 "cantidad_adjuntos_clinicos": cantidad_adjuntos,
                 "resumen_rapido": self._obtener_resumen_rapido(
-                    turnos_activos.count(),
+                    cantidad_turnos_activos,
                     proximo_turno,
                     ultimo_turno,
                     ultima_historia,

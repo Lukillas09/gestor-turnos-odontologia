@@ -3,7 +3,7 @@
 {% block title %}Agenda diaria | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <h1>Agenda diaria</h1>
             <p class="subtitle">{{ fecha|date:"l d/m/Y" }}</p>
@@ -17,30 +17,30 @@
         </div>
     </div>
 
-    <section class="metric-grid">
-        <div class="metric-card metric-card-total">
+    <section class="metric-grid stagger-list">
+        <div class="metric-card metric-card-total animate-fade-up card-hover" style="--stagger-index: 0;">
             <span class="metric-label">Turnos</span>
             <strong>{{ resumen_estados.total }}</strong>
         </div>
-        <div class="metric-card metric-card-pendiente">
+        <div class="metric-card metric-card-pendiente animate-fade-up card-hover" style="--stagger-index: 1;">
             <span class="metric-label">Pendientes</span>
             <strong>{{ resumen_estados.pendiente }}</strong>
         </div>
-        <div class="metric-card metric-card-confirmado">
+        <div class="metric-card metric-card-confirmado animate-fade-up card-hover" style="--stagger-index: 2;">
             <span class="metric-label">Confirmados</span>
             <strong>{{ resumen_estados.confirmado }}</strong>
         </div>
-        <div class="metric-card metric-card-realizado">
+        <div class="metric-card metric-card-realizado animate-fade-up card-hover" style="--stagger-index: 3;">
             <span class="metric-label">Realizados</span>
             <strong>{{ resumen_estados.realizado }}</strong>
         </div>
-        <div class="metric-card metric-card-cancelado">
+        <div class="metric-card metric-card-cancelado animate-fade-up card-hover" style="--stagger-index: 4;">
             <span class="metric-label">Cancelados</span>
             <strong>{{ resumen_estados.cancelado }}</strong>
         </div>
     </section>
 
-    <form class="filter-panel agenda-filter" method="get">
+    <form class="filter-panel agenda-filter animate-fade-up" method="get">
         <div>
             <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
             {{ filtros_form.fecha }}
@@ -59,7 +59,7 @@
         </div>
     </form>
 
-    <div class="agenda-legend-panel">
+    <div class="agenda-legend-panel animate-fade-up">
         <div class="agenda-legend">
             <span class="status-badge status-pendiente">Pendiente</span>
             <span class="status-badge status-confirmado">Confirmado</span>
@@ -72,9 +72,9 @@
     </div>
 
     {% if agenda_odontologos %}
-        <div class="agenda-professional-list">
+        <div class="agenda-professional-list stagger-list">
             {% for agenda in agenda_odontologos %}
-                <section class="panel-section agenda-professional">
+                <section class="panel-section agenda-professional animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
                     <div class="section-header">
                         <div>
                             <h2>{{ agenda.odontologo }}</h2>
@@ -90,9 +90,9 @@
                     {% if busqueda and not agenda.turnos %}
                         <p class="muted">No hay turnos que coincidan con la búsqueda para este odontólogo.</p>
                     {% elif agenda.bloques %}
-                        <div class="schedule-list">
+                        <div class="schedule-list stagger-list">
                             {% for bloque in agenda.bloques %}
-                                <div class="schedule-row">
+                                <div class="schedule-row animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
                                     <div class="schedule-slot">{{ bloque.hora_inicio|time:"H:i" }} a {{ bloque.hora_fin|time:"H:i" }}</div>
                                     <div>
                                         {% if bloque.turnos %}
@@ -115,7 +115,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state">
+        <div class="empty-state animate-fade-up">
             {% if busqueda %}
                 <p>No hay turnos que coincidan con la búsqueda para este día.</p>
             {% else %}

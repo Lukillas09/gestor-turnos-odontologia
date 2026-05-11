@@ -3,7 +3,7 @@
 {% block title %}Pacientes | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <p class="eyebrow">Pacientes</p>
             <h1>Directorio clínico</h1>
@@ -14,7 +14,7 @@
         {% endif %}
     </div>
 
-    <section class="patient-search-panel" aria-label="Búsqueda de pacientes">
+    <section class="patient-search-panel animate-fade-up" aria-label="Búsqueda de pacientes" style="--stagger-index: 1;">
         <form class="patient-search-form" method="get">
             <div class="patient-search-field">
                 <span aria-hidden="true">⌕</span>
@@ -36,9 +36,9 @@
     </section>
 
     {% if pacientes %}
-        <section class="patient-card-list" aria-label="Listado de pacientes">
+        <section class="patient-card-list stagger-list" aria-label="Listado de pacientes">
             {% for paciente in pacientes %}
-                <article class="patient-list-card">
+                <article class="patient-list-card animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
                     <div class="patient-card-identity">
                         <div class="patient-avatar" aria-hidden="true">
                             {% if paciente.apellido %}{{ paciente.apellido|first|upper }}{% else %}{{ paciente.nombre|first|upper }}{% endif %}
@@ -67,12 +67,12 @@
                         </div>
                         <div>
                             <span>Último turno</span>
-                            {% if paciente.ultimo_turno %}
+                            {% if paciente.ultimo_turno_resumen %}
                                 <strong>
-                                    {{ paciente.ultimo_turno.fecha|date:"d/m/Y" }}
-                                    {{ paciente.ultimo_turno.hora_inicio|time:"H:i" }}
+                                    {{ paciente.ultimo_turno_resumen.fecha|date:"d/m/Y" }}
+                                    {{ paciente.ultimo_turno_resumen.hora_inicio|time:"H:i" }}
                                 </strong>
-                                <small>{{ paciente.ultimo_turno.get_estado_display }}</small>
+                                <small>{{ paciente.ultimo_turno_resumen.estado_label }}</small>
                             {% else %}
                                 <strong>Sin turnos</strong>
                             {% endif %}
@@ -89,7 +89,7 @@
             {% endfor %}
         </section>
     {% else %}
-        <div class="empty-state">
+        <div class="empty-state animate-fade-up">
             {% if busqueda %}
                 <p>No se encontraron pacientes para "{{ busqueda }}".</p>
             {% else %}
@@ -99,7 +99,7 @@
     {% endif %}
 
     {% if is_paginated %}
-        <nav class="pagination-actions" aria-label="Paginación de pacientes">
+        <nav class="pagination-actions animate-fade-up" aria-label="Paginación de pacientes">
             {% if page_obj.has_previous %}
                 <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Anterior</a>
             {% endif %}

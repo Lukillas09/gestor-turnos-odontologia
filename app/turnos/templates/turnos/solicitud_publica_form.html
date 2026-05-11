@@ -3,7 +3,7 @@
 {% block title %}Completar datos | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header public-data-header">
+    <div class="page-header public-data-header animate-fade-up">
         <div>
             <h1>Completar datos</h1>
             <p class="subtitle">Completá tus datos de contacto para confirmar la solicitud. El consultorio te avisará cuando el turno quede confirmado.</p>
@@ -11,7 +11,7 @@
     </div>
 
     {% if odontologo and fecha and hora_inicio %}
-        <section class="public-reservation-summary public-reservation-summary-actionable">
+        <section class="public-reservation-summary public-reservation-summary-actionable animate-fade-up card-hover">
             <div class="public-avatar public-avatar-small">
                 {% if odontologo.foto_perfil_url %}
                     <img
@@ -37,7 +37,7 @@
         </section>
     {% endif %}
 
-    <form class="form-panel public-data-form public-simple-form" method="post" novalidate>
+    <form class="form-panel public-data-form public-simple-form animate-fade-up" method="post" novalidate>
         {% csrf_token %}
 
         {{ form.odontologo.as_hidden }}

@@ -3,7 +3,7 @@
 {% block title %}Solicitar turno | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <section class="public-appointment-hero">
+    <section class="public-appointment-hero animate-fade-up">
         <div class="public-profile">
             <div class="public-avatar">
                 {% if odontologo and odontologo.foto_perfil_url %}
@@ -35,12 +35,12 @@
     </section>
 
     <section class="public-appointment-panel">
-        <div class="public-section-title">
+        <div class="public-section-title animate-fade-up">
             <h2>Opciones de turnos disponibles</h2>
             <p>Elegí un horario y después completá tus datos para enviar la solicitud.</p>
         </div>
 
-        <form class="public-search-panel" method="get" novalidate>
+        <form class="public-search-panel animate-fade-up" method="get" novalidate>
             <div>
                 <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontólogo</label>
                 {{ busqueda_form.odontologo }}
@@ -62,9 +62,9 @@
         </form>
 
         {% if dias_cercanos %}
-            <div class="public-date-strip">
+            <div class="public-date-strip stagger-list">
                 {% for dia in dias_cercanos %}
-                    <a class="public-date-chip{% if dia.seleccionado %} is-active{% endif %}" href="{{ dia.url }}">
+                    <a class="public-date-chip animate-fade-up{% if dia.seleccionado %} is-active{% endif %}" style="--stagger-index: {{ forloop.counter0 }};" href="{{ dia.url }}">
                         <strong>{{ dia.fecha|date:"d/m" }}</strong>
                         <span>{{ dia.cantidad }} horario{% if dia.cantidad != 1 %}s{% endif %}</span>
                     </a>
@@ -73,8 +73,8 @@
         {% endif %}
 
         {% if odontologo and fecha %}
-            <div class="public-slot-grid">
-                <section class="public-slot-card">
+            <div class="public-slot-grid stagger-list">
+                <section class="public-slot-card animate-fade-up card-hover" style="--stagger-index: 0;">
                     <div class="public-slot-card-header">
                         <div>
                             <h3>Turnos por la mañana</h3>
@@ -84,9 +84,9 @@
                     </div>
 
                     {% if horarios_manana %}
-                        <div class="public-slot-list">
+                        <div class="public-slot-list stagger-list">
                             {% for opcion in horarios_manana %}
-                                <a class="public-slot-button" href="{{ opcion.url }}">
+                                <a class="public-slot-button animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};" href="{{ opcion.url }}">
                                     <span>{{ opcion.label }}</span>
                                     <strong>Reservar turno</strong>
                                 </a>
@@ -97,7 +97,7 @@
                     {% endif %}
                 </section>
 
-                <section class="public-slot-card">
+                <section class="public-slot-card animate-fade-up card-hover" style="--stagger-index: 1;">
                     <div class="public-slot-card-header">
                         <div>
                             <h3>Turnos por la tarde</h3>
@@ -107,9 +107,9 @@
                     </div>
 
                     {% if horarios_tarde %}
-                        <div class="public-slot-list">
+                        <div class="public-slot-list stagger-list">
                             {% for opcion in horarios_tarde %}
-                                <a class="public-slot-button" href="{{ opcion.url }}">
+                                <a class="public-slot-button animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};" href="{{ opcion.url }}">
                                     <span>{{ opcion.label }}</span>
                                     <strong>Reservar turno</strong>
                                 </a>
@@ -121,7 +121,7 @@
                 </section>
             </div>
         {% elif not busqueda_form.errors %}
-            <div class="empty-state">
+            <div class="empty-state animate-fade-up">
                 <p>No hay odontólogos activos para solicitar turnos.</p>
             </div>
         {% endif %}

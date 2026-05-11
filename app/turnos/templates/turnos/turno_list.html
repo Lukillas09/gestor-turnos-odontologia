@@ -3,7 +3,7 @@
 {% block title %}Turnos | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <h1>Turnos</h1>
             <p class="subtitle">Agenda de turnos del consultorio.</p>
@@ -13,7 +13,7 @@
         {% endif %}
     </div>
 
-    <form class="filter-panel" method="get">
+    <form class="filter-panel animate-fade-up" method="get" style="--stagger-index: 1;">
         <div>
             <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
             {{ filtros_form.fecha }}
@@ -33,7 +33,7 @@
     </form>
 
     {% if turnos %}
-        <div class="table-wrap">
+        <div class="table-wrap animate-fade-up" style="--stagger-index: 2;">
             <table>
                 <thead>
                     <tr>
@@ -73,13 +73,13 @@
             </table>
         </div>
     {% else %}
-        <div class="empty-state">
+        <div class="empty-state animate-fade-up">
             <p>No hay turnos para los filtros seleccionados.</p>
         </div>
     {% endif %}
 
     {% if is_paginated %}
-        <div class="form-actions">
+        <div class="form-actions animate-fade-up">
             {% if page_obj.has_previous %}
                 <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Anterior</a>
             {% endif %}

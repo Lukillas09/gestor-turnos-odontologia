@@ -3,7 +3,7 @@
 {% block title %}{{ titulo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <h1>{{ titulo }}</h1>
             <p class="subtitle">{{ subtitulo }}</p>
@@ -11,7 +11,7 @@
     </div>
 
     {% if busqueda_form %}
-        <form class="filter-panel" method="get" novalidate data-horarios-search>
+        <form class="filter-panel animate-fade-up" method="get" novalidate data-horarios-search>
             {% if busqueda_form.non_field_errors %}
                 <div class="field-error field-full">{{ busqueda_form.non_field_errors }}</div>
             {% endif %}
@@ -38,7 +38,7 @@
     {% endif %}
 
     <form
-        class="form-panel"
+        class="form-panel animate-fade-up"
         method="post"
         novalidate
         data-horarios-form

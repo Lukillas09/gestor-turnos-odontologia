@@ -3,7 +3,7 @@
 {% block title %}Entrada clínica de {{ historia.paciente }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <h1>Entrada de historia clínica</h1>
             <p class="subtitle">{{ historia.paciente }} - {{ historia.fecha|date:"d/m/Y" }}</p>
@@ -16,7 +16,7 @@
         </div>
     </div>
 
-    <section class="detail-panel">
+    <section class="detail-panel animate-fade-up card-hover">
         <dl class="detail-grid">
             <div>
                 <dt>Paciente</dt>
@@ -81,7 +81,7 @@
         </dl>
     </section>
 
-    <section class="panel-section">
+    <section class="panel-section animate-fade-up">
         <div class="section-heading">
             <div>
                 <h2>Adjuntos</h2>
@@ -90,9 +90,9 @@
         </div>
 
         {% if historia.adjuntos.exists %}
-            <div class="compact-list">
+            <div class="compact-list stagger-list">
                 {% for adjunto in historia.adjuntos.all %}
-                    <article class="compact-item">
+                    <article class="compact-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
                         <div>
                             <strong>{{ adjunto.nombre_archivo }}</strong>
                             <span>
@@ -108,7 +108,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="empty-state">
+            <div class="empty-state animate-fade-up">
                 <p>No hay adjuntos cargados para esta entrada.</p>
             </div>
         {% endif %}
