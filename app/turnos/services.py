@@ -173,27 +173,29 @@ def crear_solicitud_turno_publica(datos):
 
 def obtener_o_crear_paciente_desde_solicitud(datos):
     documento = datos.get("documento")
+    email = datos.get("email", "")
     paciente = None
     datos_paciente = {
         "nombre": datos["nombre"],
         "apellido": datos["apellido"],
-        "documento": documento,
         "telefono": datos["telefono"],
-        "email": datos["email"],
-        "fecha_nacimiento": datos.get("fecha_nacimiento"),
-        "genero": datos.get("genero", ""),
-        "domicilio": datos.get("domicilio", ""),
-        "localidad": datos.get("localidad", ""),
-        "obra_social": datos.get("obra_social", ""),
-        "numero_afiliado": datos.get("numero_afiliado", ""),
-        "contacto_emergencia": datos.get("contacto_emergencia", ""),
     }
 
     if documento:
         paciente = Paciente.objects.filter(documento=documento).first()
+        datos_paciente["documento"] = documento
+
+    if email:
+        datos_paciente["email"] = email
 
     if not paciente:
-        return Paciente.objects.create(**datos_paciente)
+        return Paciente.objects.create(
+            **{
+                **datos_paciente,
+                "documento": documento,
+                "email": email,
+            }
+        )
 
     for campo, valor in datos_paciente.items():
         setattr(paciente, campo, valor)

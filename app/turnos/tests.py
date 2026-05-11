@@ -803,6 +803,10 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "Paula Publica")
         self.assertContains(response, "10:00 a 10:30")
         self.assertContains(response, "Enviar solicitud")
+        self.assertContains(response, "Tus datos de contacto")
+        self.assertNotContains(response, "Fecha de nacimiento")
+        self.assertNotContains(response, "Obra social")
+        self.assertNotContains(response, "Contacto de emergencia")
 
     def test_formulario_publico_no_permite_buscar_fecha_pasada(self):
         fecha_pasada = timezone.localdate() - timedelta(days=1)
@@ -825,15 +829,8 @@ class SolicitudTurnoPublicaTests(TestCase):
                 "nombre": "Lucia",
                 "apellido": "Paz",
                 "documento": "38111222",
-                "fecha_nacimiento": "1995-03-20",
-                "genero": Paciente.Genero.FEMENINO,
                 "telefono": "1155667788",
                 "email": "lucia@example.com",
-                "domicilio": "Italia 123",
-                "localidad": "Rosario",
-                "obra_social": "Swiss Medical",
-                "numero_afiliado": "SM-123",
-                "contacto_emergencia": "Carlos 3415550000",
                 "odontologo": self.odontologo.pk,
                 "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": "10:00",
@@ -846,13 +843,15 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
         self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
         self.assertEqual(turno.paciente.documento, "38111222")
-        self.assertEqual(turno.paciente.fecha_nacimiento, date(1995, 3, 20))
-        self.assertEqual(turno.paciente.genero, Paciente.Genero.FEMENINO)
-        self.assertEqual(turno.paciente.domicilio, "Italia 123")
-        self.assertEqual(turno.paciente.localidad, "Rosario")
-        self.assertEqual(turno.paciente.obra_social, "Swiss Medical")
-        self.assertEqual(turno.paciente.numero_afiliado, "SM-123")
-        self.assertEqual(turno.paciente.contacto_emergencia, "Carlos 3415550000")
+        self.assertEqual(turno.paciente.telefono, "1155667788")
+        self.assertEqual(turno.paciente.email, "lucia@example.com")
+        self.assertIsNone(turno.paciente.fecha_nacimiento)
+        self.assertEqual(turno.paciente.genero, "")
+        self.assertEqual(turno.paciente.domicilio, "")
+        self.assertEqual(turno.paciente.localidad, "")
+        self.assertEqual(turno.paciente.obra_social, "")
+        self.assertEqual(turno.paciente.numero_afiliado, "")
+        self.assertEqual(turno.paciente.contacto_emergencia, "")
         self.assertEqual(turno.hora_inicio, time(10, 0))
 
     def test_confirmacion_publica_muestra_datos_del_turno(self):
@@ -885,6 +884,9 @@ class SolicitudTurnoPublicaTests(TestCase):
             nombre="Viejo",
             apellido="Nombre",
             documento="39111222",
+            fecha_nacimiento=date(1990, 4, 15),
+            obra_social="OSDE",
+            contacto_emergencia="Rosa 3415550000",
         )
 
         response = self.client.post(
@@ -910,6 +912,9 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(turno.paciente, paciente)
         self.assertEqual(paciente.nombre, "Nadia")
         self.assertEqual(paciente.email, "nadia@example.com")
+        self.assertEqual(paciente.fecha_nacimiento, date(1990, 4, 15))
+        self.assertEqual(paciente.obra_social, "OSDE")
+        self.assertEqual(paciente.contacto_emergencia, "Rosa 3415550000")
 
     def test_solicitud_publica_rechaza_horario_no_disponible(self):
         paciente = Paciente.objects.create(
@@ -973,6 +978,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ingresá tu nombre.")
         self.assertContains(response, "Ingresá tu apellido.")
+        self.assertContains(response, "Ingresá tu teléfono.")
         self.assertContains(response, "Elegí un odontólogo.")
         self.assertContains(response, "Elegí una fecha.")
         self.assertContains(response, "Elegí un horario disponible.")

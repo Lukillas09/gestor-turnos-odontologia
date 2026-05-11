@@ -4,7 +4,6 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 
 from config.form_widgets import HtmlDateInput
-from pacientes.models import Paciente
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
 
 from .models import Odontologo, Turno
@@ -228,41 +227,33 @@ class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
 class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     nombre = forms.CharField(
         max_length=100,
+        label="Nombre",
         error_messages={"required": "Ingresá tu nombre."},
+        widget=forms.TextInput(attrs={"placeholder": "Ej: Lucía"}),
     )
     apellido = forms.CharField(
         max_length=100,
+        label="Apellido",
         error_messages={"required": "Ingresá tu apellido."},
+        widget=forms.TextInput(attrs={"placeholder": "Ej: Pérez"}),
     )
-    documento = forms.CharField(max_length=20, required=False, label="DNI")
-    fecha_nacimiento = forms.DateField(
+    telefono = forms.CharField(
+        max_length=30,
+        label="Teléfono",
+        error_messages={"required": "Ingresá tu teléfono."},
+        widget=forms.TextInput(attrs={"placeholder": "Ej: 260 433 1114"}),
+    )
+    documento = forms.CharField(
+        max_length=20,
         required=False,
-        label="Fecha de nacimiento",
-        widget=HtmlDateInput(),
-        error_messages={"invalid": "Ingresá una fecha válida."},
+        label="DNI",
+        widget=forms.TextInput(attrs={"placeholder": "Opcional"}),
     )
-    genero = forms.ChoiceField(
-        choices=[("", "Seleccionar")] + list(Paciente.Genero.choices),
-        required=False,
-        label="Sexo / género",
-    )
-    telefono = forms.CharField(max_length=30, required=False, label="Teléfono")
     email = forms.EmailField(
         required=False,
+        label="Email",
+        widget=forms.EmailInput(attrs={"placeholder": "Opcional"}),
         error_messages={"invalid": "Ingresá un email válido o dejá el campo vacío."},
-    )
-    domicilio = forms.CharField(max_length=200, required=False)
-    localidad = forms.CharField(max_length=100, required=False)
-    obra_social = forms.CharField(max_length=100, required=False)
-    numero_afiliado = forms.CharField(
-        max_length=50,
-        required=False,
-        label="Número de afiliado",
-    )
-    contacto_emergencia = forms.CharField(
-        max_length=150,
-        required=False,
-        label="Contacto de emergencia",
     )
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True),
@@ -289,6 +280,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     motivo = forms.CharField(
         max_length=200,
         required=False,
+        label="Motivo breve",
         widget=forms.TextInput(attrs={"placeholder": "Ej: control, limpieza, urgencia"}),
     )
 

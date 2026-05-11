@@ -1663,6 +1663,20 @@
             padding: 20px;
         }
 
+        .public-reservation-summary-actionable {
+            max-width: 860px;
+            margin-right: auto;
+            margin-left: auto;
+        }
+
+        .public-reservation-details {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            min-width: 0;
+        }
+
         .public-reservation-summary .public-pill {
             background: #ecfdf3;
             color: #047857;
@@ -1670,6 +1684,39 @@
 
         .public-data-form {
             max-width: 860px;
+        }
+
+        .public-simple-form {
+            margin: 0 auto;
+        }
+
+        .public-data-header {
+            max-width: 860px;
+            margin-right: auto;
+            margin-left: auto;
+        }
+
+        .public-form-intro {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eef2f7;
+            padding-bottom: 16px;
+        }
+
+        .public-form-intro h2 {
+            margin-bottom: 4px;
+        }
+
+        .public-form-intro p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .public-short-form-grid {
+            align-items: start;
+        }
+
+        .public-form-actions {
+            justify-content: flex-end;
         }
 
         .danger-panel {
@@ -1838,6 +1885,7 @@
             .patient-search-form,
             .patient-list-card,
             .patient-card-info,
+            .public-reservation-details,
             .public-profile,
             .public-slot-grid,
             .public-reservation-summary,
@@ -1850,7 +1898,9 @@
             .clinical-action-group,
             .patient-search-actions,
             .patient-card-actions,
-            .pagination-actions {
+            .pagination-actions,
+            .public-reservation-details,
+            .public-form-actions {
                 align-items: stretch;
                 justify-content: flex-start;
                 flex-direction: column;
