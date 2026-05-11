@@ -22,6 +22,8 @@
             --success-bg: #ecfdf3;
             --success-text: #067647;
             --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+            --sidebar-width: 264px;
+            --topbar-height: 68px;
         }
 
         * {
@@ -67,6 +69,150 @@
             font-weight: 700;
             text-decoration: none;
             white-space: nowrap;
+        }
+
+        .app-shell-body {
+            background: #f4f6f8;
+        }
+
+        .app-topbar {
+            min-height: var(--topbar-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            margin-left: var(--sidebar-width);
+            padding: 0 32px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(12px);
+        }
+
+        .app-topbar-title {
+            min-width: 0;
+        }
+
+        .app-topbar-title strong {
+            display: block;
+            font-size: 16px;
+        }
+
+        .app-topbar-title span {
+            display: block;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .app-user-menu {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: fit-content;
+        }
+
+        .app-user-text {
+            display: grid;
+            justify-items: end;
+            line-height: 1.25;
+        }
+
+        .app-user-text strong {
+            font-size: 14px;
+        }
+
+        .app-user-text span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .app-avatar {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .app-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .app-sidebar {
+            width: var(--sidebar-width);
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            border-right: 1px solid var(--line);
+            background: #ffffff;
+        }
+
+        .app-sidebar-header {
+            min-height: var(--topbar-height);
+            display: flex;
+            align-items: center;
+            padding: 0 22px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .app-sidebar-nav {
+            display: grid;
+            gap: 4px;
+            padding: 0 14px;
+        }
+
+        .app-sidebar-label {
+            margin: 14px 8px 6px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .app-sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 40px;
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: #344054;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .app-sidebar-link:hover,
+        .app-sidebar-link.is-active {
+            background: #eef2ff;
+            color: #1d4ed8;
+        }
+
+        .app-sidebar-link-icon {
+            width: 24px;
+            display: inline-flex;
+            justify-content: center;
+            color: inherit;
+            font-size: 15px;
+        }
+
+        .app-page {
+            width: auto;
+            max-width: 1200px;
+            margin-left: var(--sidebar-width);
+            padding: 32px;
         }
 
         .nav {
@@ -1035,8 +1181,59 @@
 
         @media (max-width: 720px) {
             .topbar-inner,
-            .page {
+            .page,
+            .app-page {
                 width: min(100% - 20px, 1120px);
+            }
+
+            .app-topbar,
+            .app-page {
+                margin-left: 0;
+            }
+
+            .app-topbar {
+                min-height: auto;
+                align-items: stretch;
+                flex-direction: column;
+                padding: 14px 10px;
+            }
+
+            .app-user-menu {
+                justify-content: space-between;
+            }
+
+            .app-user-text {
+                justify-items: start;
+            }
+
+            .app-sidebar {
+                position: static;
+                width: auto;
+                border-right: 0;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .app-sidebar-header {
+                display: none;
+            }
+
+            .app-sidebar-nav {
+                display: flex;
+                overflow-x: auto;
+                gap: 6px;
+                padding: 10px;
+            }
+
+            .app-sidebar-label {
+                display: none;
+            }
+
+            .app-sidebar-link {
+                white-space: nowrap;
+            }
+
+            .app-page {
+                padding: 24px 0;
             }
 
             .topbar-inner,
@@ -1090,41 +1287,94 @@
         }
     </style>
 </head>
-<body>
-    <header class="topbar">
-        <div class="topbar-inner">
-            <a class="brand" href="{% url 'inicio' %}">Gestor de Turnos</a>
-            <nav class="nav" aria-label="Principal">
-                {% if request.user.is_authenticated %}
-                    <a class="nav-link {% if request.resolver_match.url_name == 'inicio' %}is-active{% endif %}" href="{% url 'inicio' %}">Inicio</a>
-                    {% if puede_ver_pacientes %}
-                        <a class="nav-link {% if request.resolver_match.namespace == 'pacientes' %}is-active{% endif %}" href="{% url 'pacientes:lista' %}">Pacientes</a>
+<body class="{% if request.user.is_authenticated %}app-shell-body{% endif %}">
+    {% if request.user.is_authenticated %}
+        <header class="app-topbar">
+            <div class="app-topbar-title">
+                <strong>Panel interno</strong>
+                <span>Gestor de turnos odontologicos</span>
+            </div>
+            <div class="app-user-menu">
+                <div class="app-user-text">
+                    <strong>{{ request.user.get_username }}</strong>
+                    <span>{% if request.user.is_staff %}Administrador{% elif puede_conectar_google_calendar %}Odontologo{% elif puede_gestionar_turnos %}Recepcion{% else %}Usuario interno{% endif %}</span>
+                </div>
+                <div class="app-avatar">
+                    {% if request.user.perfil_odontologo.foto_url %}
+                        <img src="{{ request.user.perfil_odontologo.foto_url }}" alt="{{ request.user.get_username }}">
+                    {% else %}
+                        <span>{{ request.user.get_username|first|upper }}</span>
                     {% endif %}
-                    {% if puede_ver_turnos %}
-                        <a class="nav-link {% if request.resolver_match.namespace == 'turnos' and request.resolver_match.url_name == 'lista' %}is-active{% endif %}" href="{% url 'turnos:lista' %}">Turnos</a>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'agenda_dia' %}is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}">Agenda dia</a>
-                        <a class="nav-link {% if request.resolver_match.url_name == 'agenda_semana' %}is-active{% endif %}" href="{% url 'turnos:agenda_semana' %}">Agenda semana</a>
-                    {% endif %}
-                    {% if puede_conectar_google_calendar %}
-                        <a class="nav-link {% if request.resolver_match.url_name == 'google_calendar' %}is-active{% endif %}" href="{% url 'turnos:google_calendar' %}">Google Calendar</a>
-                    {% endif %}
-                    {% if request.user.is_staff and puede_configurar_disponibilidad %}
-                        <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
-                    {% endif %}
-                    <span class="nav-user">{{ request.user.get_username }}</span>
-                    <form class="logout-form" method="post" action="{% url 'logout' %}">
-                        {% csrf_token %}
-                        <button class="nav-button" type="submit">Salir</button>
-                    </form>
-                {% else %}
-                    <a class="nav-link" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
-                    <a class="nav-link" href="{% url 'login' %}">Ingresar</a>
+                </div>
+                <form class="logout-form" method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button class="button button-secondary button-small" type="submit">Salir</button>
+                </form>
+            </div>
+        </header>
+
+        <aside class="app-sidebar" aria-label="Principal">
+            <div class="app-sidebar-header">
+                <a class="brand" href="{% url 'inicio' %}">Gestor de Turnos</a>
+            </div>
+            <nav class="app-sidebar-nav">
+                <span class="app-sidebar-label">Consultorio</span>
+                <a class="app-sidebar-link {% if request.resolver_match.url_name == 'inicio' %}is-active{% endif %}" href="{% url 'inicio' %}">
+                    <span class="app-sidebar-link-icon">⌂</span>
+                    Inicio
+                </a>
+                {% if puede_ver_pacientes %}
+                    <a class="app-sidebar-link {% if request.resolver_match.namespace == 'pacientes' %}is-active{% endif %}" href="{% url 'pacientes:lista' %}">
+                        <span class="app-sidebar-link-icon">▣</span>
+                        Pacientes
+                    </a>
+                {% endif %}
+                {% if puede_ver_turnos %}
+                    <a class="app-sidebar-link {% if request.resolver_match.namespace == 'turnos' and request.resolver_match.url_name == 'lista' %}is-active{% endif %}" href="{% url 'turnos:lista' %}">
+                        <span class="app-sidebar-link-icon">◷</span>
+                        Turnos
+                    </a>
+
+                    <span class="app-sidebar-label">Agenda</span>
+                    <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_dia' %}is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}">
+                        <span class="app-sidebar-link-icon">□</span>
+                        Agenda dia
+                    </a>
+                    <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_semana' %}is-active{% endif %}" href="{% url 'turnos:agenda_semana' %}">
+                        <span class="app-sidebar-link-icon">▦</span>
+                        Agenda semana
+                    </a>
+                {% endif %}
+                {% if puede_conectar_google_calendar or request.user.is_staff %}
+                    <span class="app-sidebar-label">Configuracion</span>
+                {% endif %}
+                {% if puede_conectar_google_calendar %}
+                    <a class="app-sidebar-link {% if request.resolver_match.url_name == 'google_calendar' %}is-active{% endif %}" href="{% url 'turnos:google_calendar' %}">
+                        <span class="app-sidebar-link-icon">◎</span>
+                        Google Calendar
+                    </a>
+                {% endif %}
+                {% if request.user.is_staff and puede_configurar_disponibilidad %}
+                    <a class="app-sidebar-link" href="{% url 'admin:index' %}">
+                        <span class="app-sidebar-link-icon">⚙</span>
+                        Admin
+                    </a>
                 {% endif %}
             </nav>
-        </div>
-    </header>
+        </aside>
+    {% else %}
+        <header class="topbar">
+            <div class="topbar-inner">
+                <a class="brand" href="{% url 'inicio' %}">Gestor de Turnos</a>
+                <nav class="nav" aria-label="Principal">
+                    <a class="nav-link" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
+                    <a class="nav-link" href="{% url 'login' %}">Ingresar</a>
+                </nav>
+            </div>
+        </header>
+    {% endif %}
 
-    <main class="page">
+    <main class="{% if request.user.is_authenticated %}app-page{% else %}page{% endif %}">
         {% if messages %}
             <ul class="messages">
                 {% for message in messages %}
