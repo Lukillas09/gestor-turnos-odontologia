@@ -9,30 +9,34 @@
             <p class="subtitle">{{ fecha|date:"l d/m/Y" }}</p>
         </div>
         <div class="header-actions">
-            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Dia anterior</a>
-            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Dia siguiente</a>
+            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Dia anterior</a>
+            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Dia siguiente</a>
             {% if puede_gestionar_turnos %}
-                <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
+                <a class="button" href="{% url 'turnos:crear' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Nuevo turno</a>
             {% endif %}
         </div>
     </div>
 
     <section class="metric-grid">
-        <div class="metric-card">
+        <div class="metric-card metric-card-total">
             <span class="metric-label">Turnos</span>
             <strong>{{ resumen_estados.total }}</strong>
         </div>
-        <div class="metric-card">
+        <div class="metric-card metric-card-pendiente">
             <span class="metric-label">Pendientes</span>
             <strong>{{ resumen_estados.pendiente }}</strong>
         </div>
-        <div class="metric-card">
+        <div class="metric-card metric-card-confirmado">
             <span class="metric-label">Confirmados</span>
             <strong>{{ resumen_estados.confirmado }}</strong>
         </div>
-        <div class="metric-card">
+        <div class="metric-card metric-card-realizado">
             <span class="metric-label">Realizados</span>
             <strong>{{ resumen_estados.realizado }}</strong>
+        </div>
+        <div class="metric-card metric-card-cancelado">
+            <span class="metric-label">Cancelados</span>
+            <strong>{{ resumen_estados.cancelado }}</strong>
         </div>
     </section>
 
@@ -45,17 +49,26 @@
             <label for="{{ filtros_form.odontologo.id_for_label }}">Odontologo</label>
             {{ filtros_form.odontologo }}
         </div>
+        <div>
+            <label for="{{ filtros_form.buscar.id_for_label }}">Buscar</label>
+            {{ filtros_form.buscar }}
+        </div>
         <div class="filter-actions">
             <button type="submit">Ver agenda</button>
             <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Hoy</a>
         </div>
     </form>
 
-    <div class="agenda-legend">
-        <span class="status-badge status-pendiente">Pendiente</span>
-        <span class="status-badge status-confirmado">Confirmado</span>
-        <span class="status-badge status-realizado">Realizado</span>
-        <span class="status-badge status-cancelado">Cancelado</span>
+    <div class="agenda-legend-panel">
+        <div class="agenda-legend">
+            <span class="status-badge status-pendiente">Pendiente</span>
+            <span class="status-badge status-confirmado">Confirmado</span>
+            <span class="status-badge status-realizado">Realizado</span>
+            <span class="status-badge status-cancelado">Cancelado</span>
+        </div>
+        {% if busqueda %}
+            <span class="muted">Filtro activo: "{{ busqueda }}"</span>
+        {% endif %}
     </div>
 
     {% if agenda_odontologos %}
@@ -74,7 +87,9 @@
                         {% endif %}
                     </div>
 
-                    {% if agenda.bloques %}
+                    {% if busqueda and not agenda.turnos %}
+                        <p class="muted">No hay turnos que coincidan con la busqueda para este odontologo.</p>
+                    {% elif agenda.bloques %}
                         <div class="schedule-list">
                             {% for bloque in agenda.bloques %}
                                 <div class="schedule-row">
@@ -87,7 +102,7 @@
                                                 {% endfor %}
                                             </div>
                                         {% else %}
-                                            <span class="muted">Disponible</span>
+                                            <span class="agenda-empty-slot">Disponible</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -101,7 +116,11 @@
         </div>
     {% else %}
         <div class="empty-state">
-            <p>No hay disponibilidad ni turnos cargados para este dia.</p>
+            {% if busqueda %}
+                <p>No hay turnos que coincidan con la busqueda para este dia.</p>
+            {% else %}
+                <p>No hay disponibilidad ni turnos cargados para este dia.</p>
+            {% endif %}
         </div>
     {% endif %}
 {% endblock %}

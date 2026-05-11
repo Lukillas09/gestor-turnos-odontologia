@@ -352,6 +352,7 @@
 
         .metric-card {
             padding: 18px;
+            border-left: 4px solid #cbd5e1;
         }
 
         .metric-card strong {
@@ -365,6 +366,30 @@
             color: var(--muted);
             font-size: 13px;
             font-weight: 700;
+        }
+
+        .metric-card-total {
+            border-left-color: #2563eb;
+        }
+
+        .metric-card-pendiente {
+            border-left-color: #eab308;
+            background: #fffbeb;
+        }
+
+        .metric-card-confirmado {
+            border-left-color: #059669;
+            background: #ecfdf3;
+        }
+
+        .metric-card-realizado {
+            border-left-color: #4f46e5;
+            background: #eef2ff;
+        }
+
+        .metric-card-cancelado {
+            border-left-color: #dc2626;
+            background: #fef2f2;
         }
 
         .quick-actions,
@@ -449,7 +474,7 @@
         }
 
         .agenda-filter {
-            grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) auto;
+            grid-template-columns: minmax(170px, 0.7fr) minmax(220px, 0.9fr) minmax(260px, 1.1fr) auto;
         }
 
         .filter-actions {
@@ -465,8 +490,17 @@
             align-items: center;
         }
 
-        .agenda-legend {
+        .agenda-legend-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
             margin: 0 0 16px;
+            flex-wrap: wrap;
+        }
+
+        .agenda-legend {
+            margin: 0;
         }
 
         .agenda-professional-list {
@@ -499,11 +533,11 @@
 
         .schedule-row {
             display: grid;
-            grid-template-columns: 120px minmax(0, 1fr);
-            gap: 12px;
+            grid-template-columns: 132px minmax(0, 1fr);
+            gap: 16px;
             align-items: stretch;
             border-bottom: 1px solid var(--line);
-            padding: 12px 0;
+            padding: 14px 0;
         }
 
         .schedule-row:last-child {
@@ -512,8 +546,24 @@
         }
 
         .schedule-slot {
-            color: var(--muted);
+            display: flex;
+            align-items: flex-start;
+            color: #344054;
             font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .agenda-empty-slot {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            min-height: 28px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 999px;
+            padding: 3px 10px;
+            background: #f8fafc;
+            color: var(--muted);
+            font-size: 13px;
         }
 
         .week-day {
@@ -534,40 +584,81 @@
 
         .agenda-turno {
             display: grid;
-            gap: 4px;
+            gap: 10px;
             border: 1px solid var(--line);
             border-left-width: 4px;
             border-radius: 6px;
-            padding: 10px 12px;
+            padding: 12px 14px;
             background: var(--surface);
             white-space: normal;
         }
 
         .agenda-turno-pendiente {
-            border-left-color: #d97706;
-            background: #fff8e6;
+            border-color: #fde68a;
+            border-left-color: #eab308;
+            background: #fffbeb;
         }
 
         .agenda-turno-confirmado {
+            border-color: #a7f3d0;
             border-left-color: #059669;
             background: #ecfdf3;
         }
 
         .agenda-turno-cancelado {
-            border-left-color: #b42318;
+            border-color: #fecaca;
+            border-left-color: #dc2626;
             background: #fef3f2;
         }
 
         .agenda-turno-realizado {
+            border-color: #c7d2fe;
             border-left-color: #4f46e5;
             background: #eef2ff;
         }
 
-        .agenda-turno-main {
+        .agenda-turno-header {
             display: flex;
             flex-wrap: wrap;
+            justify-content: space-between;
             gap: 8px;
             align-items: center;
+        }
+
+        .agenda-turno-body {
+            display: grid;
+            grid-template-columns: minmax(160px, 1.2fr) minmax(130px, 0.8fr) minmax(160px, 1fr) minmax(140px, 0.9fr);
+            gap: 10px 16px;
+            align-items: start;
+        }
+
+        .agenda-turno-body > div {
+            min-width: 0;
+        }
+
+        .agenda-turno-body strong,
+        .agenda-turno-body span,
+        .agenda-contact-link {
+            overflow-wrap: anywhere;
+        }
+
+        .agenda-field-label {
+            display: block;
+            margin-bottom: 2px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .agenda-contact-link {
+            color: #047857;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .agenda-contact-link:hover {
+            text-decoration: underline;
         }
 
         .agenda-turno-actions {
@@ -590,9 +681,9 @@
         }
 
         .status-pendiente {
-            border-color: #fed7aa;
-            background: var(--warning-bg);
-            color: var(--warning-text);
+            border-color: #facc15;
+            background: #fef3c7;
+            color: #854d0e;
         }
 
         .status-confirmado {
@@ -603,7 +694,7 @@
 
         .status-cancelado {
             border-color: #fecaca;
-            background: #fef2f2;
+            background: #fee2e2;
             color: #b42318;
         }
 
@@ -737,6 +828,7 @@
             .agenda-filter,
             .form-grid,
             .detail-grid,
+            .agenda-turno-body,
             .dashboard-grid,
             .patient-layout,
             .schedule-row,

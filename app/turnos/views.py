@@ -536,23 +536,31 @@ class AgendaDiaView(VerTurnosRequeridoMixin, TemplateView):
         filtros_form = AgendaFiltroForm(self.request.GET, usuario=self.request.user)
         fecha = timezone.localdate()
         odontologo_solicitado = None
+        busqueda = ""
 
         if filtros_form.is_valid():
             fecha = filtros_form.cleaned_data["fecha"] or fecha
             odontologo_solicitado = filtros_form.cleaned_data["odontologo"]
+            busqueda = filtros_form.cleaned_data["buscar"].strip()
 
         odontologo = obtener_odontologo_visible(self.request.user, odontologo_solicitado)
 
         context["filtros_form"] = filtros_form
         context["odontologo"] = odontologo
+        context["busqueda"] = busqueda
         context["fecha"] = fecha
         context["fecha_anterior"] = fecha - timedelta(days=1)
         context["fecha_siguiente"] = fecha + timedelta(days=1)
-        context["turnos"] = obtener_turnos_del_dia(fecha, odontologo)
-        context["bloques_agenda"] = obtener_bloques_agenda_del_dia(fecha, odontologo)
+        context["turnos"] = obtener_turnos_del_dia(fecha, odontologo, busqueda)
+        context["bloques_agenda"] = obtener_bloques_agenda_del_dia(
+            fecha,
+            odontologo,
+            busqueda=busqueda,
+        )
         context["agenda_odontologos"] = obtener_agenda_diaria_por_odontologo(
             fecha,
             odontologo,
+            busqueda,
         )
         context["resumen_estados"] = obtener_resumen_estados(context["turnos"])
         return context
@@ -566,21 +574,28 @@ class AgendaSemanaView(VerTurnosRequeridoMixin, TemplateView):
         filtros_form = AgendaFiltroForm(self.request.GET, usuario=self.request.user)
         fecha_referencia = timezone.localdate()
         odontologo_solicitado = None
+        busqueda = ""
 
         if filtros_form.is_valid():
             fecha_referencia = filtros_form.cleaned_data["fecha"] or fecha_referencia
             odontologo_solicitado = filtros_form.cleaned_data["odontologo"]
+            busqueda = filtros_form.cleaned_data["buscar"].strip()
 
         inicio_semana = obtener_inicio_semana(fecha_referencia)
         odontologo = obtener_odontologo_visible(self.request.user, odontologo_solicitado)
 
         context["filtros_form"] = filtros_form
         context["odontologo"] = odontologo
+        context["busqueda"] = busqueda
         context["inicio_semana"] = inicio_semana
         context["fin_semana"] = inicio_semana + timedelta(days=6)
         context["semana_anterior"] = inicio_semana - timedelta(days=7)
         context["semana_siguiente"] = inicio_semana + timedelta(days=7)
-        context["dias"] = obtener_turnos_de_la_semana(fecha_referencia, odontologo)
+        context["dias"] = obtener_turnos_de_la_semana(
+            fecha_referencia,
+            odontologo,
+            busqueda,
+        )
         turnos_semana = [
             turno
             for dia in context["dias"]
@@ -589,6 +604,7 @@ class AgendaSemanaView(VerTurnosRequeridoMixin, TemplateView):
         context["agenda_odontologos"] = obtener_agenda_semanal_por_odontologo(
             fecha_referencia,
             odontologo,
+            busqueda,
         )
         context["resumen_estados"] = obtener_resumen_estados(turnos_semana)
         return context

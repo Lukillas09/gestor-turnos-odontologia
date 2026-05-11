@@ -314,6 +314,15 @@ class AgendaFiltroForm(forms.Form):
         queryset=Odontologo.objects.filter(activo=True),
         empty_label="Todos los odontologos",
     )
+    buscar = forms.CharField(
+        required=False,
+        label="Buscar",
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Paciente, telefono, email o motivo",
+            }
+        ),
+    )
 
     def __init__(self, *args, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)

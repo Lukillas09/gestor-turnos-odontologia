@@ -1,19 +1,28 @@
 from datetime import datetime, timedelta
 
+from django.db.models import Q
+
 from .models import DisponibilidadOdontologo, Odontologo, Turno
 
 
-def obtener_turnos_del_dia(fecha, odontologo=None):
+def obtener_turnos_del_dia(fecha, odontologo=None, busqueda=""):
     turnos = _turnos_con_relaciones().filter(fecha=fecha)
 
     if odontologo:
         turnos = turnos.filter(odontologo=odontologo)
 
+    turnos = _filtrar_turnos_por_busqueda(turnos, busqueda)
+
     return turnos
 
 
-def obtener_bloques_agenda_del_dia(fecha, odontologo=None, intervalo_minutos=30):
-    turnos = list(obtener_turnos_del_dia(fecha, odontologo))
+def obtener_bloques_agenda_del_dia(
+    fecha,
+    odontologo=None,
+    intervalo_minutos=30,
+    busqueda="",
+):
+    turnos = list(obtener_turnos_del_dia(fecha, odontologo, busqueda))
     rango_agenda = _obtener_rango_agenda(fecha, odontologo, turnos)
 
     if not rango_agenda:
@@ -43,20 +52,24 @@ def obtener_bloques_agenda_del_dia(fecha, odontologo=None, intervalo_minutos=30)
     return bloques
 
 
-def obtener_agenda_diaria_por_odontologo(fecha, odontologo=None):
-    odontologos = _obtener_odontologos_para_agenda(fecha, fecha, odontologo)
+def obtener_agenda_diaria_por_odontologo(fecha, odontologo=None, busqueda=""):
+    odontologos = _obtener_odontologos_para_agenda(fecha, fecha, odontologo, busqueda)
 
     return [
         {
             "odontologo": odontologo_agenda,
-            "bloques": obtener_bloques_agenda_del_dia(fecha, odontologo_agenda),
-            "turnos": list(obtener_turnos_del_dia(fecha, odontologo_agenda)),
+            "bloques": obtener_bloques_agenda_del_dia(
+                fecha,
+                odontologo_agenda,
+                busqueda=busqueda,
+            ),
+            "turnos": list(obtener_turnos_del_dia(fecha, odontologo_agenda, busqueda)),
         }
         for odontologo_agenda in odontologos
     ]
 
 
-def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None):
+def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None, busqueda=""):
     inicio_semana = obtener_inicio_semana(fecha_referencia)
     fin_semana = inicio_semana + timedelta(days=6)
     turnos = _turnos_con_relaciones().filter(
@@ -66,6 +79,8 @@ def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None):
 
     if odontologo:
         turnos = turnos.filter(odontologo=odontologo)
+
+    turnos = _filtrar_turnos_por_busqueda(turnos, busqueda)
 
     turnos_por_fecha = {}
 
@@ -81,24 +96,30 @@ def obtener_turnos_de_la_semana(fecha_referencia, odontologo=None):
     ]
 
 
-def obtener_agenda_semanal_por_odontologo(fecha_referencia, odontologo=None):
+def obtener_agenda_semanal_por_odontologo(fecha_referencia, odontologo=None, busqueda=""):
     inicio_semana = obtener_inicio_semana(fecha_referencia)
     fin_semana = inicio_semana + timedelta(days=6)
     odontologos = _obtener_odontologos_para_agenda(
         inicio_semana,
         fin_semana,
         odontologo,
+        busqueda,
     )
 
     return [
         {
             "odontologo": odontologo_agenda,
-            "dias": obtener_turnos_de_la_semana(fecha_referencia, odontologo_agenda),
+            "dias": obtener_turnos_de_la_semana(
+                fecha_referencia,
+                odontologo_agenda,
+                busqueda,
+            ),
             "turnos": list(
                 obtener_turnos_de_la_semana_como_queryset(
                     inicio_semana,
                     fin_semana,
                     odontologo_agenda,
+                    busqueda,
                 )
             ),
         }
@@ -106,7 +127,12 @@ def obtener_agenda_semanal_por_odontologo(fecha_referencia, odontologo=None):
     ]
 
 
-def obtener_turnos_de_la_semana_como_queryset(inicio_semana, fin_semana, odontologo=None):
+def obtener_turnos_de_la_semana_como_queryset(
+    inicio_semana,
+    fin_semana,
+    odontologo=None,
+    busqueda="",
+):
     turnos = _turnos_con_relaciones().filter(
         fecha__gte=inicio_semana,
         fecha__lte=fin_semana,
@@ -114,6 +140,8 @@ def obtener_turnos_de_la_semana_como_queryset(inicio_semana, fin_semana, odontol
 
     if odontologo:
         turnos = turnos.filter(odontologo=odontologo)
+
+    turnos = _filtrar_turnos_por_busqueda(turnos, busqueda)
 
     return turnos
 
@@ -168,7 +196,7 @@ def _obtener_rango_agenda(fecha, odontologo, turnos):
     return min(horas_inicio), max(horas_fin)
 
 
-def _obtener_odontologos_para_agenda(fecha_desde, fecha_hasta, odontologo=None):
+def _obtener_odontologos_para_agenda(fecha_desde, fecha_hasta, odontologo=None, busqueda=""):
     if odontologo:
         return [odontologo]
 
@@ -176,16 +204,24 @@ def _obtener_odontologos_para_agenda(fecha_desde, fecha_hasta, odontologo=None):
         (fecha_desde + timedelta(days=offset)).weekday()
         for offset in range((fecha_hasta - fecha_desde).days + 1)
     }
-    ids_con_disponibilidad = DisponibilidadOdontologo.objects.filter(
-        dia_semana__in=dias_semana,
-        activo=True,
-        odontologo__activo=True,
-    ).values_list("odontologo_id", flat=True)
     ids_con_turnos = Turno.objects.filter(
         fecha__gte=fecha_desde,
         fecha__lte=fecha_hasta,
-    ).values_list("odontologo_id", flat=True)
-    odontologo_ids = set(ids_con_disponibilidad) | set(ids_con_turnos)
+    )
+    ids_con_turnos = _filtrar_turnos_por_busqueda(ids_con_turnos, busqueda).values_list(
+        "odontologo_id",
+        flat=True,
+    )
+
+    if busqueda:
+        odontologo_ids = set(ids_con_turnos)
+    else:
+        ids_con_disponibilidad = DisponibilidadOdontologo.objects.filter(
+            dia_semana__in=dias_semana,
+            activo=True,
+            odontologo__activo=True,
+        ).values_list("odontologo_id", flat=True)
+        odontologo_ids = set(ids_con_disponibilidad) | set(ids_con_turnos)
 
     if not odontologo_ids:
         return []
@@ -194,6 +230,25 @@ def _obtener_odontologos_para_agenda(fecha_desde, fecha_hasta, odontologo=None):
         Odontologo.objects.filter(pk__in=odontologo_ids)
         .select_related("usuario")
         .order_by("usuario__last_name", "usuario__first_name", "usuario__username")
+    )
+
+
+def _filtrar_turnos_por_busqueda(turnos, busqueda):
+    busqueda = (busqueda or "").strip()
+
+    if not busqueda:
+        return turnos
+
+    return turnos.filter(
+        Q(paciente__nombre__icontains=busqueda)
+        | Q(paciente__apellido__icontains=busqueda)
+        | Q(paciente__documento__icontains=busqueda)
+        | Q(paciente__telefono__icontains=busqueda)
+        | Q(paciente__email__icontains=busqueda)
+        | Q(motivo__icontains=busqueda)
+        | Q(odontologo__usuario__first_name__icontains=busqueda)
+        | Q(odontologo__usuario__last_name__icontains=busqueda)
+        | Q(odontologo__usuario__username__icontains=busqueda)
     )
 
 

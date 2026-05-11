@@ -1789,6 +1789,8 @@ class AgendaViewsTests(TestCase):
             nombre="Pedro",
             apellido="Luna",
             documento="35111222",
+            telefono="1122334455",
+            email="pedro@example.com",
         )
 
     def test_agenda_diaria_muestra_turnos_de_fecha_seleccionada(self):
@@ -1814,8 +1816,44 @@ class AgendaViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Control diario")
         self.assertContains(response, "10:00 a 10:30")
+        self.assertContains(response, "1122334455")
+        self.assertContains(response, "Contacto")
         self.assertContains(response, "status-pendiente")
         self.assertNotContains(response, "Fuera del dia")
+
+    def test_agenda_diaria_busca_por_paciente_contacto_o_motivo(self):
+        otro_paciente = Paciente.objects.create(
+            nombre="Sofia",
+            apellido="Rios",
+            documento="35999888",
+            telefono="1199990000",
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Control visible",
+        )
+        Turno.objects.create(
+            paciente=otro_paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(11, 0),
+            duracion_minutos=30,
+            motivo="Urgencia filtrada",
+        )
+
+        response = self.client.get(
+            reverse("turnos:agenda_dia"),
+            {"fecha": "2026-05-08", "buscar": "112233"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Control visible")
+        self.assertContains(response, 'Filtro activo: "112233"')
+        self.assertNotContains(response, "Urgencia filtrada")
 
     def test_agenda_diaria_filtra_por_odontologo(self):
         otro_usuario = get_user_model().objects.create_user(
@@ -1897,8 +1935,37 @@ class AgendaViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Inicio de semana")
+        self.assertContains(response, "1122334455")
         self.assertContains(response, "status-pendiente")
         self.assertNotContains(response, "Fuera de la semana")
+
+    def test_agenda_semanal_busca_por_motivo(self):
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 4),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Ortodoncia visible",
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 5),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            motivo="Limpieza filtrada",
+        )
+
+        response = self.client.get(
+            reverse("turnos:agenda_semana"),
+            {"fecha": "2026-05-08", "buscar": "Ortodoncia"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ortodoncia visible")
+        self.assertContains(response, 'Filtro activo: "Ortodoncia"')
+        self.assertNotContains(response, "Limpieza filtrada")
 
     def test_agenda_semanal_filtra_por_odontologo(self):
         otro_usuario = get_user_model().objects.create_user(
