@@ -742,6 +742,7 @@ class SolicitudTurnoPublicaTests(TestCase):
             usuario=usuario,
             matricula="MN-PUB",
             duracion_turno_minutos=30,
+            foto_url="https://example.com/paula.jpg",
         )
         crear_disponibilidad_laboral(self.odontologo)
         self.fecha_turno = obtener_fecha_laboral_futura()
@@ -751,7 +752,11 @@ class SolicitudTurnoPublicaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Solicitar turno")
-        self.assertContains(response, "Enviar solicitud")
+        self.assertContains(response, "Opciones de turnos disponibles")
+        self.assertContains(response, "Turnos por la manana")
+        self.assertContains(response, "Turnos por la tarde")
+        self.assertContains(response, "Reservar turno")
+        self.assertContains(response, "https://example.com/paula.jpg")
 
     def test_formulario_publico_muestra_horarios_disponibles(self):
         paciente = Paciente.objects.create(
@@ -777,10 +782,27 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f'value="{self.fecha_turno.isoformat()}"', count=2)
-        self.assertContains(response, 'value="09:00"')
-        self.assertContains(response, 'value="10:00"')
-        self.assertNotContains(response, 'value="09:30"')
+        self.assertContains(response, f'value="{self.fecha_turno.isoformat()}"')
+        self.assertContains(response, "09:00")
+        self.assertContains(response, "10:00")
+        self.assertContains(response, reverse("turnos:solicitud_publica_datos"))
+        self.assertNotContains(response, "09:30")
+
+    def test_reservar_horario_abre_formulario_de_datos(self):
+        response = self.client.get(
+            reverse("turnos:solicitud_publica_datos"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": self.fecha_turno.isoformat(),
+                "hora_inicio": "10:00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Completar datos")
+        self.assertContains(response, "Paula Publica")
+        self.assertContains(response, "10:00 a 10:30")
+        self.assertContains(response, "Enviar solicitud")
 
     def test_formulario_publico_no_permite_buscar_fecha_pasada(self):
         fecha_pasada = timezone.localdate() - timedelta(days=1)
@@ -798,7 +820,7 @@ class SolicitudTurnoPublicaTests(TestCase):
 
     def test_solicitud_publica_crea_paciente_y_turno_pendiente(self):
         response = self.client.post(
-            reverse("turnos:solicitud_publica"),
+            reverse("turnos:solicitud_publica_datos"),
             {
                 "nombre": "Lucia",
                 "apellido": "Paz",
@@ -821,7 +843,7 @@ class SolicitudTurnoPublicaTests(TestCase):
 
     def test_confirmacion_publica_muestra_datos_del_turno(self):
         self.client.post(
-            reverse("turnos:solicitud_publica"),
+            reverse("turnos:solicitud_publica_datos"),
             {
                 "nombre": "Lucia",
                 "apellido": "Paz",
@@ -852,7 +874,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
         response = self.client.post(
-            reverse("turnos:solicitud_publica"),
+            reverse("turnos:solicitud_publica_datos"),
             {
                 "nombre": "Nadia",
                 "apellido": "Suarez",
@@ -890,7 +912,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
         response = self.client.post(
-            reverse("turnos:solicitud_publica"),
+            reverse("turnos:solicitud_publica_datos"),
             {
                 "nombre": "Clara",
                 "apellido": "Luna",
@@ -912,7 +934,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         fecha_pasada = timezone.localdate() - timedelta(days=1)
 
         response = self.client.post(
-            reverse("turnos:solicitud_publica"),
+            reverse("turnos:solicitud_publica_datos"),
             {
                 "nombre": "Clara",
                 "apellido": "Luna",
@@ -932,7 +954,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "La fecha no puede ser anterior a hoy.")
 
     def test_solicitud_publica_muestra_mensajes_de_error_claros(self):
-        response = self.client.post(reverse("turnos:solicitud_publica"), {})
+        response = self.client.post(reverse("turnos:solicitud_publica_datos"), {})
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ingresa tu nombre.")
@@ -973,7 +995,7 @@ class TurnoEmailNotificationTests(TestCase):
         self.client.logout()
 
         response = self.client.post(
-            reverse("turnos:solicitud_publica"),
+            reverse("turnos:solicitud_publica_datos"),
             {
                 "nombre": "Lucia",
                 "apellido": "Mail",

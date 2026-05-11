@@ -18,6 +18,7 @@ class Odontologo(models.Model):
     hora_inicio_atencion = models.TimeField(default=time(9, 0))
     hora_fin_atencion = models.TimeField(default=time(18, 0))
     color_calendario = models.CharField(max_length=7, default="#2f80ed")
+    foto_url = models.URLField(blank=True)
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)

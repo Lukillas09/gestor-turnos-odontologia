@@ -8,6 +8,7 @@ from .views import (
     GoogleCalendarConexionView,
     GoogleCalendarDesconectarView,
     HorariosDisponiblesJsonView,
+    SolicitudTurnoPublicaDatosView,
     SolicitudTurnoPublicaOkView,
     SolicitudTurnoPublicaView,
     TurnoCancelView,
@@ -31,6 +32,11 @@ urlpatterns = [
         name="horarios_disponibles",
     ),
     path("solicitar/", SolicitudTurnoPublicaView.as_view(), name="solicitud_publica"),
+    path(
+        "solicitar/datos/",
+        SolicitudTurnoPublicaDatosView.as_view(),
+        name="solicitud_publica_datos",
+    ),
     path(
         "solicitar/gracias/",
         SolicitudTurnoPublicaOkView.as_view(),

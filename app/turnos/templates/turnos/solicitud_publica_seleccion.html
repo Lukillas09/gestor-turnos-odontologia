@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitar turno | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <section class="public-appointment-hero">
+        <div class="public-profile">
+            <div class="public-avatar">
+                {% if odontologo and odontologo.foto_url %}
+                    <img src="{{ odontologo.foto_url }}" alt="{{ odontologo }}">
+                {% elif odontologo %}
+                    <span>{{ odontologo.nombre_completo|first }}</span>
+                {% else %}
+                    <span>O</span>
+                {% endif %}
+            </div>
+            <div>
+                <span class="public-pill">{{ odontologo.especialidad|default:"Odontologia general" }}</span>
+                <h1>{% if odontologo %}{{ odontologo }}{% else %}Solicitar turno{% endif %}</h1>
+                {% if odontologo %}
+                    <p>{{ odontologo.duracion_turno_minutos }} minutos por turno</p>
+                    <p>Matricula {{ odontologo.matricula }}</p>
+                {% else %}
+                    <p>Elegir odontologo y fecha para ver horarios disponibles.</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="public-appointment-panel">
+        <div class="public-section-title">
+            <h2>Opciones de turnos disponibles</h2>
+            <p>Elegi un horario y despues completa tus datos para enviar la solicitud.</p>
+        </div>
+
+        <form class="public-search-panel" method="get" novalidate>
+            <div>
+                <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontologo</label>
+                {{ busqueda_form.odontologo }}
+                {% if busqueda_form.odontologo.errors %}
+                    <div class="field-error">{{ busqueda_form.odontologo.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ busqueda_form.fecha.id_for_label }}">Fecha</label>
+                {{ busqueda_form.fecha }}
+                {% if busqueda_form.fecha.errors %}
+                    <div class="field-error">{{ busqueda_form.fecha.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="filter-actions">
+                <button type="submit">Ver horarios</button>
+                <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}">Hoy</a>
+            </div>
+        </form>
+
+        {% if dias_cercanos %}
+            <div class="public-date-strip">
+                {% for dia in dias_cercanos %}
+                    <a class="public-date-chip{% if dia.seleccionado %} is-active{% endif %}" href="{{ dia.url }}">
+                        <strong>{{ dia.fecha|date:"d/m" }}</strong>
+                        <span>{{ dia.cantidad }} horario{% if dia.cantidad != 1 %}s{% endif %}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if odontologo and fecha %}
+            <div class="public-slot-grid">
+                <section class="public-slot-card">
+                    <div class="public-slot-card-header">
+                        <div>
+                            <h3>Turnos por la manana</h3>
+                            <p>{{ fecha|date:"l d/m/Y" }}</p>
+                        </div>
+                        <span>{{ odontologo.duracion_turno_minutos }} min</span>
+                    </div>
+
+                    {% if horarios_manana %}
+                        <div class="public-slot-list">
+                            {% for opcion in horarios_manana %}
+                                <a class="public-slot-button" href="{{ opcion.url }}">
+                                    <span>{{ opcion.label }}</span>
+                                    <strong>Reservar turno</strong>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="muted">No hay horarios por la manana para esta fecha.</p>
+                    {% endif %}
+                </section>
+
+                <section class="public-slot-card">
+                    <div class="public-slot-card-header">
+                        <div>
+                            <h3>Turnos por la tarde</h3>
+                            <p>{{ fecha|date:"l d/m/Y" }}</p>
+                        </div>
+                        <span>{{ odontologo.duracion_turno_minutos }} min</span>
+                    </div>
+
+                    {% if horarios_tarde %}
+                        <div class="public-slot-list">
+                            {% for opcion in horarios_tarde %}
+                                <a class="public-slot-button" href="{{ opcion.url }}">
+                                    <span>{{ opcion.label }}</span>
+                                    <strong>Reservar turno</strong>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="muted">No hay horarios por la tarde para esta fecha.</p>
+                    {% endif %}
+                </section>
+            </div>
+        {% elif not busqueda_form.errors %}
+            <div class="empty-state">
+                <p>No hay odontologos activos para solicitar turnos.</p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

@@ -1,72 +1,101 @@
 {% extends "base.html" %}
 
-{% block title %}Solicitar turno | Gestor de Turnos{% endblock %}
+{% block title %}Completar datos | Gestor de Turnos{% endblock %}
 
 {% block content %}
     <div class="page-header">
         <div>
-            <h1>Solicitar turno</h1>
-            <p class="subtitle">Solicitud publica para pacientes.</p>
+            <h1>Completar datos</h1>
+            <p class="subtitle">Revisamos tu solicitud y te avisamos cuando el turno quede confirmado.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}{% if odontologo and fecha %}?odontologo={{ odontologo.pk }}&fecha={{ fecha|date:'Y-m-d' }}{% endif %}">Cambiar horario</a>
         </div>
     </div>
 
-    <form class="filter-panel" method="get" novalidate data-horarios-search>
-        {% if busqueda_form.non_field_errors %}
-            <div class="field-error field-full">{{ busqueda_form.non_field_errors }}</div>
-        {% endif %}
+    {% if odontologo and fecha and hora_inicio %}
+        <section class="public-reservation-summary">
+            <div class="public-avatar public-avatar-small">
+                {% if odontologo.foto_url %}
+                    <img src="{{ odontologo.foto_url }}" alt="{{ odontologo }}">
+                {% else %}
+                    <span>{{ odontologo.nombre_completo|first }}</span>
+                {% endif %}
+            </div>
+            <div>
+                <span class="public-pill">{{ odontologo.especialidad|default:"Odontologia general" }}</span>
+                <h2>{{ odontologo }}</h2>
+                <p>{{ fecha|date:"l d/m/Y" }} de {{ hora_inicio|time:"H:i" }} a {{ hora_fin|time:"H:i" }}</p>
+            </div>
+        </section>
+    {% endif %}
 
-        <div>
-            <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontologo</label>
-            {{ busqueda_form.odontologo }}
-            {% if busqueda_form.odontologo.errors %}
-                <div class="field-error">{{ busqueda_form.odontologo.errors }}</div>
-            {% endif %}
-        </div>
-        <div>
-            <label for="{{ busqueda_form.fecha.id_for_label }}">Fecha</label>
-            {{ busqueda_form.fecha }}
-            {% if busqueda_form.fecha.errors %}
-                <div class="field-error">{{ busqueda_form.fecha.errors }}</div>
-            {% endif %}
-        </div>
-        <div class="filter-actions">
-            <button type="submit">Ver horarios</button>
-            <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}">Limpiar</a>
-        </div>
-    </form>
-
-    <form
-        class="form-panel"
-        method="post"
-        novalidate
-        data-horarios-form
-        data-horarios-url="{% url 'turnos:horarios_disponibles' %}"
-    >
+    <form class="form-panel public-data-form" method="post" novalidate>
         {% csrf_token %}
+
+        {{ form.odontologo.as_hidden }}
+        {{ form.fecha.as_hidden }}
+        {{ form.hora_inicio.as_hidden }}
 
         {% if form.non_field_errors %}
             <div class="field-error">{{ form.non_field_errors }}</div>
         {% endif %}
 
+        {% if form.odontologo.errors or form.fecha.errors or form.hora_inicio.errors %}
+            <div class="field-error field-full">
+                {{ form.odontologo.errors }}
+                {{ form.fecha.errors }}
+                {{ form.hora_inicio.errors }}
+            </div>
+        {% endif %}
+
         <div class="form-grid">
-            {% for field in form %}
-                <div class="{% if field.name == 'motivo' %}field-full{% endif %}">
-                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                        <p class="muted">{{ field.help_text }}</p>
-                    {% endif %}
-                    {% if field.errors %}
-                        <div class="field-error">{{ field.errors }}</div>
-                    {% endif %}
-                </div>
-            {% endfor %}
+            <div>
+                <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+                {{ form.nombre }}
+                {% if form.nombre.errors %}
+                    <div class="field-error">{{ form.nombre.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.apellido.id_for_label }}">{{ form.apellido.label }}</label>
+                {{ form.apellido }}
+                {% if form.apellido.errors %}
+                    <div class="field-error">{{ form.apellido.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.documento.id_for_label }}">{{ form.documento.label }}</label>
+                {{ form.documento }}
+                {% if form.documento.errors %}
+                    <div class="field-error">{{ form.documento.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.telefono.id_for_label }}">{{ form.telefono.label }}</label>
+                {{ form.telefono }}
+                {% if form.telefono.errors %}
+                    <div class="field-error">{{ form.telefono.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                    <div class="field-error">{{ form.email.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.motivo.id_for_label }}">{{ form.motivo.label }}</label>
+                {{ form.motivo }}
+                {% if form.motivo.errors %}
+                    <div class="field-error">{{ form.motivo.errors }}</div>
+                {% endif %}
+            </div>
         </div>
 
         <div class="form-actions">
             <button type="submit">Enviar solicitud</button>
         </div>
     </form>
-
-    {% include "turnos/includes/horarios_disponibles_script.html" %}
 {% endblock %}

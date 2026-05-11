@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from secrets import token_urlsafe
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -7,7 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_time
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -249,24 +250,174 @@ class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):
         return TurnoHorarioBusquedaForm(self.request.GET or None, auto_id="id_busqueda_%s")
 
 
-class SolicitudTurnoPublicaView(FormView):
+class SolicitudTurnoPublicaView(TemplateView):
+    template_name = "turnos/solicitud_publica_seleccion.html"
+    dias_sugeridos = 7
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        busqueda_form = self._obtener_busqueda_form()
+        odontologo = None
+        fecha = None
+        horarios = []
+
+        if busqueda_form.is_valid():
+            odontologo = busqueda_form.cleaned_data["odontologo"]
+            fecha = busqueda_form.cleaned_data["fecha"]
+            horarios = obtener_horarios_disponibles(
+                odontologo=odontologo,
+                fecha=fecha,
+            )
+
+        context["busqueda_form"] = busqueda_form
+        context["odontologo"] = odontologo
+        context["fecha"] = fecha
+        context["horarios_manana"] = self._crear_opciones_horarias(
+            odontologo,
+            fecha,
+            [horario for horario in horarios if horario.hour < 13],
+        )
+        context["horarios_tarde"] = self._crear_opciones_horarias(
+            odontologo,
+            fecha,
+            [horario for horario in horarios if horario.hour >= 13],
+        )
+        context["dias_cercanos"] = self._obtener_dias_cercanos(odontologo, fecha)
+        return context
+
+    def _obtener_busqueda_form(self):
+        data = self.request.GET or self._obtener_busqueda_inicial()
+        return SolicitudTurnoBusquedaPublicaForm(
+            data or None,
+            auto_id="id_busqueda_%s",
+        )
+
+    def _obtener_busqueda_inicial(self):
+        odontologo = Odontologo.objects.filter(activo=True).order_by(
+            "usuario__last_name",
+            "usuario__first_name",
+            "usuario__username",
+        ).first()
+
+        if not odontologo:
+            return None
+
+        fecha = self._obtener_primera_fecha_disponible(odontologo)
+
+        return {
+            "odontologo": odontologo.pk,
+            "fecha": fecha.isoformat(),
+        }
+
+    def _obtener_primera_fecha_disponible(self, odontologo):
+        hoy = timezone.localdate()
+
+        for offset in range(self.dias_sugeridos):
+            fecha = hoy + timedelta(days=offset)
+
+            if obtener_horarios_disponibles(odontologo=odontologo, fecha=fecha):
+                return fecha
+
+        return hoy
+
+    def _crear_opciones_horarias(self, odontologo, fecha, horarios):
+        if not odontologo or not fecha:
+            return []
+
+        return [
+            {
+                "hora": horario,
+                "label": horario.strftime("%H:%M"),
+                "url": self._crear_url_reserva(odontologo, fecha, horario),
+            }
+            for horario in horarios
+        ]
+
+    def _obtener_dias_cercanos(self, odontologo, fecha):
+        if not odontologo or not fecha:
+            return []
+
+        dias = []
+        inicio = timezone.localdate()
+
+        for offset in range(self.dias_sugeridos):
+            dia = inicio + timedelta(days=offset)
+            horarios = obtener_horarios_disponibles(
+                odontologo=odontologo,
+                fecha=dia,
+            )
+
+            if not horarios:
+                continue
+
+            dias.append(
+                {
+                    "fecha": dia,
+                    "cantidad": len(horarios),
+                    "seleccionado": dia == fecha,
+                    "url": self._crear_url_seleccion(odontologo, dia),
+                }
+            )
+
+        return dias
+
+    @staticmethod
+    def _crear_url_seleccion(odontologo, fecha):
+        querystring = urlencode(
+            {
+                "odontologo": odontologo.pk,
+                "fecha": fecha.isoformat(),
+            }
+        )
+        return f"{reverse('turnos:solicitud_publica')}?{querystring}"
+
+    @staticmethod
+    def _crear_url_reserva(odontologo, fecha, hora):
+        querystring = urlencode(
+            {
+                "odontologo": odontologo.pk,
+                "fecha": fecha.isoformat(),
+                "hora_inicio": hora.strftime("%H:%M"),
+            }
+        )
+        return f"{reverse('turnos:solicitud_publica_datos')}?{querystring}"
+
+
+class SolicitudTurnoPublicaDatosView(FormView):
     form_class = SolicitudTurnoPublicaForm
     template_name = "turnos/solicitud_publica_form.html"
     success_url = reverse_lazy("turnos:solicitud_publica_ok")
 
     def get_initial(self):
         initial = super().get_initial()
-        busqueda_form = self._obtener_busqueda_form()
+        reserva = self._obtener_reserva_desde_get()
 
-        if busqueda_form.is_valid():
-            initial["odontologo"] = busqueda_form.cleaned_data["odontologo"]
-            initial["fecha"] = busqueda_form.cleaned_data["fecha"]
+        if reserva:
+            initial.update(reserva)
 
         return initial
 
+    def get(self, request, *args, **kwargs):
+        if not self._obtener_reserva_desde_get():
+            messages.error(
+                request,
+                "Elegi un horario disponible antes de completar tus datos.",
+            )
+            return redirect("turnos:solicitud_publica")
+
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["busqueda_form"] = self._obtener_busqueda_form()
+        reserva = self._obtener_reserva_desde_get() or self._obtener_reserva_desde_post()
+        context.update(reserva or {})
+
+        if reserva:
+            context["hora_fin"] = (
+                datetime.combine(reserva["fecha"], reserva["hora_inicio"])
+                + timedelta(minutes=reserva["odontologo"].duracion_turno_minutos)
+            ).time()
+
         return context
 
     def form_valid(self, form):
@@ -280,11 +431,46 @@ class SolicitudTurnoPublicaView(FormView):
         messages.success(self.request, "Solicitud de turno recibida correctamente.")
         return super().form_valid(form)
 
-    def _obtener_busqueda_form(self):
-        return SolicitudTurnoBusquedaPublicaForm(
-            self.request.GET or None,
-            auto_id="id_busqueda_%s",
-        )
+    def _obtener_reserva_desde_get(self):
+        return self._obtener_reserva(self.request.GET, validar_disponibilidad=True)
+
+    def _obtener_reserva_desde_post(self):
+        return self._obtener_reserva(self.request.POST, validar_disponibilidad=False)
+
+    @staticmethod
+    def _obtener_reserva(data, validar_disponibilidad):
+        odontologo_id = data.get("odontologo")
+        fecha = parse_date(data.get("fecha") or "")
+        hora_inicio = parse_time(data.get("hora_inicio") or "")
+
+        if not odontologo_id or not fecha or not hora_inicio:
+            return None
+
+        if fecha < timezone.localdate():
+            return None
+
+        try:
+            odontologo = Odontologo.objects.filter(pk=odontologo_id, activo=True).first()
+        except (TypeError, ValueError):
+            return None
+
+        if not odontologo:
+            return None
+
+        if validar_disponibilidad:
+            horarios = obtener_horarios_disponibles(
+                odontologo=odontologo,
+                fecha=fecha,
+            )
+
+            if hora_inicio not in horarios:
+                return None
+
+        return {
+            "odontologo": odontologo,
+            "fecha": fecha,
+            "hora_inicio": hora_inicio,
+        }
 
 
 class SolicitudTurnoPublicaOkView(TemplateView):

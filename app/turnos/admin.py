@@ -67,6 +67,7 @@ class OdontologoAdmin(admin.ModelAdmin):
                 "fields": (
                     "matricula",
                     "especialidad",
+                    "foto_url",
                     "activo",
                 )
             },
