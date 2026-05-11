@@ -168,6 +168,20 @@ class TurnoModelTests(TestCase):
         with self.assertRaises(ValidationError):
             turno.full_clean()
 
+    def test_foto_perfil_url_no_rompe_si_storage_falla(self):
+        self.odontologo.foto_url = "https://example.com/foto-fallback.jpg"
+        self.odontologo.foto_perfil.name = "odontologos/1/perfil/foto.jpg"
+
+        with patch.object(
+            self.odontologo.foto_perfil.storage,
+            "url",
+            side_effect=RuntimeError("Storage no disponible"),
+        ):
+            with self.assertLogs("turnos.models", level="WARNING"):
+                url = self.odontologo.foto_perfil_url
+
+        self.assertEqual(url, "https://example.com/foto-fallback.jpg")
+
 
 class TurnoViewsTests(TestCase):
     def setUp(self):

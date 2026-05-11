@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -8,6 +9,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.text import get_valid_filename
 
+
+logger = logging.getLogger(__name__)
 
 MAX_FOTO_ODONTOLOGO_BYTES = 5 * 1024 * 1024
 EXTENSIONES_FOTO_ODONTOLOGO_PERMITIDAS = {".jpeg", ".jpg", ".png", ".webp"}
@@ -91,7 +94,14 @@ class Odontologo(models.Model):
     @property
     def foto_perfil_url(self):
         if self.foto_perfil:
-            return self.foto_perfil.url
+            try:
+                return self.foto_perfil.url
+            except Exception:
+                logger.warning(
+                    "No se pudo obtener la URL de la foto del odontologo %s.",
+                    self.pk,
+                    exc_info=True,
+                )
 
         return self.foto_url
 
