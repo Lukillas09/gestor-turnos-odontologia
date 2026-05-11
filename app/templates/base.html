@@ -885,6 +885,176 @@
             justify-content: flex-start;
         }
 
+        .patient-search-panel {
+            margin-bottom: 18px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .patient-search-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .patient-search-field {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .patient-search-field span {
+            position: absolute;
+            left: 14px;
+            z-index: 1;
+            color: #0f766e;
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .patient-search-field input {
+            min-height: 48px;
+            padding-left: 44px;
+            border-color: #cfe4ea;
+            background: #f8fafc;
+            font-weight: 600;
+        }
+
+        .patient-search-actions,
+        .patient-card-actions,
+        .pagination-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .patient-card-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .patient-list-card {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(260px, 1.1fr) minmax(280px, 1fr) auto;
+            gap: 18px;
+            align-items: center;
+            border: 1px solid #d7e8ee;
+            border-radius: 8px;
+            padding: 18px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+        }
+
+        .patient-list-card:hover,
+        .patient-list-card:focus-within {
+            border-color: #8bd3dd;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .patient-card-identity {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .patient-avatar {
+            width: 48px;
+            height: 48px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            border-radius: 999px;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .patient-card-main {
+            min-width: 0;
+        }
+
+        .patient-card-main h2 {
+            margin-bottom: 6px;
+            font-size: 21px;
+        }
+
+        .patient-card-main-link {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .patient-card-main-link::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            border-radius: 8px;
+        }
+
+        .patient-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .patient-card-meta span {
+            display: inline-flex;
+            border-radius: 999px;
+            padding: 4px 9px;
+            background: #f1f5f9;
+            color: #475467;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .patient-card-info {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .patient-card-info div {
+            min-width: 0;
+        }
+
+        .patient-card-info span,
+        .patient-card-info small {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .patient-card-info strong {
+            display: block;
+            margin-top: 2px;
+            overflow-wrap: anywhere;
+            color: #263645;
+            font-size: 14px;
+        }
+
+        .patient-card-actions {
+            position: relative;
+            z-index: 2;
+            min-width: max-content;
+        }
+
+        .pagination-actions {
+            margin-top: 18px;
+        }
+
         .dashboard-grid-secondary {
             margin-top: 18px;
         }
@@ -1665,6 +1835,9 @@
             .clinical-alert-grid,
             .clinical-indicator-grid,
             .admin-data-grid,
+            .patient-search-form,
+            .patient-list-card,
+            .patient-card-info,
             .public-profile,
             .public-slot-grid,
             .public-reservation-summary,
@@ -1674,7 +1847,10 @@
             }
 
             .clinical-actions,
-            .clinical-action-group {
+            .clinical-action-group,
+            .patient-search-actions,
+            .patient-card-actions,
+            .pagination-actions {
                 align-items: stretch;
                 justify-content: flex-start;
                 flex-direction: column;

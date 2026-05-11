@@ -2,7 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -50,11 +50,23 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 | Q(obra_social__icontains=busqueda)
             )
 
-        return queryset
+        return queryset.prefetch_related(
+            Prefetch(
+                "turnos",
+                queryset=Turno.objects.select_related(
+                    "odontologo",
+                    "odontologo__usuario",
+                ).order_by("-fecha", "-hora_inicio"),
+                to_attr="turnos_ordenados",
+            )
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["busqueda"] = self.request.GET.get("q", "").strip()
+        for paciente in context["pacientes"]:
+            turnos = getattr(paciente, "turnos_ordenados", [])
+            paciente.ultimo_turno = turnos[0] if turnos else None
         return context
 
 
