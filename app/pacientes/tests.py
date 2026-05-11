@@ -190,6 +190,76 @@ class PacienteViewsTests(TestCase):
         self.assertContains(response, "Elena")
         self.assertContains(response, "20111222")
 
+    def test_detalle_muestra_perfil_clinico_con_alertas_y_resumen(self):
+        paciente = Paciente.objects.create(
+            nombre="Elena",
+            apellido="Clinica",
+            documento="20111223",
+            fecha_nacimiento=date(1990, 4, 15),
+            telefono="1144556677",
+            email="elena@example.com",
+            obra_social="OSDE",
+            localidad="Rosario",
+        )
+        odontologo = self._crear_odontologo_para_paciente(paciente, "PERFIL")
+        DisponibilidadOdontologo.objects.create(
+            odontologo=odontologo,
+            dia_semana=DisponibilidadOdontologo.DiaSemana.VIERNES,
+            hora_inicio=time(9, 0),
+            hora_fin=time(18, 0),
+        )
+        FichaOdontologica.objects.create(
+            paciente=paciente,
+            alergias="Penicilina",
+            medicacion_actual="Losartan",
+            diabetes=FichaOdontologica.RespuestaClinica.SI,
+            hipertension=FichaOdontologica.RespuestaClinica.NO,
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=date(2026, 5, 15),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control",
+        )
+        HistoriaClinica.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=date(2026, 5, 8),
+            motivo_consulta="Dolor molar",
+            diagnostico="Caries",
+        )
+        asignar_rol(odontologo.usuario, ROL_ODONTOLOGO)
+        self.client.force_login(odontologo.usuario)
+
+        response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Perfil clinico")
+        self.assertContains(response, "Alertas clinicas")
+        self.assertContains(response, "Penicilina")
+        self.assertContains(response, "Losartan")
+        self.assertContains(response, "Diabetes")
+        self.assertContains(response, "Turnos activos")
+        self.assertContains(response, "Proximo turno")
+        self.assertContains(response, "Historia clinica reciente")
+        self.assertContains(response, "Dolor molar")
+
+    def test_detalle_sin_ficha_muestra_alertas_vacias(self):
+        paciente = Paciente.objects.create(
+            nombre="Elena",
+            apellido="Sin ficha",
+            documento="20111224",
+        )
+
+        response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sin alertas clinicas registradas")
+        self.assertContains(response, "Sin proximo turno")
+
     def test_edicion_actualiza_paciente(self):
         paciente = Paciente.objects.create(
             nombre="Sofia",

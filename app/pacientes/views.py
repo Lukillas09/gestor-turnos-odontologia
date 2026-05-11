@@ -2,9 +2,10 @@ import logging
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
@@ -81,36 +82,324 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
     template_name = "pacientes/paciente_detail.html"
     context_object_name = "paciente"
 
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related("ficha_odontologica")
+            .prefetch_related(
+                "turnos",
+                "turnos__odontologo",
+                "turnos__odontologo__usuario",
+            )
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        paciente = self.object
+        hoy = timezone.localdate()
+        ahora = timezone.localtime().time()
+        ficha_odontologica = self._obtener_ficha_odontologica(paciente)
         puede_ver_historia = (
             puede_gestionar_historias_clinicas(self.request.user)
-            and puede_ver_historia_de_paciente(self.request.user, self.object)
+            and puede_ver_historia_de_paciente(self.request.user, paciente)
         )
-        context["turnos_recientes"] = (
-            self.object.turnos.select_related("odontologo", "odontologo__usuario")
-            .order_by("-fecha", "-hora_inicio")[:5]
-        )
-        context["turnos_pendientes_o_confirmados"] = self.object.turnos.filter(
+
+        turnos = paciente.turnos.select_related("odontologo", "odontologo__usuario")
+        turnos_activos = turnos.filter(
             estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
-        ).count()
-        context["ficha_odontologica"] = getattr(
-            self.object,
-            "ficha_odontologica",
-            None,
         )
-        context["puede_ver_historia_clinica"] = puede_ver_historia
-        context["historias_recientes"] = (
-            limitar_historias_clinicas_por_usuario(
-                HistoriaClinica.objects.filter(paciente=self.object),
+        proximo_turno = (
+            turnos_activos.filter(Q(fecha__gt=hoy) | Q(fecha=hoy, hora_inicio__gte=ahora))
+            .order_by("fecha", "hora_inicio")
+            .first()
+        )
+        ultimo_turno = turnos.order_by("-fecha", "-hora_inicio").first()
+        turnos_recientes = list(turnos.order_by("-fecha", "-hora_inicio")[:5])
+
+        historias_recientes = []
+        ultima_historia = None
+        cantidad_historias = 0
+        cantidad_adjuntos = 0
+
+        if puede_ver_historia:
+            historias_visibles = limitar_historias_clinicas_por_usuario(
+                HistoriaClinica.objects.filter(paciente=paciente),
                 self.request.user,
             )
-            .select_related("odontologo", "odontologo__usuario")
-            .order_by("-fecha", "-creado_en")[:3]
-            if puede_ver_historia
-            else []
+            cantidad_historias = historias_visibles.count()
+            cantidad_adjuntos = HistoriaClinicaAdjunto.objects.filter(
+                historia__in=historias_visibles,
+            ).count()
+            historias_recientes = list(
+                historias_visibles.select_related("odontologo", "odontologo__usuario")
+                .annotate(cantidad_adjuntos=Count("adjuntos"))
+                .order_by("-fecha", "-creado_en")[:3]
+            )
+            ultima_historia = historias_recientes[0] if historias_recientes else None
+
+        context.update(
+            {
+                "edad_paciente": self._calcular_edad(paciente.fecha_nacimiento, hoy),
+                "ficha_odontologica": ficha_odontologica,
+                "alertas_clinicas": self._obtener_alertas_clinicas(ficha_odontologica),
+                "indicadores_ficha": self._obtener_indicadores_ficha(ficha_odontologica),
+                "detalle_ficha_odontologica": self._obtener_detalle_ficha(
+                    ficha_odontologica,
+                ),
+                "datos_administrativos": self._obtener_datos_administrativos(
+                    paciente,
+                    hoy,
+                ),
+                "turnos_recientes": turnos_recientes,
+                "turnos_pendientes_o_confirmados": turnos_activos.count(),
+                "proximo_turno": proximo_turno,
+                "ultimo_turno": ultimo_turno,
+                "puede_ver_historia_clinica": puede_ver_historia,
+                "historias_recientes": historias_recientes,
+                "ultima_historia_clinica": ultima_historia,
+                "cantidad_historias_clinicas": cantidad_historias,
+                "cantidad_adjuntos_clinicos": cantidad_adjuntos,
+                "resumen_rapido": self._obtener_resumen_rapido(
+                    turnos_activos.count(),
+                    proximo_turno,
+                    ultimo_turno,
+                    ultima_historia,
+                    cantidad_historias,
+                    cantidad_adjuntos,
+                    puede_ver_historia,
+                ),
+            }
         )
         return context
+
+    def _obtener_ficha_odontologica(self, paciente):
+        try:
+            return paciente.ficha_odontologica
+        except FichaOdontologica.DoesNotExist:
+            return None
+
+    @staticmethod
+    def _calcular_edad(fecha_nacimiento, hoy):
+        if not fecha_nacimiento or fecha_nacimiento > hoy:
+            return None
+
+        edad = hoy.year - fecha_nacimiento.year
+
+        if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+            edad -= 1
+
+        return edad
+
+    def _obtener_alertas_clinicas(self, ficha):
+        if not ficha:
+            return []
+
+        alertas = []
+        campos_texto = [
+            ("Alergias", ficha.alergias, "danger"),
+            ("Medicacion actual", ficha.medicacion_actual, "warning"),
+            ("Enfermedades relevantes", ficha.enfermedades_relevantes, "warning"),
+        ]
+
+        for etiqueta, valor, estado in campos_texto:
+            if valor:
+                alertas.append(
+                    {
+                        "etiqueta": etiqueta,
+                        "valor": valor,
+                        "estado": estado,
+                    }
+                )
+
+        for etiqueta, valor in self._obtener_respuestas_clinicas(ficha):
+            if valor:
+                alertas.append(
+                    {
+                        "etiqueta": etiqueta,
+                        "valor": self._mostrar_respuesta_clinica(valor),
+                        "estado": self._estado_respuesta_clinica(valor),
+                    }
+                )
+
+        return alertas
+
+    def _obtener_indicadores_ficha(self, ficha):
+        if not ficha:
+            return [
+                {"etiqueta": etiqueta, "valor": "Sin datos", "estado": "neutral"}
+                for etiqueta in (
+                    "Alergias",
+                    "Diabetes",
+                    "Hipertension",
+                    "Problemas cardiacos",
+                    "Embarazo",
+                )
+            ]
+
+        indicadores = [
+            {
+                "etiqueta": "Alergias",
+                "valor": ficha.alergias or "Sin datos",
+                "estado": "danger" if ficha.alergias else "neutral",
+            }
+        ]
+
+        for etiqueta, valor in self._obtener_respuestas_clinicas(ficha):
+            indicadores.append(
+                {
+                    "etiqueta": etiqueta,
+                    "valor": self._mostrar_respuesta_clinica(valor),
+                    "estado": self._estado_respuesta_clinica(valor),
+                }
+            )
+
+        return indicadores
+
+    @staticmethod
+    def _obtener_respuestas_clinicas(ficha):
+        return [
+            ("Diabetes", ficha.diabetes),
+            ("Hipertension", ficha.hipertension),
+            ("Problemas cardiacos", ficha.problemas_cardiacos),
+            ("Embarazo", ficha.embarazo),
+        ]
+
+    @staticmethod
+    def _mostrar_respuesta_clinica(valor):
+        if valor == FichaOdontologica.RespuestaClinica.SI:
+            return "Si"
+
+        if valor == FichaOdontologica.RespuestaClinica.NO:
+            return "No"
+
+        return "Sin datos"
+
+    @staticmethod
+    def _estado_respuesta_clinica(valor):
+        if valor == FichaOdontologica.RespuestaClinica.SI:
+            return "danger"
+
+        if valor == FichaOdontologica.RespuestaClinica.NO:
+            return "success"
+
+        return "neutral"
+
+    @staticmethod
+    def _obtener_detalle_ficha(ficha):
+        if not ficha:
+            return []
+
+        return [
+            ("Antecedentes medicos", ficha.antecedentes_medicos),
+            ("Medicacion actual", ficha.medicacion_actual),
+            ("Enfermedades relevantes", ficha.enfermedades_relevantes),
+            ("Observaciones generales", ficha.observaciones_generales),
+        ]
+
+    def _obtener_datos_administrativos(self, paciente, hoy):
+        edad = self._calcular_edad(paciente.fecha_nacimiento, hoy)
+        fecha_nacimiento = (
+            paciente.fecha_nacimiento.strftime("%d/%m/%Y")
+            if paciente.fecha_nacimiento
+            else "-"
+        )
+        return [
+            {
+                "titulo": "Identificacion",
+                "campos": [
+                    ("DNI", paciente.documento or "-"),
+                    ("Fecha de nacimiento", fecha_nacimiento),
+                    ("Edad", f"{edad} anos" if edad is not None else "-"),
+                    ("Sexo / genero", paciente.get_genero_display() or "-"),
+                ],
+            },
+            {
+                "titulo": "Contacto",
+                "campos": [
+                    ("Telefono", paciente.telefono or "-"),
+                    ("Email", paciente.email or "-"),
+                    ("Contacto de emergencia", paciente.contacto_emergencia or "-"),
+                ],
+            },
+            {
+                "titulo": "Cobertura",
+                "campos": [
+                    ("Obra social", paciente.obra_social or "-"),
+                    ("Numero de afiliado", paciente.numero_afiliado or "-"),
+                ],
+            },
+            {
+                "titulo": "Direccion",
+                "campos": [
+                    ("Domicilio", paciente.domicilio or "-"),
+                    ("Localidad", paciente.localidad or "-"),
+                ],
+            },
+        ]
+
+    @staticmethod
+    def _obtener_resumen_rapido(
+        turnos_activos,
+        proximo_turno,
+        ultimo_turno,
+        ultima_historia,
+        cantidad_historias,
+        cantidad_adjuntos,
+        puede_ver_historia,
+    ):
+        resumen = [
+            {
+                "etiqueta": "Turnos activos",
+                "valor": turnos_activos,
+                "detalle": "Pendientes o confirmados",
+            },
+            {
+                "etiqueta": "Proximo turno",
+                "valor": (
+                    f"{proximo_turno.fecha:%d/%m} {proximo_turno.hora_inicio:%H:%M}"
+                    if proximo_turno
+                    else "Sin proximo turno"
+                ),
+                "detalle": proximo_turno.motivo if proximo_turno else "",
+            },
+            {
+                "etiqueta": "Ultimo turno",
+                "valor": (
+                    f"{ultimo_turno.fecha:%d/%m} {ultimo_turno.hora_inicio:%H:%M}"
+                    if ultimo_turno
+                    else "Sin turnos"
+                ),
+                "detalle": ultimo_turno.get_estado_display() if ultimo_turno else "",
+            },
+        ]
+
+        if puede_ver_historia:
+            resumen.extend(
+                [
+                    {
+                        "etiqueta": "Ultima entrada clinica",
+                        "valor": (
+                            f"{ultima_historia.fecha:%d/%m/%Y}"
+                            if ultima_historia
+                            else "Sin entradas clinicas"
+                        ),
+                        "detalle": ultima_historia.motivo_consulta if ultima_historia else "",
+                    },
+                    {
+                        "etiqueta": "Entradas clinicas",
+                        "valor": cantidad_historias,
+                        "detalle": "Registros visibles",
+                    },
+                    {
+                        "etiqueta": "Adjuntos clinicos",
+                        "valor": cantidad_adjuntos,
+                        "detalle": "Archivos cargados",
+                    },
+                ]
+            )
+
+        return resumen
 
 
 class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, UpdateView):
