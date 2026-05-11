@@ -6,8 +6,12 @@
     <section class="public-appointment-hero">
         <div class="public-profile">
             <div class="public-avatar">
-                {% if odontologo and odontologo.foto_url %}
-                    <img src="{{ odontologo.foto_url }}" alt="{{ odontologo }}">
+                {% if odontologo and odontologo.foto_perfil_url %}
+                    <img
+                        src="{{ odontologo.foto_perfil_url }}"
+                        alt="{{ odontologo }}"
+                        style="object-position: {{ odontologo.foto_object_position }};"
+                    >
                 {% elif odontologo %}
                     <span>{{ odontologo.nombre_completo|first }}</span>
                 {% else %}

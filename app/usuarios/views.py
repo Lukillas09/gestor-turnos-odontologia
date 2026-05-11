@@ -1,13 +1,16 @@
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, redirect_to_login
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.views.generic import TemplateView
+from django.views.generic import FormView, TemplateView
 
 from historias.models import HistoriaClinica
 from pacientes.models import Paciente
 from turnos.models import GoogleCalendarConexion, Turno
 from turnos.selectors import obtener_bloques_agenda_del_dia, obtener_resumen_estados
 
+from .forms import PerfilUsuarioForm
 from .roles import (
     limitar_turnos_por_usuario,
     obtener_odontologo_del_usuario,
@@ -23,6 +26,28 @@ class LoginInternoView(LoginView):
 
     def get_success_url(self):
         return reverse("inicio")
+
+
+class PerfilUsuarioView(LoginRequiredMixin, FormView):
+    template_name = "usuarios/perfil.html"
+    form_class = PerfilUsuarioForm
+    success_url = reverse_lazy("perfil")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["usuario"] = self.request.user
+        kwargs["odontologo"] = obtener_odontologo_del_usuario(self.request.user)
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["odontologo"] = obtener_odontologo_del_usuario(self.request.user)
+        return context
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(self.request, "Perfil actualizado correctamente.")
+        return super().form_valid(form)
 
 
 class InicioView(TemplateView):

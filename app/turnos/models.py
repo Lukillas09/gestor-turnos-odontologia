@@ -1,9 +1,40 @@
 from datetime import datetime, time, timedelta
+from pathlib import Path
+from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.text import get_valid_filename
+
+
+MAX_FOTO_ODONTOLOGO_BYTES = 5 * 1024 * 1024
+EXTENSIONES_FOTO_ODONTOLOGO_PERMITIDAS = {".jpeg", ".jpg", ".png", ".webp"}
+CONTENT_TYPES_FOTO_ODONTOLOGO_PERMITIDOS = {"image/jpeg", "image/png", "image/webp"}
+
+
+def ruta_foto_odontologo(instance, filename):
+    nombre_archivo = get_valid_filename(Path(filename).name)
+    odontologo_id = instance.pk or "sin-id"
+    return f"odontologos/{odontologo_id}/perfil/{uuid4().hex}_{nombre_archivo}"
+
+
+def validar_foto_odontologo(archivo):
+    if not archivo:
+        return
+
+    extension = Path(archivo.name).suffix.lower()
+
+    if extension not in EXTENSIONES_FOTO_ODONTOLOGO_PERMITIDAS:
+        raise ValidationError("La foto debe ser JPG, PNG o WEBP.")
+
+    content_type = getattr(archivo, "content_type", "")
+    if content_type and content_type not in CONTENT_TYPES_FOTO_ODONTOLOGO_PERMITIDOS:
+        raise ValidationError("El archivo seleccionado debe ser una imagen.")
+
+    if archivo.size > MAX_FOTO_ODONTOLOGO_BYTES:
+        raise ValidationError("La foto no puede superar los 5 MB.")
 
 
 class Odontologo(models.Model):
@@ -19,6 +50,13 @@ class Odontologo(models.Model):
     hora_fin_atencion = models.TimeField(default=time(18, 0))
     color_calendario = models.CharField(max_length=7, default="#2f80ed")
     foto_url = models.URLField(blank=True)
+    foto_perfil = models.FileField(
+        upload_to=ruta_foto_odontologo,
+        validators=[validar_foto_odontologo],
+        blank=True,
+    )
+    foto_posicion_x = models.PositiveSmallIntegerField(default=50)
+    foto_posicion_y = models.PositiveSmallIntegerField(default=50)
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -48,6 +86,17 @@ class Odontologo(models.Model):
     def nombre_completo(self):
         full_name = self.usuario.get_full_name()
         return full_name or self.usuario.username
+
+    @property
+    def foto_perfil_url(self):
+        if self.foto_perfil:
+            return self.foto_perfil.url
+
+        return self.foto_url
+
+    @property
+    def foto_object_position(self):
+        return f"{self.foto_posicion_x}% {self.foto_posicion_y}%"
 
     def __str__(self):
         return self.nombre_completo

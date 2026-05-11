@@ -16,8 +16,12 @@
     {% if odontologo and fecha and hora_inicio %}
         <section class="public-reservation-summary">
             <div class="public-avatar public-avatar-small">
-                {% if odontologo.foto_url %}
-                    <img src="{{ odontologo.foto_url }}" alt="{{ odontologo }}">
+                {% if odontologo.foto_perfil_url %}
+                    <img
+                        src="{{ odontologo.foto_perfil_url }}"
+                        alt="{{ odontologo }}"
+                        style="object-position: {{ odontologo.foto_object_position }};"
+                    >
                 {% else %}
                     <span>{{ odontologo.nombre_completo|first }}</span>
                 {% endif %}

@@ -2,7 +2,8 @@ from datetime import date, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -32,6 +33,16 @@ from .roles import (
 def asignar_rol(usuario, nombre_rol):
     grupo, _ = Group.objects.get_or_create(name=nombre_rol)
     usuario.groups.add(grupo)
+
+
+PERFIL_TEST_STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.InMemoryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 
 class RolesTests(TestCase):
@@ -112,6 +123,73 @@ class RolesTests(TestCase):
         self.assertTrue(puede_reprogramar_turno(usuario, turno_propio))
         self.assertFalse(puede_reprogramar_turno(usuario, turno_ajeno))
         self.assertFalse(puede_reprogramar_turno(usuario, turno_cancelado))
+
+
+class PerfilUsuarioTests(TestCase):
+    def test_perfil_requiere_login(self):
+        response = self.client.get(reverse("perfil"))
+
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('perfil')}")
+
+    def test_panel_interno_muestra_acceso_al_perfil(self):
+        usuario = get_user_model().objects.create_user(username="recepcion.perfil")
+        asignar_rol(usuario, ROL_RECEPCIONISTA)
+        self.client.force_login(usuario)
+
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("perfil"))
+        self.assertContains(response, "recepcion.perfil")
+
+    @override_settings(STORAGES=PERFIL_TEST_STORAGES)
+    def test_odontologo_actualiza_datos_y_foto_desde_perfil(self):
+        usuario = get_user_model().objects.create_user(
+            username="odontologo.perfil",
+            first_name="Lucas",
+            last_name="Martinez",
+            email="lucas@example.com",
+        )
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="MN-PERFIL",
+            especialidad="Odontologia general",
+        )
+        foto = SimpleUploadedFile(
+            "perfil.jpg",
+            b"imagen-de-prueba",
+            content_type="image/jpeg",
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("perfil"),
+            {
+                "first_name": "Lucia",
+                "last_name": "Perez",
+                "email": "lucia@example.com",
+                "especialidad": "Ortodoncia",
+                "matricula": "MN-PERFIL-2",
+                "duracion_turno_minutos": "45",
+                "foto_posicion_x": "35",
+                "foto_posicion_y": "70",
+                "foto_perfil": foto,
+            },
+        )
+
+        self.assertRedirects(response, reverse("perfil"))
+        usuario.refresh_from_db()
+        odontologo.refresh_from_db()
+        self.assertEqual(usuario.first_name, "Lucia")
+        self.assertEqual(usuario.last_name, "Perez")
+        self.assertEqual(usuario.email, "lucia@example.com")
+        self.assertEqual(odontologo.especialidad, "Ortodoncia")
+        self.assertEqual(odontologo.matricula, "MN-PERFIL-2")
+        self.assertEqual(odontologo.duracion_turno_minutos, 45)
+        self.assertEqual(odontologo.foto_posicion_x, 35)
+        self.assertEqual(odontologo.foto_posicion_y, 70)
+        self.assertTrue(odontologo.foto_perfil.name.startswith("odontologos/"))
 
 
 class InicioDashboardTests(TestCase):

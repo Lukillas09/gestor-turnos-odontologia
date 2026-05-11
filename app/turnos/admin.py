@@ -68,6 +68,9 @@ class OdontologoAdmin(admin.ModelAdmin):
                     "matricula",
                     "especialidad",
                     "foto_url",
+                    "foto_perfil",
+                    "foto_posicion_x",
+                    "foto_posicion_y",
                     "activo",
                 )
             },

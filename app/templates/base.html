@@ -113,6 +113,20 @@
             min-width: fit-content;
         }
 
+        .app-user-profile-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-radius: 999px;
+            padding: 4px 8px 4px 12px;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .app-user-profile-link:hover {
+            background: #eef2f7;
+        }
+
         .app-user-text {
             display: grid;
             justify-items: end;
@@ -145,6 +159,53 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+
+        .profile-layout {
+            display: grid;
+            grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .profile-photo-panel,
+        .profile-actions-panel {
+            display: grid;
+            gap: 16px;
+        }
+
+        .profile-photo-preview {
+            width: 180px;
+            height: 180px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border: 6px solid #eef2f7;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 64px;
+            font-weight: 800;
+        }
+
+        .profile-photo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-photo-controls {
+            display: grid;
+            gap: 12px;
+        }
+
+        .profile-summary {
+            display: grid;
+            gap: 4px;
+        }
+
+        .profile-summary strong {
+            font-size: 20px;
         }
 
         .app-sidebar {
@@ -1198,7 +1259,8 @@
                 padding: 14px 10px;
             }
 
-            .app-user-menu {
+            .app-user-menu,
+            .app-user-profile-link {
                 justify-content: space-between;
             }
 
@@ -1256,6 +1318,7 @@
             .agenda-turno-body,
             .dashboard-grid,
             .patient-layout,
+            .profile-layout,
             .public-profile,
             .public-slot-grid,
             .public-reservation-summary,
@@ -1295,21 +1358,23 @@
                 <span>Gestor de turnos odontologicos</span>
             </div>
             <div class="app-user-menu">
-                <div class="app-user-text">
-                    <strong>{{ request.user.get_username }}</strong>
-                    <span>{% if request.user.is_staff %}Administrador{% elif puede_conectar_google_calendar %}Odontologo{% elif puede_gestionar_turnos %}Recepcion{% else %}Usuario interno{% endif %}</span>
-                </div>
-                <div class="app-avatar">
-                    {% if request.user.perfil_odontologo.foto_url %}
-                        <img src="{{ request.user.perfil_odontologo.foto_url }}" alt="{{ request.user.get_username }}">
-                    {% else %}
-                        <span>{{ request.user.get_username|first|upper }}</span>
-                    {% endif %}
-                </div>
-                <form class="logout-form" method="post" action="{% url 'logout' %}">
-                    {% csrf_token %}
-                    <button class="button button-secondary button-small" type="submit">Salir</button>
-                </form>
+                <a class="app-user-profile-link" href="{% url 'perfil' %}">
+                    <div class="app-user-text">
+                        <strong>{{ request.user.get_username }}</strong>
+                        <span>{% if request.user.is_staff %}Administrador{% elif puede_conectar_google_calendar %}Odontologo{% elif puede_gestionar_turnos %}Recepcion{% else %}Usuario interno{% endif %}</span>
+                    </div>
+                    <div class="app-avatar">
+                        {% if odontologo_usuario and odontologo_usuario.foto_perfil_url %}
+                            <img
+                                src="{{ odontologo_usuario.foto_perfil_url }}"
+                                alt="{{ request.user.get_username }}"
+                                style="object-position: {{ odontologo_usuario.foto_object_position }};"
+                            >
+                        {% else %}
+                            <span>{{ request.user.get_username|first|upper }}</span>
+                        {% endif %}
+                    </div>
+                </a>
             </div>
         </header>
 

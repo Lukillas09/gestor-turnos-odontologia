@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Mi perfil | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Mi perfil</h1>
+            <p class="subtitle">Datos visibles dentro del consultorio y foto de perfil.</p>
+        </div>
+    </div>
+
+    <div class="profile-layout">
+        <section class="panel-section profile-photo-panel">
+            <div class="profile-photo-preview" data-profile-photo-preview>
+                {% if odontologo and odontologo.foto_perfil_url %}
+                    <img
+                        src="{{ odontologo.foto_perfil_url }}"
+                        alt="{{ request.user.get_username }}"
+                        style="object-position: {{ odontologo.foto_object_position }};"
+                        data-profile-photo-image
+                    >
+                {% else %}
+                    <span data-profile-photo-initial>{{ request.user.get_username|first|upper }}</span>
+                    <img alt="" hidden data-profile-photo-image>
+                {% endif %}
+            </div>
+
+            <div class="profile-summary">
+                <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
+                <span class="muted">{{ request.user.email|default:"Sin email cargado" }}</span>
+                {% if odontologo %}
+                    <span class="muted">{{ odontologo.especialidad|default:"Odontologia general" }} - Matricula {{ odontologo.matricula }}</span>
+                {% else %}
+                    <span class="muted">Este usuario no tiene perfil de odontologo asociado.</span>
+                {% endif %}
+            </div>
+
+            <form class="logout-form" method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="button button-secondary" type="submit">Cerrar sesion</button>
+            </form>
+        </section>
+
+        <section class="form-panel">
+            <form method="post" enctype="multipart/form-data" novalidate data-profile-form>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="field-error">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="form-grid">
+                    <div>
+                        <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                            <div class="field-error">{{ form.first_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                            <div class="field-error">{{ form.last_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="field-full">
+                        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="field-error">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if odontologo %}
+                        <div>
+                            <label for="{{ form.matricula.id_for_label }}">{{ form.matricula.label }}</label>
+                            {{ form.matricula }}
+                            {% if form.matricula.errors %}
+                                <div class="field-error">{{ form.matricula.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.especialidad.id_for_label }}">{{ form.especialidad.label }}</label>
+                            {{ form.especialidad }}
+                            {% if form.especialidad.errors %}
+                                <div class="field-error">{{ form.especialidad.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.duracion_turno_minutos.id_for_label }}">{{ form.duracion_turno_minutos.label }}</label>
+                            {{ form.duracion_turno_minutos }}
+                            {% if form.duracion_turno_minutos.errors %}
+                                <div class="field-error">{{ form.duracion_turno_minutos.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.foto_perfil.id_for_label }}">{{ form.foto_perfil.label }}</label>
+                            {{ form.foto_perfil }}
+                            <p class="muted">JPG, PNG o WEBP hasta 5 MB.</p>
+                            {% if form.foto_perfil.errors %}
+                                <div class="field-error">{{ form.foto_perfil.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="field-full profile-photo-controls">
+                            <div>
+                                <label for="{{ form.foto_posicion_x.id_for_label }}">Ajuste horizontal</label>
+                                {{ form.foto_posicion_x }}
+                                {% if form.foto_posicion_x.errors %}
+                                    <div class="field-error">{{ form.foto_posicion_x.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label for="{{ form.foto_posicion_y.id_for_label }}">Ajuste vertical</label>
+                                {{ form.foto_posicion_y }}
+                                {% if form.foto_posicion_y.errors %}
+                                    <div class="field-error">{{ form.foto_posicion_y.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">Guardar perfil</button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        (function () {
+            var input = document.querySelector("input[name='foto_perfil']");
+            var image = document.querySelector("[data-profile-photo-image]");
+            var initial = document.querySelector("[data-profile-photo-initial]");
+            var positionX = document.querySelector("input[name='foto_posicion_x']");
+            var positionY = document.querySelector("input[name='foto_posicion_y']");
+
+            function updatePosition() {
+                if (!image) {
+                    return;
+                }
+
+                var x = positionX ? positionX.value : 50;
+                var y = positionY ? positionY.value : 50;
+                image.style.objectPosition = x + "% " + y + "%";
+            }
+
+            if (input && image) {
+                input.addEventListener("change", function () {
+                    var file = input.files && input.files[0];
+
+                    if (!file) {
+                        return;
+                    }
+
+                    image.src = URL.createObjectURL(file);
+                    image.hidden = false;
+
+                    if (initial) {
+                        initial.hidden = true;
+                    }
+
+                    updatePosition();
+                });
+            }
+
+            if (positionX) {
+                positionX.addEventListener("input", updatePosition);
+            }
+
+            if (positionY) {
+                positionY.addEventListener("input", updatePosition);
+            }
+
+            updatePosition();
+        }());
+    </script>
+{% endblock %}
