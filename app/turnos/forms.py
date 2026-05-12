@@ -22,6 +22,29 @@ def convertir_a_hora(valor):
     return hora
 
 
+class HorarioDisponibleChoiceField(forms.TypedChoiceField):
+    def prepare_value(self, value):
+        hora = self._normalizar_hora(value)
+
+        if hora:
+            return hora.strftime("%H:%M")
+
+        return super().prepare_value(value)
+
+    def valid_value(self, value):
+        return super().valid_value(self.prepare_value(value))
+
+    @staticmethod
+    def _normalizar_hora(value):
+        if hasattr(value, "hour"):
+            return value
+
+        if value in (None, ""):
+            return None
+
+        return parse_time(str(value))
+
+
 class TurnoForm(forms.ModelForm):
     class Meta:
         model = Turno
@@ -144,7 +167,7 @@ class HorariosDisponiblesFormMixin:
 
 
 class TurnoCreateForm(HorariosDisponiblesFormMixin, TurnoForm):
-    hora_inicio = forms.TypedChoiceField(
+    hora_inicio = HorarioDisponibleChoiceField(
         choices=(),
         coerce=convertir_a_hora,
         empty_value=None,
@@ -157,7 +180,7 @@ class TurnoCreateForm(HorariosDisponiblesFormMixin, TurnoForm):
 
 
 class TurnoReprogramacionForm(HorariosDisponiblesFormMixin, forms.ModelForm):
-    hora_inicio = forms.TypedChoiceField(
+    hora_inicio = HorarioDisponibleChoiceField(
         choices=(),
         coerce=convertir_a_hora,
         empty_value=None,
@@ -267,7 +290,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         },
         widget=HtmlDateInput(),
     )
-    hora_inicio = forms.TypedChoiceField(
+    hora_inicio = HorarioDisponibleChoiceField(
         choices=(),
         coerce=convertir_a_hora,
         empty_value=None,

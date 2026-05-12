@@ -761,6 +761,36 @@ class SolicitudTurnoPublicaTests(TestCase):
         crear_disponibilidad_laboral(self.odontologo)
         self.fecha_turno = obtener_fecha_laboral_futura()
 
+    def _datos_solicitud_publica(self, **overrides):
+        datos = {
+            "nombre": "Lucia",
+            "apellido": "Paz",
+            "documento": "38111222",
+            "telefono": "1155667788",
+            "email": "lucia@example.com",
+            "odontologo": self.odontologo.pk,
+            "fecha": self.fecha_turno.isoformat(),
+            "hora_inicio": "10:00",
+            "motivo": "Consulta inicial",
+        }
+        datos.update(overrides)
+        return datos
+
+    def _crear_turno_existente(self, estado, hora_inicio=time(10, 0)):
+        paciente = Paciente.objects.create(
+            nombre="Mario",
+            apellido="Rojas",
+            documento=f"40{estado[:3]}{hora_inicio.hour:02d}{hora_inicio.minute:02d}",
+        )
+        return Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=hora_inicio,
+            duracion_minutos=30,
+            estado=estado,
+        )
+
     def test_formulario_publico_no_requiere_login(self):
         response = self.client.get(reverse("turnos:solicitud_publica"))
 
@@ -818,8 +848,14 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "10:00 a 10:30")
         self.assertContains(response, "Enviar solicitud")
         self.assertContains(response, "Tus datos de contacto")
+        self.assertContains(response, 'name="hora_inicio" value="10:00"')
+        self.assertNotContains(response, 'name="hora_inicio" value="10:00:00"')
         self.assertNotContains(response, "Fecha de nacimiento")
+        self.assertNotContains(response, "Sexo / gÃ©nero")
+        self.assertNotContains(response, "Domicilio")
+        self.assertNotContains(response, "Localidad")
         self.assertNotContains(response, "Obra social")
+        self.assertNotContains(response, "NÃºmero de afiliado")
         self.assertNotContains(response, "Contacto de emergencia")
 
     def test_formulario_publico_no_permite_buscar_fecha_pasada(self):
@@ -839,17 +875,7 @@ class SolicitudTurnoPublicaTests(TestCase):
     def test_solicitud_publica_crea_paciente_y_turno_pendiente(self):
         response = self.client.post(
             reverse("turnos:solicitud_publica_datos"),
-            {
-                "nombre": "Lucia",
-                "apellido": "Paz",
-                "documento": "38111222",
-                "telefono": "1155667788",
-                "email": "lucia@example.com",
-                "odontologo": self.odontologo.pk,
-                "fecha": self.fecha_turno.isoformat(),
-                "hora_inicio": "10:00",
-                "motivo": "Consulta inicial",
-            },
+            self._datos_solicitud_publica(),
         )
 
         turno = Turno.objects.get(motivo="Consulta inicial")
@@ -868,20 +894,26 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(turno.paciente.contacto_emergencia, "")
         self.assertEqual(turno.hora_inicio, time(10, 0))
 
+    def test_solicitud_publica_acepta_hora_enviada_con_segundos(self):
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="38111223",
+                hora_inicio="09:00:00",
+                motivo="Consulta con segundos",
+            ),
+        )
+
+        turno = Turno.objects.get(motivo="Consulta con segundos")
+
+        self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
+        self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
+        self.assertEqual(turno.hora_inicio, time(9, 0))
+
     def test_confirmacion_publica_muestra_datos_del_turno(self):
         self.client.post(
             reverse("turnos:solicitud_publica_datos"),
-            {
-                "nombre": "Lucia",
-                "apellido": "Paz",
-                "documento": "38111222",
-                "telefono": "1155667788",
-                "email": "lucia@example.com",
-                "odontologo": self.odontologo.pk,
-                "fecha": self.fecha_turno.isoformat(),
-                "hora_inicio": "10:00",
-                "motivo": "Consulta inicial",
-            },
+            self._datos_solicitud_publica(),
         )
 
         response = self.client.get(reverse("turnos:solicitud_publica_ok"))
@@ -925,60 +957,90 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(Paciente.objects.filter(documento="39111222").count(), 1)
         self.assertEqual(turno.paciente, paciente)
         self.assertEqual(paciente.nombre, "Nadia")
+        self.assertEqual(paciente.telefono, "1199999999")
         self.assertEqual(paciente.email, "nadia@example.com")
         self.assertEqual(paciente.fecha_nacimiento, date(1990, 4, 15))
         self.assertEqual(paciente.obra_social, "OSDE")
         self.assertEqual(paciente.contacto_emergencia, "Rosa 3415550000")
 
     def test_solicitud_publica_rechaza_horario_no_disponible(self):
-        paciente = Paciente.objects.create(
-            nombre="Mario",
-            apellido="Rojas",
-            documento="40111222",
-        )
-        Turno.objects.create(
-            paciente=paciente,
-            odontologo=self.odontologo,
-            fecha=self.fecha_turno,
-            hora_inicio=time(10, 0),
-            duracion_minutos=30,
-        )
+        self._crear_turno_existente(Turno.Estado.PENDIENTE)
 
         response = self.client.post(
             reverse("turnos:solicitud_publica_datos"),
-            {
-                "nombre": "Clara",
-                "apellido": "Luna",
-                "documento": "41111222",
-                "telefono": "",
-                "email": "",
-                "odontologo": self.odontologo.pk,
-                "fecha": self.fecha_turno.isoformat(),
-                "hora_inicio": "10:00",
-                "motivo": "Horario ocupado",
-            },
+            self._datos_solicitud_publica(
+                nombre="Clara",
+                apellido="Luna",
+                documento="41111222",
+                email="",
+                motivo="Horario ocupado",
+            ),
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Turno.objects.filter(motivo="Horario ocupado").exists())
         self.assertIn("hora_inicio", response.context["form"].errors)
 
+    def test_solicitud_publica_rechaza_horario_ocupado_por_turno_confirmado(self):
+        self._crear_turno_existente(Turno.Estado.CONFIRMADO)
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="41111223",
+                motivo="Horario confirmado ocupado",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Turno.objects.filter(motivo="Horario confirmado ocupado").exists())
+        self.assertIn("hora_inicio", response.context["form"].errors)
+
+    def test_solicitud_publica_permite_horario_de_turno_cancelado(self):
+        self._crear_turno_existente(Turno.Estado.CANCELADO)
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="41111224",
+                motivo="Horario cancelado reutilizable",
+            ),
+        )
+
+        turno = Turno.objects.get(motivo="Horario cancelado reutilizable")
+
+        self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
+        self.assertEqual(turno.hora_inicio, time(10, 0))
+
+    def test_solicitud_publica_permite_horario_de_turno_realizado(self):
+        self._crear_turno_existente(Turno.Estado.REALIZADO)
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="41111225",
+                motivo="Horario realizado reutilizable",
+            ),
+        )
+
+        turno = Turno.objects.get(motivo="Horario realizado reutilizable")
+
+        self.assertRedirects(response, reverse("turnos:solicitud_publica_ok"))
+        self.assertEqual(turno.hora_inicio, time(10, 0))
+
     def test_solicitud_publica_rechaza_fecha_pasada(self):
         fecha_pasada = timezone.localdate() - timedelta(days=1)
 
         response = self.client.post(
             reverse("turnos:solicitud_publica_datos"),
-            {
-                "nombre": "Clara",
-                "apellido": "Luna",
-                "documento": "42111222",
-                "telefono": "",
-                "email": "",
-                "odontologo": self.odontologo.pk,
-                "fecha": fecha_pasada.isoformat(),
-                "hora_inicio": "10:00",
-                "motivo": "Fecha pasada",
-            },
+            self._datos_solicitud_publica(
+                nombre="Clara",
+                apellido="Luna",
+                documento="42111222",
+                email="",
+                fecha=fecha_pasada.isoformat(),
+                motivo="Fecha pasada",
+            ),
         )
 
         self.assertEqual(response.status_code, 200)
