@@ -1,4 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 
 
 ROL_RECEPCIONISTA = "Recepcionista"
@@ -106,7 +107,28 @@ def limitar_turnos_por_usuario(queryset, usuario):
     odontologo = obtener_odontologo_del_usuario(usuario)
 
     if odontologo:
-        return queryset.filter(odontologo=odontologo)
+        return queryset.filter(
+            Q(odontologo=odontologo)
+            | Q(
+                paciente__odontologos_asociados__odontologo=odontologo,
+                paciente__odontologos_asociados__activo=True,
+            )
+        ).distinct()
+
+    return queryset.none()
+
+
+def limitar_pacientes_por_usuario(queryset, usuario):
+    if puede_gestionar_consultorio(usuario) or puede_configurar_disponibilidad(usuario):
+        return queryset
+
+    odontologo = obtener_odontologo_del_usuario(usuario)
+
+    if odontologo:
+        return queryset.filter(
+            odontologos_asociados__odontologo=odontologo,
+            odontologos_asociados__activo=True,
+        ).distinct()
 
     return queryset.none()
 

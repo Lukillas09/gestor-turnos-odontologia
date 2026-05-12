@@ -10,7 +10,9 @@
         </div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Volver</a>
-            <a class="button" href="{% url 'historias:crear' paciente.pk %}">Nueva entrada</a>
+            {% if puede_crear_historia_clinica %}
+                <a class="button" href="{% url 'historias:crear' paciente.pk %}">Nueva entrada</a>
+            {% endif %}
         </div>
     </div>
 

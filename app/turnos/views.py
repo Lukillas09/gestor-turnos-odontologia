@@ -220,6 +220,11 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
         context["resumen_turnos"] = self._obtener_resumen_turnos(self.turnos_filtrados)
         context["hay_filtros_activos"] = self.hay_filtros_activos
         context["accesos_rapidos_turnos"] = self._obtener_accesos_rapidos()
+        context["mensaje_sin_turnos"] = (
+            "No tenés turnos asociados a tu agenda."
+            if obtener_odontologo_del_usuario(self.request.user)
+            else "No hay turnos para los filtros seleccionados."
+        )
         return context
 
     @staticmethod
@@ -294,7 +299,7 @@ class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        self.object = crear_turno_desde_formulario(form)
+        self.object = crear_turno_desde_formulario(form, usuario=self.request.user)
         messages.success(self.request, "Turno creado correctamente.")
         return redirect(self.get_success_url())
 
@@ -745,7 +750,7 @@ class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
         return context
 
     def form_valid(self, form):
-        self.object = actualizar_turno_desde_formulario(form)
+        self.object = actualizar_turno_desde_formulario(form, usuario=self.request.user)
         messages.success(self.request, "Turno actualizado correctamente.")
         return redirect(self.get_success_url())
 

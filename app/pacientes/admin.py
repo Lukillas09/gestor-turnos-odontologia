@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import FichaOdontologica, Paciente
+from .models import FichaOdontologica, Paciente, PacienteOdontologo
+
+
+class PacienteOdontologoInline(admin.TabularInline):
+    model = PacienteOdontologo
+    extra = 0
+    fields = ("odontologo", "asignado_por", "motivo", "activo", "creado_en")
+    readonly_fields = ("creado_en",)
+    autocomplete_fields = ("odontologo", "asignado_por")
 
 
 class FichaOdontologicaInline(admin.StackedInline):
@@ -26,7 +34,7 @@ class FichaOdontologicaInline(admin.StackedInline):
 
 @admin.register(Paciente)
 class PacienteAdmin(admin.ModelAdmin):
-    inlines = (FichaOdontologicaInline,)
+    inlines = (PacienteOdontologoInline, FichaOdontologicaInline)
     list_display = ("nombre", "apellido", "dni", "telefono", "email", "obra_social")
     search_fields = (
         "apellido",
@@ -115,3 +123,20 @@ class FichaOdontologicaAdmin(admin.ModelAdmin):
     @admin.display(description="Alergias")
     def alergias_resumen(self, obj):
         return obj.alergias[:80] if obj.alergias else "-"
+
+
+@admin.register(PacienteOdontologo)
+class PacienteOdontologoAdmin(admin.ModelAdmin):
+    list_display = ("paciente", "odontologo", "activo", "asignado_por", "creado_en")
+    search_fields = (
+        "paciente__apellido",
+        "paciente__nombre",
+        "paciente__documento",
+        "odontologo__usuario__first_name",
+        "odontologo__usuario__last_name",
+        "odontologo__usuario__username",
+        "motivo",
+    )
+    list_filter = ("activo", ("creado_en", admin.DateFieldListFilter))
+    autocomplete_fields = ("paciente", "odontologo", "asignado_por")
+    readonly_fields = ("creado_en", "actualizado_en")

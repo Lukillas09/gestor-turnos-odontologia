@@ -23,9 +23,9 @@
             </div>
         </div>
 
-        {% if puede_ver_pacientes or puede_ver_historia_clinica %}
+        {% if puede_editar_ficha_odontologica or puede_ver_historia_clinica %}
             <div class="clinical-actions" aria-label="Acciones clínicas">
-                {% if puede_ver_pacientes %}
+                {% if puede_editar_ficha_odontologica %}
                     <a class="button button-secondary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">
                         {% if ficha_odontologica %}Editar ficha{% else %}Cargar ficha{% endif %}
                     </a>
@@ -72,6 +72,44 @@
                 {% endif %}
             </article>
         {% endfor %}
+    </section>
+
+    <section class="panel-section animate-fade-up">
+        <div class="section-header">
+            <div>
+                <h2>Odontólogos asociados</h2>
+                <p class="subtitle">Profesionales habilitados para atender y cargar nuevas entradas clínicas.</p>
+            </div>
+            {% if puede_derivar_paciente %}
+                <a class="button button-secondary" href="{% url 'pacientes:derivar' paciente.pk %}">Derivar paciente</a>
+            {% endif %}
+        </div>
+
+        {% if odontologos_asociados %}
+            <div class="compact-list stagger-list">
+                {% for asociacion in odontologos_asociados %}
+                    <article class="compact-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
+                        <div>
+                            <strong>{{ asociacion.odontologo }}</strong>
+                            <span>
+                                Asociado el {{ asociacion.creado_en|date:"d/m/Y" }}
+                                {% if asociacion.asignado_por %}
+                                    por {{ asociacion.asignado_por.get_full_name|default:asociacion.asignado_por.username }}
+                                {% endif %}
+                            </span>
+                            {% if asociacion.motivo %}
+                                <span>{{ asociacion.motivo }}</span>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="clinical-empty-state compact">
+                <strong>Sin odontólogos asociados</strong>
+                <span>Cuando se cree un turno o una derivación, la asociación aparecerá acá.</span>
+            </div>
+        {% endif %}
     </section>
 
     <div class="clinical-layout">
@@ -124,7 +162,7 @@
                         <h2>Ficha odontológica</h2>
                         <p class="subtitle">Resumen clínico general y antecedentes.</p>
                     </div>
-                    {% if puede_ver_pacientes %}
+                    {% if puede_editar_ficha_odontologica %}
                         <a class="text-link" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">
                             {% if ficha_odontologica %}Editar ficha{% else %}Cargar ficha{% endif %}
                         </a>

@@ -4,6 +4,7 @@ from .views import (
     FichaOdontologicaUpdateView,
     PacienteCreateView,
     PacienteDeleteView,
+    PacienteDerivarView,
     PacienteDetailView,
     PacienteListView,
     PacienteUpdateView,
@@ -16,6 +17,7 @@ urlpatterns = [
     path("nuevo/", PacienteCreateView.as_view(), name="crear"),
     path("<int:pk>/", PacienteDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", PacienteUpdateView.as_view(), name="editar"),
+    path("<int:pk>/derivar/", PacienteDerivarView.as_view(), name="derivar"),
     path(
         "<int:pk>/ficha-odontologica/",
         FichaOdontologicaUpdateView.as_view(),

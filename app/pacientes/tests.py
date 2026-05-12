@@ -9,7 +9,7 @@ from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
-from .models import FichaOdontologica, Paciente
+from .models import FichaOdontologica, Paciente, PacienteOdontologo
 
 
 def asignar_rol(usuario, nombre_rol):
@@ -91,6 +91,81 @@ class PacienteAccessTests(TestCase):
         self.assertNotContains(response_lista, "Nuevo paciente")
         self.assertEqual(response_crear.status_code, 403)
         self.assertEqual(response_editar.status_code, 403)
+
+    def test_odontologo_lista_solo_pacientes_asociados(self):
+        usuario = get_user_model().objects.create_user(username="dr.scope.pacientes")
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula="MN-SCOPE")
+        paciente_asociado = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Asociado",
+            documento="20111222",
+        )
+        paciente_no_asociado = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Externo",
+            documento="20111223",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=paciente_asociado,
+            odontologo=odontologo,
+            motivo="Asignacion inicial",
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("pacientes:lista"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Asociado")
+        self.assertNotContains(response, "Externo")
+
+    def test_derivar_paciente_crea_asociacion_para_odontologo_destino(self):
+        usuario_origen = get_user_model().objects.create_user(username="dr.origen")
+        usuario_destino = get_user_model().objects.create_user(username="dr.destino")
+        asignar_rol(usuario_origen, ROL_ODONTOLOGO)
+        asignar_rol(usuario_destino, ROL_ODONTOLOGO)
+        odontologo_origen = Odontologo.objects.create(
+            usuario=usuario_origen,
+            matricula="MN-ORIGEN",
+        )
+        odontologo_destino = Odontologo.objects.create(
+            usuario=usuario_destino,
+            matricula="MN-DESTINO",
+        )
+        paciente = Paciente.objects.create(
+            nombre="Derivado",
+            apellido="Clinico",
+            documento="20111224",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=paciente,
+            odontologo=odontologo_origen,
+            motivo="Paciente propio",
+        )
+        self.client.force_login(usuario_origen)
+
+        response = self.client.post(
+            reverse("pacientes:derivar", kwargs={"pk": paciente.pk}),
+            {
+                "odontologo": odontologo_destino.pk,
+                "motivo": "Interconsulta",
+            },
+        )
+
+        self.assertRedirects(response, reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+        self.assertTrue(
+            PacienteOdontologo.objects.filter(
+                paciente=paciente,
+                odontologo=odontologo_destino,
+                activo=True,
+                motivo="Interconsulta",
+            ).exists()
+        )
+
+        self.client.force_login(usuario_destino)
+        response_lista_destino = self.client.get(reverse("pacientes:lista"))
+
+        self.assertContains(response_lista_destino, "Clinico")
 
 
 class PacienteViewsTests(TestCase):

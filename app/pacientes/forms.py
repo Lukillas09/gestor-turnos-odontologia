@@ -1,8 +1,9 @@
 from django import forms
 
 from config.form_widgets import HtmlDateInput
+from turnos.models import Odontologo
 
-from .models import FichaOdontologica, Paciente
+from .models import FichaOdontologica, Paciente, PacienteOdontologo
 
 
 class PacienteForm(forms.ModelForm):
@@ -120,3 +121,34 @@ class PacienteDeleteConfirmationForm(forms.Form):
                 )
 
         return datos
+
+
+class PacienteDerivacionForm(forms.Form):
+    odontologo = forms.ModelChoiceField(
+        queryset=Odontologo.objects.filter(activo=True).select_related("usuario"),
+        empty_label="Seleccionar odontólogo",
+        label="Odontólogo destino",
+    )
+    motivo = forms.CharField(
+        required=False,
+        label="Motivo de derivación",
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
+
+    def __init__(self, *args, paciente, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.paciente = paciente
+
+    def clean_odontologo(self):
+        odontologo = self.cleaned_data["odontologo"]
+
+        if PacienteOdontologo.objects.filter(
+            paciente=self.paciente,
+            odontologo=odontologo,
+            activo=True,
+        ).exists():
+            raise forms.ValidationError(
+                "El paciente ya está asociado a ese odontólogo."
+            )
+
+        return odontologo

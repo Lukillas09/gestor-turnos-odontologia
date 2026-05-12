@@ -1,9 +1,10 @@
 import logging
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Count, OuterRef, Q, Subquery
-from django.shortcuts import get_object_or_404
+from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
@@ -11,6 +12,7 @@ from django.views.generic import CreateView, DetailView, FormView, ListView, Upd
 from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
 from historias.permissions import (
     limitar_historias_clinicas_por_usuario,
+    puede_crear_historia_de_paciente,
     puede_ver_historia_de_paciente,
 )
 from turnos.models import Turno
@@ -20,10 +22,16 @@ from usuarios.mixins import (
     GestionConsultorioRequeridaMixin,
     VerPacientesRequeridoMixin,
 )
-from usuarios.roles import puede_gestionar_historias_clinicas
+from usuarios.roles import limitar_pacientes_por_usuario, puede_gestionar_historias_clinicas
 
-from .forms import FichaOdontologicaForm, PacienteDeleteConfirmationForm, PacienteForm
-from .models import FichaOdontologica, Paciente
+from .forms import (
+    FichaOdontologicaForm,
+    PacienteDeleteConfirmationForm,
+    PacienteDerivacionForm,
+    PacienteForm,
+)
+from .models import FichaOdontologica, Paciente, PacienteOdontologo
+from .services import asignar_paciente_a_odontologo, puede_derivar_paciente
 
 
 logger = logging.getLogger(__name__)
@@ -37,6 +45,7 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        queryset = limitar_pacientes_por_usuario(queryset, self.request.user)
         busqueda = self.request.GET.get("q", "").strip()
         ultimo_turno = Turno.objects.filter(paciente=OuterRef("pk")).order_by(
             "-fecha",
@@ -122,6 +131,16 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             super()
             .get_queryset()
             .select_related("ficha_odontologica")
+            .prefetch_related(
+                Prefetch(
+                    "odontologos_asociados",
+                    queryset=PacienteOdontologo.objects.filter(activo=True).select_related(
+                        "odontologo",
+                        "odontologo__usuario",
+                        "asignado_por",
+                    ),
+                )
+            )
         )
 
     def get_context_data(self, **kwargs):
@@ -134,6 +153,12 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             puede_gestionar_historias_clinicas(self.request.user)
             and puede_ver_historia_de_paciente(self.request.user, paciente)
         )
+        puede_crear_historia = puede_crear_historia_de_paciente(
+            self.request.user,
+            paciente,
+        )
+        puede_derivar = puede_derivar_paciente(self.request.user, paciente)
+        puede_editar_ficha = puede_derivar
 
         turnos = paciente.turnos.select_related("odontologo", "odontologo__usuario")
         turnos_activos = turnos.filter(
@@ -187,6 +212,10 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 "proximo_turno": proximo_turno,
                 "ultimo_turno": ultimo_turno,
                 "puede_ver_historia_clinica": puede_ver_historia,
+                "puede_crear_historia_clinica": puede_crear_historia,
+                "puede_editar_ficha_odontologica": puede_editar_ficha,
+                "puede_derivar_paciente": puede_derivar,
+                "odontologos_asociados": list(paciente.odontologos_asociados.all()),
                 "historias_recientes": historias_recientes,
                 "ultima_historia_clinica": ultima_historia,
                 "cantidad_historias_clinicas": cantidad_historias,
@@ -441,6 +470,10 @@ class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.paciente = get_object_or_404(Paciente, pk=self.kwargs["pk"])
+
+        if not puede_derivar_paciente(request.user, self.paciente):
+            raise PermissionDenied("No tenés permiso para editar la ficha odontológica.")
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
@@ -462,6 +495,48 @@ class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, UpdateView):
         form.instance.actualizado_por = self.request.user
         messages.success(self.request, "Ficha odontológica actualizada correctamente.")
         return super().form_valid(form)
+
+
+class PacienteDerivarView(VerPacientesRequeridoMixin, FormView):
+    form_class = PacienteDerivacionForm
+    template_name = "pacientes/paciente_derivar_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.paciente = get_object_or_404(Paciente, pk=self.kwargs["pk"])
+
+        if not puede_derivar_paciente(request.user, self.paciente):
+            raise PermissionDenied("No tenés permiso para derivar este paciente.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["paciente"] = self.paciente
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy("pacientes:detalle", kwargs={"pk": self.paciente.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["paciente"] = self.paciente
+        context["titulo"] = "Derivar paciente"
+        context["subtitulo"] = "Habilitá a otro odontólogo para atender y cargar historia clínica."
+        context["url_cancelar"] = self.get_success_url()
+        return context
+
+    def form_valid(self, form):
+        asignar_paciente_a_odontologo(
+            paciente=self.paciente,
+            odontologo=form.cleaned_data["odontologo"],
+            usuario=self.request.user,
+            motivo=form.cleaned_data["motivo"],
+        )
+        messages.success(
+            self.request,
+            "Paciente derivado correctamente. El odontólogo destino ya puede atenderlo.",
+        )
+        return redirect(self.get_success_url())
 
 
 class PacienteUpdateView(GestionConsultorioRequeridaMixin, UpdateView):

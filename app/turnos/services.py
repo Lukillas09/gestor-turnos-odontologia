@@ -5,6 +5,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from pacientes.models import Paciente
+from pacientes.services import asegurar_paciente_asociado_a_odontologo
 
 from .google_calendar_sync import (
     sincronizar_turno_actualizado,
@@ -28,14 +29,26 @@ class ResultadoEnvioRecordatoriosEmail:
     fallidos: int
 
 
-def crear_turno_desde_formulario(form):
+def crear_turno_desde_formulario(form, usuario=None):
     turno = form.save()
+    asegurar_paciente_asociado_a_odontologo(
+        turno.paciente,
+        turno.odontologo,
+        usuario=usuario,
+        motivo="Turno creado desde panel interno",
+    )
     sincronizar_turno_creado(turno)
     return turno
 
 
-def actualizar_turno_desde_formulario(form):
+def actualizar_turno_desde_formulario(form, usuario=None):
     turno = form.save()
+    asegurar_paciente_asociado_a_odontologo(
+        turno.paciente,
+        turno.odontologo,
+        usuario=usuario,
+        motivo="Turno actualizado desde panel interno",
+    )
     sincronizar_turno_actualizado(turno)
     return turno
 
@@ -165,6 +178,11 @@ def crear_solicitud_turno_publica(datos):
         duracion_minutos=odontologo.duracion_turno_minutos,
         motivo=datos["motivo"],
         estado=Turno.Estado.PENDIENTE,
+    )
+    asegurar_paciente_asociado_a_odontologo(
+        paciente,
+        odontologo,
+        motivo="Solicitud pública de turno",
     )
     sincronizar_turno_creado(turno)
     notificar_solicitud_turno_recibida(turno)

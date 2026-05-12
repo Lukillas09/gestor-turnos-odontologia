@@ -12,7 +12,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from pacientes.models import Paciente
+from pacientes.models import Paciente, PacienteOdontologo
 from turnos.google_calendar_sync import ResultadoSincronizacionGoogleCalendar
 from turnos.models import (
     DisponibilidadOdontologo,
@@ -340,6 +340,13 @@ class TurnoViewsTests(TestCase):
 
         self.assertRedirects(response, reverse("turnos:lista"))
         self.assertTrue(Turno.objects.filter(motivo="Control").exists())
+        self.assertTrue(
+            PacienteOdontologo.objects.filter(
+                paciente=self.paciente,
+                odontologo=self.odontologo,
+                activo=True,
+            ).exists()
+        )
 
     def test_creacion_rechaza_turno_solapado(self):
         Turno.objects.create(
@@ -893,6 +900,13 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(turno.paciente.numero_afiliado, "")
         self.assertEqual(turno.paciente.contacto_emergencia, "")
         self.assertEqual(turno.hora_inicio, time(10, 0))
+        self.assertTrue(
+            PacienteOdontologo.objects.filter(
+                paciente=turno.paciente,
+                odontologo=self.odontologo,
+                activo=True,
+            ).exists()
+        )
 
     def test_solicitud_publica_acepta_hora_enviada_con_segundos(self):
         response = self.client.post(
@@ -1650,14 +1664,29 @@ class TurnoRoleTests(TestCase):
             duracion_minutos=30,
             motivo="Turno ajeno",
         )
+        self.paciente_no_asociado = Paciente.objects.create(
+            nombre="Noelia",
+            apellido="Externa",
+            documento="36111223",
+        )
+        self.turno_no_asociado = Turno.objects.create(
+            paciente=self.paciente_no_asociado,
+            odontologo=self.otro_odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(11, 0),
+            duracion_minutos=30,
+            motivo="Turno no asociado",
+        )
         self.client.force_login(usuario_odontologo)
 
-    def test_odontologo_lista_solo_sus_turnos(self):
+    def test_odontologo_lista_turnos_de_pacientes_asociados(self):
         response = self.client.get(reverse("turnos:lista"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Roles")
-        self.assertNotContains(response, "Otra")
+        self.assertContains(response, "Otra")
+        self.assertContains(response, "Turno ajeno")
+        self.assertNotContains(response, "Turno no asociado")
         self.assertNotContains(response, "Nuevo turno")
         self.assertNotContains(response, "Editar")
 
@@ -1672,9 +1701,19 @@ class TurnoRoleTests(TestCase):
         self.assertContains(response, "Reprogramar")
         self.assertNotContains(response, "Cancelar turno")
 
-    def test_odontologo_no_puede_ver_turno_ajeno(self):
+    def test_odontologo_puede_ver_turno_de_paciente_asociado_solo_lectura(self):
         response = self.client.get(
             reverse("turnos:detalle", kwargs={"pk": self.turno_ajeno.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Turno ajeno")
+        self.assertNotContains(response, "Reprogramar")
+        self.assertNotContains(response, "Reintentar sincronización")
+
+    def test_odontologo_no_puede_ver_turno_no_asociado(self):
+        response = self.client.get(
+            reverse("turnos:detalle", kwargs={"pk": self.turno_no_asociado.pk})
         )
 
         self.assertEqual(response.status_code, 404)
@@ -1709,7 +1748,7 @@ class TurnoRoleTests(TestCase):
                 )
             )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
         sincronizar_mock.assert_not_called()
 
     def test_odontologo_puede_reprogramar_turno_propio(self):
@@ -1740,7 +1779,7 @@ class TurnoRoleTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
 
     def test_administrador_puede_ver_y_reintentar_sin_gestionar_turno(self):
         usuario_admin = get_user_model().objects.create_user(

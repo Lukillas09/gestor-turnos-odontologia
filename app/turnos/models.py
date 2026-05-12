@@ -269,6 +269,16 @@ class Turno(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+        self._asegurar_asociacion_paciente_odontologo()
+
+    def _asegurar_asociacion_paciente_odontologo(self):
+        from pacientes.services import asegurar_paciente_asociado_a_odontologo
+
+        asegurar_paciente_asociado_a_odontologo(
+            self.paciente,
+            self.odontologo,
+            motivo="Turno creado",
+        )
 
     def _validar_odontologo_activo(self, errors):
         if not self.odontologo.activo:

@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 
 
 class Paciente(models.Model):
@@ -105,3 +107,72 @@ class FichaOdontologica(models.Model):
 
     def __str__(self):
         return f"Ficha odontológica de {self.paciente}"
+
+
+class PacienteOdontologo(models.Model):
+    paciente = models.ForeignKey(
+        Paciente,
+        on_delete=models.CASCADE,
+        related_name="odontologos_asociados",
+    )
+    odontologo = models.ForeignKey(
+        "turnos.Odontologo",
+        on_delete=models.CASCADE,
+        related_name="pacientes_asociados",
+    )
+    asignado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="asignaciones_pacientes_odontologos",
+    )
+    motivo = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["paciente__apellido", "paciente__nombre", "odontologo"]
+        verbose_name = "Asociación paciente-odontólogo"
+        verbose_name_plural = "Asociaciones paciente-odontólogo"
+        indexes = [
+            models.Index(fields=["paciente", "activo"]),
+            models.Index(fields=["odontologo", "activo"]),
+            models.Index(fields=["paciente", "odontologo", "activo"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["paciente", "odontologo"],
+                condition=Q(activo=True),
+                name="uniq_paciente_odontologo_activo",
+            )
+        ]
+
+    def clean(self):
+        if not self.activo:
+            return
+
+        if not self.paciente_id or not self.odontologo_id:
+            return
+
+        asociaciones = PacienteOdontologo.objects.filter(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            activo=True,
+        )
+
+        if self.pk:
+            asociaciones = asociaciones.exclude(pk=self.pk)
+
+        if asociaciones.exists():
+            raise ValidationError(
+                "Ya existe una asociación activa entre este paciente y odontólogo."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.paciente} - {self.odontologo}"

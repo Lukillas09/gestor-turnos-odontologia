@@ -11,15 +11,14 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from pacientes.models import Paciente
 from usuarios.mixins import HistoriaClinicaOdontologoRequeridoMixin
-from usuarios.roles import (
-    obtener_odontologo_del_usuario,
-    puede_editar_historia_clinica,
-)
+from usuarios.roles import obtener_odontologo_del_usuario
 
 from .forms import HistoriaClinicaFiltroForm, HistoriaClinicaForm
 from .models import HistoriaClinica, HistoriaClinicaAdjunto
 from .permissions import (
     limitar_historias_clinicas_por_usuario,
+    puede_crear_historia_de_paciente,
+    puede_editar_historia_clinica,
     puede_ver_historia_de_paciente,
 )
 
@@ -29,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
     paciente = None
+    requiere_permiso_creacion = False
 
     def dispatch(self, request, *args, **kwargs):
         self.paciente = get_object_or_404(Paciente, pk=kwargs["paciente_pk"])
@@ -45,6 +45,20 @@ class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
             )
             raise PermissionDenied(
                 "No tenés permiso para ver la historia clínica de este paciente."
+            )
+
+        if self.requiere_permiso_creacion and not puede_crear_historia_de_paciente(
+            request.user,
+            self.paciente,
+        ):
+            _registrar_evento_clinico(
+                request,
+                "creacion_denegada_paciente_no_asociado",
+                paciente=self.paciente,
+                detalle="Intento de crear historia en paciente no asociado.",
+            )
+            raise PermissionDenied(
+                "No tenés permiso para cargar historia clínica de este paciente."
             )
 
         return super().dispatch(request, *args, **kwargs)
@@ -114,6 +128,10 @@ class HistoriaClinicaListView(PacienteHistoriaClinicaMixin, ListView):
         )
         context["filtros_form"] = self.filtros_form
         context["filtros_querystring"] = query_params.urlencode()
+        context["puede_crear_historia_clinica"] = puede_crear_historia_de_paciente(
+            self.request.user,
+            self.paciente,
+        )
         return context
 
 
@@ -121,6 +139,7 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
     model = HistoriaClinica
     form_class = HistoriaClinicaForm
     template_name = "historias/historia_clinica_form.html"
+    requiere_permiso_creacion = True
 
     def get_success_url(self):
         return reverse(
