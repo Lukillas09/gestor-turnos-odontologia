@@ -3,244 +3,82 @@
 {% block title %}Inicio | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
+    <div class="page-header animate-fade-up">
         <div>
             <p class="eyebrow">{{ rol_principal }}</p>
-            <h1>Dashboard del consultorio</h1>
-            <p class="subtitle">{{ hoy|date:"l d/m/Y" }}</p>
-        </div>
-        <div class="header-actions">
-            {% if puede_gestionar_turnos %}
-                <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
-            {% endif %}
-            {% if puede_ver_turnos %}
-                <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Ver agenda</a>
+            {% if es_dashboard_odontologo %}
+                <h1>Tu agenda de hoy</h1>
+                <p class="subtitle">Resumen de tu agenda para {{ hoy|date:"l d/m/Y" }}.</p>
+            {% else %}
+                <h1>Resumen de la agenda</h1>
+                <p class="subtitle">Vista simple del consultorio para {{ hoy|date:"l d/m/Y" }}.</p>
             {% endif %}
         </div>
     </div>
 
-    <section class="metric-grid">
-        <div class="metric-card">
-            <span class="metric-label">Turnos hoy</span>
+    <section class="metric-grid stagger-list" aria-label="Resumen de agenda">
+        <a class="metric-card animate-fade-up card-hover" style="--stagger-index: 0;" href="{{ url_turnos_hoy }}">
+            <span class="metric-label">Turnos de hoy</span>
             <strong>{{ turnos_hoy }}</strong>
-        </div>
-        <div class="metric-card">
-            <span class="metric-label">Confirmados hoy</span>
-            <strong>{{ turnos_confirmados_hoy }}</strong>
-        </div>
-        <div class="metric-card">
-            <span class="metric-label">Pendientes</span>
+            <small class="muted">Ver agenda diaria</small>
+        </a>
+
+        <a class="metric-card animate-fade-up card-hover" style="--stagger-index: 1;" href="{{ url_turnos_semana }}">
+            <span class="metric-label">Turnos de la semana</span>
+            <strong>{{ turnos_semana }}</strong>
+            <small class="muted">{{ inicio_semana|date:"d/m" }} al {{ fin_semana|date:"d/m" }}</small>
+        </a>
+
+        <a class="metric-card animate-fade-up card-hover" style="--stagger-index: 2;" href="{{ url_turnos_pendientes }}">
+            <span class="metric-label">{% if es_dashboard_odontologo %}Mis pendientes{% else %}Pendientes{% endif %}</span>
             <strong>{{ turnos_pendientes }}</strong>
-        </div>
-        <div class="metric-card">
-            <span class="metric-label">Pacientes</span>
-            <strong>{{ pacientes_total }}</strong>
-        </div>
-        {% if puede_gestionar_historias_clinicas %}
-            <div class="metric-card">
-                <span class="metric-label">Historias clínicas</span>
-                <strong>{{ historias_total }}</strong>
-            </div>
-        {% endif %}
+            <small class="muted">Turnos por confirmar</small>
+        </a>
     </section>
 
-    <section class="metric-grid">
-        <div class="metric-card">
-            <span class="metric-label">Hoy pendientes</span>
-            <strong>{{ resumen_hoy.pendiente }}</strong>
-        </div>
-        <div class="metric-card">
-            <span class="metric-label">Hoy realizados</span>
-            <strong>{{ resumen_hoy.realizado }}</strong>
-        </div>
-        <div class="metric-card">
-            <span class="metric-label">Recordatorios enviados</span>
-            <strong>{{ recordatorios_enviados }}</strong>
-        </div>
-        <div class="metric-card">
-            <span class="metric-label">Recordatorios fallidos</span>
-            <strong>{{ recordatorios_fallidos }}</strong>
-        </div>
-    </section>
-
-    <div class="dashboard-grid">
-        <section class="panel-section">
-            <div class="section-header">
-                <div>
-                    <h2>Turnos de hoy</h2>
-                    <p class="subtitle">Agenda operativa del día.</p>
-                </div>
-                {% if puede_ver_turnos %}
-                    <a class="text-link" href="{% url 'turnos:agenda_dia' %}">Ver agenda</a>
-                {% endif %}
-            </div>
-
-            {% if turnos_hoy_lista %}
-                <div class="compact-list">
-                    {% for turno in turnos_hoy_lista %}
-                        <a class="compact-item" href="{% url 'turnos:detalle' turno.pk %}">
-                            <span>
-                                <strong>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</strong>
-                                <span>{{ turno.paciente }} con {{ turno.odontologo }} - {{ turno.motivo|default:"Sin motivo" }}</span>
-                            </span>
-                            <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-                        </a>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="muted">No hay turnos cargados para hoy.</p>
-            {% endif %}
-        </section>
-
-        <section class="panel-section">
-            <div class="section-header">
-                <div>
-                    <h2>Pendientes de confirmar</h2>
-                    <p class="subtitle">Solicitudes que requieren respuesta del consultorio.</p>
-                </div>
-                {% if puede_ver_turnos %}
-                    <a class="text-link" href="{% url 'turnos:lista' %}?estado=pendiente">Ver pendientes</a>
-                {% endif %}
-            </div>
-
-            {% if pendientes_confirmacion %}
-                <div class="compact-list">
-                    {% for turno in pendientes_confirmacion %}
-                        <div class="compact-item">
-                            <span>
-                                <strong>{{ turno.fecha|date:"d/m" }} {{ turno.hora_inicio|time:"H:i" }}</strong>
-                                <span>{{ turno.paciente }} con {{ turno.odontologo }} - {{ turno.motivo|default:"Sin motivo" }}</span>
-                            </span>
-                            <span class="dashboard-actions">
-                                <a class="button button-secondary button-small" href="{% url 'turnos:detalle' turno.pk %}">Detalle</a>
-                                {% if puede_gestionar_turnos %}
-                                    <form class="inline-form" method="post" action="{% url 'turnos:confirmar' turno.pk %}">
-                                        {% csrf_token %}
-                                        <button class="button-success button-small" type="submit">Confirmar</button>
-                                    </form>
-                                {% endif %}
-                            </span>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="muted">No hay solicitudes pendientes de confirmación.</p>
-            {% endif %}
-        </section>
-    </div>
-
-    <div class="dashboard-grid dashboard-grid-secondary">
-        <section class="panel-section">
-            <div class="section-header">
-                <div>
-                    <h2>Próximos controles</h2>
-                    <p class="subtitle">Fechas de control registradas sin mostrar datos clínicos.</p>
-                </div>
-            </div>
-
-            {% if proximos_controles %}
-                <div class="compact-list">
-                    {% for historia in proximos_controles %}
-                        <a class="compact-item" href="{% url 'pacientes:detalle' historia.paciente.pk %}">
-                            <span>
-                                <strong>{{ historia.proximo_control|date:"d/m/Y" }}</strong>
-                                <span>{{ historia.paciente }} con {{ historia.odontologo }}</span>
-                            </span>
-                            <span class="status-badge status-sync-pending">Control</span>
-                        </a>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="muted">No hay próximos controles cargados.</p>
-            {% endif %}
-        </section>
-
-        <section class="panel-section">
-            <div class="section-header">
-                <div>
-                    <h2>Estado operativo</h2>
-                    <p class="subtitle">Google Calendar y recordatorios por email.</p>
-                </div>
-            </div>
-
-            <div class="quick-actions">
-                <div class="quick-action">
-                    <strong>Google Calendar</strong>
-                    {% if errores_google_calendar %}
-                        <span>{{ errores_google_calendar|length }} conexión{% if errores_google_calendar|length != 1 %}es{% endif %} con error.</span>
-                    {% else %}
-                        <span>Sin errores recientes de sincronización.</span>
-                    {% endif %}
-                </div>
-                <div class="quick-action">
-                    <strong>Recordatorios</strong>
-                    <span>{{ recordatorios_enviados }} enviados. {{ recordatorios_fallidos }} fallidos.</span>
-                </div>
-            </div>
-
-            {% if errores_google_calendar %}
-                <div class="compact-list dashboard-alert-list">
-                    {% for conexion in errores_google_calendar %}
-                        <div class="compact-item">
-                            <span>
-                                <strong>{{ conexion.odontologo }}</strong>
-                                <span>{{ conexion.ultimo_error_para_usuario }}</span>
-                            </span>
-                            <span class="status-badge status-cancelado">Error</span>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-
-            {% if recordatorios_fallidos_recientes %}
-                <div class="compact-list dashboard-alert-list">
-                    {% for turno in recordatorios_fallidos_recientes %}
-                        <a class="compact-item" href="{% url 'turnos:detalle' turno.pk %}">
-                            <span>
-                                <strong>Recordatorio fallido</strong>
-                                <span>{{ turno.paciente }} - {{ turno.fecha|date:"d/m/Y" }} {{ turno.hora_inicio|time:"H:i" }}</span>
-                            </span>
-                            <span class="status-badge status-cancelado">Email</span>
-                        </a>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </section>
-    </div>
-
-    <section class="panel-section">
+    <section class="panel-section animate-fade-up" style="--stagger-index: 3;">
         <div class="section-header">
             <div>
-                <h2>Accesos rápidos</h2>
-                <p class="subtitle">Tareas frecuentes según tu rol.</p>
+                <h2>Turnos de hoy</h2>
+                {% if es_dashboard_odontologo and odontologo_inicio %}
+                    <p class="subtitle">Sólo se muestran los turnos de {{ odontologo_inicio }}.</p>
+                {% else %}
+                    <p class="subtitle">Agenda operativa del día.</p>
+                {% endif %}
             </div>
+            {% if puede_ver_turnos %}
+                <a class="text-link" href="{{ url_turnos_hoy }}">Ver agenda</a>
+            {% endif %}
         </div>
 
-        <div class="quick-actions quick-actions-wide">
-            {% if puede_ver_pacientes %}
-                <a class="quick-action" href="{% url 'pacientes:lista' %}">
-                    <strong>Pacientes</strong>
-                    <span>Buscar datos, turnos e historia clínica.</span>
-                </a>
-            {% endif %}
-            {% if puede_ver_turnos %}
-                <a class="quick-action" href="{% url 'turnos:agenda_semana' %}">
-                    <strong>Agenda semanal</strong>
-                    <span>Revisar carga de trabajo de la semana.</span>
-                </a>
-            {% endif %}
-            {% if puede_conectar_google_calendar %}
-                <a class="quick-action" href="{% url 'turnos:google_calendar' %}">
-                    <strong>Google Calendar</strong>
-                    <span>Ver estado de sincronización.</span>
-                </a>
-            {% endif %}
-            {% if request.user.is_staff and puede_configurar_disponibilidad %}
-                <a class="quick-action" href="{% url 'admin:index' %}">
-                    <strong>Admin</strong>
-                    <span>Configurar odontólogos y disponibilidad.</span>
-                </a>
-            {% endif %}
-        </div>
+        {% if turnos_hoy_lista %}
+            <div class="compact-list stagger-list">
+                {% for turno in turnos_hoy_lista %}
+                    <a class="compact-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};" href="{% url 'turnos:detalle' turno.pk %}">
+                        <span>
+                            <strong>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</strong>
+                            <span>
+                                {{ turno.paciente }}{% if not es_dashboard_odontologo %} con {{ turno.odontologo }}{% endif %}
+                                · {{ turno.motivo|default:"Sin motivo" }}
+                            </span>
+                        </span>
+                        <span class="dashboard-actions">
+                            <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+                            <span class="button button-secondary button-small">Ver</span>
+                        </span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="clinical-empty-state compact">
+                {% if es_dashboard_odontologo %}
+                    <strong>No tenés turnos cargados para hoy.</strong>
+                    <span>Cuando haya turnos asignados a tu agenda, van a aparecer acá.</span>
+                {% else %}
+                    <strong>No hay turnos cargados para hoy.</strong>
+                    <span>Cuando haya turnos en la agenda del consultorio, van a aparecer acá.</span>
+                {% endif %}
+            </div>
+        {% endif %}
     </section>
 {% endblock %}

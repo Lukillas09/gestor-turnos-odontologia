@@ -1,3 +1,6 @@
+from datetime import timedelta
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, redirect_to_login
@@ -5,10 +8,8 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import FormView, TemplateView
 
-from historias.models import HistoriaClinica
-from pacientes.models import Paciente
-from turnos.models import GoogleCalendarConexion, Turno
-from turnos.selectors import obtener_bloques_agenda_del_dia, obtener_resumen_estados
+from turnos.models import Turno
+from turnos.selectors import obtener_inicio_semana
 
 from .forms import PerfilUsuarioForm
 from .roles import (
@@ -16,7 +17,6 @@ from .roles import (
     obtener_odontologo_del_usuario,
     puede_configurar_disponibilidad,
     puede_gestionar_consultorio,
-    puede_gestionar_historias_clinicas,
     puede_ver_turnos,
 )
 
@@ -63,6 +63,13 @@ class InicioView(TemplateView):
         context = super().get_context_data(**kwargs)
         usuario = self.request.user
         hoy = timezone.localdate()
+        inicio_semana = obtener_inicio_semana(hoy)
+        fin_semana = inicio_semana + timedelta(days=6)
+        odontologo = obtener_odontologo_del_usuario(usuario)
+        es_dashboard_odontologo = odontologo is not None and not puede_gestionar_consultorio(
+            usuario
+        )
+        odontologo_filtro_url = odontologo if es_dashboard_odontologo else None
         turnos_visibles = limitar_turnos_por_usuario(Turno.objects.all(), usuario)
         turnos_visibles_con_relaciones = turnos_visibles.select_related(
             "paciente",
@@ -70,52 +77,34 @@ class InicioView(TemplateView):
             "odontologo__usuario",
         )
         turnos_hoy_queryset = turnos_visibles_con_relaciones.filter(fecha=hoy)
-        pendientes_confirmacion = turnos_visibles_con_relaciones.filter(
+        turnos_semana_queryset = turnos_visibles_con_relaciones.filter(
+            fecha__gte=inicio_semana,
+            fecha__lte=fin_semana,
+        )
+        pendientes_queryset = turnos_visibles_con_relaciones.filter(
             estado=Turno.Estado.PENDIENTE,
-            fecha__gte=hoy,
-        ).order_by("fecha", "hora_inicio")[:8]
-        proximos_turnos = (
-            turnos_visibles_con_relaciones.filter(
-                fecha__gte=hoy,
-                estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
-            )
-            .order_by("fecha", "hora_inicio")[:6]
         )
 
         context.update(
             {
                 "hoy": hoy,
+                "inicio_semana": inicio_semana,
+                "fin_semana": fin_semana,
+                "odontologo_inicio": odontologo,
+                "es_dashboard_odontologo": es_dashboard_odontologo,
                 "rol_principal": self._obtener_rol_principal(usuario),
                 "turnos_hoy": turnos_hoy_queryset.count(),
-                "turnos_pendientes": turnos_visibles.filter(
-                    estado=Turno.Estado.PENDIENTE
-                ).count(),
-                "turnos_confirmados_hoy": turnos_visibles.filter(
-                    fecha=hoy,
-                    estado=Turno.Estado.CONFIRMADO,
-                ).count(),
-                "pacientes_total": Paciente.objects.count(),
-                "historias_total": HistoriaClinica.objects.count()
-                if puede_gestionar_historias_clinicas(usuario)
-                else None,
-                "proximos_turnos": proximos_turnos,
-                "bloques_hoy": obtener_bloques_agenda_del_dia(hoy)[:8]
-                if puede_gestionar_consultorio(usuario)
-                else [],
+                "turnos_semana": turnos_semana_queryset.count(),
+                "turnos_pendientes": pendientes_queryset.count(),
                 "turnos_hoy_lista": turnos_hoy_queryset.order_by("hora_inicio")[:10],
-                "pendientes_confirmacion": pendientes_confirmacion,
-                "resumen_hoy": obtener_resumen_estados(turnos_hoy_queryset),
-                "proximos_controles": self._obtener_proximos_controles(usuario, hoy),
-                "errores_google_calendar": self._obtener_errores_google_calendar(usuario),
-                "recordatorios_enviados": turnos_visibles.filter(
-                    recordatorio_email_enviado_en__isnull=False,
-                ).count(),
-                "recordatorios_fallidos": turnos_visibles.exclude(
-                    recordatorio_email_ultimo_error="",
-                ).count(),
-                "recordatorios_fallidos_recientes": turnos_visibles_con_relaciones.exclude(
-                    recordatorio_email_ultimo_error="",
-                ).order_by("-actualizado_en")[:5],
+                "url_turnos_hoy": self._crear_url_agenda_dia(hoy, odontologo_filtro_url),
+                "url_turnos_semana": self._crear_url_agenda_semana(
+                    hoy,
+                    odontologo_filtro_url,
+                ),
+                "url_turnos_pendientes": self._crear_url_turnos_pendientes(
+                    odontologo_filtro_url,
+                ),
             }
         )
         return context
@@ -124,7 +113,7 @@ class InicioView(TemplateView):
         if puede_gestionar_consultorio(usuario):
             return "Recepción"
 
-        if puede_gestionar_historias_clinicas(usuario):
+        if obtener_odontologo_del_usuario(usuario):
             return "Odontólogo"
 
         if usuario.is_staff and puede_configurar_disponibilidad(usuario):
@@ -132,49 +121,41 @@ class InicioView(TemplateView):
 
         return "Usuario interno"
 
-    def _obtener_proximos_controles(self, usuario, hoy):
-        queryset = HistoriaClinica.objects.filter(
-            proximo_control__isnull=False,
-            proximo_control__gte=hoy,
-        ).select_related(
-            "paciente",
-            "odontologo",
-            "odontologo__usuario",
+    @staticmethod
+    def _crear_url_agenda_dia(fecha, odontologo):
+        return InicioView._crear_url_con_query(
+            reverse("turnos:agenda_dia"),
+            InicioView._crear_filtros_fecha_odontologo(fecha, odontologo),
         )
 
-        odontologo = obtener_odontologo_del_usuario(usuario)
+    @staticmethod
+    def _crear_url_agenda_semana(fecha, odontologo):
+        return InicioView._crear_url_con_query(
+            reverse("turnos:agenda_semana"),
+            InicioView._crear_filtros_fecha_odontologo(fecha, odontologo),
+        )
 
-        if odontologo and not puede_gestionar_consultorio(usuario):
-            queryset = queryset.filter(odontologo=odontologo)
-        elif not (
-            puede_gestionar_consultorio(usuario)
-            or puede_configurar_disponibilidad(usuario)
-            or puede_gestionar_historias_clinicas(usuario)
-        ):
-            return []
+    @staticmethod
+    def _crear_url_turnos_pendientes(odontologo):
+        filtros = {"estado": Turno.Estado.PENDIENTE}
 
-        return queryset.order_by("proximo_control", "paciente__apellido")[:8]
+        if odontologo:
+            filtros["odontologo"] = odontologo.pk
 
-    def _obtener_errores_google_calendar(self, usuario):
-        queryset = GoogleCalendarConexion.objects.exclude(
-            ultimo_error="",
-        ).select_related("odontologo", "odontologo__usuario")
+        return InicioView._crear_url_con_query(reverse("turnos:lista"), filtros)
 
-        odontologo = obtener_odontologo_del_usuario(usuario)
+    @staticmethod
+    def _crear_filtros_fecha_odontologo(fecha, odontologo):
+        filtros = {"fecha": fecha.isoformat()}
 
-        if odontologo and not (
-            puede_gestionar_consultorio(usuario)
-            or puede_configurar_disponibilidad(usuario)
-        ):
-            queryset = queryset.filter(odontologo=odontologo)
-        elif not (
-            puede_gestionar_consultorio(usuario)
-            or puede_configurar_disponibilidad(usuario)
-            or odontologo
-        ):
-            return []
+        if odontologo:
+            filtros["odontologo"] = odontologo.pk
 
-        return queryset.order_by("-actualizado_en")[:5]
+        return filtros
+
+    @staticmethod
+    def _crear_url_con_query(url, filtros):
+        return f"{url}?{urlencode(filtros)}"
 
 
 def obtener_url_inicio_para_usuario(usuario):

@@ -7,11 +7,9 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from historias.models import HistoriaClinica
 from pacientes.models import Paciente
 from turnos.models import (
     DisponibilidadOdontologo,
-    GoogleCalendarConexion,
     Odontologo,
     Turno,
 )
@@ -208,11 +206,13 @@ class InicioDashboardTests(TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Dashboard del consultorio")
-        self.assertContains(response, "Turnos hoy")
-        self.assertContains(response, "Accesos rápidos")
+        self.assertContains(response, "Resumen de la agenda")
+        self.assertContains(response, "Turnos de hoy")
+        self.assertContains(response, "Turnos de la semana")
+        self.assertContains(response, "Pendientes")
+        self.assertNotContains(response, "Accesos rápidos")
 
-    def test_dashboard_muestra_datos_operativos_del_consultorio(self):
+    def test_dashboard_muestra_solo_resumen_y_turnos_de_hoy(self):
         usuario = get_user_model().objects.create_user(username="recepcion.operativa")
         asignar_rol(usuario, ROL_RECEPCIONISTA)
         odontologo = crear_odontologo_dashboard()
@@ -252,35 +252,26 @@ class InicioDashboardTests(TestCase):
             estado=Turno.Estado.CONFIRMADO,
             recordatorio_email_ultimo_error="SMTP temporal",
         )
-        HistoriaClinica.objects.create(
-            paciente=paciente,
-            odontologo=odontologo,
-            fecha=hoy,
-            motivo_consulta="Control",
-            proximo_control=hoy + timedelta(days=30),
-        )
-        GoogleCalendarConexion.objects.create(
-            odontologo=odontologo,
-            ultimo_error="HTTP 401 invalid_grant access_token=secreto",
-        )
         self.client.force_login(usuario)
 
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Resumen de la agenda")
+        self.assertContains(response, "Turnos de hoy")
+        self.assertContains(response, "Turnos de la semana")
+        self.assertContains(response, "Pendientes")
         self.assertContains(response, "Consulta dashboard")
-        self.assertContains(response, "Pendientes de confirmar")
-        self.assertContains(response, reverse("turnos:confirmar", kwargs={"pk": turno_hoy.pk}))
-        self.assertContains(response, "Próximos controles")
-        self.assertContains(response, "Control, Ana")
-        self.assertContains(response, "Google Calendar")
-        self.assertContains(response, "No se pudo autorizar la conexión")
-        self.assertContains(response, "Recordatorios")
-        self.assertContains(response, "1 enviados. 1 fallidos.")
-        self.assertNotContains(response, "invalid_grant")
-        self.assertNotContains(response, "access_token")
+        self.assertContains(response, reverse("turnos:detalle", kwargs={"pk": turno_hoy.pk}))
+        self.assertContains(response, f"{reverse('turnos:agenda_dia')}?fecha={hoy.isoformat()}")
+        self.assertContains(response, f"{reverse('turnos:lista')}?estado=pendiente")
+        self.assertNotContains(response, "Historias clínicas")
+        self.assertNotContains(response, "Recordatorios")
+        self.assertNotContains(response, "Próximos controles")
+        self.assertNotContains(response, "Estado operativo")
+        self.assertNotContains(response, "Accesos rápidos")
 
-    def test_dashboard_odontologo_ve_solo_sus_controles_y_errores(self):
+    def test_dashboard_odontologo_ve_solo_sus_turnos_y_links_filtrados(self):
         usuario_odontologo = get_user_model().objects.create_user(
             username="odontologo.dashboard",
             first_name="Odo",
@@ -306,37 +297,69 @@ class InicioDashboardTests(TestCase):
             documento="DASH-003",
         )
         hoy = timezone.localdate()
-        HistoriaClinica.objects.create(
+        crear_disponibilidad_para_fecha(odontologo, hoy)
+        crear_disponibilidad_para_fecha(otro_odontologo, hoy)
+        crear_disponibilidad_para_fecha(odontologo, hoy + timedelta(days=1))
+        crear_disponibilidad_para_fecha(otro_odontologo, hoy + timedelta(days=1))
+        turno_propio = Turno.objects.create(
             paciente=paciente,
             odontologo=odontologo,
             fecha=hoy,
-            motivo_consulta="Control propio",
-            proximo_control=hoy + timedelta(days=10),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Control propio",
         )
-        HistoriaClinica.objects.create(
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=hoy + timedelta(days=1),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control semana propio",
+        )
+        Turno.objects.create(
             paciente=paciente_ajeno,
             odontologo=otro_odontologo,
             fecha=hoy,
-            motivo_consulta="Control ajeno",
-            proximo_control=hoy + timedelta(days=10),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Control ajeno",
         )
-        GoogleCalendarConexion.objects.create(
-            odontologo=odontologo,
-            ultimo_error="Error propio de calendario",
-        )
-        GoogleCalendarConexion.objects.create(
+        Turno.objects.create(
+            paciente=paciente_ajeno,
             odontologo=otro_odontologo,
-            ultimo_error="Error ajeno de calendario",
+            fecha=hoy + timedelta(days=1),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control semana ajeno",
         )
         self.client.force_login(usuario_odontologo)
 
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Propio, Paciente")
-        self.assertContains(response, "No se pudo sincronizar el turno con Google Calendar")
-        self.assertNotContains(response, "Ajeno, Paciente")
-        self.assertNotContains(response, "Error ajeno")
+        self.assertContains(response, "Tu agenda de hoy")
+        self.assertContains(response, "Control propio")
+        self.assertContains(response, reverse("turnos:detalle", kwargs={"pk": turno_propio.pk}))
+        self.assertContains(
+            response,
+            f"{reverse('turnos:agenda_dia')}?fecha={hoy.isoformat()}&amp;odontologo={odontologo.pk}",
+        )
+        self.assertContains(
+            response,
+            f"{reverse('turnos:agenda_semana')}?fecha={hoy.isoformat()}&amp;odontologo={odontologo.pk}",
+        )
+        self.assertContains(
+            response,
+            f"{reverse('turnos:lista')}?estado=pendiente&amp;odontologo={odontologo.pk}",
+        )
+        self.assertNotContains(response, "Control ajeno")
+        self.assertNotContains(response, "Control semana ajeno")
+        self.assertNotContains(response, "Paciente Ajeno")
 
 
 def crear_turno_para_permiso(odontologo=None, matricula="MN-SYNC-PERMISO"):
