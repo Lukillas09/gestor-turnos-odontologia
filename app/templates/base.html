@@ -364,6 +364,8 @@
         .nav-link,
         .app-sidebar-link,
         .app-user-profile-link,
+        .dashboard-card,
+        .dashboard-panel-link,
         .public-date-chip,
         .public-slot-button {
             transition:
@@ -1393,6 +1395,186 @@
             margin-top: 6px;
             font-size: 28px;
             line-height: 1;
+        }
+
+        .dashboard-card {
+            position: relative;
+            min-height: 150px;
+            display: grid;
+            gap: 14px;
+            align-content: space-between;
+            overflow: hidden;
+            border-left: 0;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .dashboard-card:hover,
+        .dashboard-card:focus-visible {
+            text-decoration: none;
+        }
+
+        .dashboard-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.72), transparent);
+            pointer-events: none;
+        }
+
+        .dashboard-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .dashboard-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .dashboard-card-title,
+        .dashboard-card-range,
+        .dashboard-card-action {
+            display: block;
+        }
+
+        .dashboard-card-title {
+            color: #1f2937;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .dashboard-card-range {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .dashboard-card strong {
+            margin-top: 0;
+            font-size: 42px;
+            letter-spacing: 0;
+        }
+
+        .dashboard-card-action {
+            color: #475467;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .dashboard-card-icon {
+            position: relative;
+            width: 42px;
+            height: 42px;
+            flex: 0 0 42px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+        }
+
+        .dashboard-card-icon::before,
+        .dashboard-card-icon::after {
+            content: "";
+            position: absolute;
+        }
+
+        .dashboard-card-today {
+            border-color: #bfdbfe;
+            background: #eff6ff;
+        }
+
+        .dashboard-card-today .dashboard-card-icon {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .dashboard-card-today .dashboard-card-icon::before {
+            width: 18px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-radius: 5px;
+        }
+
+        .dashboard-card-today .dashboard-card-icon::after {
+            width: 18px;
+            border-top: 2px solid currentColor;
+            transform: translateY(-5px);
+        }
+
+        .dashboard-card-week {
+            border-color: #99f6e4;
+            background: #f0fdfa;
+        }
+
+        .dashboard-card-week .dashboard-card-icon {
+            background: #ccfbf1;
+            color: #0f766e;
+        }
+
+        .dashboard-card-week .dashboard-card-icon::before {
+            width: 18px;
+            height: 18px;
+            border: 2px solid currentColor;
+            border-radius: 5px;
+        }
+
+        .dashboard-card-week .dashboard-card-icon::after {
+            width: 14px;
+            height: 14px;
+            background:
+                linear-gradient(currentColor, currentColor) center/2px 100% no-repeat,
+                linear-gradient(currentColor, currentColor) center/100% 2px no-repeat;
+            opacity: 0.9;
+        }
+
+        .dashboard-card-pending {
+            border-color: #fed7aa;
+            background: #fff7ed;
+        }
+
+        .dashboard-card-pending .dashboard-card-icon {
+            background: #ffedd5;
+            color: #c2410c;
+        }
+
+        .dashboard-card-pending .dashboard-card-icon::before {
+            width: 18px;
+            height: 18px;
+            border: 2px solid currentColor;
+            border-radius: 999px;
+        }
+
+        .dashboard-card-pending .dashboard-card-icon::after {
+            width: 7px;
+            height: 7px;
+            border-left: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            transform: translate(2px, -1px);
+        }
+
+        .dashboard-panel-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            border: 1px solid #bfdbfe;
+            border-radius: 999px;
+            padding: 6px 12px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .dashboard-panel-link:hover,
+        .dashboard-panel-link:focus-visible {
+            border-color: #93c5fd;
+            background: #dbeafe;
+            text-decoration: none;
         }
 
         .metric-label {
