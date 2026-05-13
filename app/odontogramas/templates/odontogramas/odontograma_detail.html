@@ -83,6 +83,9 @@
                                             {% include "odontogramas/includes/diente_svg.html" with diente=diente %}
                                         {% endfor %}
                                     </div>
+                                    {% if not forloop.last %}
+                                        <span class="odontograma-central-space" aria-hidden="true"></span>
+                                    {% endif %}
                                 {% endfor %}
                                 <span class="odontograma-side-label">{{ fila.lado_fin }}</span>
                             </div>

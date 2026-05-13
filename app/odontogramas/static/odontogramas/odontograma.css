@@ -48,19 +48,23 @@
 
 .odontograma-scroll {
     overflow-x: auto;
-    padding: 8px 2px 4px;
+    padding: 10px 2px 6px;
 }
 
 .odontograma-canvas {
-    min-width: 760px;
+    --tooth-slot: 50px;
+    --tooth-size: 42px;
+    --tooth-gap: 8px;
+    --hemiarcada-gap: 78px;
+    min-width: 1120px;
     display: grid;
-    gap: 22px;
-    padding: 8px;
+    gap: 26px;
+    padding: 10px 12px 14px;
 }
 
 .odontograma-row {
     display: grid;
-    gap: 8px;
+    gap: 10px;
 }
 
 .odontograma-row-title {
@@ -73,44 +77,60 @@
 
 .odontograma-row-body {
     display: grid;
-    grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr) 36px;
-    gap: 14px;
+    grid-template-columns: 64px max-content var(--hemiarcada-gap) max-content 64px;
+    column-gap: 18px;
     align-items: center;
+    width: max-content;
+    margin: 0 auto;
 }
 
 .odontograma-side-label {
     color: #0f766e;
     font-weight: 800;
     text-align: center;
+    justify-self: center;
+    letter-spacing: 0;
+}
+
+.odontograma-central-space {
+    display: block;
+    width: var(--hemiarcada-gap);
+    min-height: var(--tooth-size);
 }
 
 .odontograma-group {
     display: grid;
-    grid-template-columns: repeat(8, minmax(42px, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(8, var(--tooth-slot));
+    gap: var(--tooth-gap);
     justify-items: center;
+    width: max-content;
 }
 
 .odontograma-row-temporal .odontograma-group {
-    grid-template-columns: repeat(5, minmax(42px, 1fr));
+    grid-template-columns: repeat(5, var(--tooth-slot));
 }
 
 .odontograma-tooth {
+    width: var(--tooth-slot);
     display: grid;
     gap: 5px;
     justify-items: center;
 }
 
 .odontograma-tooth-number {
+    width: 100%;
     min-height: 18px;
     color: #334155;
     font-size: 13px;
     font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .tooth-svg {
-    width: 42px;
-    height: 42px;
+    width: var(--tooth-size);
+    height: var(--tooth-size);
     overflow: visible;
 }
 
