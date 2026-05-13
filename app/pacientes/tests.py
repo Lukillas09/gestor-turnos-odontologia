@@ -265,6 +265,23 @@ class PacienteViewsTests(TestCase):
         self.assertContains(response, "Elena")
         self.assertContains(response, "20111222")
 
+    def test_detalle_no_muestra_edicion_separada_de_paciente(self):
+        paciente = Paciente.objects.create(
+            nombre="Elena",
+            apellido="Rios",
+            documento="20111225",
+        )
+
+        response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ficha odontológica")
+        self.assertNotContains(response, "Editar paciente")
+        self.assertNotContains(
+            response,
+            reverse("pacientes:editar", kwargs={"pk": paciente.pk}),
+        )
+
     def test_detalle_muestra_perfil_clinico_con_alertas_y_resumen(self):
         paciente = Paciente.objects.create(
             nombre="Elena",
@@ -380,28 +397,118 @@ class PacienteViewsTests(TestCase):
             nombre="Camila",
             apellido="Clinica",
             documento="23111222",
+            telefono="1111",
         )
 
         response = self.client.post(
             reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
             {
-                "antecedentes_medicos": "Asma leve",
-                "alergias": "Penicilina",
-                "medicacion_actual": "Salbutamol",
-                "enfermedades_relevantes": "Sin otras enfermedades",
-                "embarazo": FichaOdontologica.RespuestaClinica.NO,
-                "hipertension": FichaOdontologica.RespuestaClinica.NO,
-                "diabetes": FichaOdontologica.RespuestaClinica.NO,
-                "problemas_cardiacos": FichaOdontologica.RespuestaClinica.SI,
-                "observaciones_generales": "Avisar antes de anestesia.",
+                "paciente-nombre": "Camila",
+                "paciente-apellido": "Clinica",
+                "paciente-documento": "23111222",
+                "paciente-telefono": "2222",
+                "paciente-email": "camila@example.com",
+                "paciente-fecha_nacimiento": "1991-06-20",
+                "paciente-genero": Paciente.Genero.FEMENINO,
+                "paciente-domicilio": "San Martin 123",
+                "paciente-localidad": "Mendoza",
+                "paciente-obra_social": "OSEP",
+                "paciente-numero_afiliado": "A-456",
+                "paciente-contacto_emergencia": "Laura 2604000000",
+                "paciente-observaciones": "Prefiere atencion por la tarde.",
+                "ficha-antecedentes_medicos": "Asma leve",
+                "ficha-alergias": "Penicilina",
+                "ficha-medicacion_actual": "Salbutamol",
+                "ficha-enfermedades_relevantes": "Sin otras enfermedades",
+                "ficha-embarazo": FichaOdontologica.RespuestaClinica.NO,
+                "ficha-hipertension": FichaOdontologica.RespuestaClinica.NO,
+                "ficha-diabetes": FichaOdontologica.RespuestaClinica.NO,
+                "ficha-problemas_cardiacos": FichaOdontologica.RespuestaClinica.SI,
+                "ficha-observaciones_generales": "Avisar antes de anestesia.",
             },
         )
 
         self.assertRedirects(response, reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+        paciente.refresh_from_db()
         ficha = paciente.ficha_odontologica
+        self.assertEqual(paciente.telefono, "2222")
+        self.assertEqual(paciente.email, "camila@example.com")
+        self.assertEqual(paciente.fecha_nacimiento, date(1991, 6, 20))
+        self.assertEqual(paciente.genero, Paciente.Genero.FEMENINO)
+        self.assertEqual(paciente.domicilio, "San Martin 123")
+        self.assertEqual(paciente.localidad, "Mendoza")
+        self.assertEqual(paciente.obra_social, "OSEP")
+        self.assertEqual(paciente.numero_afiliado, "A-456")
+        self.assertEqual(paciente.contacto_emergencia, "Laura 2604000000")
+        self.assertEqual(paciente.observaciones, "Prefiere atencion por la tarde.")
         self.assertEqual(ficha.alergias, "Penicilina")
         self.assertEqual(ficha.problemas_cardiacos, FichaOdontologica.RespuestaClinica.SI)
         self.assertEqual(ficha.actualizado_por, self.usuario)
+
+    def test_ficha_odontologica_actualiza_ficha_existente_sin_duplicar(self):
+        paciente = Paciente.objects.create(
+            nombre="Julieta",
+            apellido="Clinica",
+            documento="23111224",
+            telefono="1111",
+        )
+        FichaOdontologica.objects.create(
+            paciente=paciente,
+            alergias="Latex",
+        )
+
+        response = self.client.post(
+            reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
+            {
+                "paciente-nombre": "Julieta",
+                "paciente-apellido": "Clinica",
+                "paciente-documento": "23111224",
+                "paciente-telefono": "3333",
+                "paciente-email": "julieta@example.com",
+                "paciente-fecha_nacimiento": "",
+                "paciente-genero": "",
+                "paciente-domicilio": "",
+                "paciente-localidad": "",
+                "paciente-obra_social": "",
+                "paciente-numero_afiliado": "",
+                "paciente-contacto_emergencia": "",
+                "paciente-observaciones": "",
+                "ficha-antecedentes_medicos": "",
+                "ficha-alergias": "Penicilina",
+                "ficha-medicacion_actual": "Ibuprofeno",
+                "ficha-enfermedades_relevantes": "",
+                "ficha-embarazo": "",
+                "ficha-hipertension": FichaOdontologica.RespuestaClinica.NO,
+                "ficha-diabetes": FichaOdontologica.RespuestaClinica.NO,
+                "ficha-problemas_cardiacos": "",
+                "ficha-observaciones_generales": "Controlar dosis.",
+            },
+        )
+
+        self.assertRedirects(response, reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+        paciente.refresh_from_db()
+        ficha = paciente.ficha_odontologica
+        self.assertEqual(FichaOdontologica.objects.filter(paciente=paciente).count(), 1)
+        self.assertEqual(paciente.telefono, "3333")
+        self.assertEqual(ficha.alergias, "Penicilina")
+        self.assertEqual(ficha.medicacion_actual, "Ibuprofeno")
+
+    def test_ficha_odontologica_rechaza_usuario_sin_permiso(self):
+        paciente = Paciente.objects.create(
+            nombre="Camila",
+            apellido="Sin permiso",
+            documento="23111223",
+        )
+        usuario_odontologo = get_user_model().objects.create_user(username="dr.sin.permiso")
+        asignar_rol(usuario_odontologo, ROL_ODONTOLOGO)
+        Odontologo.objects.create(usuario=usuario_odontologo, matricula="MN-SIN-PERMISO")
+        self.client.force_login(usuario_odontologo)
+
+        response = self.client.get(
+            reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
+        )
+
+        self.assertEqual(response.status_code, 403)
 
     def test_edicion_muestra_fecha_de_nacimiento_cargada(self):
         paciente = Paciente.objects.create(

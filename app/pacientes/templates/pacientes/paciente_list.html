@@ -81,9 +81,6 @@
 
                     <div class="patient-card-actions">
                         <a class="button button-small" href="{% url 'pacientes:detalle' paciente.pk %}">Ver perfil</a>
-                        {% if puede_gestionar_pacientes %}
-                            <a class="button button-secondary button-small" href="{% url 'pacientes:editar' paciente.pk %}">Editar</a>
-                        {% endif %}
                     </div>
                 </article>
             {% endfor %}

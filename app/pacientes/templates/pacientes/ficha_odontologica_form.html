@@ -3,91 +3,236 @@
 {% block title %}{{ titulo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
+    <div class="patient-backline animate-fade-up">
+        <a class="button button-secondary button-small button-subtle" href="{% url 'pacientes:detalle' paciente.pk %}">&larr; Volver al perfil</a>
+    </div>
+
     <div class="page-header animate-fade-up">
         <div>
+            <p class="eyebrow">Paciente</p>
             <h1>{{ titulo }}</h1>
             <p class="subtitle">{{ paciente.nombre_completo }} - {{ subtitulo }}</p>
         </div>
-        <div class="header-actions">
-            <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Volver</a>
-        </div>
     </div>
 
-    <form class="form-panel animate-fade-up" method="post" novalidate>
+    <form class="ficha-combined-form animate-fade-up" method="post" novalidate>
         {% csrf_token %}
 
-        {% if form.non_field_errors %}
-            <div class="field-error">{{ form.non_field_errors }}</div>
+        {% if paciente_form.non_field_errors or ficha_form.non_field_errors %}
+            <div class="panel-section form-error-panel">
+                {% if paciente_form.non_field_errors %}
+                    <div class="field-error">{{ paciente_form.non_field_errors }}</div>
+                {% endif %}
+                {% if ficha_form.non_field_errors %}
+                    <div class="field-error">{{ ficha_form.non_field_errors }}</div>
+                {% endif %}
+            </div>
         {% endif %}
 
-        <div class="form-grid">
-            <div class="field-full">
-                <label for="{{ form.antecedentes_medicos.id_for_label }}">{{ form.antecedentes_medicos.label }}</label>
-                {{ form.antecedentes_medicos }}
-                {% if form.antecedentes_medicos.errors %}
-                    <div class="field-error">{{ form.antecedentes_medicos.errors }}</div>
-                {% endif %}
+        <section class="panel-section ficha-form-section">
+            <div class="section-header">
+                <div>
+                    <h2>Datos personales</h2>
+                    <p class="subtitle">Información básica para identificar al paciente.</p>
+                </div>
             </div>
-            <div class="field-full">
-                <label for="{{ form.alergias.id_for_label }}">{{ form.alergias.label }}</label>
-                {{ form.alergias }}
-                {% if form.alergias.errors %}
-                    <div class="field-error">{{ form.alergias.errors }}</div>
-                {% endif %}
-            </div>
-            <div class="field-full">
-                <label for="{{ form.medicacion_actual.id_for_label }}">{{ form.medicacion_actual.label }}</label>
-                {{ form.medicacion_actual }}
-                {% if form.medicacion_actual.errors %}
-                    <div class="field-error">{{ form.medicacion_actual.errors }}</div>
-                {% endif %}
-            </div>
-            <div class="field-full">
-                <label for="{{ form.enfermedades_relevantes.id_for_label }}">{{ form.enfermedades_relevantes.label }}</label>
-                {{ form.enfermedades_relevantes }}
-                {% if form.enfermedades_relevantes.errors %}
-                    <div class="field-error">{{ form.enfermedades_relevantes.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.embarazo.id_for_label }}">{{ form.embarazo.label }}</label>
-                {{ form.embarazo }}
-                {% if form.embarazo.errors %}
-                    <div class="field-error">{{ form.embarazo.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.hipertension.id_for_label }}">{{ form.hipertension.label }}</label>
-                {{ form.hipertension }}
-                {% if form.hipertension.errors %}
-                    <div class="field-error">{{ form.hipertension.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.diabetes.id_for_label }}">{{ form.diabetes.label }}</label>
-                {{ form.diabetes }}
-                {% if form.diabetes.errors %}
-                    <div class="field-error">{{ form.diabetes.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.problemas_cardiacos.id_for_label }}">{{ form.problemas_cardiacos.label }}</label>
-                {{ form.problemas_cardiacos }}
-                {% if form.problemas_cardiacos.errors %}
-                    <div class="field-error">{{ form.problemas_cardiacos.errors }}</div>
-                {% endif %}
-            </div>
-            <div class="field-full">
-                <label for="{{ form.observaciones_generales.id_for_label }}">{{ form.observaciones_generales.label }}</label>
-                {{ form.observaciones_generales }}
-                {% if form.observaciones_generales.errors %}
-                    <div class="field-error">{{ form.observaciones_generales.errors }}</div>
-                {% endif %}
-            </div>
-        </div>
 
-        <div class="form-actions">
-            <button type="submit">Guardar ficha</button>
+            <div class="form-grid">
+                <div>
+                    <label for="{{ paciente_form.nombre.id_for_label }}">{{ paciente_form.nombre.label }}</label>
+                    {{ paciente_form.nombre }}
+                    {% if paciente_form.nombre.errors %}
+                        <div class="field-error">{{ paciente_form.nombre.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.apellido.id_for_label }}">{{ paciente_form.apellido.label }}</label>
+                    {{ paciente_form.apellido }}
+                    {% if paciente_form.apellido.errors %}
+                        <div class="field-error">{{ paciente_form.apellido.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.documento.id_for_label }}">{{ paciente_form.documento.label }}</label>
+                    {{ paciente_form.documento }}
+                    {% if paciente_form.documento.errors %}
+                        <div class="field-error">{{ paciente_form.documento.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.fecha_nacimiento.id_for_label }}">{{ paciente_form.fecha_nacimiento.label }}</label>
+                    {{ paciente_form.fecha_nacimiento }}
+                    {% if paciente_form.fecha_nacimiento.errors %}
+                        <div class="field-error">{{ paciente_form.fecha_nacimiento.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.genero.id_for_label }}">{{ paciente_form.genero.label }}</label>
+                    {{ paciente_form.genero }}
+                    {% if paciente_form.genero.errors %}
+                        <div class="field-error">{{ paciente_form.genero.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-section ficha-form-section">
+            <div class="section-header">
+                <div>
+                    <h2>Contacto y cobertura</h2>
+                    <p class="subtitle">Datos útiles para comunicación, dirección y obra social.</p>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div>
+                    <label for="{{ paciente_form.telefono.id_for_label }}">{{ paciente_form.telefono.label }}</label>
+                    {{ paciente_form.telefono }}
+                    {% if paciente_form.telefono.errors %}
+                        <div class="field-error">{{ paciente_form.telefono.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.email.id_for_label }}">{{ paciente_form.email.label }}</label>
+                    {{ paciente_form.email }}
+                    {% if paciente_form.email.errors %}
+                        <div class="field-error">{{ paciente_form.email.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="field-full">
+                    <label for="{{ paciente_form.domicilio.id_for_label }}">{{ paciente_form.domicilio.label }}</label>
+                    {{ paciente_form.domicilio }}
+                    {% if paciente_form.domicilio.errors %}
+                        <div class="field-error">{{ paciente_form.domicilio.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.localidad.id_for_label }}">{{ paciente_form.localidad.label }}</label>
+                    {{ paciente_form.localidad }}
+                    {% if paciente_form.localidad.errors %}
+                        <div class="field-error">{{ paciente_form.localidad.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.obra_social.id_for_label }}">{{ paciente_form.obra_social.label }}</label>
+                    {{ paciente_form.obra_social }}
+                    {% if paciente_form.obra_social.errors %}
+                        <div class="field-error">{{ paciente_form.obra_social.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ paciente_form.numero_afiliado.id_for_label }}">{{ paciente_form.numero_afiliado.label }}</label>
+                    {{ paciente_form.numero_afiliado }}
+                    {% if paciente_form.numero_afiliado.errors %}
+                        <div class="field-error">{{ paciente_form.numero_afiliado.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="field-full">
+                    <label for="{{ paciente_form.contacto_emergencia.id_for_label }}">{{ paciente_form.contacto_emergencia.label }}</label>
+                    {{ paciente_form.contacto_emergencia }}
+                    {% if paciente_form.contacto_emergencia.errors %}
+                        <div class="field-error">{{ paciente_form.contacto_emergencia.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-section ficha-form-section">
+            <div class="section-header">
+                <div>
+                    <h2>Antecedentes y alertas clínicas</h2>
+                    <p class="subtitle">Información odontológica y médica relevante para la atención.</p>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="field-full">
+                    <label for="{{ ficha_form.antecedentes_medicos.id_for_label }}">{{ ficha_form.antecedentes_medicos.label }}</label>
+                    {{ ficha_form.antecedentes_medicos }}
+                    {% if ficha_form.antecedentes_medicos.errors %}
+                        <div class="field-error">{{ ficha_form.antecedentes_medicos.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="field-full">
+                    <label for="{{ ficha_form.alergias.id_for_label }}">{{ ficha_form.alergias.label }}</label>
+                    {{ ficha_form.alergias }}
+                    {% if ficha_form.alergias.errors %}
+                        <div class="field-error">{{ ficha_form.alergias.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="field-full">
+                    <label for="{{ ficha_form.medicacion_actual.id_for_label }}">{{ ficha_form.medicacion_actual.label }}</label>
+                    {{ ficha_form.medicacion_actual }}
+                    {% if ficha_form.medicacion_actual.errors %}
+                        <div class="field-error">{{ ficha_form.medicacion_actual.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="field-full">
+                    <label for="{{ ficha_form.enfermedades_relevantes.id_for_label }}">{{ ficha_form.enfermedades_relevantes.label }}</label>
+                    {{ ficha_form.enfermedades_relevantes }}
+                    {% if ficha_form.enfermedades_relevantes.errors %}
+                        <div class="field-error">{{ ficha_form.enfermedades_relevantes.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ ficha_form.embarazo.id_for_label }}">{{ ficha_form.embarazo.label }}</label>
+                    {{ ficha_form.embarazo }}
+                    {% if ficha_form.embarazo.errors %}
+                        <div class="field-error">{{ ficha_form.embarazo.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ ficha_form.hipertension.id_for_label }}">{{ ficha_form.hipertension.label }}</label>
+                    {{ ficha_form.hipertension }}
+                    {% if ficha_form.hipertension.errors %}
+                        <div class="field-error">{{ ficha_form.hipertension.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ ficha_form.diabetes.id_for_label }}">{{ ficha_form.diabetes.label }}</label>
+                    {{ ficha_form.diabetes }}
+                    {% if ficha_form.diabetes.errors %}
+                        <div class="field-error">{{ ficha_form.diabetes.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ ficha_form.problemas_cardiacos.id_for_label }}">{{ ficha_form.problemas_cardiacos.label }}</label>
+                    {{ ficha_form.problemas_cardiacos }}
+                    {% if ficha_form.problemas_cardiacos.errors %}
+                        <div class="field-error">{{ ficha_form.problemas_cardiacos.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-section ficha-form-section">
+            <div class="section-header">
+                <div>
+                    <h2>Observaciones</h2>
+                    <p class="subtitle">Notas administrativas y observaciones clínicas generales.</p>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="field-full">
+                    <label for="{{ paciente_form.observaciones.id_for_label }}">{{ paciente_form.observaciones.label }}</label>
+                    {{ paciente_form.observaciones }}
+                    {% if paciente_form.observaciones.errors %}
+                        <div class="field-error">{{ paciente_form.observaciones.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="field-full">
+                    <label for="{{ ficha_form.observaciones_generales.id_for_label }}">{{ ficha_form.observaciones_generales.label }}</label>
+                    {{ ficha_form.observaciones_generales }}
+                    {% if ficha_form.observaciones_generales.errors %}
+                        <div class="field-error">{{ ficha_form.observaciones_generales.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <div class="form-actions ficha-form-actions">
+            <button type="submit">Guardar ficha odontológica</button>
             <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Cancelar</a>
         </div>
     </form>

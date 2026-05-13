@@ -26,12 +26,10 @@
         {% if puede_editar_ficha_odontologica or puede_ver_historia_clinica %}
             <div class="clinical-actions" aria-label="Acciones clínicas">
                 {% if puede_editar_ficha_odontologica %}
-                    <a class="button button-secondary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">
-                        {% if ficha_odontologica %}Editar ficha{% else %}Cargar ficha{% endif %}
-                    </a>
+                    <a class="button button-clinical-primary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">Ficha odontológica</a>
                 {% endif %}
                 {% if puede_ver_historia_clinica %}
-                    <a class="button button-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clínica</a>
+                    <a class="button button-clinical-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clínica</a>
                 {% endif %}
             </div>
         {% endif %}
@@ -164,7 +162,7 @@
                     </div>
                     {% if puede_editar_ficha_odontologica %}
                         <a class="text-link" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">
-                            {% if ficha_odontologica %}Editar ficha{% else %}Cargar ficha{% endif %}
+                            Abrir ficha
                         </a>
                     {% endif %}
                 </div>
@@ -275,19 +273,16 @@
         </div>
     </section>
 
-    {% if puede_gestionar_pacientes or puede_borrar_pacientes %}
+    {% if puede_borrar_pacientes %}
         <section class="panel-section admin-actions-panel animate-fade-up">
             <div class="section-header">
                 <div>
                     <h2>Acciones administrativas</h2>
-                    <p class="subtitle">Cambios de gestión del paciente, separados de la lectura clínica.</p>
+                    <p class="subtitle">Acciones sensibles separadas de la lectura clínica.</p>
                 </div>
             </div>
 
             <div class="admin-actions">
-                {% if puede_gestionar_pacientes %}
-                    <a class="button button-soft-primary" href="{% url 'pacientes:editar' paciente.pk %}">Editar paciente</a>
-                {% endif %}
                 {% if puede_borrar_pacientes %}
                     <a class="button button-danger" href="{% url 'pacientes:borrar' paciente.pk %}">Borrar paciente</a>
                 {% endif %}

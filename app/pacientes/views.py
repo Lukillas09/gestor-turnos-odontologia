@@ -4,10 +4,10 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
+from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView, View
 
 from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
 from historias.permissions import (
@@ -462,11 +462,8 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         return resumen
 
 
-class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, UpdateView):
-    model = FichaOdontologica
-    form_class = FichaOdontologicaForm
+class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, View):
     template_name = "pacientes/ficha_odontologica_form.html"
-    context_object_name = "ficha"
 
     def dispatch(self, request, *args, **kwargs):
         self.paciente = get_object_or_404(Paciente, pk=self.kwargs["pk"])
@@ -476,25 +473,62 @@ class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, UpdateView):
 
         return super().dispatch(request, *args, **kwargs)
 
-    def get_object(self, queryset=None):
-        ficha, _ = FichaOdontologica.objects.get_or_create(paciente=self.paciente)
-        return ficha
+    def get(self, request, *args, **kwargs):
+        paciente_form, ficha_form = self._construir_formularios()
+        return render(
+            request,
+            self.template_name,
+            self._obtener_contexto(paciente_form, ficha_form),
+        )
+
+    def post(self, request, *args, **kwargs):
+        paciente_form, ficha_form = self._construir_formularios(data=request.POST)
+
+        if paciente_form.is_valid() and ficha_form.is_valid():
+            with transaction.atomic():
+                paciente_form.save()
+                ficha = ficha_form.save(commit=False)
+                ficha.paciente = self.paciente
+                ficha.actualizado_por = request.user
+                ficha.save()
+
+            messages.success(request, "Ficha odontológica actualizada correctamente.")
+            return redirect(self.get_success_url())
+
+        messages.error(request, "Revisá los datos marcados antes de guardar la ficha.")
+        return render(
+            request,
+            self.template_name,
+            self._obtener_contexto(paciente_form, ficha_form),
+        )
+
+    def _construir_formularios(self, data=None):
+        ficha = self._obtener_ficha_odontologica()
+        return (
+            PacienteForm(data=data, instance=self.paciente, prefix="paciente"),
+            FichaOdontologicaForm(data=data, instance=ficha, prefix="ficha"),
+        )
+
+    def _obtener_ficha_odontologica(self):
+        try:
+            return self.paciente.ficha_odontologica
+        except FichaOdontologica.DoesNotExist:
+            return FichaOdontologica(paciente=self.paciente)
 
     def get_success_url(self):
         return reverse_lazy("pacientes:detalle", kwargs={"pk": self.paciente.pk})
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["paciente"] = self.paciente
-        context["titulo"] = "Ficha odontológica"
-        context["subtitulo"] = "Antecedentes y datos clínicos generales del paciente."
-        return context
-
-    def form_valid(self, form):
-        form.instance.paciente = self.paciente
-        form.instance.actualizado_por = self.request.user
-        messages.success(self.request, "Ficha odontológica actualizada correctamente.")
-        return super().form_valid(form)
+    def _obtener_contexto(self, paciente_form, ficha_form):
+        return {
+            "paciente": self.paciente,
+            "ficha": ficha_form.instance,
+            "paciente_form": paciente_form,
+            "ficha_form": ficha_form,
+            "titulo": "Ficha odontológica",
+            "subtitulo": (
+                "Información general, contacto, cobertura y antecedentes clínicos."
+            ),
+        }
 
 
 class PacienteDerivarView(VerPacientesRequeridoMixin, FormView):
