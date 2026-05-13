@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="es">
 <head>
@@ -509,6 +510,18 @@
             border-color: #5eead4;
             background: #d1fae5;
             color: #065f46;
+        }
+
+        .button-clinical-tertiary {
+            border-color: #67e8f9;
+            background: #ecfeff;
+            color: #0e7490;
+        }
+
+        .button-clinical-tertiary:hover {
+            border-color: #22d3ee;
+            background: #cffafe;
+            color: #155e75;
         }
 
         .button-danger {
@@ -2523,6 +2536,7 @@
             }
         }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="{% if request.user.is_authenticated %}app-shell-body{% endif %}">
     {% if request.user.is_authenticated %}
@@ -2624,5 +2638,6 @@
 
         {% block content %}{% endblock %}
     </main>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

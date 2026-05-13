@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'pacientes',
     'turnos',
     'historias',
+    'odontogramas',
     'usuarios.apps.UsuariosConfig',
 ]
 
@@ -208,6 +209,11 @@ LOGGING = {
             "propagate": False,
         },
         "historias": {
+            "handlers": ["console"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+        "odontogramas": {
             "handlers": ["console"],
             "level": DJANGO_LOG_LEVEL,
             "propagate": False,

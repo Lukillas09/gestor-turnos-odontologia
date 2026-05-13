@@ -1,0 +1,81 @@
+<div class="odontograma-tooth" data-tooth-wrapper="{{ diente.numero }}">
+    <div class="odontograma-tooth-number">{{ diente.numero }}</div>
+    <svg class="tooth-svg" viewBox="0 0 48 48" aria-label="Diente {{ diente.numero }}">
+        {% for cara in diente.caras %}
+            {% if cara.codigo == "vestibular" %}
+                <polygon class="tooth-face tooth-face-{{ cara.estado.color|default:'neutro' }}"
+                         points="8,8 40,8 32,16 16,16"
+                         tabindex="0"
+                         role="button"
+                         data-tooth="{{ diente.numero }}"
+                         data-face="{{ cara.codigo }}"
+                         data-face-label="{{ cara.etiqueta }}"
+                         data-state="{{ cara.estado.estado_clinico|default:'' }}"
+                         data-state-label="{% if cara.estado %}{{ cara.estado.get_estado_clinico_display }}{% else %}Sin estado registrado{% endif %}"
+                         data-observation="{{ cara.estado.observacion|default:'' }}"
+                         data-realized="{% if cara.estado and cara.estado.realizado %}true{% else %}false{% endif %}">
+                    <title>{{ cara.tooltip }}</title>
+                </polygon>
+            {% elif cara.codigo == "distal" %}
+                <polygon class="tooth-face tooth-face-{{ cara.estado.color|default:'neutro' }}"
+                         points="40,8 40,40 32,32 32,16"
+                         tabindex="0"
+                         role="button"
+                         data-tooth="{{ diente.numero }}"
+                         data-face="{{ cara.codigo }}"
+                         data-face-label="{{ cara.etiqueta }}"
+                         data-state="{{ cara.estado.estado_clinico|default:'' }}"
+                         data-state-label="{% if cara.estado %}{{ cara.estado.get_estado_clinico_display }}{% else %}Sin estado registrado{% endif %}"
+                         data-observation="{{ cara.estado.observacion|default:'' }}"
+                         data-realized="{% if cara.estado and cara.estado.realizado %}true{% else %}false{% endif %}">
+                    <title>{{ cara.tooltip }}</title>
+                </polygon>
+            {% elif cara.codigo == "lingual_palatina" %}
+                <polygon class="tooth-face tooth-face-{{ cara.estado.color|default:'neutro' }}"
+                         points="8,40 40,40 32,32 16,32"
+                         tabindex="0"
+                         role="button"
+                         data-tooth="{{ diente.numero }}"
+                         data-face="{{ cara.codigo }}"
+                         data-face-label="{{ cara.etiqueta }}"
+                         data-state="{{ cara.estado.estado_clinico|default:'' }}"
+                         data-state-label="{% if cara.estado %}{{ cara.estado.get_estado_clinico_display }}{% else %}Sin estado registrado{% endif %}"
+                         data-observation="{{ cara.estado.observacion|default:'' }}"
+                         data-realized="{% if cara.estado and cara.estado.realizado %}true{% else %}false{% endif %}">
+                    <title>{{ cara.tooltip }}</title>
+                </polygon>
+            {% elif cara.codigo == "mesial" %}
+                <polygon class="tooth-face tooth-face-{{ cara.estado.color|default:'neutro' }}"
+                         points="8,8 16,16 16,32 8,40"
+                         tabindex="0"
+                         role="button"
+                         data-tooth="{{ diente.numero }}"
+                         data-face="{{ cara.codigo }}"
+                         data-face-label="{{ cara.etiqueta }}"
+                         data-state="{{ cara.estado.estado_clinico|default:'' }}"
+                         data-state-label="{% if cara.estado %}{{ cara.estado.get_estado_clinico_display }}{% else %}Sin estado registrado{% endif %}"
+                         data-observation="{{ cara.estado.observacion|default:'' }}"
+                         data-realized="{% if cara.estado and cara.estado.realizado %}true{% else %}false{% endif %}">
+                    <title>{{ cara.tooltip }}</title>
+                </polygon>
+            {% else %}
+                <rect class="tooth-face tooth-face-{{ cara.estado.color|default:'neutro' }}"
+                      x="16"
+                      y="16"
+                      width="16"
+                      height="16"
+                      tabindex="0"
+                      role="button"
+                      data-tooth="{{ diente.numero }}"
+                      data-face="{{ cara.codigo }}"
+                      data-face-label="{{ cara.etiqueta }}"
+                      data-state="{{ cara.estado.estado_clinico|default:'' }}"
+                      data-state-label="{% if cara.estado %}{{ cara.estado.get_estado_clinico_display }}{% else %}Sin estado registrado{% endif %}"
+                      data-observation="{{ cara.estado.observacion|default:'' }}"
+                      data-realized="{% if cara.estado and cara.estado.realizado %}true{% else %}false{% endif %}">
+                    <title>{{ cara.tooltip }}</title>
+                </rect>
+            {% endif %}
+        {% endfor %}
+    </svg>
+</div>

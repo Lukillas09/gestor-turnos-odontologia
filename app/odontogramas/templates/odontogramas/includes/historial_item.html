@@ -1,0 +1,23 @@
+<article class="odontograma-history-item">
+    <div class="odontograma-history-marker tooth-face-{{ estado.color }}" aria-hidden="true"></div>
+    <div>
+        <div class="odontograma-history-head">
+            <strong>{{ estado.diente }} - {{ estado.cara_display }}</strong>
+            <span>{{ estado.fecha|date:"d/m/Y" }}</span>
+        </div>
+        <p>
+            {{ estado.get_estado_clinico_display }}
+            · {% if estado.realizado %}Realizado{% else %}Pendiente{% endif %}
+        </p>
+        <small>
+            {% if estado.odontologo %}
+                {{ estado.odontologo }}
+            {% else %}
+                Odontólogo no registrado
+            {% endif %}
+        </small>
+        {% if estado.observacion %}
+            <p class="muted">{{ estado.observacion|truncatechars:120 }}</p>
+        {% endif %}
+    </div>
+</article>
