@@ -2044,6 +2044,19 @@
             box-shadow: var(--shadow);
         }
 
+        .public-search-panel.is-enhanced {
+            grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.7fr);
+        }
+
+        .public-search-panel.is-enhanced .public-search-fallback {
+            display: none;
+        }
+
+        .public-loading-state {
+            border-color: #bae6fd;
+            background: #f0f9ff;
+        }
+
         .public-date-strip {
             display: flex;
             gap: 10px;

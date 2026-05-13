@@ -798,16 +798,19 @@ class SolicitudTurnoPublicaTests(TestCase):
             estado=estado,
         )
 
-    def test_formulario_publico_no_requiere_login(self):
+    def test_formulario_publico_inicia_sin_odontologo_seleccionado(self):
         response = self.client.get(reverse("turnos:solicitud_publica"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Solicitar turno")
         self.assertContains(response, "Opciones de turnos disponibles")
-        self.assertContains(response, "Turnos por la mañana")
-        self.assertContains(response, "Turnos por la tarde")
-        self.assertContains(response, "Reservar turno")
-        self.assertContains(response, "https://example.com/paula.jpg")
+        self.assertContains(response, "Seleccionar odontólogo")
+        self.assertContains(response, "Elegí un odontólogo para ver los horarios disponibles.")
+        self.assertContains(response, "Autogestión de turnos")
+        self.assertIsNone(response.context["odontologo"])
+        self.assertEqual(response.context["horarios_manana"], [])
+        self.assertEqual(response.context["horarios_tarde"], [])
+        self.assertNotContains(response, 'src="https://example.com/paula.jpg"')
 
     def test_formulario_publico_muestra_horarios_disponibles(self):
         paciente = Paciente.objects.create(
@@ -838,6 +841,83 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "10:00")
         self.assertContains(response, reverse("turnos:solicitud_publica_datos"))
         self.assertNotContains(response, "09:30")
+
+    def test_endpoint_publico_horarios_devuelve_disponibilidad(self):
+        paciente = Paciente.objects.create(
+            nombre="Rita",
+            apellido="Moreno",
+            documento="37111222",
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(9, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(
+            reverse("turnos:solicitud_publica_horarios"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": self.fecha_turno.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        horarios = [
+            horario["label"]
+            for bloque in ("horarios_manana", "horarios_tarde")
+            for horario in data[bloque]
+        ]
+
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["odontologo"]["nombre"], "Paula Publica")
+        self.assertEqual(data["odontologo"]["duracion"], 30)
+        self.assertEqual(data["fecha"]["iso"], self.fecha_turno.isoformat())
+        self.assertIn("09:00", horarios)
+        self.assertIn("10:00", horarios)
+        self.assertNotIn("09:30", horarios)
+        self.assertTrue(
+            any(
+                reverse("turnos:solicitud_publica_datos") in horario["url"]
+                and "hora_inicio=10%3A00" in horario["url"]
+                for bloque in ("horarios_manana", "horarios_tarde")
+                for horario in data[bloque]
+            )
+        )
+
+    def test_endpoint_publico_horarios_maneja_odontologo_faltante(self):
+        response = self.client.get(
+            reverse("turnos:solicitud_publica_horarios"),
+            {"fecha": self.fecha_turno.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data["ok"])
+        self.assertEqual(data["codigo"], "sin_odontologo")
+        self.assertEqual(
+            data["mensaje"],
+            "Elegí un odontólogo para ver los horarios disponibles.",
+        )
+
+    def test_endpoint_publico_horarios_maneja_fecha_invalida(self):
+        response = self.client.get(
+            reverse("turnos:solicitud_publica_horarios"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": "fecha-rara",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data["ok"])
+        self.assertEqual(data["codigo"], "fecha_invalida")
+        self.assertEqual(data["mensaje"], "Ingresá una fecha válida.")
 
     def test_reservar_horario_abre_formulario_de_datos(self):
         response = self.client.get(
