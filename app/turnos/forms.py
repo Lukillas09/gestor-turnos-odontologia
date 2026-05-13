@@ -339,12 +339,44 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
 
 
 class ConfirmacionTurnoForm(forms.Form):
-    duracion_minutos = forms.TypedChoiceField(
+    duracion_rapida = forms.TypedChoiceField(
         choices=DURACIONES_CONFIRMACION_TURNO,
         coerce=int,
+        required=False,
         label="Duración real del turno",
-        help_text="Elegí cuánto tiempo necesita realmente esta atención.",
+        help_text="Usá una opción rápida o cargá una duración personalizada.",
     )
+    duracion_personalizada = forms.IntegerField(
+        required=False,
+        min_value=5,
+        max_value=360,
+        label="Duración personalizada",
+        widget=forms.NumberInput(attrs={"placeholder": "Ej: 75", "min": 5, "max": 360}),
+        error_messages={
+            "invalid": "Ingresá una duración válida en minutos.",
+            "min_value": "La duración debe ser de al menos 5 minutos.",
+            "max_value": "La duración no puede superar las 6 horas.",
+        },
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if self.errors:
+            return cleaned_data
+
+        duracion_personalizada = cleaned_data.get("duracion_personalizada")
+        duracion_rapida = cleaned_data.get("duracion_rapida")
+
+        if duracion_personalizada is not None:
+            cleaned_data["duracion_minutos"] = duracion_personalizada
+            return cleaned_data
+
+        if duracion_rapida:
+            cleaned_data["duracion_minutos"] = duracion_rapida
+            return cleaned_data
+
+        raise forms.ValidationError("Elegí una duración rápida o ingresá una duración personalizada.")
 
 
 class TurnoFiltroForm(forms.Form):

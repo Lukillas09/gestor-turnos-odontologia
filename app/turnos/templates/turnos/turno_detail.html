@@ -81,28 +81,6 @@
             </dl>
         </article>
 
-        <article class="turno-info-card animate-fade-up card-hover" style="--stagger-index: 3;">
-            <div class="turno-info-card-header">
-                <span>Estado y sincronización</span>
-            </div>
-            <div class="turno-status-stack">
-                <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-                {% if turno.sincronizado_con_google_calendar %}
-                    <span class="status-badge status-sync-ok">Sincronizado con Google Calendar</span>
-                {% else %}
-                    <span class="status-badge status-sync-pending">No sincronizado con Google Calendar</span>
-                {% endif %}
-            </div>
-            {% if google_calendar_ultimo_error %}
-                <div class="turno-sync-note">
-                    <strong>Último error de sincronización</strong>
-                    <p>{{ google_calendar_ultimo_error }}</p>
-                    {% if puede_reintentar_sincronizacion_google_calendar %}
-                        <p>Podés reintentar la sincronización desde las acciones del turno.</p>
-                    {% endif %}
-                </div>
-            {% endif %}
-        </article>
     </section>
 
     <section class="panel-section turno-notes-panel animate-fade-up">
@@ -124,7 +102,7 @@
         </dl>
     </section>
 
-    {% if puede_gestionar_turnos or puede_reprogramar_turno or puede_reintentar_sincronizacion_google_calendar %}
+    {% if puede_confirmar_turno or puede_reprogramar_turno or puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}
         <section class="panel-section turno-actions-panel animate-fade-up">
             <div class="section-header">
                 <div>
@@ -134,23 +112,12 @@
             </div>
 
             <div class="turno-detail-actions">
-                {% if puede_gestionar_turnos %}
-                    <a class="button button-soft-primary" href="{% url 'turnos:editar' turno.pk %}">Editar turno</a>
-                {% endif %}
-
                 {% if puede_confirmar_turno %}
-                    <a class="button-success" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar turno</a>
+                    <a class="button button-success" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar turno</a>
                 {% endif %}
 
                 {% if puede_reprogramar_turno %}
-                    <a class="button button-secondary" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar</a>
-                {% endif %}
-
-                {% if puede_reintentar_sincronizacion_google_calendar %}
-                    <form method="post" action="{% url 'turnos:reintentar_google_calendar' turno.pk %}">
-                        {% csrf_token %}
-                        <button class="button button-secondary" type="submit">Reintentar sincronización</button>
-                    </form>
+                    <a class="button button-soft-primary" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar</a>
                 {% endif %}
 
                 {% if puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}
@@ -158,6 +125,10 @@
                         {% csrf_token %}
                         <button class="button-danger" type="submit">Cancelar turno</button>
                     </form>
+                {% endif %}
+
+                {% if puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}
+                    <a class="button button-secondary" href="{% url 'turnos:editar' turno.pk %}">Editar turno</a>
                 {% endif %}
             </div>
         </section>

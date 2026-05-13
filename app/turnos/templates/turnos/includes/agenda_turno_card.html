@@ -36,7 +36,7 @@
 
         {% if turno.estado == "pendiente" %}
             {% if puede_gestionar_turnos or turno.odontologo.usuario_id == request.user.id %}
-                <a class="button-success button-small" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar</a>
+                <a class="button button-success button-small" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar</a>
             {% endif %}
         {% endif %}
 

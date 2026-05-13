@@ -71,21 +71,30 @@
             <div class="field-error">{{ form.non_field_errors }}</div>
         {% endif %}
 
-        <div class="form-grid">
-            <div>
-                <label for="{{ form.duracion_minutos.id_for_label }}">{{ form.duracion_minutos.label }}</label>
-                {{ form.duracion_minutos }}
-                {% if form.duracion_minutos.help_text %}
-                    <p class="muted">{{ form.duracion_minutos.help_text }}</p>
+        <div class="confirm-duration-layout">
+            <div class="confirm-duration-card">
+                <label for="{{ form.duracion_rapida.id_for_label }}">Opciones rápidas</label>
+                {{ form.duracion_rapida }}
+                {% if form.duracion_rapida.help_text %}
+                    <p class="muted">{{ form.duracion_rapida.help_text }}</p>
                 {% endif %}
-                {% if form.duracion_minutos.errors %}
-                    <div class="field-error">{{ form.duracion_minutos.errors }}</div>
+                {% if form.duracion_rapida.errors %}
+                    <div class="field-error">{{ form.duracion_rapida.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="confirm-duration-card">
+                <label for="{{ form.duracion_personalizada.id_for_label }}">{{ form.duracion_personalizada.label }}</label>
+                {{ form.duracion_personalizada }}
+                <p class="muted">Si completás este campo, se usa esta duración en lugar de la opción rápida.</p>
+                {% if form.duracion_personalizada.errors %}
+                    <div class="field-error">{{ form.duracion_personalizada.errors }}</div>
                 {% endif %}
             </div>
         </div>
 
         <div class="form-actions">
-            <button type="submit">Confirmar turno</button>
+            <button class="button-success" type="submit">Confirmar turno</button>
             <a class="button button-secondary" href="{% url 'turnos:detalle' turno.pk %}">Cancelar</a>
         </div>
     </form>

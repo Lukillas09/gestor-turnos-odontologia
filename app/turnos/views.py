@@ -922,7 +922,12 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
 
     def get_initial(self):
         initial = super().get_initial()
-        initial["duracion_minutos"] = self.turno.duracion_minutos
+        duraciones_rapidas = {30, 45, 60, 90, 120}
+        initial["duracion_rapida"] = (
+            self.turno.duracion_minutos
+            if self.turno.duracion_minutos in duraciones_rapidas
+            else 30
+        )
         return initial
 
     def get_success_url(self):
@@ -945,7 +950,7 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
             messages.success(self.request, self.resultado.mensaje)
             return redirect(self.get_success_url())
 
-        form.add_error("duracion_minutos", self.resultado.mensaje)
+        form.add_error(None, self.resultado.mensaje)
         return self.form_invalid(form)
 
 

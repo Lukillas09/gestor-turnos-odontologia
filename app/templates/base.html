@@ -538,11 +538,13 @@
         }
 
         .button-success {
+            border-color: #067647;
             background: #067647;
             color: #ffffff;
         }
 
         .button-success:hover {
+            border-color: #05603a;
             background: #05603a;
         }
 
@@ -1183,6 +1185,24 @@
             flex-wrap: wrap;
             gap: 10px;
             align-items: center;
+        }
+
+        .turno-detail-actions a,
+        .turno-detail-actions button {
+            text-decoration: none;
+        }
+
+        .confirm-duration-layout {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .confirm-duration-card {
+            border: 1px solid #d7e8ee;
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: 16px;
         }
 
         .quick-filter-row {
@@ -2457,6 +2477,7 @@
             .turno-list-card,
             .turno-detail-grid,
             .turno-notes-grid,
+            .confirm-duration-layout,
             .public-reservation-details,
             .public-profile,
             .public-slot-grid,

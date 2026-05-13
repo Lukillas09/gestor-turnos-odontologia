@@ -413,8 +413,10 @@ class TurnoViewsTests(TestCase):
         self.assertContains(response, "Diaz")
         self.assertContains(response, "Control")
         self.assertContains(response, "10:00")
+        self.assertNotContains(response, "Estado y sincronizaci")
+        self.assertNotContains(response, "Reintentar sincronizaci")
 
-    def test_detalle_muestra_turno_sincronizado_con_google_calendar(self):
+    def test_detalle_no_muestra_estado_tecnico_de_google_calendar(self):
         turno = Turno.objects.create(
             paciente=self.paciente,
             odontologo=self.odontologo,
@@ -427,12 +429,11 @@ class TurnoViewsTests(TestCase):
         response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Google Calendar")
-        self.assertContains(response, "Sincronizado")
-        self.assertContains(response, "status-sync-ok")
+        self.assertNotContains(response, "Estado y sincronizaci")
+        self.assertNotContains(response, "Sincronizado con Google Calendar")
         self.assertNotContains(response, "evento-google-123")
 
-    def test_detalle_muestra_turno_no_sincronizado_con_google_calendar(self):
+    def test_detalle_no_muestra_turno_no_sincronizado_con_google_calendar(self):
         turno = Turno.objects.create(
             paciente=self.paciente,
             odontologo=self.odontologo,
@@ -444,11 +445,9 @@ class TurnoViewsTests(TestCase):
         response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Google Calendar")
-        self.assertContains(response, "No sincronizado")
-        self.assertContains(response, "status-sync-pending")
+        self.assertNotContains(response, "No sincronizado con Google Calendar")
 
-    def test_detalle_muestra_ultimo_error_google_calendar_con_mensaje_claro(self):
+    def test_detalle_no_muestra_ultimo_error_google_calendar(self):
         GoogleCalendarConexion.objects.create(
             odontologo=self.odontologo,
             refresh_token="refresh-token",
@@ -465,14 +464,14 @@ class TurnoViewsTests(TestCase):
         response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Último error de sincronización")
-        self.assertContains(response, "No se pudo autorizar la conexión con Google Calendar")
-        self.assertContains(response, "Reintentar sincronización")
+        self.assertNotContains(response, "Último error de sincronización")
+        self.assertNotContains(response, "No se pudo autorizar la conexión con Google Calendar")
+        self.assertNotContains(response, "Reintentar sincronización")
         self.assertNotContains(response, "invalid_grant")
         self.assertNotContains(response, "access_token")
         self.assertNotContains(response, "secreto-tecnico")
 
-    def test_detalle_muestra_boton_reintentar_sincronizacion(self):
+    def test_detalle_no_muestra_boton_reintentar_sincronizacion(self):
         turno = Turno.objects.create(
             paciente=self.paciente,
             odontologo=self.odontologo,
@@ -484,8 +483,8 @@ class TurnoViewsTests(TestCase):
         response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Reintentar sincronización")
-        self.assertContains(response, reverse("turnos:reintentar_google_calendar", kwargs={"pk": turno.pk}))
+        self.assertNotContains(response, "Reintentar sincronización")
+        self.assertNotContains(response, reverse("turnos:reintentar_google_calendar", kwargs={"pk": turno.pk}))
 
     def test_reintentar_sincronizacion_muestra_mensaje_de_exito(self):
         turno = Turno.objects.create(
@@ -556,6 +555,24 @@ class TurnoViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Confirmar turno")
+        self.assertContains(response, 'class="button button-success"')
+
+    def test_detalle_ordena_acciones_del_turno_pendiente(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        contenido = response.content.decode()
+
+        self.assertLess(contenido.index("Confirmar turno"), contenido.index("Reprogramar"))
+        self.assertLess(contenido.index("Reprogramar"), contenido.index("Cancelar turno"))
+        self.assertLess(contenido.index("Cancelar turno"), contenido.index("Editar turno"))
 
     def test_detalle_no_muestra_boton_confirmar_si_el_turno_no_esta_pendiente(self):
         turno = Turno.objects.create(
@@ -571,6 +588,24 @@ class TurnoViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Confirmar turno")
+
+    def test_detalle_de_turno_cancelado_oculta_acciones_de_gestion(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CANCELADO,
+        )
+
+        response = self.client.get(reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Confirmar turno")
+        self.assertNotContains(response, "Reprogramar")
+        self.assertNotContains(response, "Cancelar turno")
+        self.assertNotContains(response, "Editar turno")
 
     def test_confirmacion_pide_duracion_real(self):
         turno = Turno.objects.create(
@@ -588,6 +623,7 @@ class TurnoViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Confirmar turno pendiente")
         self.assertContains(response, "Duraci")
+        self.assertContains(response, "Duración personalizada")
         self.assertContains(response, "120 minutos")
 
     def test_confirmacion_cambia_estado_y_actualiza_duracion_sin_modificar_fecha_ni_horario(self):
@@ -603,7 +639,7 @@ class TurnoViewsTests(TestCase):
 
         response = self.client.post(
             reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-            {"duracion_minutos": 60},
+            {"duracion_rapida": 60},
         )
 
         turno.refresh_from_db()
@@ -638,7 +674,7 @@ class TurnoViewsTests(TestCase):
             with patch("turnos.services.notificar_turno_confirmado") as notificar_mock:
                 response = self.client.post(
                     reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-                    {"duracion_minutos": 120},
+                    {"duracion_rapida": 120},
                 )
 
         turno.refresh_from_db()
@@ -678,7 +714,7 @@ class TurnoViewsTests(TestCase):
 
         response = self.client.post(
             reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-            {"duracion_minutos": 120},
+            {"duracion_rapida": 120},
         )
 
         turno.refresh_from_db()
@@ -706,13 +742,94 @@ class TurnoViewsTests(TestCase):
 
         response = self.client.post(
             reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-            {"duracion_minutos": 120},
+            {"duracion_rapida": 120},
         )
 
         turno.refresh_from_db()
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
         self.assertEqual(turno.estado, Turno.Estado.CONFIRMADO)
         self.assertEqual(turno.duracion_minutos, 120)
+
+    def test_confirmacion_con_duracion_personalizada_actualiza_turno(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        response = self.client.post(
+            reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
+            {
+                "duracion_rapida": 30,
+                "duracion_personalizada": 75,
+            },
+        )
+
+        turno.refresh_from_db()
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
+        self.assertEqual(turno.estado, Turno.Estado.CONFIRMADO)
+        self.assertEqual(turno.duracion_minutos, 75)
+
+    def test_confirmacion_rechaza_duracion_personalizada_invalida(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        response = self.client.post(
+            reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
+            {
+                "duracion_rapida": 30,
+                "duracion_personalizada": 361,
+            },
+        )
+
+        turno.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
+        self.assertContains(response, "La duración no puede superar las 6 horas.")
+
+    def test_confirmacion_con_duracion_personalizada_muestra_conflicto(self):
+        turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Solicitud personalizada",
+        )
+        Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control conflictivo",
+        )
+
+        response = self.client.post(
+            reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
+            {
+                "duracion_rapida": 30,
+                "duracion_personalizada": 75,
+            },
+        )
+
+        turno.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
+        self.assertEqual(turno.duracion_minutos, 30)
+        self.assertContains(response, "se superpone")
+        self.assertContains(response, "Control conflictivo")
 
     def test_edicion_actualiza_turno(self):
         turno = Turno.objects.create(
@@ -1327,7 +1444,7 @@ class TurnoEmailNotificationTests(TestCase):
 
         response = self.client.post(
             reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-            {"duracion_minutos": 30},
+            {"duracion_rapida": 30},
         )
 
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
@@ -1516,7 +1633,7 @@ class TurnoEmailNotificationTests(TestCase):
 
         self.client.post(
             reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-            {"duracion_minutos": 30},
+            {"duracion_rapida": 30},
         )
 
         self.assertEqual(mail.outbox, [])
@@ -1535,7 +1652,7 @@ class TurnoEmailNotificationTests(TestCase):
             with patch("turnos.notifications.send_mail", side_effect=OSError("SMTP caido")):
                 response = self.client.post(
                     reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-                    {"duracion_minutos": 30},
+                    {"duracion_rapida": 30},
                 )
 
         turno.refresh_from_db()
@@ -1895,7 +2012,7 @@ class TurnoRoleTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Turno propio")
-        self.assertContains(response, "Reintentar sincronización")
+        self.assertNotContains(response, "Reintentar sincronización")
         self.assertContains(response, "Reprogramar")
         self.assertNotContains(response, "Cancelar turno")
 
@@ -1979,7 +2096,7 @@ class TurnoRoleTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_administrador_puede_ver_y_reintentar_sin_gestionar_turno(self):
+    def test_administrador_puede_reintentar_sin_boton_visible_en_detalle(self):
         usuario_admin = get_user_model().objects.create_user(
             username="admin.turnos",
             is_staff=True,
@@ -1992,7 +2109,7 @@ class TurnoRoleTests(TestCase):
         )
 
         self.assertEqual(response_detalle.status_code, 200)
-        self.assertContains(response_detalle, "Reintentar sincronización")
+        self.assertNotContains(response_detalle, "Reintentar sincronización")
         self.assertNotContains(response_detalle, "Reprogramar")
         self.assertNotContains(response_detalle, "Editar")
         self.assertNotContains(response_detalle, "Cancelar turno")
