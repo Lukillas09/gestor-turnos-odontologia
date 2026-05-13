@@ -134,11 +134,11 @@ El selector `obtener_horarios_disponibles` calcula horarios libres usando:
 
 El formulario de creacion de turnos consume ese selector para que la hora se elija desde una lista de horarios libres, en lugar de cargarla manualmente.
 
-El formulario publico de solicitud de turnos tambien consume ese selector, rechaza fechas pasadas y guarda los turnos nuevos como `pendiente`.
+El formulario publico de solicitud de turnos tambien consume ese selector, rechaza fechas pasadas y guarda los turnos nuevos como `pendiente` con duracion inicial de 30 minutos.
 
 La confirmacion publica muestra los datos principales del turno recien solicitado usando el identificador guardado en la sesion del navegador.
 
-La confirmacion interna de turnos solo cambia el estado de `pendiente` a `confirmado`; no modifica fecha, hora ni duracion.
+La confirmacion interna de turnos usa una pantalla propia para elegir la duracion real antes de pasar de `pendiente` a `confirmado`. Si esa duracion genera superposicion, el turno queda pendiente y se muestran opciones para reprogramar.
 
 Los selectores `obtener_turnos_del_dia` y `obtener_turnos_de_la_semana` concentran las consultas de agenda para que las vistas solo preparen contexto de presentacion.
 
@@ -149,7 +149,6 @@ Estados actuales de un turno:
 - `pendiente`
 - `confirmado`
 - `cancelado`
-- `realizado`
 
 ## Roles actuales
 

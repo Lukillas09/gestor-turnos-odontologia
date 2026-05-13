@@ -10,6 +10,16 @@ from .models import Odontologo, Turno
 from .selectors import obtener_horarios_disponibles
 
 
+DURACION_SOLICITUD_PUBLICA_MINUTOS = 30
+DURACIONES_CONFIRMACION_TURNO = (
+    (30, "30 minutos"),
+    (45, "45 minutos"),
+    (60, "60 minutos"),
+    (90, "90 minutos"),
+    (120, "120 minutos"),
+)
+
+
 def convertir_a_hora(valor):
     if hasattr(valor, "hour"):
         return valor
@@ -176,6 +186,7 @@ class TurnoCreateForm(HorariosDisponiblesFormMixin, TurnoForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields.pop("estado", None)
         self._configurar_horarios_disponibles()
 
 
@@ -311,6 +322,9 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         super().__init__(*args, **kwargs)
         self._configurar_horarios_disponibles()
 
+    def _obtener_duracion_minutos(self, odontologo):
+        return DURACION_SOLICITUD_PUBLICA_MINUTOS
+
     def clean_documento(self):
         documento = self.cleaned_data["documento"].strip()
         return documento or None
@@ -322,6 +336,15 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
             raise forms.ValidationError("La fecha no puede ser anterior a hoy.")
 
         return fecha
+
+
+class ConfirmacionTurnoForm(forms.Form):
+    duracion_minutos = forms.TypedChoiceField(
+        choices=DURACIONES_CONFIRMACION_TURNO,
+        coerce=int,
+        label="Duración real del turno",
+        help_text="Elegí cuánto tiempo necesita realmente esta atención.",
+    )
 
 
 class TurnoFiltroForm(forms.Form):

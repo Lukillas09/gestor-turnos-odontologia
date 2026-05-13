@@ -50,7 +50,7 @@ def crear_turno_de_atencion(paciente, odontologo, fecha=date(2026, 5, 8)):
         fecha=fecha,
         hora_inicio=time(9, 0),
         duracion_minutos=30,
-        estado=Turno.Estado.REALIZADO,
+        estado=Turno.Estado.CONFIRMADO,
     )
 
 

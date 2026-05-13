@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils import timezone
 
 from pacientes.models import Paciente
@@ -20,6 +22,7 @@ from .notifications import (
     notificar_turno_confirmado,
     notificar_turno_reprogramado,
 )
+from .selectors import obtener_turno_superpuesto
 
 
 @dataclass(frozen=True)
@@ -29,7 +32,16 @@ class ResultadoEnvioRecordatoriosEmail:
     fallidos: int
 
 
+@dataclass(frozen=True)
+class ResultadoConfirmacionTurno:
+    confirmado: bool
+    turno: Turno
+    conflicto: Turno | None = None
+    mensaje: str = ""
+
+
 def crear_turno_desde_formulario(form, usuario=None):
+    form.instance.estado = Turno.Estado.CONFIRMADO
     turno = form.save()
     asegurar_paciente_asociado_a_odontologo(
         turno.paciente,
@@ -68,14 +80,72 @@ def reprogramar_turno(turno, datos):
 
 
 def confirmar_turno(turno):
-    if turno.estado != Turno.Estado.PENDIENTE:
-        return turno
+    return confirmar_turno_con_duracion(turno, turno.duracion_minutos)
 
+
+def confirmar_turno_con_duracion(turno, duracion_minutos):
+    if turno.estado != Turno.Estado.PENDIENTE:
+        return ResultadoConfirmacionTurno(
+            confirmado=False,
+            turno=turno,
+            mensaje="Solo se pueden confirmar turnos pendientes.",
+        )
+
+    try:
+        duracion = int(duracion_minutos)
+    except (TypeError, ValueError):
+        return ResultadoConfirmacionTurno(
+            confirmado=False,
+            turno=turno,
+            mensaje="La duración seleccionada no es válida.",
+        )
+
+    if duracion <= 0:
+        return ResultadoConfirmacionTurno(
+            confirmado=False,
+            turno=turno,
+            mensaje="La duración debe ser mayor a cero.",
+        )
+
+    conflicto = obtener_turno_superpuesto(
+        odontologo=turno.odontologo,
+        fecha=turno.fecha,
+        hora_inicio=turno.hora_inicio,
+        duracion_minutos=duracion,
+        turno_excluido=turno,
+    )
+
+    if conflicto:
+        return ResultadoConfirmacionTurno(
+            confirmado=False,
+            turno=turno,
+            conflicto=conflicto,
+            mensaje=(
+                "No se puede confirmar este turno con esa duración porque "
+                "se superpone con otro turno."
+            ),
+        )
+
+    turno.duracion_minutos = duracion
     turno.estado = Turno.Estado.CONFIRMADO
-    turno.save(update_fields=["estado", "actualizado_en"])
+
+    try:
+        with transaction.atomic():
+            turno.save(update_fields=["duracion_minutos", "estado", "actualizado_en"])
+    except ValidationError as error:
+        return ResultadoConfirmacionTurno(
+            confirmado=False,
+            turno=turno,
+            mensaje=_mensaje_validacion(error),
+        )
+
     sincronizar_turno_actualizado(turno)
     notificar_turno_confirmado(turno)
-    return turno
+    return ResultadoConfirmacionTurno(
+        confirmado=True,
+        turno=turno,
+        mensaje="Turno confirmado correctamente.",
+    )
 
 
 def cancelar_turno(turno):
@@ -175,7 +245,7 @@ def crear_solicitud_turno_publica(datos):
         odontologo=odontologo,
         fecha=datos["fecha"],
         hora_inicio=datos["hora_inicio"],
-        duracion_minutos=odontologo.duracion_turno_minutos,
+        duracion_minutos=30,
         motivo=datos["motivo"],
         estado=Turno.Estado.PENDIENTE,
     )
@@ -184,9 +254,18 @@ def crear_solicitud_turno_publica(datos):
         odontologo,
         motivo="Solicitud pública de turno",
     )
-    sincronizar_turno_creado(turno)
     notificar_solicitud_turno_recibida(turno)
     return turno
+
+
+def _mensaje_validacion(error):
+    if hasattr(error, "message_dict"):
+        mensajes = []
+        for errores in error.message_dict.values():
+            mensajes.extend(str(mensaje) for mensaje in errores)
+        return " ".join(mensajes)
+
+    return " ".join(str(mensaje) for mensaje in getattr(error, "messages", [error]))
 
 
 def obtener_o_crear_paciente_desde_solicitud(datos):

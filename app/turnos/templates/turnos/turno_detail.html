@@ -138,11 +138,8 @@
                     <a class="button button-soft-primary" href="{% url 'turnos:editar' turno.pk %}">Editar turno</a>
                 {% endif %}
 
-                {% if turno.estado == turno.Estado.PENDIENTE and puede_gestionar_turnos %}
-                    <form method="post" action="{% url 'turnos:confirmar' turno.pk %}">
-                        {% csrf_token %}
-                        <button class="button-success" type="submit">Confirmar turno</button>
-                    </form>
+                {% if puede_confirmar_turno %}
+                    <a class="button-success" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar turno</a>
                 {% endif %}
 
                 {% if puede_reprogramar_turno %}

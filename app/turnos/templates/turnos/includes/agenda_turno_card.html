@@ -34,11 +34,10 @@
     <div class="agenda-turno-actions">
         <a class="button button-secondary button-small" href="{% url 'turnos:detalle' turno.pk %}">Ver</a>
 
-        {% if puede_gestionar_turnos and turno.estado == "pendiente" %}
-            <form class="inline-form" method="post" action="{% url 'turnos:confirmar' turno.pk %}">
-                {% csrf_token %}
-                <button class="button-success button-small" type="submit">Confirmar</button>
-            </form>
+        {% if turno.estado == "pendiente" %}
+            {% if puede_gestionar_turnos or turno.odontologo.usuario_id == request.user.id %}
+                <a class="button-success button-small" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar</a>
+            {% endif %}
         {% endif %}
 
         {% if turno.estado == "pendiente" or turno.estado == "confirmado" %}

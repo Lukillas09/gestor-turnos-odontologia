@@ -176,7 +176,6 @@ def obtener_resumen_estados(turnos):
         Turno.Estado.PENDIENTE: 0,
         Turno.Estado.CONFIRMADO: 0,
         Turno.Estado.CANCELADO: 0,
-        Turno.Estado.REALIZADO: 0,
     }
 
     for turno in turnos:
@@ -184,6 +183,31 @@ def obtener_resumen_estados(turnos):
         resumen[turno.estado] = resumen.get(turno.estado, 0) + 1
 
     return resumen
+
+
+def obtener_turno_superpuesto(
+    odontologo,
+    fecha,
+    hora_inicio,
+    duracion_minutos,
+    turno_excluido=None,
+):
+    inicio_nuevo = datetime.combine(fecha, hora_inicio)
+    fin_nuevo = inicio_nuevo + timedelta(minutes=duracion_minutos)
+    turnos_activos = _turnos_con_relaciones().filter(
+        odontologo=odontologo,
+        fecha=fecha,
+        estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
+    )
+
+    if turno_excluido and turno_excluido.pk:
+        turnos_activos = turnos_activos.exclude(pk=turno_excluido.pk)
+
+    for turno in turnos_activos.order_by("hora_inicio"):
+        if inicio_nuevo < turno.fecha_hora_fin and fin_nuevo > turno.fecha_hora_inicio:
+            return turno
+
+    return None
 
 
 def obtener_inicio_semana(fecha):

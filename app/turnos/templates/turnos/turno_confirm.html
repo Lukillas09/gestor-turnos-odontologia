@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar turno | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="patient-backline animate-fade-up">
+        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:detalle' turno.pk %}">&larr; Volver al turno</a>
+    </div>
+
+    <div class="page-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Confirmación de turno</p>
+            <h1>Confirmar turno pendiente</h1>
+            <p class="subtitle">Revisá la solicitud y elegí la duración real de la atención.</p>
+        </div>
+        <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+    </div>
+
+    <section class="turno-detail-grid stagger-list" aria-label="Resumen del turno a confirmar">
+        <article class="turno-info-card animate-fade-up card-hover" style="--stagger-index: 0;">
+            <div class="turno-info-card-header">
+                <span>Paciente</span>
+                <a class="text-link" href="{% url 'pacientes:detalle' turno.paciente.pk %}">Ver perfil</a>
+            </div>
+            <h2>{{ turno.paciente }}</h2>
+            <dl>
+                <div>
+                    <dt>Teléfono</dt>
+                    <dd>{{ turno.paciente.telefono|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt>Email</dt>
+                    <dd>{{ turno.paciente.email|default:"-" }}</dd>
+                </div>
+            </dl>
+        </article>
+
+        <article class="turno-info-card animate-fade-up card-hover" style="--stagger-index: 1;">
+            <div class="turno-info-card-header">
+                <span>Solicitud</span>
+            </div>
+            <h2>{{ turno.fecha|date:"d/m/Y" }}</h2>
+            <dl>
+                <div>
+                    <dt>Horario solicitado</dt>
+                    <dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd>
+                </div>
+                <div>
+                    <dt>Duración actual</dt>
+                    <dd>{{ turno.duracion_minutos }} minutos</dd>
+                </div>
+                <div>
+                    <dt>Odontólogo</dt>
+                    <dd>{{ turno.odontologo }}</dd>
+                </div>
+            </dl>
+        </article>
+
+        <article class="turno-info-card animate-fade-up card-hover" style="--stagger-index: 2;">
+            <div class="turno-info-card-header">
+                <span>Motivo</span>
+            </div>
+            <p>{{ turno.motivo|linebreaksbr|default:"Sin motivo cargado." }}</p>
+        </article>
+    </section>
+
+    <form class="form-panel animate-fade-up" method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="field-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-grid">
+            <div>
+                <label for="{{ form.duracion_minutos.id_for_label }}">{{ form.duracion_minutos.label }}</label>
+                {{ form.duracion_minutos }}
+                {% if form.duracion_minutos.help_text %}
+                    <p class="muted">{{ form.duracion_minutos.help_text }}</p>
+                {% endif %}
+                {% if form.duracion_minutos.errors %}
+                    <div class="field-error">{{ form.duracion_minutos.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit">Confirmar turno</button>
+            <a class="button button-secondary" href="{% url 'turnos:detalle' turno.pk %}">Cancelar</a>
+        </div>
+    </form>
+
+    {% if conflicto %}
+        <section class="panel-section turno-conflict-panel animate-fade-up">
+            <div class="section-header">
+                <div>
+                    <h2>Turno conflictivo</h2>
+                    <p class="subtitle">
+                        No se puede confirmar este turno con esa duración porque se superpone con otro turno.
+                    </p>
+                </div>
+            </div>
+
+            <article class="turno-list-card turno-list-card-{{ conflicto.estado }} card-hover">
+                <div class="turno-card-time">
+                    <span>{{ conflicto.fecha|date:"d/m/Y" }}</span>
+                    <strong>{{ conflicto.hora_inicio|time:"H:i" }} a {{ conflicto.hora_fin|time:"H:i" }}</strong>
+                </div>
+
+                <div class="turno-card-main">
+                    <h2>{{ conflicto.paciente }}</h2>
+                    <p>{{ conflicto.motivo|default:"Sin motivo cargado" }}</p>
+                    <div class="turno-card-meta">
+                        {% if conflicto.paciente.telefono %}
+                            <span>Teléfono: {{ conflicto.paciente.telefono }}</span>
+                        {% endif %}
+                        {% if conflicto.paciente.email %}
+                            <span>Email: {{ conflicto.paciente.email }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="turno-card-status">
+                    <span class="status-badge status-{{ conflicto.estado }}">{{ conflicto.get_estado_display }}</span>
+                </div>
+            </article>
+
+            <div class="turno-detail-actions">
+                <a class="button button-secondary" href="{% url 'turnos:detalle' conflicto.pk %}">Ver turno conflictivo</a>
+                <a class="button button-soft-primary" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar este turno</a>
+                <a class="button button-secondary" href="{% url 'turnos:reprogramar' conflicto.pk %}">Reprogramar turno conflictivo</a>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

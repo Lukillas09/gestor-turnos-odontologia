@@ -36,6 +36,8 @@ from usuarios.roles import (
 
 from .forms import (
     AgendaFiltroForm,
+    ConfirmacionTurnoForm,
+    DURACION_SOLICITUD_PUBLICA_MINUTOS,
     SolicitudTurnoBusquedaPublicaForm,
     SolicitudTurnoPublicaForm,
     TurnoCreateForm,
@@ -72,7 +74,7 @@ from .selectors import (
 from .services import (
     actualizar_turno_desde_formulario,
     cancelar_turno,
-    confirmar_turno,
+    confirmar_turno_con_duracion,
     crear_solicitud_turno_publica,
     crear_turno_desde_formulario,
     reprogramar_turno,
@@ -240,7 +242,6 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
             Turno.Estado.PENDIENTE: conteos.get(Turno.Estado.PENDIENTE, 0),
             Turno.Estado.CONFIRMADO: conteos.get(Turno.Estado.CONFIRMADO, 0),
             Turno.Estado.CANCELADO: conteos.get(Turno.Estado.CANCELADO, 0),
-            Turno.Estado.REALIZADO: conteos.get(Turno.Estado.REALIZADO, 0),
         }
 
     def _obtener_accesos_rapidos(self):
@@ -315,6 +316,7 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
         horarios = obtener_horarios_disponibles(
             odontologo=odontologo,
             fecha=fecha,
+            duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
         )
 
         return {
@@ -358,6 +360,7 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
             horarios = obtener_horarios_disponibles(
                 odontologo=odontologo,
                 fecha=dia,
+                duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
             )
 
             if not horarios:
@@ -534,7 +537,7 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
             "id": odontologo.pk,
             "nombre": odontologo.nombre_completo,
             "especialidad": odontologo.especialidad or "Odontología general",
-            "duracion": odontologo.duracion_turno_minutos,
+            "duracion": DURACION_SOLICITUD_PUBLICA_MINUTOS,
             "matricula": odontologo.matricula,
             "celular": odontologo.celular,
             "foto_url": odontologo.foto_perfil_url,
@@ -602,7 +605,7 @@ class SolicitudTurnoPublicaDatosView(FormView):
         if reserva:
             context["hora_fin"] = (
                 datetime.combine(reserva["fecha"], reserva["hora_inicio"])
-                + timedelta(minutes=reserva["odontologo"].duracion_turno_minutos)
+                + timedelta(minutes=DURACION_SOLICITUD_PUBLICA_MINUTOS)
             ).time()
 
         return context
@@ -648,6 +651,7 @@ class SolicitudTurnoPublicaDatosView(FormView):
             horarios = obtener_horarios_disponibles(
                 odontologo=odontologo,
                 fecha=fecha,
+                duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
             )
 
             if hora_inicio not in horarios:
@@ -786,6 +790,10 @@ class TurnoDetailView(VerTurnosRequeridoMixin, DetailView):
             self.request.user,
             self.object,
         )
+        context["puede_confirmar_turno"] = (
+            self.object.estado == Turno.Estado.PENDIENTE
+            and context["puede_reprogramar_turno"]
+        )
         context["google_calendar_ultimo_error"] = self._obtener_ultimo_error_google_calendar()
         return context
 
@@ -885,12 +893,60 @@ class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
         return redirect(self.get_success_url())
 
 
-class TurnoConfirmView(GestionConsultorioRequeridaMixin, View):
-    def post(self, request, pk):
-        turno = get_object_or_404(Turno, pk=pk)
-        confirmar_turno(turno)
-        messages.success(request, "Turno confirmado correctamente.")
-        return redirect("turnos:detalle", pk=turno.pk)
+class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
+    form_class = ConfirmacionTurnoForm
+    template_name = "turnos/turno_confirm.html"
+    turno = None
+    resultado = None
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not self.test_func():
+            return self.handle_no_permission()
+
+        self.turno = get_object_or_404(
+            limitar_turnos_por_usuario(
+                Turno.objects.select_related(
+                    "paciente",
+                    "odontologo",
+                    "odontologo__usuario",
+                ),
+                request.user,
+            ),
+            pk=kwargs["pk"],
+        )
+
+        if not puede_reprogramar_turno(request.user, self.turno):
+            raise PermissionDenied("No tenÃ©s permiso para confirmar este turno.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial["duracion_minutos"] = self.turno.duracion_minutos
+        return initial
+
+    def get_success_url(self):
+        return reverse("turnos:detalle", kwargs={"pk": self.turno.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["turno"] = self.turno
+        context["conflicto"] = self.resultado.conflicto if self.resultado else None
+        context["mensaje_conflicto"] = self.resultado.mensaje if self.resultado else ""
+        return context
+
+    def form_valid(self, form):
+        self.resultado = confirmar_turno_con_duracion(
+            self.turno,
+            form.cleaned_data["duracion_minutos"],
+        )
+
+        if self.resultado.confirmado:
+            messages.success(self.request, self.resultado.mensaje)
+            return redirect(self.get_success_url())
+
+        form.add_error("duracion_minutos", self.resultado.mensaje)
+        return self.form_invalid(form)
 
 
 class TurnoCancelView(GestionConsultorioRequeridaMixin, View):

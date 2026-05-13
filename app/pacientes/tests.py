@@ -672,22 +672,22 @@ class PacienteViewsTests(TestCase):
         self.assertFalse(Paciente.objects.filter(pk=paciente.pk).exists())
         self.assertFalse(Turno.objects.filter(pk=turno.pk).exists())
 
-    def test_borrado_elimina_paciente_con_turnos_realizados(self):
+    def test_borrado_elimina_paciente_con_turnos_cancelados_historicos(self):
         paciente = Paciente.objects.create(
             nombre="Clara",
-            apellido="Realizada",
+            apellido="Historica",
             documento="46111222",
         )
         turno = self._crear_turno_para_paciente(
             paciente=paciente,
-            estado=Turno.Estado.REALIZADO,
+            estado=Turno.Estado.CANCELADO,
         )
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
             {
                 "nombre": "Clara",
-                "apellido": "Realizada",
+                "apellido": "Historica",
                 "documento": "46111222",
             },
         )
@@ -766,7 +766,7 @@ class PacienteViewsTests(TestCase):
             fecha=date(2026, 5, 8),
             hora_inicio=time(10, 0),
             duracion_minutos=30,
-            estado=Turno.Estado.REALIZADO,
+            estado=Turno.Estado.CANCELADO,
         )
 
         response = self.client.post(

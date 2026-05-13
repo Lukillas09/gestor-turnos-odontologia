@@ -30,11 +30,7 @@
             <span class="metric-label">Confirmados</span>
             <strong>{{ resumen_estados.confirmado }}</strong>
         </div>
-        <div class="metric-card metric-card-realizado animate-fade-up card-hover" style="--stagger-index: 3;">
-            <span class="metric-label">Realizados</span>
-            <strong>{{ resumen_estados.realizado }}</strong>
-        </div>
-        <div class="metric-card metric-card-cancelado animate-fade-up card-hover" style="--stagger-index: 4;">
+        <div class="metric-card metric-card-cancelado animate-fade-up card-hover" style="--stagger-index: 3;">
             <span class="metric-label">Cancelados</span>
             <strong>{{ resumen_estados.cancelado }}</strong>
         </div>
@@ -63,7 +59,6 @@
         <div class="agenda-legend">
             <span class="status-badge status-pendiente">Pendiente</span>
             <span class="status-badge status-confirmado">Confirmado</span>
-            <span class="status-badge status-realizado">Realizado</span>
             <span class="status-badge status-cancelado">Cancelado</span>
         </div>
         {% if busqueda %}

@@ -578,16 +578,16 @@ La lógica actual valida que:
 - Los turnos cancelados no bloqueen ese horario.
 - Los horarios disponibles se calculen a partir de disponibilidad y turnos activos.
 - Los odontologos solo puedan ver turnos asociados a su perfil.
-- Las solicitudes públicas de turno se guarden como pendientes.
+- Las solicitudes públicas de turno se guarden como pendientes con duración inicial de 30 minutos.
 - Las solicitudes públicas no permitan fechas pasadas.
-- Los turnos pendientes puedan confirmarse desde el detalle manteniendo fecha y horario.
+- Los turnos pendientes se confirmen desde una pantalla propia donde se elige la duración real.
+- Los turnos internos creados desde el panel queden confirmados automáticamente.
 
 Estados disponibles para un turno:
 
 - Pendiente
 - Confirmado
 - Cancelado
-- Realizado
 
 ## Comandos útiles
 

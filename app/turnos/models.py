@@ -186,7 +186,6 @@ class Turno(models.Model):
         PENDIENTE = "pendiente", "Pendiente"
         CONFIRMADO = "confirmado", "Confirmado"
         CANCELADO = "cancelado", "Cancelado"
-        REALIZADO = "realizado", "Realizado"
 
     paciente = models.ForeignKey(
         "pacientes.Paciente",
