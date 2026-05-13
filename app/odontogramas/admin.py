@@ -12,6 +12,7 @@ class EstadoDentalInline(admin.TabularInline):
         "estado_clinico",
         "color",
         "realizado",
+        "historia_clinica",
         "odontologo",
         "fecha",
         "activo",
@@ -45,6 +46,7 @@ class EstadoDentalAdmin(admin.ModelAdmin):
         "activo",
         "fecha",
         "odontologo",
+        "historia_clinica",
     )
     search_fields = (
         "odontograma__paciente__apellido",

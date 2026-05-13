@@ -2,13 +2,19 @@ import logging
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
-from django.http import FileResponse
+from django.db import transaction
+from django.db.models import Count, Prefetch, Q
+from django.http import FileResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from odontogramas.forms import EstadoDentalForm
+from odontogramas.models import EstadoDental
+from odontogramas.permissions import puede_editar_odontograma
+from odontogramas.selectors import construir_filas_odontograma, construir_leyenda_colores
+from odontogramas.services import obtener_o_crear_odontograma
 from pacientes.models import Paciente
 from usuarios.mixins import HistoriaClinicaOdontologoRequeridoMixin
 from usuarios.roles import obtener_odontologo_del_usuario
@@ -149,6 +155,7 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        odontograma = obtener_o_crear_odontograma(self.paciente)
         context["titulo"] = "Nueva entrada de historia clínica"
         context["subtitulo"] = f"Registro clínico de {self.paciente}."
         context["texto_boton"] = "Guardar entrada"
@@ -156,6 +163,18 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
             "historias:lista_paciente",
             kwargs={"paciente_pk": self.paciente.pk},
         )
+        context["mostrar_odontograma_en_form"] = True
+        context["odontograma"] = odontograma
+        context["filas_odontograma"] = construir_filas_odontograma(odontograma)
+        context["estado_form"] = EstadoDentalForm()
+        context["leyenda_colores"] = construir_leyenda_colores()
+        context["puede_editar_odontograma"] = puede_editar_odontograma(
+            self.request.user,
+            self.paciente,
+        )
+        context["odontograma_titulo"] = "Odontograma de la entrada"
+        context["odontograma_mostrar_historial"] = False
+        context["odontograma_save_mode"] = "deferred"
         return context
 
     def form_valid(self, form):
@@ -164,12 +183,22 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
         if odontologo is None:
             raise PermissionDenied("Solo un odontólogo puede cargar historia clínica.")
 
-        form.instance.paciente = self.paciente
-        form.instance.odontologo = odontologo
-        form.instance.creado_por = self.request.user
-        form.instance.actualizado_por = self.request.user
-        response = super().form_valid(form)
-        form.guardar_adjuntos(self.object, self.request.user)
+        odontograma = obtener_o_crear_odontograma(self.paciente)
+
+        with transaction.atomic():
+            self.object = form.save(commit=False)
+            self.object.paciente = self.paciente
+            self.object.odontologo = odontologo
+            self.object.creado_por = self.request.user
+            self.object.actualizado_por = self.request.user
+            self.object.save()
+            form.guardar_adjuntos(self.object, self.request.user)
+            form.guardar_estados_odontograma(
+                self.object,
+                odontograma,
+                self.request.user,
+            )
+
         _registrar_evento_clinico(
             self.request,
             "crear_historia",
@@ -178,7 +207,7 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
             detalle="Entrada clínica creada.",
         )
         messages.success(self.request, "Entrada de historia clínica creada correctamente.")
-        return response
+        return HttpResponseRedirect(self.get_success_url())
 
 
 class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailView):
@@ -195,7 +224,18 @@ class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailV
             "odontologo__usuario",
             "creado_por",
             "actualizado_por",
-        ).prefetch_related("adjuntos", "adjuntos__subido_por")
+        ).prefetch_related(
+            "adjuntos",
+            "adjuntos__subido_por",
+            Prefetch(
+                "estados_dentales",
+                queryset=EstadoDental.objects.select_related(
+                    "odontologo",
+                    "odontologo__usuario",
+                    "registrado_por",
+                ).order_by("diente", "cara", "-creado_en"),
+            ),
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

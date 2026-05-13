@@ -1,6 +1,12 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Entrada clínica de {{ historia.paciente }} | Gestor de Turnos{% endblock %}
+
+{% block extra_head %}
+    {% get_static_prefix as STATIC_PREFIX %}
+    <link rel="stylesheet" href="{{ STATIC_PREFIX }}odontogramas/odontograma.css">
+{% endblock %}
 
 {% block content %}
     <div class="page-header animate-fade-up">
@@ -79,6 +85,27 @@
                 <dd>{{ historia.observaciones|linebreaksbr|default:"-" }}</dd>
             </div>
         </dl>
+    </section>
+
+    <section class="panel-section animate-fade-up">
+        <div class="section-heading">
+            <div>
+                <h2>Odontograma de esta entrada</h2>
+                <p>Estados dentales registrados al guardar esta atención.</p>
+            </div>
+        </div>
+
+        {% if historia.estados_dentales.exists %}
+            <div class="odontograma-history-list">
+                {% for estado in historia.estados_dentales.all %}
+                    {% include "odontogramas/includes/historial_item.html" with estado=estado %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state animate-fade-up">
+                <p>No hay cambios de odontograma asociados a esta entrada.</p>
+            </div>
+        {% endif %}
     </section>
 
     <section class="panel-section animate-fade-up">

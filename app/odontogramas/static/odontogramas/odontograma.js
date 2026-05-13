@@ -7,6 +7,11 @@
         return;
     }
 
+    const saveMode = chart.dataset.saveMode || "ajax";
+    const deferredInput = chart.dataset.deferredInput
+        ? document.querySelector(chart.dataset.deferredInput)
+        : null;
+    const pendingStates = new Map();
     const colorByState = {
         sano: "neutro",
         caries: "rojo",
@@ -47,6 +52,7 @@
         observacion: form.querySelector("[name='observacion']"),
         realizado: form.querySelector("[name='realizado']"),
         csrf: form.querySelector("[name='csrfmiddlewaretoken']"),
+        saveButton: form.querySelector("[data-save-odontograma]"),
         error: document.querySelector("#odontogramaFormError"),
         title: document.querySelector("#odontogramaModalTitle"),
         subtitle: document.querySelector("#odontogramaModalSubtitle"),
@@ -123,6 +129,79 @@
         fields.history.prepend(template.content.firstElementChild);
     }
 
+    function buildDeferredState() {
+        const selectedOption = fields.estado.options[fields.estado.selectedIndex];
+        const color = colorByState[fields.estado.value] || "neutro";
+        const estadoLabel = selectedOption ? selectedOption.textContent : fields.estado.value;
+        const caraLabel = activeFace.dataset.faceLabel || fields.cara.value;
+        const realizado = fields.realizado.checked;
+        const observacion = fields.observacion.value || "";
+
+        return {
+            diente: Number(fields.diente.value),
+            cara: fields.cara.value,
+            cara_label: caraLabel,
+            estado_clinico: fields.estado.value,
+            estado_label: estadoLabel,
+            color,
+            observacion,
+            realizado,
+            tooltip: [
+                `${fields.diente.value} - ${caraLabel}`,
+                estadoLabel,
+                realizado ? "Realizado" : "Pendiente",
+                observacion,
+            ].filter(Boolean).join("\n"),
+        };
+    }
+
+    function saveDeferredState() {
+        if (!deferredInput) {
+            showError("No se pudo preparar el guardado del odontograma.");
+            return;
+        }
+
+        const estado = buildDeferredState();
+        const key = `${estado.diente}:${estado.cara}`;
+        pendingStates.set(key, estado);
+        deferredInput.value = JSON.stringify(Array.from(pendingStates.values()));
+        updateFace(activeFace, estado);
+        closeModal();
+    }
+
+    async function saveAjaxState() {
+        clearError();
+
+        try {
+            const response = await fetch(chart.dataset.saveUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": fields.csrf.value,
+                },
+                body: JSON.stringify({
+                    diente: fields.diente.value,
+                    cara: fields.cara.value,
+                    estado_clinico: fields.estado.value,
+                    observacion: fields.observacion.value,
+                    realizado: fields.realizado.checked,
+                }),
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.ok) {
+                showError(data.error || "No se pudo guardar el estado dental.");
+                return;
+            }
+
+            updateFace(activeFace, data.estado);
+            prependHistory(data.historial_html);
+            closeModal();
+        } catch (error) {
+            showError("No se pudo conectar con el servidor. Intentá nuevamente.");
+        }
+    }
+
     chart.addEventListener("click", function (event) {
         const face = event.target.closest(".tooth-face");
         if (face) {
@@ -156,42 +235,16 @@
 
     fields.estado.addEventListener("change", updateColorPreview);
 
-    form.addEventListener("submit", async function (event) {
-        event.preventDefault();
-
+    fields.saveButton.addEventListener("click", function () {
         if (!activeFace) {
             return;
         }
 
-        clearError();
-
-        try {
-            const response = await fetch(chart.dataset.saveUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": fields.csrf.value,
-                },
-                body: JSON.stringify({
-                    diente: fields.diente.value,
-                    cara: fields.cara.value,
-                    estado_clinico: fields.estado.value,
-                    observacion: fields.observacion.value,
-                    realizado: fields.realizado.checked,
-                }),
-            });
-            const data = await response.json();
-
-            if (!response.ok || !data.ok) {
-                showError(data.error || "No se pudo guardar el estado dental.");
-                return;
-            }
-
-            updateFace(activeFace, data.estado);
-            prependHistory(data.historial_html);
-            closeModal();
-        } catch (error) {
-            showError("No se pudo conectar con el servidor. Intentá nuevamente.");
+        if (saveMode === "deferred") {
+            saveDeferredState();
+            return;
         }
+
+        saveAjaxState();
     });
 })();

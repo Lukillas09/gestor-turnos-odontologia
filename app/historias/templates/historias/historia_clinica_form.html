@@ -1,6 +1,14 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ titulo }} | Gestor de Turnos{% endblock %}
+
+{% block extra_head %}
+    {% if mostrar_odontograma_en_form %}
+        {% get_static_prefix as STATIC_PREFIX %}
+        <link rel="stylesheet" href="{{ STATIC_PREFIX }}odontogramas/odontograma.css">
+    {% endif %}
+{% endblock %}
 
 {% block content %}
     <div class="page-header animate-fade-up">
@@ -12,13 +20,16 @@
 
     <form class="form-panel animate-fade-up" method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
+        {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+        {% endfor %}
 
         {% if form.non_field_errors %}
             <div class="field-error">{{ form.non_field_errors }}</div>
         {% endif %}
 
         <div class="form-grid">
-            {% for field in form %}
+            {% for field in form.visible_fields %}
                 <div class="{% if field.name == 'motivo_consulta' or field.name == 'diagnostico' or field.name == 'tratamiento_realizado' or field.name == 'observaciones' or field.name == 'adjuntos' %}field-full{% endif %}">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
@@ -32,9 +43,30 @@
             {% endfor %}
         </div>
 
+        {% if mostrar_odontograma_en_form %}
+            <section class="form-clinical-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Odontograma</h2>
+                        <p class="subtitle">
+                            Registrá los cambios dentales de esta atención antes de guardar la entrada clínica.
+                        </p>
+                    </div>
+                </div>
+                {% include "odontogramas/includes/odontograma_editor.html" %}
+            </section>
+        {% endif %}
+
         <div class="form-actions">
             <button type="submit">{{ texto_boton }}</button>
             <a class="button button-secondary" href="{{ url_cancelar }}">Cancelar</a>
         </div>
     </form>
+{% endblock %}
+
+{% block extra_scripts %}
+    {% if mostrar_odontograma_en_form and puede_editar_odontograma %}
+        {% get_static_prefix as STATIC_PREFIX %}
+        <script src="{{ STATIC_PREFIX }}odontogramas/odontograma.js"></script>
+    {% endif %}
 {% endblock %}

@@ -23,16 +23,13 @@
             </div>
         </div>
 
-        {% if puede_editar_ficha_odontologica or puede_ver_historia_clinica or puede_ver_odontograma %}
+        {% if puede_editar_ficha_odontologica or puede_ver_historia_clinica %}
             <div class="clinical-actions" aria-label="Acciones clínicas">
                 {% if puede_editar_ficha_odontologica %}
                     <a class="button button-clinical-primary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">Ficha odontológica</a>
                 {% endif %}
                 {% if puede_ver_historia_clinica %}
                     <a class="button button-clinical-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clínica</a>
-                {% endif %}
-                {% if puede_ver_odontograma %}
-                    <a class="button button-clinical-tertiary" href="{% url 'odontogramas:detalle_paciente' paciente.pk %}">Odontograma</a>
                 {% endif %}
             </div>
         {% endif %}

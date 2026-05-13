@@ -67,6 +67,13 @@ class EstadoDental(models.Model):
         on_delete=models.CASCADE,
         related_name="estados_dentales",
     )
+    historia_clinica = models.ForeignKey(
+        "historias.HistoriaClinica",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="estados_dentales",
+    )
     diente = models.PositiveSmallIntegerField()
     cara = models.CharField(max_length=30, choices=CaraDental.choices)
     estado_clinico = models.CharField(max_length=40, choices=EstadoClinico.choices)
@@ -102,6 +109,7 @@ class EstadoDental(models.Model):
         indexes = [
             models.Index(fields=["odontograma", "diente", "cara", "activo"]),
             models.Index(fields=["odontograma", "fecha"]),
+            models.Index(fields=["historia_clinica", "-creado_en"]),
             models.Index(fields=["odontologo", "fecha"]),
         ]
         constraints = [

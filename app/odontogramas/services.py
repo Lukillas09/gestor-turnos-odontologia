@@ -21,6 +21,7 @@ def registrar_estado_dental(
     observacion="",
     usuario=None,
     realizado=False,
+    historia_clinica=None,
 ):
     diente = int(diente)
 
@@ -42,6 +43,7 @@ def registrar_estado_dental(
 
         estado = EstadoDental.objects.create(
             odontograma=odontograma,
+            historia_clinica=historia_clinica,
             diente=diente,
             cara=cara,
             estado_clinico=estado_clinico,

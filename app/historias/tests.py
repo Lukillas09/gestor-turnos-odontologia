@@ -13,6 +13,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from pacientes.models import Paciente, PacienteOdontologo
+from odontogramas.models import EstadoDental, Odontograma
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
@@ -196,6 +197,59 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(historia.pieza_dental, "16")
         self.assertEqual(historia.creado_por, self.usuario_odontologo)
         self.assertEqual(historia.actualizado_por, self.usuario_odontologo)
+
+    def test_formulario_nueva_entrada_incluye_odontograma_diferido(self):
+        response = self.client.get(
+            reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Odontograma de la entrada")
+        self.assertContains(response, 'data-save-mode="deferred"')
+        self.assertContains(response, 'id="id_estados_odontograma"')
+
+    def test_creacion_guarda_estados_de_odontograma_asociados_a_historia(self):
+        fecha = timezone.localdate()
+        estados_odontograma = [
+            {
+                "diente": 16,
+                "cara": EstadoDental.CaraDental.OCLUSAL_INCISAL,
+                "estado_clinico": EstadoDental.EstadoClinico.CARIES,
+                "observacion": "Caries activa registrada durante la consulta.",
+                "realizado": False,
+            }
+        ]
+
+        response = self.client.post(
+            reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
+            {
+                "fecha": fecha.isoformat(),
+                "motivo_consulta": "Control con odontograma",
+                "diagnostico": "Caries oclusal",
+                "tratamiento_realizado": "",
+                "pieza_dental": "16",
+                "observaciones": "",
+                "proximo_control": "",
+                "estados_odontograma": json.dumps(estados_odontograma),
+            },
+        )
+
+        historia = HistoriaClinica.objects.get(motivo_consulta="Control con odontograma")
+        estado = EstadoDental.objects.get(historia_clinica=historia)
+
+        self.assertRedirects(response, reverse("historias:detalle", kwargs={"pk": historia.pk}))
+        self.assertTrue(Odontograma.objects.filter(paciente=self.paciente).exists())
+        self.assertEqual(estado.odontograma.paciente, self.paciente)
+        self.assertEqual(estado.diente, 16)
+        self.assertEqual(estado.cara, EstadoDental.CaraDental.OCLUSAL_INCISAL)
+        self.assertEqual(estado.estado_clinico, EstadoDental.EstadoClinico.CARIES)
+        self.assertEqual(estado.odontologo, self.odontologo)
+        self.assertFalse(estado.realizado)
+
+        detalle_response = self.client.get(reverse("historias:detalle", kwargs={"pk": historia.pk}))
+        self.assertContains(detalle_response, "Odontograma de esta entrada")
+        self.assertContains(detalle_response, "16 - Oclusal")
+        self.assertContains(detalle_response, "Caries")
 
     def test_listado_muestra_historia_clinica_del_paciente(self):
         HistoriaClinica.objects.create(

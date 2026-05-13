@@ -15,7 +15,6 @@ from historias.permissions import (
     puede_crear_historia_de_paciente,
     puede_ver_historia_de_paciente,
 )
-from odontogramas.permissions import puede_ver_odontograma
 from turnos.models import Turno
 
 from usuarios.mixins import (
@@ -215,10 +214,6 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 "puede_ver_historia_clinica": puede_ver_historia,
                 "puede_crear_historia_clinica": puede_crear_historia,
                 "puede_editar_ficha_odontologica": puede_editar_ficha,
-                "puede_ver_odontograma": puede_ver_odontograma(
-                    self.request.user,
-                    paciente,
-                ),
                 "puede_derivar_paciente": puede_derivar,
                 "odontologos_asociados": list(paciente.odontologos_asociados.all()),
                 "historias_recientes": historias_recientes,

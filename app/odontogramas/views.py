@@ -10,11 +10,10 @@ from django.views.generic import TemplateView
 from pacientes.models import Paciente
 from usuarios.mixins import VerPacientesRequeridoMixin
 
-from .domain import COLORES_HEX
 from .forms import EstadoDentalForm
 from .models import EstadoDental
 from .permissions import puede_editar_odontograma, puede_ver_odontograma
-from .selectors import construir_filas_odontograma, construir_tooltip
+from .selectors import construir_filas_odontograma, construir_leyenda_colores, construir_tooltip
 from .services import obtener_o_crear_odontograma, registrar_estado_dental
 
 
@@ -57,32 +56,10 @@ class OdontogramaDetailView(PacienteOdontogramaMixin, TemplateView):
                 "historial": historial,
                 "puede_editar_odontograma": puede_editar,
                 "estado_form": EstadoDentalForm(),
-                "leyenda_colores": [
-                    {
-                        "color": "azul",
-                        "hex": COLORES_HEX["azul"],
-                        "titulo": "Realizado / existente",
-                        "detalle": "Obturación, corona, implante, conducto o prótesis.",
-                    },
-                    {
-                        "color": "rojo",
-                        "hex": COLORES_HEX["rojo"],
-                        "titulo": "Pendiente",
-                        "detalle": "Caries, extracción indicada o restauración necesaria.",
-                    },
-                    {
-                        "color": "verde",
-                        "hex": COLORES_HEX["verde"],
-                        "titulo": "Control",
-                        "detalle": "Temporal, sellador o seguimiento.",
-                    },
-                    {
-                        "color": "negro",
-                        "hex": COLORES_HEX["negro"],
-                        "titulo": "Ausente / especial",
-                        "detalle": "Ausente, extraído, fractura u observación especial.",
-                    },
-                ],
+                "leyenda_colores": construir_leyenda_colores(),
+                "odontograma_titulo": "Odontograma",
+                "odontograma_mostrar_historial": True,
+                "odontograma_save_mode": "ajax",
             }
         )
         return context

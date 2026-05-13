@@ -5,9 +5,23 @@
     align-items: start;
 }
 
+.odontograma-layout-full {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .odontograma-legend-panel {
     margin-bottom: 18px;
     border-color: #cfe4ea;
+}
+
+.form-clinical-section {
+    margin-top: 26px;
+    display: grid;
+    gap: 18px;
+}
+
+.form-clinical-section .odontograma-legend-panel {
+    margin-bottom: 0;
 }
 
 .odontograma-legend-grid {

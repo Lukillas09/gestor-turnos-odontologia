@@ -1,4 +1,4 @@
-from .domain import CARAS_DENTALES, FILAS_ODONTOGRAMA
+from .domain import CARAS_DENTALES, COLORES_HEX, FILAS_ODONTOGRAMA
 
 
 def estados_activos_por_cara(odontograma):
@@ -66,3 +66,32 @@ def construir_tooltip(diente, cara_display, estado):
         partes.append(estado.observacion[:120])
 
     return "\n".join(partes)
+
+
+def construir_leyenda_colores():
+    return [
+        {
+            "color": "azul",
+            "hex": COLORES_HEX["azul"],
+            "titulo": "Realizado / existente",
+            "detalle": "Obturación, corona, implante, conducto o prótesis.",
+        },
+        {
+            "color": "rojo",
+            "hex": COLORES_HEX["rojo"],
+            "titulo": "Pendiente",
+            "detalle": "Caries, extracción indicada o restauración necesaria.",
+        },
+        {
+            "color": "verde",
+            "hex": COLORES_HEX["verde"],
+            "titulo": "Control",
+            "detalle": "Temporal, sellador o seguimiento.",
+        },
+        {
+            "color": "negro",
+            "hex": COLORES_HEX["negro"],
+            "titulo": "Ausente / especial",
+            "detalle": "Ausente, extraído, fractura u observación especial.",
+        },
+    ]

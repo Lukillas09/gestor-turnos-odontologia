@@ -276,7 +276,7 @@ class PacienteViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ficha odontológica")
-        self.assertContains(response, "Odontograma")
+        self.assertNotContains(response, "Odontograma")
         self.assertNotContains(response, "Editar paciente")
         self.assertNotContains(
             response,

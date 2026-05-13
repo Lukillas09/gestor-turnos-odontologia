@@ -1,6 +1,10 @@
+import json
+
 from django import forms
 
 from config.form_widgets import HtmlDateInput
+from odontogramas.domain import DIENTES_FDI
+from odontogramas.models import EstadoDental
 
 from .models import HistoriaClinica, HistoriaClinicaAdjunto, validar_archivo_clinico
 
@@ -51,6 +55,10 @@ class HistoriaClinicaFiltroForm(forms.Form):
 
 
 class HistoriaClinicaForm(forms.ModelForm):
+    estados_odontograma = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
     adjuntos = MultipleFileField(
         required=False,
         label="Adjuntos",
@@ -92,10 +100,76 @@ class HistoriaClinicaForm(forms.ModelForm):
 
         return adjuntos
 
+    def clean_estados_odontograma(self):
+        valor = self.cleaned_data.get("estados_odontograma")
+
+        if not valor:
+            return []
+
+        try:
+            datos = json.loads(valor)
+        except json.JSONDecodeError as exc:
+            raise forms.ValidationError(
+                "No se pudieron interpretar los cambios del odontograma."
+            ) from exc
+
+        if not isinstance(datos, list):
+            raise forms.ValidationError("Los cambios del odontograma no son válidos.")
+
+        estados = []
+
+        for item in datos:
+            if not isinstance(item, dict):
+                raise forms.ValidationError("Los cambios del odontograma no son válidos.")
+
+            try:
+                diente = int(item.get("diente"))
+            except (TypeError, ValueError) as exc:
+                raise forms.ValidationError("El diente del odontograma no es válido.") from exc
+
+            cara = item.get("cara")
+            estado_clinico = item.get("estado_clinico")
+
+            if diente not in DIENTES_FDI:
+                raise forms.ValidationError("El diente del odontograma no es válido.")
+
+            if cara not in EstadoDental.CaraDental.values:
+                raise forms.ValidationError("La cara dental seleccionada no es válida.")
+
+            if estado_clinico not in EstadoDental.EstadoClinico.values:
+                raise forms.ValidationError("El estado clínico seleccionado no es válido.")
+
+            estados.append(
+                {
+                    "diente": diente,
+                    "cara": cara,
+                    "estado_clinico": estado_clinico,
+                    "observacion": (item.get("observacion") or "").strip(),
+                    "realizado": bool(item.get("realizado")),
+                }
+            )
+
+        return estados
+
     def guardar_adjuntos(self, historia, usuario):
         for archivo in self.cleaned_data.get("adjuntos", []):
             HistoriaClinicaAdjunto.objects.create(
                 historia=historia,
                 archivo=archivo,
                 subido_por=usuario,
+            )
+
+    def guardar_estados_odontograma(self, historia, odontograma, usuario):
+        from odontogramas.services import registrar_estado_dental
+
+        for estado in self.cleaned_data.get("estados_odontograma", []):
+            registrar_estado_dental(
+                odontograma=odontograma,
+                diente=estado["diente"],
+                cara=estado["cara"],
+                estado_clinico=estado["estado_clinico"],
+                observacion=estado["observacion"],
+                realizado=estado["realizado"],
+                usuario=usuario,
+                historia_clinica=historia,
             )
