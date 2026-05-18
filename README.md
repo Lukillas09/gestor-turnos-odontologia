@@ -112,6 +112,7 @@ gestor-turnos-odontologia/
 ├── scripts/
 │   ├── build.sh
 │   ├── backup_postgresql.sh
+│   ├── recordatorios.sh
 │   ├── release.sh
 │   └── start.sh
 └── app/
@@ -484,15 +485,15 @@ También se puede pasar una ventana puntual al comando:
 python manage.py enviar_recordatorios_email --horas 48
 ```
 
-Para schedulers de producción conviene usar:
+Para schedulers de producción conviene usar el script dedicado:
 
-```powershell
-python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
+```bash
+bash scripts/recordatorios.sh
 ```
 
-Cada turno guarda cuándo se envió el recordatorio para evitar envíos duplicados.
+El script usa `TURNOS_RECORDATORIO_HORAS`, que por defecto es `24`, y ejecuta el comando con `--fallar-si-hay-errores`. Cada turno guarda cuándo se envió el recordatorio para evitar envíos duplicados.
 
-La guía para programar este comando con Railway, GitHub Actions, cron o Windows Task Scheduler está en [docs/recordatorios.md](docs/recordatorios.md).
+La guía para programar este comando con Railway Cron, GitHub Actions, cron o Windows Task Scheduler está en [docs/recordatorios.md](docs/recordatorios.md).
 
 ## Backups de staging
 

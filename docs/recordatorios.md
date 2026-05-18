@@ -32,10 +32,12 @@ Esto ejecuta el comando una vez por hora.
 Comando recomendado:
 
 ```bash
-cd app && python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
+bash scripts/recordatorios.sh
 ```
 
 El sistema marca cada turno con `recordatorio_email_enviado_en`, por eso no envia el mismo recordatorio dos veces aunque el comando corra cada hora.
+
+El script `scripts/recordatorios.sh` lee `TURNOS_RECORDATORIO_HORAS`. Si la variable no existe, usa `24`.
 
 ## GitHub Actions para staging
 
@@ -83,16 +85,61 @@ En ejecucion manual se puede cambiar `horas` para probar una ventana mas amplia,
 
 ## Railway Cron Job
 
-En Railway se puede configurar un servicio como Cron Job desde Settings usando una expresion crontab.
+En Railway conviene crear un servicio separado para recordatorios. No configurar el cron sobre el servicio `web`, porque `web` debe quedar levantado continuamente.
+
+Pasos:
+
+1. En Railway, dentro del mismo proyecto, crear un nuevo servicio desde el mismo repo.
+2. Nombrarlo `recordatorios-email`.
+3. Cargar las mismas variables de entorno que usa el servicio `web`, especialmente:
+
+```text
+DJANGO_SECRET_KEY
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS
+DJANGO_CSRF_TRUSTED_ORIGINS
+DATABASE_URL
+EMAIL_BACKEND
+EMAIL_API_PROVIDER
+EMAIL_API_KEY
+DEFAULT_FROM_EMAIL
+TURNOS_RECORDATORIO_HORAS=24
+```
+
+4. Configurar el start command del servicio `recordatorios-email`:
+
+```text
+bash scripts/recordatorios.sh
+```
+
+5. En `Settings`, configurar `Cron Schedule`:
+
+```text
+0 * * * *
+```
+
+Ese schedule ejecuta recordatorios una vez por hora.
 
 Valores sugeridos:
 
 ```text
 Cron Schedule: 0 * * * *
-Start Command: cd app && python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
+Start Command: bash scripts/recordatorios.sh
 ```
 
-Railway tambien usa UTC para cron. El proceso debe terminar cuando finaliza el comando.
+Railway usa UTC para cron. El proceso debe terminar cuando finaliza el comando; por eso se usa un script corto que envia recordatorios y sale.
+
+Para probarlo manualmente antes de dejarlo automatico:
+
+```bash
+bash scripts/recordatorios.sh
+```
+
+La prueba esperada:
+
+- Si hay turnos confirmados dentro de las proximas 24 horas con email de paciente, envia recordatorios.
+- Si no hay turnos candidatos, termina correctamente con `Encontrados: 0`.
+- Si un recordatorio ya fue enviado, no lo duplica.
 
 ## Cron en Linux
 
