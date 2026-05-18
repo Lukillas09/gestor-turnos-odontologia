@@ -1,22 +1,22 @@
-# Proveedor de deploy inicial
+# Decisión de hosting
 
-Esta guia deja definida la estrategia actual para probar el sistema fuera de la maquina local.
+Esta guía resume la decisión vigente de infraestructura para ejecutar el sistema fuera de la máquina local.
 
-## Decision
+## Decisión
 
 Para esta etapa se elige:
 
 ```text
 App Django: Railway
 Base de datos: Supabase PostgreSQL
-Adjuntos clinicos: Supabase Storage
+Adjuntos clínicos: Supabase Storage
 Recordatorios: GitHub Actions o Railway Cron
 Repositorio: GitHub
 ```
 
 Railway reemplaza al hosting anterior. Supabase se mantiene como base de datos principal.
 
-## Por que Railway para la app
+## Por qué Railway para la app
 
 Railway permite desplegar desde GitHub, configurar variables de entorno, usar Gunicorn y ejecutar comandos de build/start de forma simple.
 
@@ -27,15 +27,15 @@ Para este proyecto conviene porque:
 - La app puede seguir usando Supabase sin crear otra base.
 - Los logs y variables quedan centralizados en el servicio web.
 
-## Por que mantener Supabase
+## Por qué mantener Supabase
 
 Supabase ya contiene PostgreSQL y Storage del proyecto. Cambiar de hosting no requiere migrar datos si se conserva la misma `DATABASE_URL`.
 
 Puntos a cuidar:
 
 - Mantener `sslmode=require`.
-- Hacer backups logicos propios.
-- Probar restauracion.
+-- Hacer backups lógicos propios.
+-- Probar restauración.
 - No exponer `SUPABASE_STORAGE_SERVICE_ROLE_KEY`.
 
 ## Variables para Railway
@@ -107,18 +107,18 @@ STAGING_RECORDATORIOS_ACTIVO=true
 
 ## Riesgos de una arquitectura inicial de bajo costo
 
-- Los planes gratuitos o iniciales pueden tener limites de uso.
+-- Los planes gratuitos o iniciales pueden tener límites de uso.
 - Supabase requiere backups propios si se cargan datos importantes.
-- Los cron externos no garantizan ejecucion al segundo exacto.
+-- Los cron externos no garantizan ejecución al segundo exacto.
 - Para uso real con pacientes conviene tener dominio propio, monitoreo y estrategia de restauracion.
 
-## Recomendacion
+## Recomendación
 
-Usar Railway + Supabase para staging y primera demostracion controlada.
+Usar Railway + Supabase para staging y primera demostración controlada.
 
-Antes de produccion diaria:
+Antes de producción diaria:
 
-- Rotar secretos compartidos durante configuracion.
+-- Rotar secretos compartidos durante configuración.
 - Definir dominio real.
 - Probar backups y restauracion.
 - Probar Google Calendar con la URL final.

@@ -1,388 +1,288 @@
 # Arquitectura del Proyecto
 
-Este documento define las decisiones iniciales de arquitectura para el gestor de turnos odontologico.
+Este documento describe la arquitectura actual de `gestor-turnos-odontologia` según el código del repositorio.
 
-La idea es que el proyecto crezca de forma ordenada, con codigo limpio, responsabilidades claras y cambios faciles de mantener.
+El proyecto sigue una separación simple por apps Django, con reglas de negocio concentradas en modelos, servicios, selectores y permisos. La intención es mantener el sistema entendible, testeable y fácil de extender.
 
-## Objetivo del sistema
+## Objetivo
 
-El sistema debe permitir administrar turnos de un consultorio odontologico.
+Administrar turnos de un consultorio odontológico con dos superficies bien separadas:
 
-En esta primera etapa se busca resolver:
+- Interfaz pública para pacientes.
+- Panel interno para odontólogos, recepción y administración.
 
-- Carga de pacientes.
-- Carga de odontologos.
-- Carga y gestion de turnos.
-- Solicitud publica de turnos para pacientes.
-- Validacion de horarios disponibles.
-- Prevencion de turnos superpuestos.
-- Preparacion para integracion con Google Calendar.
+Además, el sistema incluye historia clínica, odontograma, adjuntos clínicos, Google Calendar y notificaciones por email.
 
-## Principios de diseno
+## Apps Principales
 
-El proyecto va a seguir estos criterios:
+### `config`
 
-- Modularidad: cada app debe tener una responsabilidad clara.
-- Alta cohesion: cada modulo debe agrupar codigo relacionado con un mismo concepto.
-- Bajo acoplamiento: una app no debe conocer detalles internos innecesarios de otra.
-- Nombres claros: clases, funciones y variables deben expresar su intencion.
-- Codigo simple: primero resolver bien el caso actual, sin sobrearmar estructuras prematuras.
-- Reglas testeables: cada regla importante del dominio debe poder probarse con tests.
-- Cambios incrementales: cada etapa debe dejar el sistema funcionando.
+Responsabilidades:
 
-## Modulos actuales
-
-### config
-
-Responsabilidad:
-
-- Configuracion general de Django.
-- Registro de apps instaladas.
-- Configuracion de autenticacion y redirecciones de login/logout.
-- Registro del context processor de permisos.
+- Settings de Django.
 - Carga de variables de entorno desde `.env`.
-- Configuracion de base de datos.
-- Configuracion de idioma, zona horaria y archivos estaticos.
-- Rutas principales del proyecto.
+- Configuración de base de datos por `DATABASE_URL`.
+- Configuración de email, storage, seguridad HTTPS y logs.
+- URLs globales.
+- Backend propio de email por API HTTP.
+- Backend de storage para Supabase Storage.
 
-Este modulo no debe contener reglas de negocio.
+Archivos relevantes:
 
-### pacientes
+- `config/settings.py`
+- `config/env.py`
+- `config/database.py`
+- `config/email_backends.py`
+- `config/storage_backends.py`
+- `config/urls.py`
 
-Responsabilidad:
+### `usuarios`
 
-- Representar y administrar los datos de los pacientes.
-- Centralizar la informacion personal y de contacto.
+Responsabilidades:
 
-Modelo principal:
+- Login interno.
+- Dashboard interno.
+- Perfil del usuario/odontólogo.
+- Roles por grupos de Django.
+- Mixins de permisos para vistas internas.
+- Scope de datos según usuario.
+
+Roles actuales:
+
+- `Recepcionista`
+- `Odontologo`
+- `Administrador`
+
+Las reglas de acceso principales viven en `usuarios/roles.py`.
+
+### `pacientes`
+
+Responsabilidades:
+
+- Datos personales y administrativos del paciente.
+- Ficha odontológica.
+- Asociación paciente-odontólogo.
+- Derivación/asignación a otro odontólogo.
+- Borrado seguro con confirmaciones.
+- Perfil clínico del paciente.
+
+Modelos:
 
 - `Paciente`
+- `FichaOdontologica`
+- `PacienteOdontologo`
 
-Por ahora, esta app no conoce los detalles internos de los turnos. La relacion con turnos aparece desde la app `turnos`.
+Notas:
 
-### turnos
+- Un paciente puede estar asociado a varios odontólogos.
+- La ficha odontológica concentra datos personales, cobertura, contacto y alertas clínicas.
+- El perfil del paciente muestra resumen clínico, turnos, historia reciente y asociaciones.
 
-Responsabilidad:
+### `turnos`
 
-- Representar odontologos.
-- Representar disponibilidad de odontologos.
-- Representar turnos.
-- Validar reglas basicas de agenda.
-- Evitar turnos superpuestos.
-- Calcular horarios disponibles.
-- Guiar la creacion de turnos con horarios disponibles.
-- Resolver solicitudes publicas de turnos.
-- Mostrar agenda diaria y semanal simple.
-- Mostrar agenda diaria por bloques horarios con estados diferenciados visualmente.
-- Enviar notificaciones por email relacionadas con turnos.
-- Aislar la integracion con Google Calendar.
-- Sincronizar turnos con eventos externos sin acoplar vistas ni formularios.
+Responsabilidades:
 
-Modelos principales:
+- Odontólogos.
+- Disponibilidad por día de semana.
+- Turnos.
+- Solicitud pública.
+- Consulta/cancelación/reprogramación pública por DNI.
+- Agenda diaria y semanal.
+- Emails transaccionales.
+- Recordatorios.
+- Google Calendar OAuth y sincronización.
+
+Modelos:
 
 - `Odontologo`
 - `DisponibilidadOdontologo`
 - `Turno`
 - `GoogleCalendarConexion`
 
-Esta app concentra las reglas iniciales del dominio de agenda.
+Capas internas:
 
-### historias
+- `models.py`: estructura y validaciones esenciales.
+- `forms.py`: formularios internos y públicos.
+- `views.py`: vistas HTTP.
+- `services.py`: casos de uso que modifican datos.
+- `selectors.py`: consultas reutilizables y cálculo de disponibilidad.
+- `notifications.py`: notificaciones de email.
+- `integrations/google_calendar.py`: cliente HTTP de Google Calendar.
+- `google_calendar_oauth.py`: guardado/desconexión OAuth.
+- `google_calendar_sync.py`: coordinación entre turnos y Google Calendar.
 
-Responsabilidad:
+### `historias`
 
-- Representar entradas de historia clinica por paciente.
-- Registrar el odontologo responsable de cada entrada.
-- Separar datos clinicos de los datos personales del paciente.
-- Proteger el acceso para que solo usuarios odontologos puedan entrar.
-- Permitir que solo el odontologo responsable edite su propia entrada.
+Responsabilidades:
 
-Modelo principal:
+- Historia clínica por paciente.
+- Adjuntos clínicos.
+- Búsqueda y filtros de historias.
+- Auditoría básica por logs.
+- Integración del odontograma dentro de nuevas entradas clínicas.
+
+Modelos:
 
 - `HistoriaClinica`
+- `HistoriaClinicaAdjunto`
 
-Esta app no gestiona turnos ni pacientes. Usa esas entidades como referencia y concentra la informacion clinica evolutiva.
+Reglas actuales:
 
-### usuarios
+- Solo usuarios con perfil de odontólogo pueden acceder a historia clínica.
+- Un odontólogo puede ver según las reglas de permisos clínicos.
+- La creación exige asociación del odontólogo con el paciente.
+- La edición queda limitada al odontólogo responsable de la entrada.
 
-Responsabilidad:
+### `odontogramas`
 
-- Centralizar roles y permisos internos.
-- Definir permisos de recepcionista, odontologo y administrador.
-- Redirigir a cada usuario a su pantalla inicial segun el rol.
-- Exponer permisos simples a las plantillas.
+Responsabilidades:
 
-Este modulo no representa pacientes ni turnos. Solo decide que puede hacer cada usuario dentro del sistema.
+- Odontograma FDI por paciente.
+- Estados dentales por diente y cara.
+- Historial de cambios por inactivación del estado anterior.
+- Editor interactivo con SVG/HTML y JavaScript.
+- Asociación opcional de estados dentales a una entrada de historia clínica.
 
-## Reglas de negocio actuales
+Modelos:
 
-El modelo `Turno` valida que:
+- `Odontograma`
+- `EstadoDental`
 
-- La duracion del turno sea mayor a cero.
-- El odontologo este activo para turnos no cancelados.
-- El turno entre dentro de una disponibilidad activa del odontologo.
-- Los dias sin disponibilidad activa queden bloqueados como no laborables.
-- No exista otro turno activo superpuesto para el mismo odontologo.
-- Los turnos cancelados no bloqueen horarios.
+El odontograma mantiene un estado activo por diente/cara y conserva registros anteriores como historial.
 
-El selector `obtener_horarios_disponibles` calcula horarios libres usando:
+## Flujo de URLs
 
-- Disponibilidad activa del odontologo.
-- Duracion configurada del turno.
-- Turnos pendientes y confirmados ya existentes.
-- Estado activo/inactivo del odontologo.
+URLs públicas:
 
-El formulario de creacion de turnos consume ese selector para que la hora se elija desde una lista de horarios libres, en lugar de cargarla manualmente.
+```text
+/                                      landing pública
+/turnos/solicitar/                     selección pública de turno
+/turnos/solicitar/horarios/            endpoint JSON de horarios públicos
+/turnos/solicitar/datos/               formulario público de datos mínimos
+/turnos/solicitar/gracias/             confirmación pública
+/turnos/cancelar/                      consulta/cancelación por DNI
+/turnos/api/por-dni/                   endpoint JSON por DNI
+/turnos/<id>/cancelar-publico/         cancelación pública con validación de DNI
+/turnos/<id>/reprogramar-publico/      reprogramación pública si el turno está pendiente
+```
 
-El formulario publico de solicitud de turnos tambien consume ese selector, rechaza fechas pasadas y guarda los turnos nuevos como `pendiente` con duracion inicial de 30 minutos.
+URLs internas:
 
-La confirmacion publica muestra los datos principales del turno recien solicitado usando el identificador guardado en la sesion del navegador.
+```text
+/cuentas/login/
+/inicio/
+/pacientes/
+/turnos/
+/turnos/agenda/dia/
+/turnos/agenda/semana/
+/turnos/google-calendar/
+/historias/pacientes/<paciente_id>/
+/odontogramas/pacientes/<paciente_id>/
+/admin/
+```
 
-La confirmacion interna de turnos usa una pantalla propia para elegir la duracion real antes de pasar de `pendiente` a `confirmado`. Si esa duracion genera superposicion, el turno queda pendiente y se muestran opciones para reprogramar.
+La URL independiente de odontograma se conserva para compatibilidad interna, pero el flujo clínico principal lo integra en la creación de una entrada de historia clínica.
 
-Los selectores `obtener_turnos_del_dia` y `obtener_turnos_de_la_semana` concentran las consultas de agenda para que las vistas solo preparen contexto de presentacion.
+## Reglas de Turnos
 
-El selector `obtener_bloques_agenda_del_dia` arma bloques horarios para la agenda diaria. La vista usa esos bloques para mostrar espacios libres y turnos cargados sin agregar librerias externas.
-
-Estados actuales de un turno:
+Estados válidos:
 
 - `pendiente`
 - `confirmado`
 - `cancelado`
 
-## Roles actuales
+Reglas:
 
-El sistema usa grupos de Django para separar responsabilidades:
+- Turnos internos: se crean como `confirmado`.
+- Turnos públicos: se crean como `pendiente` y `duracion_minutos=30`.
+- Turnos pendientes y confirmados bloquean disponibilidad.
+- Turnos cancelados no bloquean disponibilidad.
+- No se puede crear turno en odontólogo inactivo.
+- El turno debe estar dentro de una disponibilidad activa.
+- El turno debe terminar el mismo día.
+- No puede superponerse con otro turno activo del mismo odontólogo.
+- La confirmación de un pendiente permite elegir duración real.
+- Si la duración real genera conflicto, el turno no cambia de estado.
 
-- `Recepcionista`: puede gestionar pacientes y turnos desde las vistas internas.
-- `Odontologo`: puede ver turnos propios, detalle y agenda filtrada a su perfil.
-- `Administrador`: puede configurar odontologos y disponibilidad desde Django Admin.
+## Permisos y Alcance de Datos
 
-Los permisos de acceso viven en `usuarios/roles.py` y los mixins de vistas en `usuarios/mixins.py`.
-Para acceder a Django Admin, el usuario tambien debe tener `is_staff` activo.
+El scope de pacientes y turnos se centraliza en `usuarios/roles.py`.
 
-La historia clinica queda restringida a usuarios con perfil de odontologo. Recepcionistas y administradores no acceden desde las vistas internas porque la informacion clinica requiere una barrera mas estricta que la agenda o los datos administrativos.
+Recepción y administración:
 
-## Decisiones tomadas
+- Pueden ver y gestionar el consultorio según permisos.
 
-### Django Admin como primera interfaz
+Odontólogo:
 
-Se usa Django Admin para validar el dominio rapidamente y poder cargar datos desde el inicio.
+- Ve turnos propios y turnos de pacientes asociados.
+- Ve pacientes asociados.
+- Puede cargar historia clínica si está asociado al paciente.
+- Puede editar entradas clínicas propias.
+- Puede conectar su propia cuenta de Google Calendar.
 
-Esta decision permite avanzar sin invertir todavia en vistas propias, plantillas o frontend.
+Interfaz pública:
 
-Mas adelante se agregaran pantallas especificas para usuarios del consultorio.
+- No requiere login.
+- No expone historia clínica.
+- Opera por DNI y valida DNI contra el turno antes de cancelar/reprogramar.
 
-### Login interno
+## Integraciones
 
-Las vistas internas de pacientes, turnos y agenda requieren sesion iniciada.
+### Google Calendar
 
-Por ahora se utiliza la autenticacion nativa de Django con grupos para roles internos.
+Cada odontólogo tiene una conexión independiente en `GoogleCalendarConexion`.
 
-El formulario publico de solicitud de turnos no requiere sesion iniciada.
+El sistema guarda:
 
-### SQLite para desarrollo local
+- `access_token`
+- `refresh_token`
+- `token_expira_en`
+- `calendar_id`
+- `scopes`
+- `ultimo_error`
 
-Se usa SQLite porque simplifica el arranque del proyecto.
+El turno guarda `google_calendar_event_id`.
 
-Antes de produccion, la base deberia cambiarse a PostgreSQL.
+Si Google Calendar falla, la operación del dominio se mantiene y el error queda registrado.
 
-### Validaciones iniciales en los modelos
+### Email
 
-Las primeras reglas de agenda viven en el modelo `Turno`.
+El envío se concentra en `turnos/notifications.py`.
 
-Esto es aceptable en esta etapa porque:
+Backends soportados:
 
-- Las reglas son pocas.
-- Estan cerca de los datos que validan.
-- Se ejecutan tanto desde admin como desde codigo.
+- Consola de Django para desarrollo.
+- SMTP estándar.
+- `config.email_backends.EmailApiBackend` para Resend o Brevo.
 
-Cuando crezca la logica, se moveran los casos de uso a servicios especificos.
+### Storage
 
-## Evolucion prevista
+Los adjuntos clínicos usan `FileField`.
 
-La arquitectura puede evolucionar asi:
+Backends soportados:
 
-```text
-turnos/
-|-- models.py
-|-- admin.py
-|-- forms.py
-|-- views.py
-|-- services.py
-|-- selectors.py
-|-- tests.py
-`-- integrations/
-    `-- google_calendar.py
-```
+- `django.core.files.storage.FileSystemStorage` para desarrollo local.
+- `config.storage_backends.SupabaseStorage` para Supabase Storage privado.
 
-La separacion esperada seria:
+## Deploy
 
-- `models.py`: estructura de datos y validaciones esenciales.
-- `forms.py`: validaciones propias de formularios.
-- `views.py`: manejo de requests y responses.
-- `services.py`: casos de uso que modifican datos.
-- `selectors.py`: consultas de lectura reutilizables.
-- `integrations/`: comunicacion con servicios externos.
-- `tests.py`: pruebas del comportamiento del dominio.
+Railway ejecuta:
 
-Esta estructura se va a crear solo cuando haga falta, no antes.
+- `scripts/build.sh`: instala dependencias y corre `collectstatic`.
+- `scripts/release.sh`: aplica migraciones.
+- `scripts/start.sh`: levanta Gunicorn.
 
-El modulo `turnos/integrations/google_calendar.py` prepara eventos de Google Calendar, lee configuracion OAuth, renueva access tokens y ejecuta llamadas HTTP a la API externa.
+Supabase mantiene:
 
-El modulo `turnos/google_calendar_sync.py` coordina la sincronizacion desde el dominio: decide si corresponde crear, actualizar o cancelar un evento, y registra errores sin romper el guardado del turno.
+- PostgreSQL.
+- Storage privado para adjuntos clínicos.
 
-El modulo `turnos/google_calendar_oauth.py` guarda y desconecta tokens OAuth asociados al odontologo.
+## Criterios de Código Limpio
 
-El modelo `GoogleCalendarConexion` guarda la relacion entre un `Odontologo` y su token OAuth. Es una relacion uno a uno porque cada odontologo debe conectar su propia agenda.
-
-El modulo `turnos/notifications.py` concentra los emails del dominio de turnos. Los servicios lo llaman cuando una solicitud publica queda pendiente, cuando un turno se confirma y cuando un turno se cancela.
-
-El backend `config.email_backends.EmailApiBackend` permite enviar emails por API HTTP con Resend o Brevo. Esto evita depender de SMTP en proveedores gratuitos que bloquean los puertos salientes comunes.
-
-## Seguridad y secretos
-
-La configuracion sensible vive fuera del codigo fuente.
-
-El archivo `.env.example` documenta las variables necesarias, pero los valores reales deben quedar en `.env`, que esta ignorado por Git.
-
-No deben versionarse:
-
-- Secret keys de Django.
-- Credenciales OAuth de Google Cloud.
-- Tokens OAuth de odontologos.
-- Archivos JSON de credenciales o tokens.
-
-Los tokens OAuth se guardan en la base de datos mediante `GoogleCalendarConexion`. Para desarrollo alcanza con SQLite; antes de produccion se deberia evaluar cifrado de tokens, PostgreSQL y backups.
-
-Las variables actuales para Google Calendar son:
-
-- `GOOGLE_CALENDAR_CLIENT_ID`
-- `GOOGLE_CALENDAR_CLIENT_SECRET`
-- `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`
-- `GOOGLE_CALENDAR_REDIRECT_URI`
-- `GOOGLE_CALENDAR_SCOPES`
-- `EMAIL_BACKEND`
-- `EMAIL_HOST`
-- `EMAIL_PORT`
-- `EMAIL_HOST_USER`
-- `EMAIL_HOST_PASSWORD`
-- `EMAIL_USE_TLS`
-- `EMAIL_USE_SSL`
-- `EMAIL_TIMEOUT`
-- `EMAIL_API_PROVIDER`
-- `EMAIL_API_KEY`
-- `EMAIL_API_URL`
-- `DEFAULT_FROM_EMAIL`
-
-En desarrollo se usa `django.core.mail.backends.console.EmailBackend`, que imprime los mensajes en consola y evita depender de un proveedor externo. Para produccion se debe configurar `django.core.mail.backends.smtp.EmailBackend` con credenciales de un proveedor SMTP y guardar esas credenciales solo en variables de entorno.
-
-Los mensajes al paciente estan separados en plantillas de texto:
-
-- `turnos/templates/turnos/emails/solicitud_recibida.txt`
-- `turnos/templates/turnos/emails/turno_confirmado.txt`
-- `turnos/templates/turnos/emails/turno_cancelado.txt`
-
-Las notificaciones se ejecutan desde los casos de uso de turnos:
-
-- `crear_solicitud_turno_publica`
-- `confirmar_turno`
-- `cancelar_turno`
-
-Si el paciente no tiene email, la notificacion se omite. Si SMTP falla durante una accion real del consultorio, el turno mantiene su cambio de estado y el error queda registrado para diagnostico.
-
-La configuracion SMTP activa se puede validar con:
-
-```powershell
-python manage.py probar_email tu-email@example.com
-```
-
-Las tres plantillas de notificaciones se pueden probar con:
-
-```powershell
-python manage.py probar_notificaciones_email tu-email@example.com
-```
-
-Los comandos usan las variables `EMAIL_*` vigentes. Si el backend sigue siendo `console.EmailBackend`, el email aparece en consola; si se cambia a `smtp.EmailBackend`, se intenta enviar por el proveedor real.
-
-## Casos de uso futuros
-
-Los siguientes casos de uso deberian vivir fuera del modelo cuando la logica crezca:
-
-- Crear turno.
-- Crear solicitud publica de turno.
-- Confirmar turno.
-- Cancelar turno.
-- Reprogramar turno.
-- Buscar horarios disponibles.
-- Sincronizar turno con Google Calendar.
-- Enviar notificaciones de turno.
-
-Ejemplo de nombres esperados:
-
-```python
-crear_turno(...)
-confirmar_turno(...)
-cancelar_turno(...)
-reprogramar_turno(...)
-obtener_horarios_disponibles(...)
-crear_solicitud_turno_publica(...)
-```
-
-## Criterios de codigo limpio
-
-Para mantener el proyecto entendible:
-
-- Una funcion debe hacer una sola cosa.
-- Si una funcion necesita demasiadas condiciones, probablemente haya una abstraccion pendiente.
-- Evitar nombres genericos como `data`, `obj`, `item` cuando haya un nombre de dominio mejor.
-- Evitar duplicar reglas de negocio en varios lugares.
-- No mezclar logica de negocio con detalles de interfaz.
-- No mezclar logica de negocio con integraciones externas.
-- Los tests deben describir comportamiento, no implementacion interna.
-
-## Criterio para agregar nuevas apps
-
-No se debe crear una app nueva por cada modelo.
-
-Una app nueva se justifica cuando aparece un area del dominio con responsabilidad propia.
-
-Ejemplos posibles a futuro:
-
-- `historia_clinica`
-- `pagos`
-- `notificaciones`
-- `integraciones`
-
-Por ahora, `pacientes`, `turnos` y `usuarios` son suficientes.
-
-## Integracion con Google Calendar
-
-La integracion con Google Calendar no debe quedar mezclada directamente dentro del modelo `Turno`.
-
-Las responsabilidades se separan asi:
-
-```text
-turnos/integrations/google_calendar.py
-turnos/google_calendar_oauth.py
-turnos/google_calendar_sync.py
-```
-
-La conexion OAuth queda asociada al modelo `GoogleCalendarConexion`, mientras que el `Turno` solo conserva el `google_calendar_event_id` del evento creado.
-
-La pantalla `/turnos/google-calendar/` permite al odontologo iniciar el flujo OAuth. El callback `/turnos/google-calendar/callback/` valida el `state`, intercambia el `code` por tokens y guarda la conexion.
-
-La app puede crear, editar o cancelar turnos aunque Google Calendar falle temporalmente. En ese caso, el error se registra en `GoogleCalendarConexion.ultimo_error`.
-
-Esto ayuda a mantener bajo acoplamiento entre el dominio del sistema y un servicio externo.
-
-## Regla de trabajo por etapa
-
-Cada etapa del proyecto deberia cerrar con:
-
-1. Codigo implementado.
-2. Tests actualizados cuando corresponda.
-3. `python manage.py check`.
-4. `python manage.py test`.
-5. README o documentacion actualizada si cambia la forma de usar el sistema.
-6. Commit con mensaje claro en espanol.
+- No duplicar reglas de negocio entre vistas.
+- Mantener cambios de datos en servicios.
+- Mantener consultas complejas en selectores.
+- Mantener integraciones externas fuera de modelos y vistas.
+- Usar nombres de dominio claros.
+- Mantener tests para reglas críticas.
+- Actualizar documentación cuando cambie un flujo real.

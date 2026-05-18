@@ -1,19 +1,20 @@
 # Deploy en Railway usando Supabase
 
-Esta guia deja Railway como hosting principal de la aplicacion Django y mantiene Supabase como base PostgreSQL.
+Railway es el hosting de la aplicación Django. Supabase se mantiene como proveedor de PostgreSQL y Storage. No crear una base PostgreSQL nueva en Railway para este proyecto.
 
-Railway hostea la app. Supabase sigue siendo la fuente de datos. No crear una base PostgreSQL nueva en Railway para este proyecto.
+## Estado del Repositorio
 
-## Estado del repositorio
+El repo ya incluye:
 
-El proyecto ya tiene lo necesario para desplegar:
-
-- Gunicorn en `requirements.txt`.
-- WhiteNoise configurado en `app/config/settings.py`.
-- Lectura de `DATABASE_URL` desde variables de entorno.
-- `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` configurables por entorno.
-- Scripts separados para build, migraciones y start.
-- `railway.json` con comandos de build, pre-deploy y start.
+- `requirements.txt` con Django, Gunicorn, WhiteNoise y psycopg.
+- `Procfile`.
+- `railway.json`.
+- `scripts/build.sh`.
+- `scripts/release.sh`.
+- `scripts/start.sh`.
+- Configuración por variables de entorno.
+- `DATABASE_URL` compatible con PostgreSQL/Supabase.
+- WhiteNoise para archivos estáticos.
 
 ## Comandos de Railway
 
@@ -23,50 +24,42 @@ Build command:
 bash scripts/build.sh
 ```
 
+Pre-deploy command:
+
+```bash
+bash scripts/release.sh
+```
+
 Start command:
 
 ```bash
 bash scripts/start.sh
 ```
 
-Pre-deploy command para migraciones:
+El archivo `railway.json` ya declara estos comandos.
 
-```bash
-bash scripts/release.sh
-```
+## Crear Servicio en Railway
 
-Si se prefiere ejecutar migraciones manualmente:
-
-```bash
-cd app && python manage.py migrate --noinput
-```
-
-Para crear superusuario en Railway:
-
-```bash
-cd app && python manage.py createsuperuser
-```
-
-## Railway desde GitHub
-
-1. Entrar a Railway.
-2. Crear un proyecto nuevo.
-3. Elegir `Deploy from GitHub repo`.
-4. Seleccionar `Lukillas09/gestor-turnos-odontologia`.
+1. Crear un proyecto en Railway.
+2. Elegir `Deploy from GitHub repo`.
+3. Seleccionar el repositorio `Lukillas09/gestor-turnos-odontologia`.
+4. Crear un servicio web.
 5. No agregar PostgreSQL de Railway.
-6. Cargar las variables de entorno.
-7. Confirmar que Railway use `bash scripts/build.sh` y `bash scripts/start.sh`.
-8. Ejecutar migraciones con `bash scripts/release.sh` si el pre-deploy no corrio.
+6. Cargar variables de entorno.
+7. Esperar el build.
+8. Verificar que el deploy quede en `Deployment successful`.
 
-## Variables de entorno
+Si Railway tiene builds pausados o incidentes de plataforma, el commit puede quedar en `Queued`. En ese caso el código está en GitHub, pero la app seguirá sirviendo el deploy anterior hasta que Railway complete el build.
 
-Usar `.env.railway-supabase.example` como plantilla.
+## Variables de Entorno Obligatorias
 
-Variables obligatorias:
+Usar `.env.railway-supabase.example` como base.
+
+### Django
 
 ```env
 DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=generar-una-clave-segura
+DJANGO_SECRET_KEY=clave-segura-generada
 DJANGO_ALLOWED_HOSTS=tu-app.up.railway.app
 DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-app.up.railway.app
 DJANGO_SECURE_SSL_REDIRECT=True
@@ -74,11 +67,25 @@ DJANGO_SESSION_COOKIE_SECURE=True
 DJANGO_CSRF_COOKIE_SECURE=True
 DJANGO_SECURE_PROXY_SSL_HEADER=True
 DJANGO_LOG_LEVEL=INFO
+```
+
+### Base de datos Supabase
+
+```env
 DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
+```
+
+La URL debe venir de Supabase y debe incluir `sslmode=require`.
+
+### Deploy
+
+```env
 WEB_CONCURRENCY=2
 ```
 
-Email por API HTTP:
+### Email
+
+Recomendado para Railway:
 
 ```env
 EMAIL_BACKEND=config.email_backends.EmailApiBackend
@@ -88,51 +95,64 @@ DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 TURNOS_RECORDATORIO_HORAS=24
 ```
 
-Supabase Storage, si se usan adjuntos clinicos:
+También se puede usar SMTP, pero en hosting gratuito suele ser más confiable usar API HTTP.
+
+### Supabase Storage
+
+Necesario si se cargan adjuntos clínicos o fotos en storage externo:
 
 ```env
 MEDIA_STORAGE_BACKEND=config.storage_backends.SupabaseStorage
 SUPABASE_STORAGE_URL=https://tu-proyecto.supabase.co
 SUPABASE_STORAGE_BUCKET=historias-clinicas
-SUPABASE_STORAGE_SERVICE_ROLE_KEY=valor-real
+SUPABASE_STORAGE_SERVICE_ROLE_KEY=clave-service-role
 SUPABASE_STORAGE_TIMEOUT=30
 SUPABASE_STORAGE_CACHE_CONTROL=3600
 SUPABASE_STORAGE_SIGNED_URL_SECONDS=300
 ```
 
-Google Calendar:
+`SUPABASE_STORAGE_SERVICE_ROLE_KEY` es secreto sensible.
+
+### Google Calendar
 
 ```env
-GOOGLE_CALENDAR_CLIENT_ID=valor-real
-GOOGLE_CALENDAR_CLIENT_SECRET=valor-real
+GOOGLE_CALENDAR_CLIENT_ID=client-id
+GOOGLE_CALENDAR_CLIENT_SECRET=client-secret
 GOOGLE_CALENDAR_REDIRECT_URI=https://tu-app.up.railway.app/turnos/google-calendar/callback/
 GOOGLE_CALENDAR_SCOPES=https://www.googleapis.com/auth/calendar.events
 ```
 
-El proyecto usa estos nombres exactos para Google Calendar: `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` y `GOOGLE_CALENDAR_REDIRECT_URI`.
-
-## Supabase
-
-No hace falta cambiar Supabase para migrar el hosting:
-
-- Mantener la misma `DATABASE_URL`.
-- Verificar que la URL incluya `sslmode=require`.
-- Mantener el bucket privado `historias-clinicas` si se usan adjuntos.
-- Mantener backups de PostgreSQL y Storage fuera del repositorio.
+`GOOGLE_CALENDAR_CLIENT_SECRETS_FILE` existe para desarrollo alternativo con JSON, pero no es necesario si se usan `CLIENT_ID` y `CLIENT_SECRET`.
 
 ## Google Cloud Console
 
-En el cliente OAuth web agregar la nueva redirect URI:
+En el cliente OAuth web agregar:
 
 ```text
 https://TU-DOMINIO-RAILWAY/turnos/google-calendar/callback/
 ```
 
-Ese valor debe coincidir exactamente con `GOOGLE_CALENDAR_REDIRECT_URI`.
+Debe coincidir exactamente con `GOOGLE_CALENDAR_REDIRECT_URI`.
 
-Si la pantalla de consentimiento esta en modo Testing, agregar como test user el email del odontologo que conecta Google Calendar.
+Si la app OAuth está en modo Testing, agregar como test users los emails de los odontólogos que conectarán Calendar.
 
-## Archivos estaticos
+## Migraciones y Superusuario
+
+Railway puede correr migraciones con `preDeployCommand`. Si se necesita ejecutarlas manualmente:
+
+```bash
+cd app
+python manage.py migrate --noinput
+```
+
+Crear superusuario:
+
+```bash
+cd app
+python manage.py createsuperuser
+```
+
+## Archivos Estáticos
 
 `scripts/build.sh` ejecuta:
 
@@ -140,23 +160,73 @@ Si la pantalla de consentimiento esta en modo Testing, agregar como test user el
 python manage.py collectstatic --noinput
 ```
 
-WhiteNoise sirve los estaticos desde Django. La carpeta generada `app/staticfiles/` no se versiona.
+WhiteNoise sirve los archivos desde `app/staticfiles/`.
 
-## Checklist final
+## Checklist de Deploy
 
-- Railway conectado al repo de GitHub.
-- Variables cargadas en Railway.
-- `DATABASE_URL` apunta a Supabase, no a Railway PostgreSQL.
-- Build finaliza correctamente.
-- Migraciones ejecutadas.
+- Repo conectado a Railway.
+- Variables cargadas.
+- `DJANGO_ALLOWED_HOSTS` contiene el dominio Railway sin `https://`.
+- `DJANGO_CSRF_TRUSTED_ORIGINS` contiene el mismo dominio con `https://`.
+- `DATABASE_URL` apunta a Supabase.
+- Build finalizado correctamente.
+- Migraciones aplicadas.
 - Superusuario creado.
-- Google Cloud tiene la redirect URI de Railway.
-- Login, pacientes, turnos, agenda, emails y Google Calendar probados en staging.
-- Backups de Supabase PostgreSQL y Storage probados.
+- Google Cloud tiene redirect URI de Railway.
+- Login interno probado.
+- Landing pública probada.
+- Solicitud pública probada.
+- Consulta/cancelación por DNI probada.
+- Email real probado.
+- Google Calendar probado con al menos un odontólogo.
+- Adjuntos clínicos probados si Storage está activo.
 
-## Referencias
+## Troubleshooting
 
-- Railway Django: https://docs.railway.com/guides/django
-- Railway config-as-code: https://docs.railway.com/config-as-code/reference
-- Gunicorn: https://gunicorn.org/
-- WhiteNoise: https://whitenoise.readthedocs.io/
+### `DisallowedHost`
+
+Agregar el dominio exacto a:
+
+```env
+DJANGO_ALLOWED_HOSTS=tu-app.up.railway.app
+```
+
+Y redeploy.
+
+### CSRF al enviar formularios
+
+Agregar:
+
+```env
+DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-app.up.railway.app
+```
+
+### Ruta nueva devuelve 404 en Railway
+
+Verificar que el deploy activo corresponda al último commit. Si el nuevo deploy quedó `Queued` o `Failed`, Railway todavía está sirviendo una versión anterior.
+
+### Build falla por incidente Railway
+
+Revisar el banner de Railway y `status.railway.com`. Si el error es de plataforma, no modificar código: esperar y reintentar el deploy.
+
+### Emails no llegan
+
+Validar:
+
+```bash
+cd app
+python manage.py probar_email tu-email@example.com
+```
+
+Revisar `EMAIL_BACKEND`, `EMAIL_API_PROVIDER`, `EMAIL_API_KEY` y `DEFAULT_FROM_EMAIL`.
+
+### Storage falla
+
+Validar:
+
+```bash
+cd app
+python manage.py probar_storage_historias
+```
+
+Revisar bucket privado, URL de Supabase y service role key.

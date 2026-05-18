@@ -1,163 +1,113 @@
 # Gestor de Turnos Odontológico
 
-Aplicación web para administrar turnos de un consultorio odontológico.
+Aplicación web en Django para gestionar la agenda de un consultorio odontológico, con panel interno para el equipo del consultorio e interfaz pública para pacientes.
 
-El objetivo del proyecto es construir, paso a paso, un sistema que permita cargar pacientes, odontólogos y turnos desde una interfaz administrativa, evitando superposición de horarios y dejando preparada una futura integración con Google Calendar.
+El proyecto busca resolver un flujo real de trabajo: cargar pacientes, administrar turnos, validar disponibilidad, confirmar solicitudes públicas, mantener historia clínica, adjuntar archivos clínicos, sincronizar con Google Calendar y enviar notificaciones por email.
 
-## Estado actual
+> No hay capturas versionadas en el repositorio por ahora. La documentación describe el estado real del código actual.
 
-El proyecto se encuentra en una etapa funcional de panel interno, reglas de agenda e integraciones iniciales.
+## Estado Actual
 
-Staging / deploy actual:
+El sistema ya cuenta con una base funcional para uso controlado en staging:
 
-- Hosting objetivo: Railway.
-- Base de datos: Supabase PostgreSQL.
-- Adjuntos clínicos: Supabase Storage privado.
-- Deploy configurado con Gunicorn, WhiteNoise y variables de entorno.
-- Google Calendar OAuth preparado para usar la URL pública de Railway.
-- Emails reales por API HTTP, por ejemplo Resend o Brevo.
+- Landing pública para pacientes en `/`.
+- Solicitud pública de turnos en `/turnos/solicitar/`.
+- Consulta, cancelación y reprogramación pública de turnos por DNI en `/turnos/cancelar/`.
+- Login interno separado en `/cuentas/login/`.
+- Dashboard interno en `/inicio/`.
+- Gestión visual de pacientes, turnos, agenda diaria/semanal e historia clínica.
+- Roles internos con grupos de Django: `Recepcionista`, `Odontologo` y `Administrador`.
+- Asociación paciente-odontólogo y derivación de pacientes.
+- Ficha odontológica combinada con datos personales, administrativos y clínicos.
+- Historia clínica con adjuntos y odontograma integrado en nuevas entradas clínicas.
+- Turnos con estados `Pendiente`, `Confirmado` y `Cancelado`.
+- Turnos internos confirmados automáticamente.
+- Solicitudes públicas guardadas como pendientes con duración inicial de 30 minutos.
+- Confirmación de turnos pendientes con duración real y validación de superposición.
+- Emails transaccionales para solicitud, confirmación, cancelación, reprogramación y recordatorios.
+- Google Calendar OAuth por odontólogo y sincronización de eventos.
+- Supabase PostgreSQL como base de datos para deploy.
+- Supabase Storage privado para adjuntos clínicos.
+- Deploy preparado para Railway con Gunicorn, WhiteNoise y scripts de build/start/release.
+- Tests automatizados para dominio, permisos, turnos, agenda, emails, Google Calendar, historia clínica, odontograma e interfaz pública.
 
-Actualmente incluye:
+## Stack Tecnológico
 
-- Proyecto Django configurado.
-- App `pacientes` para gestionar datos de pacientes.
-- App `turnos` para gestionar odontólogos y turnos.
-- App `historias` para gestionar historia clínica básica por paciente.
-- Panel de administración de Django mejorado.
-- Login interno con autenticación de Django.
-- Roles internos basados en grupos de Django.
-- Vistas internas protegidas para usuarios autenticados.
-- Listado y creación de pacientes desde vistas propias.
-- Listado y creación de turnos desde vistas propias.
-- Validación para evitar turnos superpuestos.
-- Disponibilidad de odontólogos por día de semana.
-- Bloqueo de días no laborables.
-- Validación para evitar turnos en odontólogos inactivos.
-- Cálculo de horarios disponibles.
-- Agenda diaria y semanal simple.
-- Agenda diaria por bloques horarios y colores por estado.
-- Creación de turnos guiada por horarios disponibles.
-- Formulario público para solicitar turnos.
-- Campo preparado para guardar el ID del evento de Google Calendar.
-- Modelo para guardar la conexión OAuth de Google Calendar por odontólogo.
-- Sincronización preparada para crear, actualizar y cancelar eventos de Google Calendar.
-- Flujo OAuth visual para conectar Google Calendar desde la web.
-- Integración real con Google Calendar probada de punta a punta.
-- Emails de confirmación para solicitud, confirmación y cancelación de turnos.
-- Recordatorios por email para turnos confirmados próximos.
-- Reprogramación de turnos con actualización de Google Calendar y aviso por email.
-- Borrado seguro de pacientes con confirmación por nombre, apellido y DNI.
-- Historia clínica básica accesible solo por odontólogos.
-- Creación, detalle y edición de entradas clínicas con odontólogo responsable.
-- Filtros, búsqueda, auditoría y adjuntos para historia clínica.
-- Storage externo preparado para adjuntos clínicos en Supabase Storage privado.
-- Protección para no borrar pacientes que ya tienen historia clínica cargada.
-- Configuración preparada para `DEBUG=False`.
-- Configuración de base de datos por `DATABASE_URL`.
-- Soporte para PostgreSQL manteniendo SQLite como base local por defecto.
-- Archivos estáticos preparados con `collectstatic` y WhiteNoise.
-- Servidor de producción preparado con Gunicorn.
-- Scripts de build, release y start para deploy.
-- Deploy preparado para Railway.
-- Base PostgreSQL de staging configurada en Supabase.
-- Configuración SMTP real por variables de entorno, probada con envío real.
-- Backend de email por API HTTP para deploy en Railway.
-- Comando para probar las tres notificaciones de email con plantillas reales.
-- Comando para enviar recordatorios por email.
-- Paginación liviana de pacientes y microinteracciones visuales suaves.
-- Tests automatizados para la lógica de turnos, permisos, agenda, Google Calendar, emails e historia clínica.
+| Área | Tecnología |
+| --- | --- |
+| Backend | Python 3.13, Django 6.0.4 |
+| Base local | SQLite si `DATABASE_URL` está vacío |
+| Base deploy | Supabase PostgreSQL mediante `DATABASE_URL` |
+| Archivos clínicos | Supabase Storage privado o filesystem local |
+| Email | Consola, SMTP o backend HTTP propio para Resend/Brevo |
+| Calendario | Google Calendar API con OAuth por odontólogo |
+| Deploy | Railway |
+| Servidor WSGI | Gunicorn |
+| Estáticos | WhiteNoise + `collectstatic` |
+| Tests | Django TestCase |
 
-Documentación técnica:
+## Arquitectura General
 
-- [Arquitectura del proyecto](docs/arquitectura.md)
-- [Migración a PostgreSQL](docs/postgresql.md)
-- [Archivos estáticos](docs/staticfiles.md)
+El proyecto está organizado por apps Django con responsabilidades separadas:
+
+| App | Responsabilidad |
+| --- | --- |
+| `config` | Settings, URLs globales, base de datos, email, storage y configuración de entorno. |
+| `usuarios` | Login interno, dashboard, perfil de usuario, roles, permisos y mixins. |
+| `pacientes` | Datos personales, ficha odontológica, asociación con odontólogos, derivación y borrado seguro. |
+| `turnos` | Odontólogos, disponibilidad, turnos, agenda, solicitud pública, emails, recordatorios y Google Calendar. |
+| `historias` | Historia clínica, adjuntos clínicos, auditoría básica y permisos clínicos. |
+| `odontogramas` | Odontograma FDI interactivo, estados dentales, historial y editor integrado. |
+
+Documentación técnica principal:
+
+- [Arquitectura](docs/arquitectura.md)
+- [Configuración](docs/configuracion.md)
+- [Flujo de turnos](docs/flujo-turnos.md)
+- [Deploy en Railway usando Supabase](docs/deploy.md)
 - [Recordatorios automáticos](docs/recordatorios.md)
-- [Deploy](docs/deploy.md)
-- [Proveedor de deploy gratuito inicial](docs/proveedor_deploy.md)
-- [Entorno de staging](docs/staging.md)
-- [Email real por API HTTP](docs/email_api.md)
-- [Supabase Storage para adjuntos clínicos](docs/supabase_storage.md)
-- [Backups completos](docs/backups.md)
-- [Rendimiento y fluidez visual](docs/rendimiento_y_fluidez.md)
+- [Supabase Storage](docs/supabase_storage.md)
+- [Backups](docs/backups.md)
+- [Email por API HTTP](docs/email_api.md)
 - [Seguridad antes de producción](docs/seguridad_produccion.md)
+- [Rendimiento y fluidez](docs/rendimiento_y_fluidez.md)
 
-## Tecnologías
-
-- Python 3.13
-- Django 6.0.4
-- SQLite para desarrollo local
-- PostgreSQL preparado para producción
-- WhiteNoise para servir archivos estáticos en producción simple
-- Gunicorn como servidor WSGI de producción
-- Django Admin como primera interfaz de gestión
-- Variables de entorno para configuración sensible
-- SMTP o API HTTP para emails transaccionales
-
-## Estructura del proyecto
+## Estructura Del Repositorio
 
 ```text
 gestor-turnos-odontologia/
 ├── README.md
 ├── LICENSE
-├── .gitignore
-├── .env.railway-supabase.example
 ├── requirements.txt
 ├── Procfile
 ├── railway.json
+├── .env.example
+├── .env.railway-supabase.example
 ├── .github/
 │   └── workflows/
 │       └── staging_recordatorios.yml
 ├── docs/
 ├── scripts/
 │   ├── build.sh
-│   ├── backup_postgresql.sh
-│   ├── recordatorios.sh
 │   ├── release.sh
-│   └── start.sh
+│   ├── start.sh
+│   ├── recordatorios.sh
+│   ├── backup_postgresql.sh
+│   ├── backup_postgresql_docker.ps1
+│   ├── probar_restore_postgresql_docker.ps1
+│   └── backup_storage_historias.ps1
 └── app/
     ├── manage.py
     ├── config/
-    │   ├── database.py
-    │   ├── settings.py
-    │   ├── urls.py
-    │   ├── asgi.py
-    │   └── wsgi.py
-    ├── pacientes/
-    │   ├── admin.py
-    │   ├── apps.py
-    │   ├── models.py
-    │   ├── tests.py
-    │   └── migrations/
     ├── usuarios/
-    │   ├── apps.py
-    │   ├── roles.py
-    │   ├── mixins.py
-    │   ├── views.py
-    │   ├── tests.py
-    │   └── migrations/
-    └── turnos/
-        ├── admin.py
-        ├── apps.py
-        ├── google_calendar_oauth.py
-        ├── google_calendar_sync.py
-        ├── integrations/
-        │   └── google_calendar.py
-        ├── management/
-        │   └── commands/
-        │       ├── enviar_recordatorios_email.py
-        │       ├── probar_email.py
-        │       └── probar_notificaciones_email.py
-        ├── models.py
-        ├── notifications.py
-        ├── templates/
-        │   └── turnos/
-        │       └── emails/
-        ├── tests.py
-        └── migrations/
+    ├── pacientes/
+    ├── turnos/
+    ├── historias/
+    ├── odontogramas/
+    └── templates/
 ```
 
-## Instalación local
+## Instalación Local
 
 Desde la carpeta del repositorio:
 
@@ -165,562 +115,224 @@ Desde la carpeta del repositorio:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
-
-Crear el archivo local de variables de entorno:
-
-```powershell
 Copy-Item .env.example .env
-```
-
-El archivo `.env` es local y no se sube a Git. Ahi se configuran secretos, credenciales OAuth y valores propios del entorno.
-
-Para el escenario gratuito inicial de deploy existe un ejemplo separado:
-
-```powershell
-Copy-Item .env.railway-supabase.example .env
-```
-
-Ese archivo documenta la combinacion Railway + Supabase + GitHub Actions.
-
-Entrar a la carpeta de la aplicación Django:
-
-```powershell
 cd app
-```
-
-Aplicar migraciones:
-
-```powershell
 python manage.py migrate
-```
-
-Crear un superusuario para entrar al admin:
-
-```powershell
 python manage.py createsuperuser
-```
-
-Levantar el servidor local:
-
-```powershell
 python manage.py runserver
 ```
 
-Después abrir:
+URLs locales principales:
 
 ```text
-http://127.0.0.1:8000/admin/
+http://127.0.0.1:8000/                       # landing pública para pacientes
+http://127.0.0.1:8000/turnos/solicitar/       # solicitud pública
+http://127.0.0.1:8000/turnos/cancelar/        # consulta/cancelación pública por DNI
+http://127.0.0.1:8000/cuentas/login/          # login interno
+http://127.0.0.1:8000/inicio/                 # dashboard interno
+http://127.0.0.1:8000/admin/                  # Django Admin
 ```
 
-## Uso del admin
+## Variables de Entorno
 
-Desde el panel de administración se pueden cargar y administrar:
+El proyecto carga `.env` desde la raíz del repo y desde `app/.env` si existe. `.env` no se versiona.
 
-- Pacientes
-- Odontólogos
-- Conexiones de odontólogos con Google Calendar
-- Turnos
+Plantillas:
 
-## Configuración segura
-
-El proyecto lee configuración desde variables de entorno.
+- `.env.example`: desarrollo local.
+- `.env.railway-supabase.example`: Railway + Supabase.
 
 Variables principales:
 
-- `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG`
-- `DJANGO_ALLOWED_HOSTS`
-- `DJANGO_CSRF_TRUSTED_ORIGINS`
-- `DJANGO_SECURE_SSL_REDIRECT`
-- `DJANGO_SESSION_COOKIE_SECURE`
-- `DJANGO_CSRF_COOKIE_SECURE`
-- `DJANGO_SECURE_HSTS_SECONDS`
-- `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`
-- `DJANGO_SECURE_HSTS_PRELOAD`
-- `DJANGO_SECURE_PROXY_SSL_HEADER`
-- `DJANGO_LOG_LEVEL`
-- `DATABASE_URL`
-- `EMAIL_BACKEND`
-- `EMAIL_HOST`
-- `EMAIL_PORT`
-- `EMAIL_HOST_USER`
-- `EMAIL_HOST_PASSWORD`
-- `EMAIL_USE_TLS`
-- `EMAIL_USE_SSL`
-- `EMAIL_TIMEOUT`
-- `DEFAULT_FROM_EMAIL`
-- `TURNOS_RECORDATORIO_HORAS`
-- `GOOGLE_CALENDAR_CLIENT_ID`
-- `GOOGLE_CALENDAR_CLIENT_SECRET`
-- `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`
-- `GOOGLE_CALENDAR_REDIRECT_URI`
-- `GOOGLE_CALENDAR_SCOPES`
+| Grupo | Variables |
+| --- | --- |
+| Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
+| Seguridad HTTPS | `DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE`, `DJANGO_SECURE_PROXY_SSL_HEADER`, `DJANGO_SECURE_HSTS_SECONDS`, `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SECURE_HSTS_PRELOAD` |
+| Base de datos | `DATABASE_URL` |
+| Email | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL`, `EMAIL_API_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_API_URL` |
+| Recordatorios | `TURNOS_RECORDATORIO_HORAS` |
+| Google Calendar | `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`, `GOOGLE_CALENDAR_REDIRECT_URI`, `GOOGLE_CALENDAR_SCOPES` |
+| Storage clínico | `MEDIA_STORAGE_BACKEND`, `SUPABASE_STORAGE_URL`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_TIMEOUT`, `SUPABASE_STORAGE_CACHE_CONTROL`, `SUPABASE_STORAGE_SIGNED_URL_SECONDS` |
+| Deploy | `WEB_CONCURRENCY` |
 
-No se deben versionar:
+Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 
-- `.env`
-- Credenciales OAuth descargadas desde Google Cloud.
-- Tokens OAuth generados por usuarios.
-- Archivos `client_secret*.json`, `credentials*.json` o `token*.json`.
+## Flujos Principales
 
-Para desarrollo local, si `DATABASE_URL` queda vacío, el proyecto usa SQLite en `app/db.sqlite3`.
+### Paciente Público
 
-Para producción se puede configurar PostgreSQL usando una URL del proveedor:
+1. Ingresa a `/`.
+2. Solicita turno desde `/turnos/solicitar/`.
+3. Elige odontólogo, fecha y horario disponible.
+4. Completa nombre, apellido, teléfono y datos opcionales.
+5. El turno queda `Pendiente` con duración inicial de 30 minutos.
+6. Puede consultar sus turnos por DNI en `/turnos/cancelar/`.
+7. Puede cancelar turnos pendientes/confirmados.
+8. Puede reprogramar solo turnos pendientes.
 
-```env
-DATABASE_URL=postgres://usuario:password@host:5432/nombre_base?sslmode=require
-```
+### Equipo Interno
 
-La guía paso a paso para migrar datos desde SQLite está en [docs/postgresql.md](docs/postgresql.md).
+1. Ingresa por `/cuentas/login/`.
+2. Ve un dashboard simple en `/inicio/`.
+3. Gestiona pacientes, turnos y agenda según rol.
+4. Confirma turnos pendientes eligiendo duración real.
+5. Reprograma o cancela turnos.
+6. Gestiona ficha odontológica, historia clínica, adjuntos y odontograma.
+7. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
 
-Cuando `DJANGO_DEBUG=False`, el proyecto exige:
+Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 
-- `DJANGO_SECRET_KEY` real.
-- `DJANGO_ALLOWED_HOSTS` configurado con el dominio del deploy.
+## Reglas de Negocio de Turnos
 
-Ejemplo base para producción:
+- Estados válidos: `Pendiente`, `Confirmado`, `Cancelado`.
+- Los turnos cancelados no bloquean disponibilidad.
+- Los turnos pendientes y confirmados sí bloquean disponibilidad.
+- Los turnos internos se crean confirmados automáticamente.
+- Las solicitudes públicas se crean pendientes y duran 30 minutos inicialmente.
+- La confirmación interna permite elegir duración real.
+- Si la duración elegida se superpone con otro turno activo del mismo odontólogo, no confirma y muestra el conflicto.
+- La reprogramación valida disponibilidad y superposiciones.
+- La disponibilidad se define por odontólogo y día de semana.
+- No se pueden crear turnos para odontólogos inactivos.
 
-```env
-DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=clave-segura-generada-para-produccion
-DJANGO_ALLOWED_HOSTS=mi-dominio.com,www.mi-dominio.com
-DJANGO_CSRF_TRUSTED_ORIGINS=https://mi-dominio.com,https://www.mi-dominio.com
-DJANGO_SESSION_COOKIE_SECURE=True
-DJANGO_CSRF_COOKIE_SECURE=True
-DJANGO_SECURE_SSL_REDIRECT=True
-DJANGO_SECURE_PROXY_SSL_HEADER=True
-DATABASE_URL=postgres://usuario:password@host:5432/nombre_base?sslmode=require
-```
+## Google Calendar
 
-## Interfaz web inicial
-
-Para usar las vistas internas hay que iniciar sesión:
+Cada odontólogo puede conectar su propia cuenta de Google Calendar desde:
 
 ```text
-http://127.0.0.1:8000/cuentas/login/
+/turnos/google-calendar/
 ```
 
-Roles actuales:
+El sistema guarda tokens OAuth en `GoogleCalendarConexion` y conserva el `google_calendar_event_id` en cada turno sincronizado.
 
-- `Recepcionista`: puede gestionar pacientes y turnos.
-- `Odontologo`: puede ver sus propios turnos y agenda.
-- `Administrador`: puede configurar odontólogos y disponibilidad desde Django Admin.
+Cuando hay conexión activa:
 
-Los roles se crean como grupos de Django al ejecutar migraciones.
-Para entrar al admin, el usuario administrador tambien debe tener `is_staff` activo.
+- al crear o confirmar un turno, intenta crear/actualizar evento;
+- al reprogramar, actualiza el evento;
+- al cancelar, cancela o elimina el evento según la lógica de integración;
+- si Google falla, el turno se conserva y el error queda registrado para revisión.
 
-Formulario público para pacientes:
-
-```text
-http://127.0.0.1:8000/turnos/solicitar/
-```
-
-Desde esa pantalla se puede:
-
-- Elegir odontologo y fecha.
-- Ver horarios disponibles.
-- Completar datos básicos del paciente.
-- Guardar la solicitud como turno pendiente.
-- Evitar solicitudes con fechas anteriores al dia actual.
-- Ver una confirmacion con los datos del turno solicitado.
-
-El proyecto ya incluye una primera interfaz propia para pacientes:
-
-```text
-http://127.0.0.1:8000/pacientes/
-```
-
-Desde esa sección se puede:
-
-- Ver el listado de pacientes.
-- Buscar pacientes por nombre, apellido o DNI.
-- Crear un nuevo paciente.
-- Ver el detalle de un paciente.
-- Editar los datos de un paciente.
-
-Tambien incluye una interfaz inicial para turnos:
-
-```text
-http://127.0.0.1:8000/turnos/
-```
-
-Desde esa seccion se puede:
-
-- Ver el listado de turnos.
-- Filtrar turnos por fecha, estado u odontologo.
-- Crear un nuevo turno.
-- Buscar horarios disponibles por odontologo y fecha antes de elegir la hora.
-- Ver el detalle de un turno.
-- Editar los datos de un turno.
-- Confirmar un turno pendiente sin modificar fecha ni horario.
-- Reprogramar turnos confirmados o pendientes.
-- Cancelar un turno sin borrarlo.
-
-Vistas de agenda:
-
-```text
-http://127.0.0.1:8000/turnos/agenda/dia/
-http://127.0.0.1:8000/turnos/agenda/semana/
-```
-
-Desde esas vistas se puede:
-
-- Ver una tabla diaria de turnos.
-- Ver la agenda diaria por bloques horarios.
-- Ver una tabla semanal agrupada por dia.
-- Identificar estados por color.
-- Filtrar por fecha y odontologo.
-- Navegar al dia o semana anterior/siguiente.
-
-Cuando ingresa un odontologo, la agenda queda limitada automaticamente a sus propios turnos.
-
-Conexion de Google Calendar para odontologos:
-
-```text
-http://127.0.0.1:8000/turnos/google-calendar/
-```
-
-Desde esa pantalla el odontologo puede iniciar OAuth, conectar su cuenta de Google y desconectarla si lo necesita.
-
-Emails al paciente:
-
-- Al solicitar un turno público, se envía un email informando que quedó pendiente.
-- Al confirmar un turno pendiente, se envía un email de confirmación.
-- Al cancelar un turno, se envía un email de cancelación.
-- Antes de un turno confirmado, se puede enviar un recordatorio por email.
-
-En desarrollo, el backend por defecto imprime los emails en consola. Para enviar emails reales se puede configurar SMTP o el backend por API HTTP desde `.env`.
-
-El envio se dispara desde la capa de servicios de turnos:
-
-- `crear_solicitud_turno_publica`: envia solicitud recibida al email del paciente.
-- `confirmar_turno`: envia turno confirmado al email del paciente.
-- `cancelar_turno`: envia turno cancelado al email del paciente.
-- `reprogramar_turno`: envia turno reprogramado al email del paciente.
-- `enviar_recordatorios_email`: envia recordatorios a turnos confirmados próximos.
-
-Si el paciente no tiene email cargado, no se intenta enviar. Si el proveedor de email falla, el turno no se pierde y el error queda registrado para poder revisarlo.
-
-Configuración local de desarrollo:
-
-```env
-EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-DEFAULT_FROM_EMAIL=turnos@localhost
-```
-
-Configuración SMTP real:
-
-```env
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.example.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=usuario@example.com
-EMAIL_HOST_PASSWORD=clave-o-token-de-aplicacion
-EMAIL_USE_TLS=True
-EMAIL_USE_SSL=False
-EMAIL_TIMEOUT=10
-DEFAULT_FROM_EMAIL=Consultorio <turnos@example.com>
-```
-
-Ejemplos habituales por proveedor:
-
-| Proveedor | `EMAIL_HOST` | `EMAIL_PORT` | `EMAIL_HOST_USER` | `EMAIL_HOST_PASSWORD` | Seguridad |
-| --- | --- | ---: | --- | --- | --- |
-| Gmail / Google Workspace | `smtp.gmail.com` | `587` | Email completo | App password | `EMAIL_USE_TLS=True` |
-| SendGrid | `smtp.sendgrid.net` | `587` | `apikey` | API key de SendGrid | `EMAIL_USE_TLS=True` |
-| Brevo | `smtp-relay.brevo.com` | `587` | Login SMTP | Clave SMTP | `EMAIL_USE_TLS=True` |
-| Mailgun | `smtp.mailgun.org` | `587` | Usuario SMTP del dominio | Password SMTP | `EMAIL_USE_TLS=True` |
-
-Referencias oficiales: [Google Workspace SMTP](https://support.google.com/a/answer/176600), [Google App Passwords](https://support.google.com/accounts/answer/185833), [SendGrid SMTP](https://www.twilio.com/docs/sendgrid/for-developers/sending-email/integrating-with-the-smtp-api), [Brevo SMTP](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP), [Mailgun SMTP](https://documentation.mailgun.com/docs/mailgun/user-manual/smtp-protocol/).
-
-Si se usa el puerto `465`, hay que configurar `EMAIL_USE_SSL=True` y `EMAIL_USE_TLS=False`.
-
-Configuracion por API HTTP para deploy en Railway:
-
-```env
-EMAIL_BACKEND=config.email_backends.EmailApiBackend
-EMAIL_API_PROVIDER=resend
-EMAIL_API_KEY=clave-real-del-proveedor
-DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
-```
-
-Tambien se puede usar:
-
-```env
-EMAIL_API_PROVIDER=brevo
-```
-
-La guia especifica para email por API esta en [docs/email_api.md](docs/email_api.md).
-
-Para probar la configuracion activa de email:
-
-```powershell
-python manage.py probar_email tu-email@example.com
-```
-
-Para probar las tres notificaciones de turnos con las plantillas reales:
-
-```powershell
-python manage.py probar_notificaciones_email tu-email@example.com
-```
-
-Este comando fue validado con SMTP real en desarrollo. Para deploy en Railway conviene usar el backend por API HTTP y cargar `EMAIL_API_KEY` en variables de entorno.
-
-Para enviar recordatorios a turnos confirmados próximos:
-
-```powershell
-python manage.py enviar_recordatorios_email
-```
-
-Por defecto busca turnos dentro de las próximas 24 horas. Ese valor se puede cambiar con:
-
-```env
-TURNOS_RECORDATORIO_HORAS=24
-```
-
-También se puede pasar una ventana puntual al comando:
-
-```powershell
-python manage.py enviar_recordatorios_email --horas 48
-```
-
-Para schedulers de producción conviene usar el script dedicado:
-
-```bash
-bash scripts/recordatorios.sh
-```
-
-El script usa `TURNOS_RECORDATORIO_HORAS`, que por defecto es `24`, y ejecuta el comando con `--fallar-si-hay-errores`. Cada turno guarda cuándo se envió el recordatorio para evitar envíos duplicados.
-
-La guía para programar este comando con Railway Cron, GitHub Actions, cron o Windows Task Scheduler está en [docs/recordatorios.md](docs/recordatorios.md).
-
-## Backups de staging
-
-Los backups de PostgreSQL y Storage se guardan fuera del repositorio en `backups/`, carpeta ignorada por Git.
-
-En Windows, con Docker Desktop iniciado:
-
-```powershell
-.\scripts\backup_postgresql_docker.ps1
-.\scripts\probar_restore_postgresql_docker.ps1
-```
-
-El primer comando crea un backup logico del esquema `public` de Supabase. El segundo levanta una base PostgreSQL temporal, restaura el backup y valida tablas principales.
-
-Para respaldar adjuntos clinicos de Supabase Storage:
-
-```powershell
-.\scripts\backup_storage_historias.ps1 -DryRun
-.\scripts\backup_storage_historias.ps1
-```
-
-El comando descarga los adjuntos referenciados por la base y crea un `manifest.json` con ids internos, rutas, tamanos y `sha256`.
-
-Guia completa: [docs/backups.md](docs/backups.md).
-
-Para producción conviene usar una clave o token de aplicación del proveedor elegido y nunca subir esos valores al repositorio.
-
-Las plantillas de email viven en:
-
-- `turnos/templates/turnos/emails/solicitud_recibida.txt`
-- `turnos/templates/turnos/emails/turno_confirmado.txt`
-- `turnos/templates/turnos/emails/turno_cancelado.txt`
-- `turnos/templates/turnos/emails/turno_reprogramado.txt`
-- `turnos/templates/turnos/emails/recordatorio_turno.txt`
-
-### Pacientes
-
-El admin muestra columnas útiles para:
-
-- Nombre
-- Apellido
-- DNI
-- Teléfono
-- Email
-
-También permite buscar por nombre, apellido, DNI, teléfono o email.
-
-### Odontólogos
-
-El admin muestra:
-
-- Nombre
-- Apellido
-- Matrícula
-- Email
-- Especialidad
-- Horario de atención
-- Estado activo/inactivo
-
-Los odontólogos están asociados a usuarios de Django.
-
-### Turnos
-
-El admin muestra:
-
-- Paciente
-- Odontólogo
-- Fecha
-- Hora de inicio
-- Hora de fin
-- Estado
-
-Además incluye filtros por estado, fecha y odontólogo.
-
-## Reglas iniciales de negocio
-
-La lógica actual valida que:
-
-- Un turno tenga duración mayor a cero.
-- El odontólogo esté activo para cargar turnos no cancelados.
-- El turno entre dentro de una disponibilidad activa del odontólogo.
-- Los días sin disponibilidad activa queden bloqueados como no laborables.
-- No existan turnos activos superpuestos para el mismo odontólogo.
-- Los turnos cancelados no bloqueen ese horario.
-- Los horarios disponibles se calculen a partir de disponibilidad y turnos activos.
-- Los odontologos solo puedan ver turnos asociados a su perfil.
-- Las solicitudes públicas de turno se guarden como pendientes con duración inicial de 30 minutos.
-- Las solicitudes públicas no permitan fechas pasadas.
-- Los turnos pendientes se confirmen desde una pantalla propia donde se elige la duración real.
-- Los turnos internos creados desde el panel queden confirmados automáticamente.
-
-Estados disponibles para un turno:
-
-- Pendiente
-- Confirmado
-- Cancelado
-
-## Comandos útiles
-
-Ejecutar comprobaciones de Django:
-
-```powershell
-python manage.py check
-```
-
-Aplicar migraciones:
-
-```powershell
-python manage.py migrate
-```
-
-Crear nuevas migraciones:
-
-```powershell
-python manage.py makemigrations
-```
-
-Ejecutar tests:
-
-```powershell
-python manage.py test
-```
-
-Levantar el servidor de desarrollo:
-
-```powershell
-python manage.py runserver
-```
-
-Preparar archivos estáticos para producción:
-
-```powershell
-python manage.py collectstatic --noinput
-```
-
-Comandos de deploy en Linux:
-
-```bash
-bash scripts/build.sh
-bash scripts/release.sh
-bash scripts/start.sh
-```
-
-La guía de build/start para Railway está en [docs/deploy.md](docs/deploy.md).
-
-La guía del primer entorno de staging está en [docs/staging.md](docs/staging.md).
-
-La guía de endurecimiento antes de producción está en [docs/seguridad_produccion.md](docs/seguridad_produccion.md).
-
-## Archivos no versionados
-
-El archivo `db.sqlite3` se usa solamente para desarrollo local y está ignorado por Git.
-
-También se ignoran archivos generados como:
-
-- `.venv/`
-- `__pycache__/`
-- `*.pyc`
-- Logs
-- Archivos locales de entorno
-
-## Próximas etapas
-
-Próximos pasos sugeridos:
-
-1. Rotar secretos expuestos durante la configuracion inicial de staging.
-2. Probar y documentar el flujo completo con un turno real de staging.
-3. Cargar proveedor real de email por API HTTP en Railway y probar envios desde staging.
-4. Activar recordatorios programados desde GitHub Actions cuando el email de staging este validado.
-5. Definir backups, prueba de restauracion, dominio real, HTTPS final y estrategia de logs.
-6. Evaluar cifrado de tokens OAuth antes de produccion.
-7. Mejorar odontograma: historial de cambios, vista comparativa por fecha y mayor integración con tratamientos.
-8. Profundizar historia clínica: evolución clínica, auditoría avanzada y reportes exportables.
-
-## Integración con Google Calendar
-
-El modelo de turnos ya incluye un campo para guardar el identificador del evento de Google Calendar.
-
-Además, existe el modelo `GoogleCalendarConexion`, asociado uno a uno con `Odontologo`, para guardar:
-
-- `calendar_id`
-- `access_token`
-- `refresh_token`
-- `scopes`
-- vencimiento del access token
-- estado de conexión y último error de sincronización
-
-La configuración base de Google Calendar ya está preparada desde variables de entorno y existe el módulo aislado:
-
-```text
-app/turnos/integrations/google_calendar.py
-```
-
-La sincronización de turnos vive en:
-
-```text
-app/turnos/google_calendar_sync.py
-```
-
-El guardado de tokens OAuth vive en:
-
-```text
-app/turnos/google_calendar_oauth.py
-```
-
-La pantalla interna para conectar Google Calendar es:
-
-```text
-http://127.0.0.1:8000/turnos/google-calendar/
-```
-
-El redirect URI que debe configurarse en Google Cloud para desarrollo local es:
+Redirect URI local:
 
 ```text
 http://127.0.0.1:8000/turnos/google-calendar/callback/
 ```
 
-Cuando hay una conexión OAuth activa para el odontólogo, la aplicación intenta:
+Redirect URI en Railway:
 
-- Crear un evento en Google Calendar.
-- Actualizar el evento si cambia el horario.
-- Cancelar o eliminar el evento si el turno se cancela.
+```text
+https://TU-DOMINIO-RAILWAY/turnos/google-calendar/callback/
+```
 
-Si Google Calendar falla temporalmente, el turno se mantiene guardado y el error queda registrado en la conexión del odontólogo.
+## Email y Recordatorios
 
-La integración fue probada contra Google Calendar real: creación, actualización y cancelación de un evento de prueba.
+El proyecto usa plantillas en `app/turnos/templates/turnos/emails/`.
+
+Notificaciones implementadas:
+
+- solicitud recibida;
+- turno confirmado;
+- turno cancelado;
+- turno reprogramado;
+- recordatorio de turno confirmado próximo.
+
+Comandos útiles:
+
+```powershell
+cd app
+python manage.py probar_email tu-email@example.com
+python manage.py probar_notificaciones_email tu-email@example.com
+python manage.py enviar_recordatorios_email --horas 24
+```
+
+El script de scheduler es:
+
+```bash
+bash scripts/recordatorios.sh
+```
+
+## Archivos Clínicos y Backups
+
+Los adjuntos de historia clínica aceptan PDF, imágenes y DICOM hasta 10 MB por archivo. En local pueden guardarse en `app/media/`; en deploy se recomienda Supabase Storage privado.
+
+Prueba de storage:
+
+```powershell
+cd app
+python manage.py probar_storage_historias
+```
+
+Backups:
+
+```powershell
+.\scripts\backup_postgresql_docker.ps1
+.\scripts\probar_restore_postgresql_docker.ps1
+.\scripts\backup_storage_historias.ps1
+```
+
+Guía completa: [docs/backups.md](docs/backups.md).
+
+## Deploy en Railway
+
+El repositorio está preparado con `railway.json`:
+
+```json
+{
+  "build": {
+    "buildCommand": "bash scripts/build.sh"
+  },
+  "deploy": {
+    "startCommand": "bash scripts/start.sh",
+    "preDeployCommand": "bash scripts/release.sh"
+  }
+}
+```
+
+Comandos:
+
+```bash
+bash scripts/build.sh      # instala dependencias y collectstatic
+bash scripts/release.sh    # migraciones
+bash scripts/start.sh      # gunicorn
+```
+
+Railway hostea la aplicación. Supabase mantiene PostgreSQL y Storage. No hace falta crear una base PostgreSQL en Railway para este proyecto.
+
+Guía completa: [docs/deploy.md](docs/deploy.md).
+
+## Tests y Validación
+
+Desde `app/`:
+
+```powershell
+python manage.py check
+python manage.py test
+python manage.py collectstatic --noinput
+```
+
+## Seguridad y Privacidad
+
+- `.env`, tokens, credenciales OAuth y claves reales no se versionan.
+- La interfaz pública no muestra historia clínica ni datos sensibles.
+- Las acciones públicas de cancelación/reprogramación validan DNI contra el turno.
+- Las vistas internas requieren login.
+- La historia clínica y el odontograma tienen permisos clínicos propios.
+- Los adjuntos clínicos se sirven a través de Django y pueden mantenerse en bucket privado.
+- Antes de producción real se recomienda rotar secretos expuestos durante configuración, revisar cifrado de tokens OAuth, backups, dominio definitivo, logs y permisos.
+
+## Roadmap
+
+Prioridades sugeridas:
+
+1. Verificar deploy del último commit en Railway cuando el incidente de builds esté resuelto.
+2. Probar flujo público completo en Railway: solicitud, consulta por DNI, cancelación y reprogramación.
+3. Ejecutar migraciones después de cada deploy con cambios de modelo.
+4. Completar prueba de backups base + Storage en entorno separado.
+5. Rotar secretos expuestos durante configuración inicial.
+6. Profundizar auditoría clínica y logs operativos.
+7. Mejorar reportes: turnos por período, ausencias, pendientes y métricas del consultorio.
+8. Evaluar dominio propio y endurecimiento final de HTTPS/HSTS.
 
 ## Licencia
 
-Este proyecto está publicado bajo la licencia incluida en el archivo `LICENSE`.
+Este proyecto está publicado bajo la licencia incluida en [LICENSE](LICENSE).

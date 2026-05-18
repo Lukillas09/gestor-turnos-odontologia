@@ -81,22 +81,17 @@ python manage.py probar_storage_historias --conservar
 
 La descarga pasa por Django, por eso el bucket puede mantenerse privado.
 
-## Limites y costo
+## Límites y costo
 
-Al 10/05/2026, la documentacion de Supabase Storage indica una cuota gratuita de `1 GB` para Storage. Si se supera la cuota del plan, Supabase puede requerir cambio de plan o cobro segun sus reglas vigentes.
+Los límites del plan gratuito de Supabase pueden cambiar. Antes de usar datos reales de pacientes, revisar el panel de Supabase y la documentación oficial del plan vigente.
 
-Referencias:
+Recomendación práctica para un consultorio chico:
 
-- https://supabase.com/docs/guides/storage/buckets/fundamentals
-- https://supabase.com/docs/guides/storage/serving/downloads
-- https://supabase.com/docs/guides/storage/pricing
-
-Recomendacion practica para un consultorio chico:
-
-- Usar Supabase Storage Free solo para staging o primeras pruebas controladas.
+- Usar Supabase Storage primero en staging o pruebas controladas.
 - Subir archivos comprimidos cuando sea posible.
-- Evitar radiografias muy pesadas si no son necesarias.
-- Revisar uso de Storage cada semana durante pruebas con el cliente.
+- Evitar radiografías muy pesadas si no son necesarias.
+- Revisar uso de Storage periódicamente durante pruebas con el cliente.
+- Definir una política de backup antes de cargar documentación clínica real.
 
 ## Backups
 

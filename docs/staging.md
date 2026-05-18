@@ -1,20 +1,20 @@
 # Entorno de staging en Railway
 
-Esta guia define el entorno publico de pruebas usando Railway como hosting y Supabase como base de datos.
+Esta guía define el entorno público de pruebas usando Railway como hosting y Supabase como base de datos.
 
-Staging no es produccion final. Es un ambiente controlado para probar el flujo completo antes de usar el sistema con pacientes reales.
+Staging no es producción final. Es un ambiente controlado para probar el flujo completo antes de usar el sistema con pacientes reales.
 
 ## Arquitectura
 
 ```text
 App Django: Railway
 Base de datos: Supabase PostgreSQL
-Adjuntos clinicos: Supabase Storage privado
+Adjuntos clínicos: Supabase Storage privado
 Recordatorios: GitHub Actions o Railway Cron
 Repositorio: GitHub
 ```
 
-Railway no reemplaza a Supabase. Railway solo ejecuta la aplicacion.
+Railway no reemplaza a Supabase. Railway solo ejecuta la aplicación.
 
 ## 1. Preparar Supabase PostgreSQL
 
@@ -80,7 +80,7 @@ DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=
 WEB_CONCURRENCY=2
 ```
 
-Adjuntos clinicos:
+Adjuntos clínicos:
 
 ```env
 MEDIA_STORAGE_BACKEND=config.storage_backends.SupabaseStorage
@@ -120,7 +120,7 @@ https://TU-DOMINIO-RAILWAY/turnos/google-calendar/callback/
 
 Ese valor debe coincidir exactamente con `GOOGLE_CALENDAR_REDIRECT_URI`.
 
-Si la pantalla de consentimiento esta en modo Testing, agregar como test user el email que va a conectar Google Calendar.
+Si la pantalla de consentimiento está en modo Testing, agregar como test user el email que va a conectar Google Calendar.
 
 ## 5. Configurar recordatorios
 
@@ -167,11 +167,11 @@ Checklist:
 
 - Abrir la URL publica de Railway.
 - Entrar al admin.
-- Crear superusuario si todavia no existe.
+- Crear superusuario si todavía no existe.
 - Cargar un odontologo activo.
 - Cargar disponibilidad.
 - Conectar Google Calendar desde la pantalla interna.
-- Solicitar un turno desde la pagina publica.
+- Solicitar un turno desde la página pública.
 - Ver que el turno queda pendiente.
 - Confirmar el turno.
 - Ver que se crea o actualiza el evento en Google Calendar.
@@ -179,9 +179,9 @@ Checklist:
 - Cancelar el turno.
 - Revisar emails en casilla real.
 - Ejecutar recordatorios desde GitHub Actions o Railway Cron.
-- Crear backup logico de PostgreSQL.
+- Crear backup lógico de PostgreSQL.
 - Crear backup de Supabase Storage.
-- Probar restauracion en una base separada.
+- Probar restauración en una base separada.
 
 ## Listo para avanzar cuando
 
@@ -191,4 +191,4 @@ Checklist:
 - El flujo de turno completo funciona.
 - Los emails reales llegan desde Railway.
 - El workflow o cron de recordatorios corre sin errores.
-- Existe una estrategia de backup y restauracion probada para PostgreSQL y Storage.
+- Existe una estrategia de backup y restauración probada para PostgreSQL y Storage.
