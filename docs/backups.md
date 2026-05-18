@@ -94,7 +94,7 @@ Todavia no automatizamos la subida de restauracion porque conviene hacerla prime
 - Crear backup Storage.
 - Verificar que `manifest.json` existe.
 - Abrir un archivo de prueba desde `archivos/`.
-- Guardar una copia fuera de Supabase y fuera de Render.
+- Guardar una copia fuera de Supabase y fuera del hosting de la app.
 - Documentar quien puede acceder al backup.
 
 Antes de produccion real, la restauracion base + storage debe probarse en un entorno separado.

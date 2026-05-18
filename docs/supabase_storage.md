@@ -4,7 +4,7 @@ Esta guia deja preparado el almacenamiento externo de radiografias, imagenes, PD
 
 ## Objetivo
 
-En desarrollo local se pueden guardar adjuntos en `app/media/`. En staging o produccion no conviene depender del disco de Render Free porque los archivos pueden perderse en reinicios o redeploys. Para evitarlo, los adjuntos clinicos deben guardarse en Supabase Storage.
+En desarrollo local se pueden guardar adjuntos en `app/media/`. En staging o produccion no conviene depender del disco del hosting porque los archivos pueden perderse en reinicios o redeploys. Para evitarlo, los adjuntos clinicos deben guardarse en Supabase Storage.
 
 ## Crear bucket privado
 
@@ -33,7 +33,7 @@ El sistema tambien valida extensiones seguras desde Django: `.pdf`, `.png`, `.jp
 
 ## Variables de entorno
 
-En Render o el entorno donde se use Supabase Storage:
+En Railway o el entorno donde se use Supabase Storage:
 
 ```env
 MEDIA_STORAGE_BACKEND=config.storage_backends.SupabaseStorage

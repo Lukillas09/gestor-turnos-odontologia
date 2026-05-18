@@ -13,7 +13,6 @@ Este comando busca turnos confirmados proximos, envia el recordatorio por email 
 Por ahora no se agrega Celery ni un scheduler dentro de Django. Para esta etapa conviene usar un scheduler externo:
 
 - GitHub Actions para staging gratuito.
-- Render Cron Job.
 - Railway Cron Job.
 - Cron en Linux.
 - Programador de tareas de Windows para pruebas locales.
@@ -71,8 +70,8 @@ STAGING_DEFAULT_FROM_EMAIL
 Valores esperados para staging:
 
 ```text
-STAGING_DJANGO_ALLOWED_HOSTS=gestor-turnos-odontologia-staging.onrender.com
-STAGING_DJANGO_CSRF_TRUSTED_ORIGINS=https://gestor-turnos-odontologia-staging.onrender.com
+STAGING_DJANGO_ALLOWED_HOSTS=tu-app.up.railway.app
+STAGING_DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-app.up.railway.app
 STAGING_EMAIL_BACKEND=config.email_backends.EmailApiBackend
 STAGING_EMAIL_API_PROVIDER=resend
 STAGING_DEFAULT_FROM_EMAIL=Consultorio Odontologico <onboarding@resend.dev>
@@ -81,29 +80,6 @@ STAGING_DEFAULT_FROM_EMAIL=Consultorio Odontologico <onboarding@resend.dev>
 El workflow corre automaticamente cada hora. Tambien se puede ejecutar manualmente desde `Actions` -> `Staging recordatorios` -> `Run workflow`.
 
 En ejecucion manual se puede cambiar `horas` para probar una ventana mas amplia, por ejemplo `72`.
-
-## Render Cron Job
-
-En Render se crea un Cron Job desde el dashboard.
-
-Valores sugeridos:
-
-```text
-Schedule: 0 * * * *
-Command: cd app && python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
-```
-
-Render usa horarios en UTC para la expresion cron. Si se necesita una hora exacta de Argentina, hay que convertirla a UTC.
-
-El Cron Job debe tener las mismas variables de entorno que la app web:
-
-- `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG=False`
-- `DJANGO_ALLOWED_HOSTS`
-- `DATABASE_URL`
-- Variables SMTP
-- Variables de email por API HTTP (`EMAIL_BACKEND`, `EMAIL_API_PROVIDER`, `EMAIL_API_KEY`, `DEFAULT_FROM_EMAIL`)
-- Variables de Google Calendar si hicieran falta
 
 ## Railway Cron Job
 
@@ -144,9 +120,8 @@ El flag:
 --fallar-si-hay-errores
 ```
 
-hace que el comando termine con error si algun recordatorio no pudo enviarse. Esto ayuda a que Render, Railway o cron muestren el problema en los logs.
+hace que el comando termine con error si algun recordatorio no pudo enviarse. Esto ayuda a que Railway, GitHub Actions o cron muestren el problema en los logs.
 
 ## Referencias
 
-- Render Cron Jobs: https://render.com/docs/cronjobs
 - Railway Cron Jobs: https://docs.railway.com/cron-jobs

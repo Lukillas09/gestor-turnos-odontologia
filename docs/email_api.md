@@ -1,8 +1,6 @@
 # Email real por API HTTP
 
-Render Free bloquea conexiones salientes por puertos SMTP comunes como `25`, `465` y `587`.
-
-Para que los emails lleguen a pacientes desde staging o produccion, el proyecto incluye un backend propio de Django que envia por API HTTP:
+Para que los emails lleguen a pacientes desde staging o produccion sin depender de SMTP, el proyecto incluye un backend propio de Django que envia por API HTTP:
 
 ```env
 EMAIL_BACKEND=config.email_backends.EmailApiBackend
@@ -61,9 +59,9 @@ DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 
 El remitente debe estar validado en Brevo.
 
-## Render
+## Railway y deploy
 
-En Render cargar:
+En Railway cargar:
 
 ```env
 EMAIL_BACKEND=config.email_backends.EmailApiBackend
@@ -122,4 +120,4 @@ O SMTP local/real:
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 ```
 
-El backend por API HTTP queda pensado especialmente para staging y produccion en proveedores donde SMTP saliente no esta disponible.
+El backend por API HTTP queda pensado especialmente para staging y produccion, porque evita problemas habituales con SMTP saliente y funciona bien con proveedores como Resend o Brevo.

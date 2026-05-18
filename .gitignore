@@ -158,7 +158,7 @@ activemq-data/
 .env
 .env.*
 !.env.example
-!.env.render-supabase.example
+!.env.railway-supabase.example
 .envrc
 .venv
 env/

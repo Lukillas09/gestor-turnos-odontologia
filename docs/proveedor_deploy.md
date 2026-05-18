@@ -1,70 +1,57 @@
-# Proveedor de deploy gratuito inicial
+# Proveedor de deploy inicial
 
-Esta guia deja definida la estrategia gratuita inicial para probar el sistema fuera de la maquina local.
+Esta guia deja definida la estrategia actual para probar el sistema fuera de la maquina local.
 
 ## Decision
 
-Para una primera version gratuita se elige:
+Para esta etapa se elige:
 
 ```text
-App Django: Render Free Web Service
-Base de datos: Supabase Free Postgres
-Recordatorios: GitHub Actions Scheduled Workflow
+App Django: Railway
+Base de datos: Supabase PostgreSQL
+Adjuntos clinicos: Supabase Storage
+Recordatorios: GitHub Actions o Railway Cron
+Repositorio: GitHub
 ```
 
-Esta decision prioriza costo cero y simplicidad.
+Railway reemplaza al hosting anterior. Supabase se mantiene como base de datos principal.
 
-## Por que no usar Render completo
+## Por que Railway para la app
 
-Render es muy comodo para Django, pero en el plan gratuito tiene limites importantes:
+Railway permite desplegar desde GitHub, configurar variables de entorno, usar Gunicorn y ejecutar comandos de build/start de forma simple.
 
-- El Web Service gratuito se duerme si no recibe trafico.
-- Render Postgres gratuito expira a los 30 dias.
-- Render Cron Jobs no son gratis.
-- Render Free bloquea trafico saliente por puertos SMTP comunes como `25`, `465` y `587`.
+Para este proyecto conviene porque:
 
-Por eso se usa Render para la app, pero no para la base de datos ni para los recordatorios.
+- El repositorio ya tiene `scripts/build.sh`, `scripts/start.sh` y `scripts/release.sh`.
+- `railway.json` deja los comandos versionados.
+- La app puede seguir usando Supabase sin crear otra base.
+- Los logs y variables quedan centralizados en el servicio web.
 
-## Por que Supabase para PostgreSQL
+## Por que mantener Supabase
 
-Supabase Free incluye PostgreSQL y permite tener una base persistente sin costo inicial.
+Supabase ya contiene PostgreSQL y Storage del proyecto. Cambiar de hosting no requiere migrar datos si se conserva la misma `DATABASE_URL`.
 
-Limites importantes:
+Puntos a cuidar:
 
-- 500 MB de base de datos.
-- Conviene mantener backups logicos propios fuera del proveedor.
-- El proyecto puede pausarse por inactividad segun las condiciones del plan gratuito.
-- No es ideal para produccion sensible sin plan pago, prueba de restauracion y backups propios.
+- Mantener `sslmode=require`.
+- Hacer backups logicos propios.
+- Probar restauracion.
+- No exponer `SUPABASE_STORAGE_SERVICE_ROLE_KEY`.
 
-Para un consultorio chico sirve como staging o primera prueba controlada, pero antes de depender de esto con pacientes reales conviene definir backups.
+## Variables para Railway
 
-## Por que GitHub Actions para recordatorios
+Usar `.env.railway-supabase.example` como referencia.
 
-Ya existe el comando:
-
-```bash
-python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
-```
-
-GitHub Actions puede ejecutarlo con un schedule cron sin tener un proceso permanente.
-
-Esto evita pagar Render Cron Jobs al principio.
-
-## Variables para Render
-
-Ejemplo base para el Web Service:
+Variables base:
 
 ```env
 DJANGO_DEBUG=False
 DJANGO_SECRET_KEY=generar-una-clave-segura
-DJANGO_ALLOWED_HOSTS=tu-app.onrender.com
-DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-app.onrender.com
+DJANGO_ALLOWED_HOSTS=tu-app.up.railway.app
+DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-app.up.railway.app
 DJANGO_SECURE_SSL_REDIRECT=True
 DJANGO_SESSION_COOKIE_SECURE=True
 DJANGO_CSRF_COOKIE_SECURE=True
-DJANGO_SECURE_HSTS_SECONDS=0
-DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS=False
-DJANGO_SECURE_HSTS_PRELOAD=False
 DJANGO_SECURE_PROXY_SSL_HEADER=True
 DJANGO_LOG_LEVEL=INFO
 DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
@@ -77,11 +64,11 @@ Google Calendar:
 ```env
 GOOGLE_CALENDAR_CLIENT_ID=
 GOOGLE_CALENDAR_CLIENT_SECRET=
-GOOGLE_CALENDAR_REDIRECT_URI=https://tu-app.onrender.com/turnos/google-calendar/callback/
+GOOGLE_CALENDAR_REDIRECT_URI=https://tu-app.up.railway.app/turnos/google-calendar/callback/
 GOOGLE_CALENDAR_SCOPES=https://www.googleapis.com/auth/calendar.events
 ```
 
-Email:
+Email recomendado:
 
 ```env
 EMAIL_BACKEND=config.email_backends.EmailApiBackend
@@ -90,91 +77,50 @@ EMAIL_API_KEY=clave-real-del-proveedor
 DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 ```
 
-El proyecto usa API HTTP para evitar el bloqueo SMTP de Render Free. Falta cargar una API key real de Resend o Brevo y validar el envio desde staging.
+Supabase Storage:
 
-## Variables para GitHub Actions
-
-Guardar como repository secrets:
-
-```text
-STAGING_DJANGO_SECRET_KEY
-STAGING_DJANGO_ALLOWED_HOSTS
-STAGING_DJANGO_CSRF_TRUSTED_ORIGINS
-STAGING_DATABASE_URL
-STAGING_EMAIL_BACKEND
-STAGING_EMAIL_HOST
-STAGING_EMAIL_PORT
-STAGING_EMAIL_HOST_USER
-STAGING_EMAIL_HOST_PASSWORD
-STAGING_EMAIL_USE_TLS
-STAGING_EMAIL_USE_SSL
-STAGING_EMAIL_API_PROVIDER
-STAGING_EMAIL_API_KEY
-STAGING_DEFAULT_FROM_EMAIL
-STAGING_GOOGLE_CALENDAR_CLIENT_ID
-STAGING_GOOGLE_CALENDAR_CLIENT_SECRET
-STAGING_GOOGLE_CALENDAR_REDIRECT_URI
+```env
+MEDIA_STORAGE_BACKEND=config.storage_backends.SupabaseStorage
+SUPABASE_STORAGE_URL=https://tu-proyecto.supabase.co
+SUPABASE_STORAGE_BUCKET=historias-clinicas
+SUPABASE_STORAGE_SERVICE_ROLE_KEY=valor-real
 ```
 
-Para los recordatorios, GitHub Actions debe poder conectarse a la base Supabase y al proveedor de email.
+## Recordatorios
 
-El workflow queda apagado hasta crear esta repository variable:
+El proyecto ya tiene el comando:
+
+```bash
+python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
+```
+
+Opciones:
+
+- GitHub Actions para una primera automatizacion.
+- Railway Cron si se quiere manejar todo desde Railway.
+
+GitHub Actions queda apagado hasta crear:
 
 ```text
 STAGING_RECORDATORIOS_ACTIVO=true
 ```
 
-## Problema pendiente: SMTP
+## Riesgos de una arquitectura inicial de bajo costo
 
-El proyecto mantiene SMTP para desarrollo o proveedores compatibles, pero en Render Free se debe usar API HTTP.
-
-Render Free bloquea puertos salientes comunes de SMTP:
-
-- `25`
-- `465`
-- `587`
-
-Opciones:
-
-1. Usar Resend con dominio o remitente verificado.
-2. Usar Brevo con remitente verificado.
-3. Usar un proveedor/plan que permita SMTP saliente.
-4. Ejecutar recordatorios y envio de emails desde GitHub Actions, si el proveedor SMTP permite conexion desde GitHub.
-5. Evaluar un plan pago minimo cuando el consultorio use el sistema con pacientes reales.
-
-## Riesgos de esta arquitectura gratuita
-
-- La app en Render puede tardar cerca de un minuto en despertar.
-- Supabase Free requiere una estrategia de backups propios y prueba de restauracion.
-- GitHub Actions puede demorarse y no garantiza ejecucion al minuto exacto.
-- Los emails requieren una decision adicional por el bloqueo SMTP de Render Free.
+- Los planes gratuitos o iniciales pueden tener limites de uso.
+- Supabase requiere backups propios si se cargan datos importantes.
+- Los cron externos no garantizan ejecucion al segundo exacto.
+- Para uso real con pacientes conviene tener dominio propio, monitoreo y estrategia de restauracion.
 
 ## Recomendacion
 
-Usar esta arquitectura para staging, demo y primeras pruebas del consultorio.
+Usar Railway + Supabase para staging y primera demostracion controlada.
 
-La guia operativa para crearlo paso a paso esta en [staging.md](staging.md).
+Antes de produccion diaria:
 
-Estado actual: el staging inicial ya esta desplegado en Render en:
-
-```text
-https://gestor-turnos-odontologia-staging.onrender.com
-```
-
-La app conecta con Supabase PostgreSQL y Google Calendar ya fue probado desde la URL publica. El codigo ya soporta email real por API HTTP; queda cargar una API key real y probar el envio desde Render.
-
-Antes de usarla como produccion diaria, definir:
-
-- Backups de PostgreSQL.
-- Estrategia definitiva de email.
-- Dominio real.
-- Monitoreo basico.
-- Plan de salida si se supera el free tier.
-- Endurecimiento documentado en [seguridad_produccion.md](seguridad_produccion.md).
-
-## Referencias
-
-- Render Free: https://render.com/docs/free
-- Render Pricing: https://render.com/pricing
-- Supabase Pricing: https://supabase.com/pricing
-- GitHub Actions billing: https://docs.github.com/en/billing/managing-billing-for-your-products/about-billing-for-github-actions
+- Rotar secretos compartidos durante configuracion.
+- Definir dominio real.
+- Probar backups y restauracion.
+- Probar Google Calendar con la URL final.
+- Probar emails reales desde Railway.
+- Revisar logs sin exponer datos clinicos.

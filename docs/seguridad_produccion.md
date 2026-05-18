@@ -108,7 +108,7 @@ Reglas:
 
 ## 4. Dominio real
 
-Staging puede usar `tu-app.onrender.com`.
+Staging puede usar `tu-app.up.railway.app`.
 
 Produccion deberia usar un dominio propio, por ejemplo:
 

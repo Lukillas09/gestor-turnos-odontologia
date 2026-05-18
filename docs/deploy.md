@@ -1,169 +1,162 @@
-# Deploy
+# Deploy en Railway usando Supabase
 
-Esta guia deja preparados los comandos base para desplegar el proyecto en Render o Railway.
+Esta guia deja Railway como hosting principal de la aplicacion Django y mantiene Supabase como base PostgreSQL.
 
-Todavia no se hace el deploy real. El objetivo de este bloque es que el repositorio ya tenga los scripts necesarios para construir y arrancar la aplicacion en un entorno Linux.
+Railway hostea la app. Supabase sigue siendo la fuente de datos. No crear una base PostgreSQL nueva en Railway para este proyecto.
 
-El primer entorno elegido para staging esta documentado en [staging.md](staging.md).
+## Estado del repositorio
 
-## Dependencias
+El proyecto ya tiene lo necesario para desplegar:
 
-El servidor de produccion configurado es Gunicorn:
+- Gunicorn en `requirements.txt`.
+- WhiteNoise configurado en `app/config/settings.py`.
+- Lectura de `DATABASE_URL` desde variables de entorno.
+- `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` configurables por entorno.
+- Scripts separados para build, migraciones y start.
+- `railway.json` con comandos de build, pre-deploy y start.
 
-```text
-gunicorn==25.3.0
-```
+## Comandos de Railway
 
-Gunicorn se usa para ejecutar la aplicacion WSGI de Django:
-
-```bash
-python -m gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers $WEB_CONCURRENCY
-```
-
-En Windows local se puede seguir usando:
-
-```powershell
-python manage.py runserver
-```
-
-## Scripts
-
-Los scripts viven en:
-
-```text
-scripts/
-```
-
-### Build
+Build command:
 
 ```bash
 bash scripts/build.sh
 ```
 
-Hace:
-
-- Instala dependencias.
-- Ejecuta `collectstatic`.
-
-### Release
-
-```bash
-bash scripts/release.sh
-```
-
-Hace:
-
-- Ejecuta migraciones con `python manage.py migrate --noinput`.
-
-### Start
+Start command:
 
 ```bash
 bash scripts/start.sh
 ```
 
-Hace:
-
-- Arranca Gunicorn apuntando a `config.wsgi:application`.
-- Usa la variable `PORT` del proveedor.
-- Si `PORT` no existe, usa `8000`.
-- Usa `WEB_CONCURRENCY` para definir workers. Si no existe, usa `2`.
-
-## Render
-
-Comandos sugeridos para un Web Service de Render:
-
-```text
-Build Command: bash scripts/build.sh
-Start Command: bash scripts/start.sh
-```
-
-Si el plan permite Pre-Deploy Command:
-
-```text
-Pre-Deploy Command: bash scripts/release.sh
-```
-
-Si no se usa Pre-Deploy Command, ejecutar migraciones manualmente desde la shell de Render antes de abrir el sitio a usuarios reales:
-
-```bash
-cd app && python manage.py migrate --noinput
-```
-
-Variables minimas:
-
-```env
-DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=clave-segura
-DJANGO_ALLOWED_HOSTS=tu-servicio.onrender.com
-DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-servicio.onrender.com
-DATABASE_URL=postgres://...
-EMAIL_BACKEND=config.email_backends.EmailApiBackend
-EMAIL_API_PROVIDER=resend
-EMAIL_API_KEY=...
-DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
-WEB_CONCURRENCY=2
-```
-
-El repositorio tambien incluye `render.yaml` para crear el Web Service desde Blueprint. En el plan gratuito, si no hay comando de pre deploy disponible, las migraciones deben correrse manualmente con `bash scripts/release.sh` o `cd app && python manage.py migrate --noinput`.
-
-## Railway
-
-Railway permite configurar el start command desde el dashboard o con config-as-code.
-
-Comandos sugeridos:
-
-```text
-Build Command: bash scripts/build.sh
-Start Command: bash scripts/start.sh
-```
-
-Para migraciones:
+Pre-deploy command para migraciones:
 
 ```bash
 bash scripts/release.sh
 ```
 
-Ese comando puede ejecutarse manualmente con Railway CLI o como tarea separada antes de publicar cambios importantes.
+Si se prefiere ejecutar migraciones manualmente:
 
-Variables minimas:
+```bash
+cd app && python manage.py migrate --noinput
+```
+
+Para crear superusuario en Railway:
+
+```bash
+cd app && python manage.py createsuperuser
+```
+
+## Railway desde GitHub
+
+1. Entrar a Railway.
+2. Crear un proyecto nuevo.
+3. Elegir `Deploy from GitHub repo`.
+4. Seleccionar `Lukillas09/gestor-turnos-odontologia`.
+5. No agregar PostgreSQL de Railway.
+6. Cargar las variables de entorno.
+7. Confirmar que Railway use `bash scripts/build.sh` y `bash scripts/start.sh`.
+8. Ejecutar migraciones con `bash scripts/release.sh` si el pre-deploy no corrio.
+
+## Variables de entorno
+
+Usar `.env.railway-supabase.example` como plantilla.
+
+Variables obligatorias:
 
 ```env
 DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=clave-segura
-DJANGO_ALLOWED_HOSTS=tu-dominio.up.railway.app
-DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-dominio.up.railway.app
-DATABASE_URL=postgres://...
-EMAIL_BACKEND=config.email_backends.EmailApiBackend
-EMAIL_API_PROVIDER=resend
-EMAIL_API_KEY=...
-DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
+DJANGO_SECRET_KEY=generar-una-clave-segura
+DJANGO_ALLOWED_HOSTS=tu-app.up.railway.app
+DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-app.up.railway.app
+DJANGO_SECURE_SSL_REDIRECT=True
+DJANGO_SESSION_COOKIE_SECURE=True
+DJANGO_CSRF_COOKIE_SECURE=True
+DJANGO_SECURE_PROXY_SSL_HEADER=True
+DJANGO_LOG_LEVEL=INFO
+DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
 WEB_CONCURRENCY=2
 ```
 
-## Procfile
+Email por API HTTP:
 
-El repositorio incluye un `Procfile` simple:
-
-```text
-web: bash scripts/start.sh
-release: bash scripts/release.sh
+```env
+EMAIL_BACKEND=config.email_backends.EmailApiBackend
+EMAIL_API_PROVIDER=resend
+EMAIL_API_KEY=clave-real-del-proveedor
+DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
+TURNOS_RECORDATORIO_HORAS=24
 ```
 
-Esto sirve como referencia para proveedores que lean Procfile y tambien documenta los procesos principales.
+Supabase Storage, si se usan adjuntos clinicos:
 
-## Checklist antes del primer deploy
+```env
+MEDIA_STORAGE_BACKEND=config.storage_backends.SupabaseStorage
+SUPABASE_STORAGE_URL=https://tu-proyecto.supabase.co
+SUPABASE_STORAGE_BUCKET=historias-clinicas
+SUPABASE_STORAGE_SERVICE_ROLE_KEY=valor-real
+SUPABASE_STORAGE_TIMEOUT=30
+SUPABASE_STORAGE_CACHE_CONTROL=3600
+SUPABASE_STORAGE_SIGNED_URL_SECONDS=300
+```
 
-- Confirmar que `python manage.py check --deploy` no tenga issues criticos.
-- Cargar variables de entorno reales en el proveedor.
-- Configurar PostgreSQL.
-- Ejecutar migraciones.
-- Ejecutar `collectstatic` durante el build.
-- Probar login, admin, turnos, emails y Google Calendar en staging.
+Google Calendar:
+
+```env
+GOOGLE_CALENDAR_CLIENT_ID=valor-real
+GOOGLE_CALENDAR_CLIENT_SECRET=valor-real
+GOOGLE_CALENDAR_REDIRECT_URI=https://tu-app.up.railway.app/turnos/google-calendar/callback/
+GOOGLE_CALENDAR_SCOPES=https://www.googleapis.com/auth/calendar.events
+```
+
+El proyecto usa estos nombres exactos para Google Calendar: `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` y `GOOGLE_CALENDAR_REDIRECT_URI`.
+
+## Supabase
+
+No hace falta cambiar Supabase para migrar el hosting:
+
+- Mantener la misma `DATABASE_URL`.
+- Verificar que la URL incluya `sslmode=require`.
+- Mantener el bucket privado `historias-clinicas` si se usan adjuntos.
+- Mantener backups de PostgreSQL y Storage fuera del repositorio.
+
+## Google Cloud Console
+
+En el cliente OAuth web agregar la nueva redirect URI:
+
+```text
+https://TU-DOMINIO-RAILWAY/turnos/google-calendar/callback/
+```
+
+Ese valor debe coincidir exactamente con `GOOGLE_CALENDAR_REDIRECT_URI`.
+
+Si la pantalla de consentimiento esta en modo Testing, agregar como test user el email del odontologo que conecta Google Calendar.
+
+## Archivos estaticos
+
+`scripts/build.sh` ejecuta:
+
+```bash
+python manage.py collectstatic --noinput
+```
+
+WhiteNoise sirve los estaticos desde Django. La carpeta generada `app/staticfiles/` no se versiona.
+
+## Checklist final
+
+- Railway conectado al repo de GitHub.
+- Variables cargadas en Railway.
+- `DATABASE_URL` apunta a Supabase, no a Railway PostgreSQL.
+- Build finaliza correctamente.
+- Migraciones ejecutadas.
+- Superusuario creado.
+- Google Cloud tiene la redirect URI de Railway.
+- Login, pacientes, turnos, agenda, emails y Google Calendar probados en staging.
+- Backups de Supabase PostgreSQL y Storage probados.
 
 ## Referencias
 
-- Render Django: https://render.com/docs/deploy-django
-- Render deploys: https://render.com/docs/deploys
 - Railway Django: https://docs.railway.com/guides/django
 - Railway config-as-code: https://docs.railway.com/config-as-code/reference
 - Gunicorn: https://gunicorn.org/
+- WhiteNoise: https://whitenoise.readthedocs.io/

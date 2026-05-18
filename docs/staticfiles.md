@@ -4,7 +4,7 @@ Esta guia deja preparado el manejo de archivos estaticos para produccion.
 
 ## Estrategia elegida
 
-El proyecto usa WhiteNoise para servir archivos estaticos desde Django en despliegues simples como Render o Railway.
+El proyecto usa WhiteNoise para servir archivos estaticos desde Django en Railway.
 
 La configuracion principal esta en `app/config/settings.py`:
 
@@ -42,22 +42,6 @@ app/staticfiles/
 ```
 
 Esa carpeta esta ignorada por Git porque es salida generada.
-
-## Render
-
-Build command sugerido:
-
-```bash
-bash scripts/build.sh
-```
-
-Start command sugerido:
-
-```bash
-bash scripts/start.sh
-```
-
-Las migraciones pueden ejecutarse con `bash scripts/release.sh` como comando de pre-deploy o tarea manual controlada.
 
 ## Railway
 

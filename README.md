@@ -8,13 +8,14 @@ El objetivo del proyecto es construir, paso a paso, un sistema que permita carga
 
 El proyecto se encuentra en una etapa funcional de panel interno, reglas de agenda e integraciones iniciales.
 
-Staging inicial:
+Staging / deploy actual:
 
-- URL: https://gestor-turnos-odontologia-staging.onrender.com
-- Estado: desplegado en Render y conectado a Supabase PostgreSQL.
-- Admin de Django probado en staging.
-- Google Calendar probado en staging.
-- Emails en Render Free: por ahora quedan por consola/logs, no como envio SMTP real desde Render.
+- Hosting objetivo: Railway.
+- Base de datos: Supabase PostgreSQL.
+- Adjuntos clínicos: Supabase Storage privado.
+- Deploy configurado con Gunicorn, WhiteNoise y variables de entorno.
+- Google Calendar OAuth preparado para usar la URL pública de Railway.
+- Emails reales por API HTTP, por ejemplo Resend o Brevo.
 
 Actualmente incluye:
 
@@ -57,10 +58,10 @@ Actualmente incluye:
 - Archivos estáticos preparados con `collectstatic` y WhiteNoise.
 - Servidor de producción preparado con Gunicorn.
 - Scripts de build, release y start para deploy.
-- Staging inicial desplegado en Render.
+- Deploy preparado para Railway.
 - Base PostgreSQL de staging configurada en Supabase.
 - Configuración SMTP real por variables de entorno, probada con envío real.
-- Backend de email por API HTTP para deploy en Render Free.
+- Backend de email por API HTTP para deploy en Railway.
 - Comando para probar las tres notificaciones de email con plantillas reales.
 - Comando para enviar recordatorios por email.
 - Paginación liviana de pacientes y microinteracciones visuales suaves.
@@ -100,10 +101,10 @@ gestor-turnos-odontologia/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
-├── .env.render-supabase.example
+├── .env.railway-supabase.example
 ├── requirements.txt
 ├── Procfile
-├── render.yaml
+├── railway.json
 ├── .github/
 │   └── workflows/
 │       └── staging_recordatorios.yml
@@ -176,10 +177,10 @@ El archivo `.env` es local y no se sube a Git. Ahi se configuran secretos, crede
 Para el escenario gratuito inicial de deploy existe un ejemplo separado:
 
 ```powershell
-Copy-Item .env.render-supabase.example .env
+Copy-Item .env.railway-supabase.example .env
 ```
 
-Ese archivo documenta la combinacion Render Free + Supabase Free + GitHub Actions.
+Ese archivo documenta la combinacion Railway + Supabase + GitHub Actions.
 
 Entrar a la carpeta de la aplicación Django:
 
@@ -434,7 +435,7 @@ Referencias oficiales: [Google Workspace SMTP](https://support.google.com/a/answ
 
 Si se usa el puerto `465`, hay que configurar `EMAIL_USE_SSL=True` y `EMAIL_USE_TLS=False`.
 
-Configuracion por API HTTP para deploy en Render Free:
+Configuracion por API HTTP para deploy en Railway:
 
 ```env
 EMAIL_BACKEND=config.email_backends.EmailApiBackend
@@ -463,7 +464,7 @@ Para probar las tres notificaciones de turnos con las plantillas reales:
 python manage.py probar_notificaciones_email tu-email@example.com
 ```
 
-Este comando fue validado con SMTP real en desarrollo. Para deploy en Render Free conviene usar el backend por API HTTP y cargar `EMAIL_API_KEY` en variables de entorno.
+Este comando fue validado con SMTP real en desarrollo. Para deploy en Railway conviene usar el backend por API HTTP y cargar `EMAIL_API_KEY` en variables de entorno.
 
 Para enviar recordatorios a turnos confirmados próximos:
 
@@ -491,7 +492,7 @@ python manage.py enviar_recordatorios_email --horas 24 --fallar-si-hay-errores
 
 Cada turno guarda cuándo se envió el recordatorio para evitar envíos duplicados.
 
-La guía para programar este comando con Render, Railway, cron o Windows Task Scheduler está en [docs/recordatorios.md](docs/recordatorios.md).
+La guía para programar este comando con Railway, GitHub Actions, cron o Windows Task Scheduler está en [docs/recordatorios.md](docs/recordatorios.md).
 
 ## Backups de staging
 
@@ -635,7 +636,7 @@ bash scripts/release.sh
 bash scripts/start.sh
 ```
 
-La guía de build/start para Render o Railway está en [docs/deploy.md](docs/deploy.md).
+La guía de build/start para Railway está en [docs/deploy.md](docs/deploy.md).
 
 La guía del primer entorno de staging está en [docs/staging.md](docs/staging.md).
 
@@ -659,11 +660,12 @@ Próximos pasos sugeridos:
 
 1. Rotar secretos expuestos durante la configuracion inicial de staging.
 2. Probar y documentar el flujo completo con un turno real de staging.
-3. Cargar proveedor real de email por API HTTP en Render y probar envios desde staging.
+3. Cargar proveedor real de email por API HTTP en Railway y probar envios desde staging.
 4. Activar recordatorios programados desde GitHub Actions cuando el email de staging este validado.
 5. Definir backups, prueba de restauracion, dominio real, HTTPS final y estrategia de logs.
 6. Evaluar cifrado de tokens OAuth antes de produccion.
-7. Profundizar historia clínica: adjuntos, odontograma, evolución y auditoría.
+7. Mejorar odontograma: historial de cambios, vista comparativa por fecha y mayor integración con tratamientos.
+8. Profundizar historia clínica: evolución clínica, auditoría avanzada y reportes exportables.
 
 ## Integración con Google Calendar
 

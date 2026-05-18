@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "buildCommand": "bash scripts/build.sh"
+  },
+  "deploy": {
+    "startCommand": "bash scripts/start.sh",
+    "preDeployCommand": "bash scripts/release.sh",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
