@@ -368,7 +368,8 @@
         .dashboard-card,
         .dashboard-panel-link,
         .public-date-chip,
-        .public-slot-button {
+        .public-slot-button,
+        .public-secondary-card {
             transition:
                 background-color 160ms ease,
                 border-color 160ms ease,
@@ -2284,6 +2285,178 @@
             justify-content: flex-end;
         }
 
+        .public-home-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: 24px;
+            align-items: center;
+            margin: -8px 0 24px;
+            border-radius: 12px;
+            padding: 42px;
+            background:
+                linear-gradient(120deg, rgba(15, 118, 110, 0.96), rgba(45, 64, 89, 0.96)),
+                #0f766e;
+            color: #ffffff;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+        }
+
+        .public-home-copy {
+            display: grid;
+            gap: 16px;
+        }
+
+        .public-home-copy h1 {
+            max-width: 680px;
+            font-size: clamp(34px, 6vw, 56px);
+            line-height: 1.05;
+        }
+
+        .public-home-copy p {
+            max-width: 620px;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.84);
+            font-size: 18px;
+        }
+
+        .public-pill-light {
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .public-home-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .public-primary-action {
+            min-height: 52px;
+            border-color: #16a34a;
+            border-radius: 10px;
+            padding: 12px 24px;
+            background: #16a34a;
+            font-size: 18px;
+        }
+
+        .public-primary-action:hover {
+            border-color: #15803d;
+            background: #15803d;
+        }
+
+        .public-home-card,
+        .public-query-panel,
+        .public-secondary-card,
+        .public-turno-card {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .public-home-card {
+            padding: 24px;
+            color: var(--text);
+        }
+
+        .public-feature-list {
+            display: grid;
+            gap: 10px;
+            margin: 16px 0 0;
+            padding: 0;
+            list-style: none;
+            color: var(--muted);
+        }
+
+        .public-feature-list li {
+            border-left: 3px solid #14b8a6;
+            padding-left: 10px;
+        }
+
+        .public-home-secondary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .public-secondary-card {
+            display: grid;
+            gap: 4px;
+            padding: 18px;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .public-secondary-card span {
+            color: #0f766e;
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .public-secondary-card strong {
+            color: #344054;
+        }
+
+        .public-query-panel {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 22px;
+        }
+
+        .public-dni-form {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) auto;
+            gap: 14px;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+
+        .public-results {
+            display: grid;
+            gap: 14px;
+        }
+
+        .public-turno-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .public-turno-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(240px, 0.45fr);
+            gap: 18px;
+            align-items: start;
+            padding: 18px;
+        }
+
+        .public-turno-card h2 {
+            margin: 8px 0 4px;
+        }
+
+        .public-turno-card p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .public-turno-actions {
+            display: grid;
+            gap: 10px;
+        }
+
+        .public-turno-actions form {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+
         .danger-panel {
             border-color: #fecaca;
         }
@@ -2482,6 +2655,10 @@
             .public-profile,
             .public-slot-grid,
             .public-reservation-summary,
+            .public-home-hero,
+            .public-home-secondary,
+            .public-dni-form,
+            .public-turno-card,
             .schedule-row,
             .week-day {
                 grid-template-columns: 1fr;
@@ -2618,9 +2795,11 @@
     {% else %}
         <header class="topbar">
             <div class="topbar-inner">
-                <a class="brand" href="{% url 'inicio' %}">Gestor de Turnos</a>
+                <a class="brand" href="{% url 'landing_publica' %}">Gestor de Turnos</a>
                 <nav class="nav" aria-label="Principal">
                     <a class="nav-link" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
+                    <a class="nav-link" href="{% url 'turnos:consulta_publica' %}">Consultar mis turnos</a>
+                    <a class="nav-link" href="{% url 'turnos:consulta_publica' %}">Cancelar turno</a>
                     <a class="nav-link" href="{% url 'login' %}">Ingresar</a>
                 </nav>
             </div>

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Cambiar horario | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="patient-backline animate-fade-up">
+        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:consulta_publica' %}?dni={{ documento|urlencode }}">&larr; Volver a mis turnos</a>
+    </div>
+
+    <div class="page-header public-data-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Turno pendiente</p>
+            <h1>Cambiar horario</h1>
+            <p class="subtitle">Podés cambiar el horario mientras el turno siga pendiente de confirmación.</p>
+        </div>
+    </div>
+
+    <section class="public-reservation-summary public-reservation-summary-actionable animate-fade-up card-hover">
+        <div class="public-avatar public-avatar-small">
+            {% if turno.odontologo.foto_perfil_url %}
+                <img
+                    src="{{ turno.odontologo.foto_perfil_url }}"
+                    alt="{{ turno.odontologo }}"
+                    style="object-position: {{ turno.odontologo.foto_object_position }};"
+                >
+            {% else %}
+                <span>{{ turno.odontologo.nombre_completo|first }}</span>
+            {% endif %}
+        </div>
+        <div class="public-reservation-details">
+            <div>
+                <span class="public-pill">{{ turno.get_estado_display }}</span>
+                <h2>{{ turno.odontologo }}</h2>
+                <p>Turno actual: {{ turno.fecha|date:"d/m/Y" }} de {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</p>
+                <p>{{ turno.motivo|default:"Consulta odontológica" }}</p>
+            </div>
+        </div>
+    </section>
+
+    <form
+        class="form-panel public-data-form public-simple-form animate-fade-up"
+        method="post"
+        novalidate
+        data-horarios-form
+        data-horarios-url="{% url 'turnos:horarios_disponibles' %}"
+        data-odontologo-id="{{ turno.odontologo_id }}"
+        data-turno-id="{{ turno.pk }}"
+    >
+        {% csrf_token %}
+        {{ form.documento }}
+        <input type="hidden" name="duracion_minutos" value="{{ turno.duracion_minutos }}">
+
+        {% if form.non_field_errors %}
+            <div class="field-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-grid">
+            <div>
+                <label for="{{ form.fecha.id_for_label }}">{{ form.fecha.label }}</label>
+                {{ form.fecha }}
+                {% if form.fecha.errors %}
+                    <div class="field-error">{{ form.fecha.errors }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <label for="{{ form.hora_inicio.id_for_label }}">{{ form.hora_inicio.label }}</label>
+                {{ form.hora_inicio }}
+                {% if form.hora_inicio.help_text %}
+                    <p class="muted">{{ form.hora_inicio.help_text }}</p>
+                {% endif %}
+                {% if form.hora_inicio.errors %}
+                    <div class="field-error">{{ form.hora_inicio.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions public-form-actions">
+            <button type="submit">Guardar nuevo horario</button>
+            <a class="button button-secondary" href="{% url 'turnos:consulta_publica' %}?dni={{ documento|urlencode }}">Cancelar</a>
+        </div>
+    </form>
+
+    {% include "turnos/includes/horarios_disponibles_script.html" %}
+{% endblock %}

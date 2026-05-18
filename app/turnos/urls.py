@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     AgendaDiaView,
     AgendaSemanaView,
+    ConsultaTurnosPublicaView,
     GoogleCalendarCallbackView,
     GoogleCalendarConectarView,
     GoogleCalendarConexionView,
@@ -13,13 +14,16 @@ from .views import (
     SolicitudTurnoPublicaOkView,
     SolicitudTurnoPublicaView,
     TurnoCancelView,
+    TurnoCancelPublicView,
     TurnoConfirmView,
     TurnoCreateView,
     TurnoDetailView,
     TurnoListView,
+    TurnoReprogramPublicView,
     TurnoReprogramView,
     TurnoReintentarSincronizacionGoogleCalendarView,
     TurnoUpdateView,
+    TurnosPorDniPublicoJsonView,
 )
 
 app_name = "turnos"
@@ -47,6 +51,18 @@ urlpatterns = [
         "solicitar/gracias/",
         SolicitudTurnoPublicaOkView.as_view(),
         name="solicitud_publica_ok",
+    ),
+    path("cancelar/", ConsultaTurnosPublicaView.as_view(), name="consulta_publica"),
+    path("api/por-dni/", TurnosPorDniPublicoJsonView.as_view(), name="turnos_por_dni"),
+    path(
+        "<int:pk>/cancelar-publico/",
+        TurnoCancelPublicView.as_view(),
+        name="cancelar_publico",
+    ),
+    path(
+        "<int:pk>/reprogramar-publico/",
+        TurnoReprogramPublicView.as_view(),
+        name="reprogramar_publico",
     ),
     path("agenda/dia/", AgendaDiaView.as_view(), name="agenda_dia"),
     path("agenda/semana/", AgendaSemanaView.as_view(), name="agenda_semana"),

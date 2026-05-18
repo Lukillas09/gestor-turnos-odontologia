@@ -207,6 +207,7 @@ class Turno(models.Model):
         default=Estado.PENDIENTE,
     )
     notas = models.TextField(blank=True)
+    motivo_cancelacion_paciente = models.TextField(blank=True)
     google_calendar_event_id = models.CharField(max_length=255, blank=True)
     recordatorio_email_enviado_en = models.DateTimeField(null=True, blank=True)
     recordatorio_email_ultimo_error = models.TextField(blank=True)

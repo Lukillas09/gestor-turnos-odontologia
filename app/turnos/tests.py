@@ -1009,6 +1009,15 @@ class SolicitudTurnoPublicaTests(TestCase):
         crear_disponibilidad_laboral(self.odontologo)
         self.fecha_turno = obtener_fecha_laboral_futura()
 
+    def test_landing_publica_carga_sin_login(self):
+        response = self.client.get(reverse("landing_publica"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Reservá tu turno odontológico")
+        self.assertContains(response, reverse("turnos:solicitud_publica"))
+        self.assertContains(response, reverse("turnos:consulta_publica"))
+        self.assertContains(response, reverse("login"))
+
     def _datos_solicitud_publica(self, **overrides):
         datos = {
             "nombre": "Lucia",
@@ -1378,6 +1387,242 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "Elegí un odontólogo.")
         self.assertContains(response, "Elegí una fecha.")
         self.assertContains(response, "Elegí un horario disponible.")
+
+    def test_consulta_publica_por_dni_no_requiere_login(self):
+        response = self.client.get(reverse("turnos:consulta_publica"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Consultar o cancelar turno")
+        self.assertContains(response, "Ingresá tu DNI")
+
+    def test_api_por_dni_devuelve_solo_turnos_pendientes_y_confirmados(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="38111222",
+            telefono="1155667788",
+        )
+        turno_pendiente = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Pendiente visible",
+        )
+        turno_confirmado = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Confirmado visible",
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(11, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CANCELADO,
+            motivo="Cancelado oculto",
+        )
+
+        response = self.client.get(
+            reverse("turnos:turnos_por_dni"),
+            {"dni": paciente.documento},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        motivos = [turno["motivo"] for turno in data["turnos"]]
+
+        self.assertTrue(data["ok"])
+        self.assertEqual(len(data["turnos"]), 2)
+        self.assertIn("Pendiente visible", motivos)
+        self.assertIn("Confirmado visible", motivos)
+        self.assertNotIn("Cancelado oculto", motivos)
+        self.assertTrue(
+            any(
+                turno["puede_reprogramar"]
+                and turno["reprogramar_url"]
+                and str(turno_pendiente.pk) in turno["reprogramar_url"]
+                for turno in data["turnos"]
+            )
+        )
+        self.assertFalse(
+            next(
+                turno
+                for turno in data["turnos"]
+                if str(turno_confirmado.pk) in turno["cancelar_url"]
+            )["puede_reprogramar"]
+        )
+
+    def test_cancelacion_publica_cambia_estado_y_guarda_motivo(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="38111222",
+            email="lucia@example.com",
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control",
+        )
+
+        response = self.client.post(
+            reverse("turnos:cancelar_publico", kwargs={"pk": turno.pk}),
+            {
+                "documento": paciente.documento,
+                "motivo_cancelacion": "No puedo asistir.",
+            },
+        )
+
+        turno.refresh_from_db()
+
+        self.assertRedirects(
+            response,
+            f"{reverse('turnos:consulta_publica')}?documento={paciente.documento}",
+        )
+        self.assertEqual(turno.estado, Turno.Estado.CANCELADO)
+        self.assertEqual(turno.motivo_cancelacion_paciente, "No puedo asistir.")
+        self.assertTrue(Turno.objects.filter(pk=turno.pk).exists())
+
+    def test_cancelacion_publica_rechaza_dni_incorrecto(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="38111222",
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        response = self.client.post(
+            reverse("turnos:cancelar_publico", kwargs={"pk": turno.pk}),
+            {
+                "documento": "99999999",
+                "motivo_cancelacion": "Intento inválido",
+            },
+        )
+
+        turno.refresh_from_db()
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
+        self.assertEqual(turno.motivo_cancelacion_paciente, "")
+
+    def test_reprogramacion_publica_solo_permite_turnos_pendientes(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="38111222",
+        )
+        turno_confirmado = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.get(
+            reverse("turnos:reprogramar_publico", kwargs={"pk": turno_confirmado.pk}),
+            {"dni": paciente.documento},
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_reprogramacion_publica_actualiza_turno_pendiente(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="38111222",
+            email="lucia@example.com",
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+        response = self.client.post(
+            reverse("turnos:reprogramar_publico", kwargs={"pk": turno.pk}),
+            {
+                "documento": paciente.documento,
+                "fecha": self.fecha_turno.isoformat(),
+                "hora_inicio": "12:00",
+                "duracion_minutos": "30",
+            },
+        )
+
+        turno.refresh_from_db()
+
+        self.assertRedirects(
+            response,
+            f"{reverse('turnos:consulta_publica')}?documento={paciente.documento}",
+        )
+        self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
+        self.assertEqual(turno.hora_inicio, time(12, 0))
+
+    def test_reprogramacion_publica_valida_disponibilidad(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="38111222",
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+        Turno.objects.create(
+            paciente=Paciente.objects.create(
+                nombre="Mario",
+                apellido="Ocupado",
+                documento="40000111",
+            ),
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+        response = self.client.post(
+            reverse("turnos:reprogramar_publico", kwargs={"pk": turno.pk}),
+            {
+                "documento": paciente.documento,
+                "fecha": self.fecha_turno.isoformat(),
+                "hora_inicio": "10:00",
+                "duracion_minutos": "30",
+            },
+        )
+
+        turno.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("hora_inicio", response.context["form"].errors)
+        self.assertEqual(turno.hora_inicio, time(9, 0))
 
 
 @override_settings(

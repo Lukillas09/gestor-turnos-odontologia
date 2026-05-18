@@ -148,12 +148,19 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
     )
 
 
-def cancelar_turno(turno):
+def cancelar_turno(turno, motivo_cancelacion_paciente=""):
     if turno.estado == Turno.Estado.CANCELADO:
         return turno
 
     turno.estado = Turno.Estado.CANCELADO
-    turno.save(update_fields=["estado", "actualizado_en"])
+
+    update_fields = ["estado", "actualizado_en"]
+
+    if motivo_cancelacion_paciente is not None:
+        turno.motivo_cancelacion_paciente = motivo_cancelacion_paciente.strip()
+        update_fields.append("motivo_cancelacion_paciente")
+
+    turno.save(update_fields=update_fields)
     sincronizar_turno_cancelado(turno)
     notificar_turno_cancelado(turno)
     return turno

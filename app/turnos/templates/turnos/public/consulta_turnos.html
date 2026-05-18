@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Consultar o cancelar turno | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header public-data-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Pacientes</p>
+            <h1>Consultar o cancelar turno</h1>
+            <p class="subtitle">Ingresá tu DNI para ver tus turnos pendientes o confirmados. No se muestra información clínica.</p>
+        </div>
+    </div>
+
+    <section
+        class="public-query-panel animate-fade-up"
+        data-public-turnos
+        data-api-url="{% url 'turnos:turnos_por_dni' %}"
+    >
+        <form class="public-dni-form" method="get" novalidate data-public-dni-form>
+            {% csrf_token %}
+            <div>
+                <label for="{{ form.documento.id_for_label }}">DNI</label>
+                {{ form.documento }}
+                {% if form.documento.errors %}
+                    <div class="field-error">{{ form.documento.errors }}</div>
+                {% endif %}
+            </div>
+            <button type="submit">Consultar turnos</button>
+        </form>
+
+        <div class="public-results" data-public-turnos-results aria-live="polite">
+            {% if documento %}
+                {% if turnos %}
+                    <div class="public-turno-list stagger-list">
+                        {% for turno in turnos %}
+                            <article class="public-turno-card animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
+                                <div>
+                                    <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+                                    <h2>{{ turno.fecha|date:"d/m/Y" }} · {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</h2>
+                                    <p>{{ turno.odontologo }} · {{ turno.motivo|default:"Consulta odontológica" }}</p>
+                                </div>
+                                <div class="public-turno-actions">
+                                    {% if turno.estado == turno.Estado.PENDIENTE %}
+                                        <a class="button button-soft-primary" href="{% url 'turnos:reprogramar_publico' turno.pk %}?dni={{ documento|urlencode }}">Cambiar horario</a>
+                                    {% endif %}
+                                    <form method="post" action="{% url 'turnos:cancelar_publico' turno.pk %}" data-public-cancel-form>
+                                        {% csrf_token %}
+                                        <input type="hidden" name="documento" value="{{ documento }}">
+                                        <label class="sr-only" for="motivo-cancelacion-{{ turno.pk }}">Motivo de cancelación</label>
+                                        <textarea id="motivo-cancelacion-{{ turno.pk }}" name="motivo_cancelacion" rows="2" placeholder="Motivo opcional"></textarea>
+                                        <button class="button-danger" type="submit">Cancelar</button>
+                                    </form>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <p>No encontramos turnos pendientes o confirmados para ese DNI.</p>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <p>Ingresá tu DNI para consultar tus turnos activos.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <script>
+        (function () {
+            const panel = document.querySelector("[data-public-turnos]");
+
+            if (!panel) {
+                return;
+            }
+
+            const form = panel.querySelector("[data-public-dni-form]");
+            const results = panel.querySelector("[data-public-turnos-results]");
+            const apiUrl = panel.dataset.apiUrl;
+            const csrfToken = panel.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+
+            if (!form || !results || !apiUrl) {
+                return;
+            }
+
+            function escapeHtml(value) {
+                return String(value || "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            function renderMessage(message) {
+                results.innerHTML = `<div class="empty-state animate-fade-up"><p>${escapeHtml(message)}</p></div>`;
+            }
+
+            function renderTurnos(data, documento) {
+                if (!data.ok || data.turnos.length === 0) {
+                    renderMessage(data.mensaje || "No encontramos turnos activos para ese DNI.");
+                    return;
+                }
+
+                results.innerHTML = `
+                    <div class="public-turno-list stagger-list">
+                        ${data.turnos.map((turno, index) => `
+                            <article class="public-turno-card animate-fade-up card-hover" style="--stagger-index: ${index};">
+                                <div>
+                                    <span class="status-badge status-${escapeHtml(turno.estado)}">${escapeHtml(turno.estado_display)}</span>
+                                    <h2>${escapeHtml(turno.fecha)} · ${escapeHtml(turno.hora)}</h2>
+                                    <p>${escapeHtml(turno.odontologo)} · ${escapeHtml(turno.motivo)}</p>
+                                </div>
+                                <div class="public-turno-actions">
+                                    ${turno.puede_reprogramar ? `<a class="button button-soft-primary" href="${escapeHtml(turno.reprogramar_url)}">Cambiar horario</a>` : ""}
+                                    <form method="post" action="${escapeHtml(turno.cancelar_url)}" data-public-cancel-form>
+                                        <input type="hidden" name="csrfmiddlewaretoken" value="${escapeHtml(csrfToken)}">
+                                        <input type="hidden" name="documento" value="${escapeHtml(documento)}">
+                                        <label class="sr-only">Motivo de cancelación</label>
+                                        <textarea name="motivo_cancelacion" rows="2" placeholder="Motivo opcional"></textarea>
+                                        <button class="button-danger" type="submit">Cancelar</button>
+                                    </form>
+                                </div>
+                            </article>
+                        `).join("")}
+                    </div>
+                `;
+            }
+
+            form.addEventListener("submit", async function (event) {
+                event.preventDefault();
+                const documento = form.elements.namedItem("documento").value.trim();
+
+                if (!documento) {
+                    renderMessage("Ingresá tu DNI para consultar tus turnos.");
+                    return;
+                }
+
+                renderMessage("Buscando turnos...");
+
+                try {
+                    const response = await fetch(`${apiUrl}?${new URLSearchParams({dni: documento})}`, {
+                        headers: {"Accept": "application/json"},
+                    });
+                    const data = await response.json();
+                    renderTurnos(data, documento);
+                } catch (error) {
+                    renderMessage("No se pudieron consultar los turnos. Intentá nuevamente.");
+                }
+            });
+
+            results.addEventListener("submit", function (event) {
+                const cancelForm = event.target.closest("[data-public-cancel-form]");
+
+                if (!cancelForm) {
+                    return;
+                }
+
+                if (!window.confirm("¿Querés cancelar este turno?")) {
+                    event.preventDefault();
+                }
+            });
+        }());
+    </script>
+{% endblock %}

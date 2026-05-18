@@ -134,7 +134,7 @@ class PerfilUsuarioTests(TestCase):
         asignar_rol(usuario, ROL_RECEPCIONISTA)
         self.client.force_login(usuario)
 
-        response = self.client.get("/")
+        response = self.client.get(reverse("inicio"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("perfil"))
@@ -194,16 +194,16 @@ class PerfilUsuarioTests(TestCase):
 
 class InicioDashboardTests(TestCase):
     def test_inicio_requiere_login(self):
-        response = self.client.get("/")
+        response = self.client.get(reverse("inicio"))
 
-        self.assertRedirects(response, f"{reverse('login')}?next=%2F")
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('inicio')}")
 
     def test_recepcionista_ve_dashboard_interno(self):
         usuario = get_user_model().objects.create_user(username="recepcion.dashboard")
         asignar_rol(usuario, ROL_RECEPCIONISTA)
         self.client.force_login(usuario)
 
-        response = self.client.get("/")
+        response = self.client.get(reverse("inicio"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Resumen de la agenda")
@@ -254,7 +254,7 @@ class InicioDashboardTests(TestCase):
         )
         self.client.force_login(usuario)
 
-        response = self.client.get("/")
+        response = self.client.get(reverse("inicio"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Resumen de la agenda")
@@ -339,7 +339,7 @@ class InicioDashboardTests(TestCase):
         )
         self.client.force_login(usuario_odontologo)
 
-        response = self.client.get("/")
+        response = self.client.get(reverse("inicio"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Tu agenda de hoy")

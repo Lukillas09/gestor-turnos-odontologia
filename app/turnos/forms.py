@@ -338,6 +338,100 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         return fecha
 
 
+class ConsultaTurnosPublicaForm(forms.Form):
+    documento = forms.CharField(
+        max_length=20,
+        label="DNI",
+        error_messages={"required": "Ingresá tu DNI para consultar tus turnos."},
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "off",
+                "placeholder": "Ej: 38111222",
+            }
+        ),
+    )
+
+    def clean_documento(self):
+        return self.cleaned_data["documento"].strip()
+
+
+class CancelacionTurnoPublicaForm(forms.Form):
+    documento = forms.CharField(widget=forms.HiddenInput())
+    motivo_cancelacion = forms.CharField(
+        required=False,
+        max_length=500,
+        label="Motivo de cancelación",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "placeholder": "Opcional. Ej: no puedo asistir ese día.",
+            }
+        ),
+    )
+
+    def clean_documento(self):
+        return self.cleaned_data["documento"].strip()
+
+
+class TurnoReprogramacionPublicaForm(HorariosDisponiblesFormMixin, forms.ModelForm):
+    documento = forms.CharField(widget=forms.HiddenInput())
+    hora_inicio = HorarioDisponibleChoiceField(
+        choices=(),
+        coerce=convertir_a_hora,
+        empty_value=None,
+        label="Nuevo horario",
+    )
+
+    class Meta:
+        model = Turno
+        fields = ("fecha", "hora_inicio")
+        labels = {
+            "fecha": "Nueva fecha",
+        }
+        widgets = {
+            "fecha": HtmlDateInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        documento = kwargs.pop("documento", "")
+        super().__init__(*args, **kwargs)
+        self.fields["documento"].initial = documento
+        self.initial.setdefault("fecha", self.instance.fecha)
+        self.initial.setdefault("hora_inicio", self._formatear_horario(self.instance.hora_inicio))
+        self._configurar_horarios_disponibles()
+
+    def _obtener_odontologo_seleccionado(self):
+        if self.instance and self.instance.odontologo_id and self.instance.odontologo.activo:
+            return self.instance.odontologo
+
+        return None
+
+    def _obtener_duracion_minutos(self, odontologo):
+        return self.instance.duracion_minutos or DURACION_SOLICITUD_PUBLICA_MINUTOS
+
+    def _obtener_turno_excluido(self):
+        return self.instance
+
+    def clean_documento(self):
+        return self.cleaned_data["documento"].strip()
+
+    def clean_fecha(self):
+        fecha = self.cleaned_data["fecha"]
+
+        if fecha < timezone.localdate():
+            raise forms.ValidationError("La fecha no puede ser anterior a hoy.")
+
+        return fecha
+
+    def save(self, commit=True):
+        turno = super().save(commit=False)
+
+        if commit:
+            turno.save(update_fields=["fecha", "hora_inicio", "actualizado_en"])
+
+        return turno
+
+
 class ConfirmacionTurnoForm(forms.Form):
     duracion_rapida = forms.TypedChoiceField(
         choices=DURACIONES_CONFIRMACION_TURNO,

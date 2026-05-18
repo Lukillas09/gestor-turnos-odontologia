@@ -20,10 +20,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path
 
+from turnos.views import LandingPublicaPacientesView
 from usuarios.views import InicioView, LoginInternoView, PerfilUsuarioView
 
 urlpatterns = [
-    path('', InicioView.as_view(), name='inicio'),
+    path('', LandingPublicaPacientesView.as_view(), name='landing_publica'),
+    path('inicio/', InicioView.as_view(), name='inicio'),
     path('cuentas/login/', LoginInternoView.as_view(), name='login'),
     path('cuentas/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('perfil/', PerfilUsuarioView.as_view(), name='perfil'),

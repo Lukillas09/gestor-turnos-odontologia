@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Turnos online | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <section class="public-home-hero animate-fade-up">
+        <div class="public-home-copy">
+            <span class="public-pill public-pill-light">Autogestión para pacientes</span>
+            <h1>Reservá tu turno odontológico de forma simple</h1>
+            <p>Elegí un odontólogo, seleccioná un horario disponible y enviá tu solicitud. El consultorio te avisará cuando el turno quede confirmado.</p>
+            <div class="public-home-actions">
+                <a class="button public-primary-action" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
+                <a class="button button-secondary" href="{% url 'turnos:consulta_publica' %}">Consultar mis turnos</a>
+            </div>
+        </div>
+        <div class="public-home-card card-hover">
+            <h2>Gestión rápida</h2>
+            <ul class="public-feature-list">
+                <li>Solicitá turnos sin crear una cuenta.</li>
+                <li>Consultá tus turnos activos con tu DNI.</li>
+                <li>Cancelá turnos pendientes o confirmados.</li>
+                <li>Cambiá el horario si el turno sigue pendiente.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="public-home-secondary animate-fade-up">
+        <a class="public-secondary-card card-hover" href="{% url 'turnos:consulta_publica' %}">
+            <span>Cancelar turno</span>
+            <strong>Ingresá con tu DNI y elegí el turno que querés cancelar.</strong>
+        </a>
+        <a class="public-secondary-card card-hover" href="{% url 'login' %}">
+            <span>Personal del consultorio</span>
+            <strong>Acceso interno para odontólogos, recepción y administración.</strong>
+        </a>
+    </section>
+{% endblock %}

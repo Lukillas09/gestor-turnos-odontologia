@@ -36,7 +36,9 @@ from usuarios.roles import (
 
 from .forms import (
     AgendaFiltroForm,
+    CancelacionTurnoPublicaForm,
     ConfirmacionTurnoForm,
+    ConsultaTurnosPublicaForm,
     DURACION_SOLICITUD_PUBLICA_MINUTOS,
     SolicitudTurnoBusquedaPublicaForm,
     SolicitudTurnoPublicaForm,
@@ -45,6 +47,7 @@ from .forms import (
     TurnoForm,
     TurnoHorarioBusquedaForm,
     TurnoReprogramacionForm,
+    TurnoReprogramacionPublicaForm,
 )
 from .google_calendar_oauth import (
     desconectar_google_calendar_de_odontologo,
@@ -83,6 +86,182 @@ from .services import (
 
 
 GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY = "google_calendar_oauth_state"
+
+
+class LandingPublicaPacientesView(TemplateView):
+    template_name = "turnos/public/landing.html"
+
+
+class ConsultaTurnosPublicaView(TemplateView):
+    template_name = "turnos/public/consulta_turnos.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = ConsultaTurnosPublicaForm(self._normalizar_data(self.request.GET) or None)
+        turnos = []
+
+        if form.is_valid():
+            turnos = self._obtener_turnos_por_documento(form.cleaned_data["documento"])
+
+        context["form"] = form
+        context["turnos"] = turnos
+        context["documento"] = form.cleaned_data.get("documento", "") if form.is_valid() else ""
+        return context
+
+    @staticmethod
+    def _normalizar_data(data):
+        if not data:
+            return None
+
+        data = data.copy()
+
+        if not data.get("documento") and data.get("dni"):
+            data["documento"] = data["dni"]
+
+        return data
+
+    @staticmethod
+    def _obtener_turnos_por_documento(documento):
+        return Turno.objects.select_related(
+            "paciente",
+            "odontologo",
+            "odontologo__usuario",
+        ).filter(
+            paciente__documento=documento,
+            estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
+        ).order_by("fecha", "hora_inicio")
+
+
+class TurnosPorDniPublicoJsonView(View):
+    def get(self, request):
+        form = ConsultaTurnosPublicaForm(ConsultaTurnosPublicaView._normalizar_data(request.GET))
+
+        if not form.is_valid():
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "mensaje": "Ingresá un DNI válido para consultar tus turnos.",
+                    "turnos": [],
+                }
+            )
+
+        documento = form.cleaned_data["documento"]
+        turnos = ConsultaTurnosPublicaView._obtener_turnos_por_documento(documento)
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "mensaje": (
+                    "Turnos encontrados."
+                    if turnos
+                    else "No encontramos turnos pendientes o confirmados para ese DNI."
+                ),
+                "turnos": [self._serializar_turno(turno, documento) for turno in turnos],
+            }
+        )
+
+    @staticmethod
+    def _serializar_turno(turno, documento):
+        return {
+            "paciente": turno.paciente.nombre_completo,
+            "fecha": date_format(turno.fecha, "d/m/Y"),
+            "hora": f"{turno.hora_inicio:%H:%M} a {turno.hora_fin:%H:%M}",
+            "odontologo": turno.odontologo.nombre_completo,
+            "estado": turno.estado,
+            "estado_display": turno.get_estado_display(),
+            "motivo": turno.motivo or "Consulta odontológica",
+            "cancelar_url": reverse("turnos:cancelar_publico", kwargs={"pk": turno.pk}),
+            "reprogramar_url": (
+                f"{reverse('turnos:reprogramar_publico', kwargs={'pk': turno.pk})}"
+                f"?{urlencode({'dni': documento})}"
+                if turno.estado == Turno.Estado.PENDIENTE
+                else ""
+            ),
+            "puede_reprogramar": turno.estado == Turno.Estado.PENDIENTE,
+        }
+
+
+class TurnoCancelPublicView(View):
+    def post(self, request, pk):
+        turno = get_object_or_404(
+            Turno.objects.select_related("paciente", "odontologo", "odontologo__usuario"),
+            pk=pk,
+            estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
+        )
+        form = CancelacionTurnoPublicaForm(request.POST)
+
+        if not form.is_valid():
+            messages.error(request, "No pudimos validar la cancelación. Volvé a intentar.")
+            return redirect("turnos:consulta_publica")
+
+        self._validar_documento(turno, form.cleaned_data["documento"])
+        cancelar_turno(
+            turno,
+            motivo_cancelacion_paciente=form.cleaned_data["motivo_cancelacion"],
+        )
+        messages.success(request, "Tu turno fue cancelado correctamente.")
+        return redirect(f"{reverse('turnos:consulta_publica')}?{urlencode({'documento': turno.paciente.documento})}")
+
+    @staticmethod
+    def _validar_documento(turno, documento):
+        if turno.paciente.documento != documento:
+            raise PermissionDenied("No se puede operar sobre un turno de otro paciente.")
+
+
+class TurnoReprogramPublicView(FormView):
+    form_class = TurnoReprogramacionPublicaForm
+    template_name = "turnos/public/reprogramar_turno.html"
+    turno = None
+    documento = ""
+
+    def dispatch(self, request, *args, **kwargs):
+        self.turno = get_object_or_404(
+            Turno.objects.select_related("paciente", "odontologo", "odontologo__usuario"),
+            pk=kwargs["pk"],
+        )
+        self.documento = (request.POST.get("documento") or request.GET.get("dni") or "").strip()
+
+        if not self.documento:
+            messages.error(request, "Ingresá tu DNI para reprogramar el turno.")
+            return redirect("turnos:consulta_publica")
+
+        if self.turno.paciente.documento != self.documento:
+            raise PermissionDenied("No se puede operar sobre un turno de otro paciente.")
+
+        if self.turno.estado != Turno.Estado.PENDIENTE:
+            raise PermissionDenied("Solo se pueden reprogramar turnos pendientes desde la web pública.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["instance"] = self.turno
+        kwargs["documento"] = self.documento
+        return kwargs
+
+    def get_success_url(self):
+        return f"{reverse('turnos:consulta_publica')}?{urlencode({'documento': self.documento})}"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["turno"] = self.turno
+        context["documento"] = self.documento
+        return context
+
+    def form_valid(self, form):
+        if form.cleaned_data["documento"] != self.documento:
+            raise PermissionDenied("No se puede operar sobre un turno de otro paciente.")
+
+        self.turno = reprogramar_turno(
+            self.turno,
+            {
+                "fecha": form.cleaned_data["fecha"],
+                "hora_inicio": form.cleaned_data["hora_inicio"],
+                "duracion_minutos": self.turno.duracion_minutos,
+            },
+        )
+        messages.success(self.request, "Tu turno fue reprogramado correctamente.")
+        return redirect(self.get_success_url())
 
 
 class HorariosDisponiblesJsonView(View):
