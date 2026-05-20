@@ -4,10 +4,29 @@ from turnos.models import Odontologo, validar_foto_odontologo
 
 
 class PerfilUsuarioForm(forms.Form):
-    first_name = forms.CharField(max_length=150, required=False, label="Nombre")
-    last_name = forms.CharField(max_length=150, required=False, label="Apellido")
-    email = forms.EmailField(required=False, label="Email")
-    celular = forms.CharField(max_length=30, required=False, label="Celular profesional")
+    first_name = forms.CharField(
+        max_length=150,
+        required=False,
+        label="Nombre",
+        widget=forms.TextInput(attrs={"autocomplete": "given-name"}),
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        required=False,
+        label="Apellido",
+        widget=forms.TextInput(attrs={"autocomplete": "family-name"}),
+    )
+    email = forms.EmailField(
+        required=False,
+        label="Email",
+        widget=forms.EmailInput(attrs={"autocomplete": "email", "inputmode": "email"}),
+    )
+    celular = forms.CharField(
+        max_length=30,
+        required=False,
+        label="Celular profesional",
+        widget=forms.TextInput(attrs={"autocomplete": "tel", "inputmode": "tel"}),
+    )
     especialidad = forms.CharField(max_length=100, required=False)
     matricula = forms.CharField(max_length=50, required=False)
     duracion_turno_minutos = forms.IntegerField(

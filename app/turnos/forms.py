@@ -74,7 +74,7 @@ class TurnoForm(forms.ModelForm):
         }
         widgets = {
             "fecha": HtmlDateInput(),
-            "hora_inicio": forms.TimeInput(attrs={"type": "time"}),
+            "hora_inicio": forms.TimeInput(attrs={"type": "time", "inputmode": "numeric"}),
             "motivo": forms.TextInput(attrs={"placeholder": "Ej: control, limpieza, urgencia"}),
             "notas": forms.Textarea(attrs={"rows": 4}),
         }
@@ -263,30 +263,58 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         max_length=100,
         label="Nombre",
         error_messages={"required": "Ingresá tu nombre."},
-        widget=forms.TextInput(attrs={"placeholder": "Ej: Lucía"}),
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "given-name",
+                "placeholder": "Ej: Lucía",
+            }
+        ),
     )
     apellido = forms.CharField(
         max_length=100,
         label="Apellido",
         error_messages={"required": "Ingresá tu apellido."},
-        widget=forms.TextInput(attrs={"placeholder": "Ej: Pérez"}),
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "family-name",
+                "placeholder": "Ej: Pérez",
+            }
+        ),
     )
     telefono = forms.CharField(
         max_length=30,
         label="Teléfono",
         error_messages={"required": "Ingresá tu teléfono."},
-        widget=forms.TextInput(attrs={"placeholder": "Ej: 260 433 1114"}),
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "tel",
+                "inputmode": "tel",
+                "placeholder": "Ej: 260 433 1114",
+            }
+        ),
     )
     documento = forms.CharField(
         max_length=20,
         required=False,
         label="DNI",
-        widget=forms.TextInput(attrs={"placeholder": "Opcional"}),
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "off",
+                "inputmode": "numeric",
+                "placeholder": "Opcional",
+            }
+        ),
     )
     email = forms.EmailField(
         required=False,
         label="Email",
-        widget=forms.EmailInput(attrs={"placeholder": "Opcional"}),
+        widget=forms.EmailInput(
+            attrs={
+                "autocomplete": "email",
+                "inputmode": "email",
+                "placeholder": "Opcional",
+            }
+        ),
         error_messages={"invalid": "Ingresá un email válido o dejá el campo vacío."},
     )
     odontologo = forms.ModelChoiceField(
@@ -346,6 +374,7 @@ class ConsultaTurnosPublicaForm(forms.Form):
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "off",
+                "inputmode": "numeric",
                 "placeholder": "Ej: 38111222",
             }
         ),
@@ -445,7 +474,14 @@ class ConfirmacionTurnoForm(forms.Form):
         min_value=5,
         max_value=360,
         label="Duración personalizada",
-        widget=forms.NumberInput(attrs={"placeholder": "Ej: 75", "min": 5, "max": 360}),
+        widget=forms.NumberInput(
+            attrs={
+                "inputmode": "numeric",
+                "max": 360,
+                "min": 5,
+                "placeholder": "Ej: 75",
+            }
+        ),
         error_messages={
             "invalid": "Ingresá una duración válida en minutos.",
             "min_value": "La duración debe ser de al menos 5 minutos.",
@@ -508,6 +544,7 @@ class AgendaFiltroForm(forms.Form):
         label="Buscar",
         widget=forms.TextInput(
             attrs={
+                "autocomplete": "off",
                 "placeholder": "Paciente, teléfono, email o motivo",
             }
         ),

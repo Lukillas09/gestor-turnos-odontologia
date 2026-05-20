@@ -31,16 +31,44 @@
             box-sizing: border-box;
         }
 
+        html {
+            -webkit-text-size-adjust: 100%;
+            scroll-padding-top: var(--topbar-height);
+        }
+
         body {
             margin: 0;
+            overflow-x: hidden;
             background: var(--bg);
             color: var(--text);
             font-family: Arial, Helvetica, sans-serif;
             line-height: 1.5;
         }
 
+        img,
+        svg {
+            max-width: 100%;
+        }
+
         a {
             color: inherit;
+        }
+
+        a,
+        button,
+        input,
+        select,
+        textarea {
+            -webkit-tap-highlight-color: rgba(15, 118, 110, 0.14);
+        }
+
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.28);
+            outline-offset: 2px;
         }
 
         .topbar {
@@ -439,7 +467,7 @@
 
         .button,
         button {
-            min-height: 40px;
+            min-height: 44px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -566,13 +594,14 @@
         select,
         textarea {
             width: 100%;
-            min-height: 40px;
+            min-height: 44px;
             border: 1px solid var(--line);
             border-radius: 6px;
             padding: 8px 10px;
             background: var(--surface);
             color: var(--text);
             font: inherit;
+            font-size: 16px;
         }
 
         textarea {
@@ -602,6 +631,7 @@
 
         .table-wrap {
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         table {
@@ -2557,7 +2587,7 @@
             }
         }
 
-        @media (max-width: 720px) {
+        @media (max-width: 860px) {
             .topbar-inner,
             .page,
             .app-page {
@@ -2599,6 +2629,8 @@
             .app-sidebar-nav {
                 display: flex;
                 overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x proximity;
                 gap: 6px;
                 padding: 10px;
             }
@@ -2608,6 +2640,8 @@
             }
 
             .app-sidebar-link {
+                min-height: 44px;
+                scroll-snap-align: start;
                 white-space: nowrap;
             }
 
@@ -2625,6 +2659,35 @@
             .form-actions {
                 align-items: stretch;
                 flex-direction: column;
+            }
+
+            .topbar-inner {
+                gap: 12px;
+                padding: 10px 0;
+            }
+
+            .topbar .brand {
+                width: 100%;
+                text-align: center;
+            }
+
+            .topbar .nav {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: 100%;
+                gap: 8px;
+            }
+
+            .topbar .nav-link {
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 8px 10px;
+                background: #f8fafc;
+                text-align: center;
             }
 
             .filter-panel,
@@ -2679,6 +2742,57 @@
                 flex-direction: column;
             }
 
+            .header-actions .button,
+            .header-actions button,
+            .form-actions .button,
+            .form-actions button,
+            .filter-actions .button,
+            .filter-actions button,
+            .patient-search-actions .button,
+            .patient-search-actions button,
+            .patient-card-actions .button,
+            .patient-card-actions button,
+            .turnos-filter-actions .button,
+            .turnos-filter-actions button,
+            .turno-detail-actions .button,
+            .turno-detail-actions button,
+            .agenda-turno-actions .button,
+            .agenda-turno-actions button,
+            .public-home-actions .button,
+            .public-turno-actions .button,
+            .public-turno-actions button,
+            .public-form-actions .button,
+            .public-form-actions button {
+                width: 100%;
+            }
+
+            .button-small {
+                min-height: 44px;
+            }
+
+            .form-panel,
+            .detail-panel,
+            .filter-panel,
+            .empty-state,
+            .panel-section,
+            .public-query-panel,
+            .public-search-panel,
+            .public-home-card,
+            .public-turno-card {
+                border-radius: 10px;
+                padding: 18px;
+            }
+
+            input,
+            select,
+            textarea {
+                min-height: 46px;
+            }
+
+            textarea {
+                min-height: 92px;
+            }
+
             .turno-card-status {
                 justify-items: stretch;
             }
@@ -2694,6 +2808,71 @@
             .public-appointment-hero {
                 margin-top: -32px;
                 padding-top: 28px;
+                padding-bottom: 28px;
+            }
+
+            .public-profile {
+                justify-items: center;
+                text-align: center;
+            }
+
+            .public-avatar {
+                width: 96px;
+                height: 96px;
+                font-size: 36px;
+            }
+
+            .public-avatar-small {
+                width: 76px;
+                height: 76px;
+                font-size: 28px;
+            }
+
+            .public-home-hero {
+                padding: 28px 20px;
+            }
+
+            .public-home-copy h1 {
+                font-size: clamp(28px, 9vw, 38px);
+            }
+
+            .public-home-copy p {
+                font-size: 16px;
+            }
+
+            .public-home-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .public-primary-action {
+                min-height: 54px;
+            }
+
+            .public-date-strip {
+                margin-right: -10px;
+                margin-left: -10px;
+                padding-right: 10px;
+                padding-left: 10px;
+            }
+
+            .public-date-chip {
+                min-width: 116px;
+            }
+
+            .public-slot-card-header,
+            .public-slot-button {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .public-slot-button {
+                min-height: 74px;
+            }
+
+            .public-reservation-summary {
+                justify-items: center;
+                text-align: center;
             }
 
             .nav {
@@ -2710,6 +2889,68 @@
             th,
             td {
                 padding: 10px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .topbar .nav {
+                grid-template-columns: 1fr;
+            }
+
+            .page,
+            .app-page {
+                width: min(100% - 16px, 1120px);
+            }
+
+            .page {
+                padding: 20px 0;
+            }
+
+            .app-page {
+                padding: 20px 0;
+            }
+
+            h1 {
+                font-size: 25px;
+            }
+
+            .clinical-profile-main h1,
+            .turno-detail-hero h1 {
+                font-size: 24px;
+            }
+
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .clinical-profile-card,
+            .turno-detail-hero,
+            .patient-list-card,
+            .turno-list-card,
+            .public-home-hero {
+                padding: 16px;
+            }
+
+            .patient-card-identity {
+                align-items: flex-start;
+            }
+
+            .patient-card-actions,
+            .turno-card-status {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .public-section-title {
+                padding: 18px;
+            }
+
+            .public-home-card {
+                padding: 18px;
+            }
+
+            .public-turno-card h2 {
+                font-size: 19px;
             }
         }
     </style>

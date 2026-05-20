@@ -32,8 +32,21 @@ class PacienteForm(forms.ModelForm):
             "contacto_emergencia": "Contacto de emergencia",
         }
         widgets = {
-            "nombre": forms.TextInput(attrs={"autofocus": True}),
+            "nombre": forms.TextInput(
+                attrs={
+                    "autocomplete": "given-name",
+                    "autofocus": True,
+                }
+            ),
+            "apellido": forms.TextInput(attrs={"autocomplete": "family-name"}),
+            "documento": forms.TextInput(attrs={"autocomplete": "off", "inputmode": "numeric"}),
+            "telefono": forms.TextInput(attrs={"autocomplete": "tel", "inputmode": "tel"}),
+            "email": forms.EmailInput(attrs={"autocomplete": "email", "inputmode": "email"}),
             "fecha_nacimiento": HtmlDateInput(),
+            "domicilio": forms.TextInput(attrs={"autocomplete": "street-address"}),
+            "localidad": forms.TextInput(attrs={"autocomplete": "address-level2"}),
+            "numero_afiliado": forms.TextInput(attrs={"autocomplete": "off"}),
+            "contacto_emergencia": forms.TextInput(attrs={"autocomplete": "tel", "inputmode": "tel"}),
             "observaciones": forms.Textarea(attrs={"rows": 4}),
         }
 
@@ -69,7 +82,11 @@ class FichaOdontologicaForm(forms.ModelForm):
 class PacienteDeleteConfirmationForm(forms.Form):
     nombre = forms.CharField(max_length=100)
     apellido = forms.CharField(max_length=100)
-    documento = forms.CharField(max_length=20, label="DNI")
+    documento = forms.CharField(
+        max_length=20,
+        label="DNI",
+        widget=forms.TextInput(attrs={"autocomplete": "off", "inputmode": "numeric"}),
+    )
 
     def __init__(self, *args, paciente, requiere_confirmacion_clinica=False, **kwargs):
         super().__init__(*args, **kwargs)

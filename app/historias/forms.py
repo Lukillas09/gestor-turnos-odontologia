@@ -29,7 +29,10 @@ class HistoriaClinicaFiltroForm(forms.Form):
         required=False,
         label="Buscar",
         widget=forms.TextInput(
-            attrs={"placeholder": "Motivo, diagnóstico, tratamiento, pieza..."}
+            attrs={
+                "autocomplete": "off",
+                "placeholder": "Motivo, diagnóstico, tratamiento, pieza...",
+            }
         ),
     )
     fecha_desde = forms.DateField(
