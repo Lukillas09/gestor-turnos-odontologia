@@ -47,7 +47,7 @@
                                         {% csrf_token %}
                                         <input type="hidden" name="documento" value="{{ documento }}">
                                         <label class="sr-only" for="motivo-cancelacion-{{ turno.pk }}">Motivo de cancelación</label>
-                                        <textarea id="motivo-cancelacion-{{ turno.pk }}" name="motivo_cancelacion" rows="2" placeholder="Motivo opcional"></textarea>
+                                        <textarea id="motivo-cancelacion-{{ turno.pk }}" name="motivo_cancelacion" rows="2" placeholder="Motivo de cancelación"></textarea>
                                         <button class="button-danger" type="submit">Cancelar</button>
                                     </form>
                                 </div>
@@ -118,7 +118,7 @@
                                         <input type="hidden" name="csrfmiddlewaretoken" value="${escapeHtml(csrfToken)}">
                                         <input type="hidden" name="documento" value="${escapeHtml(documento)}">
                                         <label class="sr-only">Motivo de cancelación</label>
-                                        <textarea name="motivo_cancelacion" rows="2" placeholder="Motivo opcional"></textarea>
+                                        <textarea name="motivo_cancelacion" rows="2" placeholder="Motivo de cancelación"></textarea>
                                         <button class="button-danger" type="submit">Cancelar</button>
                                     </form>
                                 </div>

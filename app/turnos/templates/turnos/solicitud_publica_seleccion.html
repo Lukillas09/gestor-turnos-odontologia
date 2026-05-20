@@ -10,8 +10,10 @@
                     <img
                         src="{{ odontologo.foto_perfil_url }}"
                         alt="{{ odontologo }}"
+                        onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
                         style="object-position: {{ odontologo.foto_object_position }};"
                     >
+                    <span class="public-avatar-fallback" hidden>{{ odontologo.nombre_completo|first }}</span>
                 {% elif odontologo %}
                     <span>{{ odontologo.nombre_completo|first }}</span>
                 {% else %}
@@ -189,7 +191,7 @@
                 }
 
                 const foto = odontologo.foto_url
-                    ? `<img src="${escapeHtml(odontologo.foto_url)}" alt="${escapeHtml(odontologo.nombre)}" style="object-position: ${escapeHtml(odontologo.foto_object_position)};">`
+                    ? `<img src="${escapeHtml(odontologo.foto_url)}" alt="${escapeHtml(odontologo.nombre)}" onerror="this.hidden=true; this.nextElementSibling.hidden=false;" style="object-position: ${escapeHtml(odontologo.foto_object_position)};"><span class="public-avatar-fallback" hidden>${escapeHtml(odontologo.inicial || "O")}</span>`
                     : `<span>${escapeHtml(odontologo.inicial || "O")}</span>`;
                 const contacto = odontologo.celular
                     ? `<p>Contacto ${escapeHtml(odontologo.celular)}</p>`

@@ -17,8 +17,10 @@
                     <img
                         src="{{ odontologo.foto_perfil_url }}"
                         alt="{{ odontologo }}"
+                        onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
                         style="object-position: {{ odontologo.foto_object_position }};"
                     >
+                    <span class="public-avatar-fallback" hidden>{{ odontologo.nombre_completo|first }}</span>
                 {% else %}
                     <span>{{ odontologo.nombre_completo|first }}</span>
                 {% endif %}

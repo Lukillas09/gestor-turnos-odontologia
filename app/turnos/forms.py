@@ -75,7 +75,7 @@ class TurnoForm(forms.ModelForm):
         widgets = {
             "fecha": HtmlDateInput(),
             "hora_inicio": forms.TimeInput(attrs={"type": "time", "inputmode": "numeric"}),
-            "motivo": forms.TextInput(attrs={"placeholder": "Ej: control, limpieza, urgencia"}),
+            "motivo": forms.TextInput(attrs={"placeholder": "Control, limpieza o urgencia"}),
             "notas": forms.Textarea(attrs={"rows": 4}),
         }
 
@@ -266,7 +266,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "given-name",
-                "placeholder": "Ej: Lucía",
+                "placeholder": "Nombre del paciente",
             }
         ),
     )
@@ -277,7 +277,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "family-name",
-                "placeholder": "Ej: Pérez",
+                "placeholder": "Apellido del paciente",
             }
         ),
     )
@@ -289,7 +289,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
             attrs={
                 "autocomplete": "tel",
                 "inputmode": "tel",
-                "placeholder": "Ej: 260 433 1114",
+                "placeholder": "Teléfono de contacto",
             }
         ),
     )
@@ -301,7 +301,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
             attrs={
                 "autocomplete": "off",
                 "inputmode": "numeric",
-                "placeholder": "Opcional",
+                "placeholder": "DNI del paciente",
             }
         ),
     )
@@ -312,7 +312,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
             attrs={
                 "autocomplete": "email",
                 "inputmode": "email",
-                "placeholder": "Opcional",
+                "placeholder": "Email de contacto",
             }
         ),
         error_messages={"invalid": "Ingresá un email válido o dejá el campo vacío."},
@@ -343,7 +343,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         max_length=200,
         required=False,
         label="Motivo breve",
-        widget=forms.TextInput(attrs={"placeholder": "Ej: control, limpieza, urgencia"}),
+        widget=forms.TextInput(attrs={"placeholder": "Control, limpieza o urgencia"}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -375,7 +375,7 @@ class ConsultaTurnosPublicaForm(forms.Form):
             attrs={
                 "autocomplete": "off",
                 "inputmode": "numeric",
-                "placeholder": "Ej: 38111222",
+                "placeholder": "DNI del paciente",
             }
         ),
     )
@@ -393,7 +393,7 @@ class CancelacionTurnoPublicaForm(forms.Form):
         widget=forms.Textarea(
             attrs={
                 "rows": 3,
-                "placeholder": "Opcional. Ej: no puedo asistir ese día.",
+                "placeholder": "Motivo de cancelación",
             }
         ),
     )
@@ -479,7 +479,7 @@ class ConfirmacionTurnoForm(forms.Form):
                 "inputmode": "numeric",
                 "max": 360,
                 "min": 5,
-                "placeholder": "Ej: 75",
+                "placeholder": "75",
             }
         ),
         error_messages={
