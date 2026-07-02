@@ -2376,6 +2376,55 @@
             gap: 12px;
         }
 
+        .public-confirmation-banner {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 18px;
+            align-items: center;
+            margin: -8px 0 24px;
+            border: 1px solid #abefc6;
+            border-radius: 12px;
+            padding: 20px;
+            background:
+                linear-gradient(135deg, rgba(236, 253, 243, 0.98), rgba(240, 253, 250, 0.98)),
+                #ecfdf3;
+            color: #064e3b;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .public-confirmation-icon {
+            width: 44px;
+            height: 44px;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            background: #12b76a;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .public-confirmation-copy {
+            display: grid;
+            gap: 4px;
+        }
+
+        .public-confirmation-copy strong {
+            font-size: 20px;
+        }
+
+        .public-confirmation-copy p {
+            margin: 0;
+            color: #047857;
+        }
+
+        .public-confirmation-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
         .public-primary-action {
             min-height: 52px;
             border-color: #16a34a;
@@ -2774,6 +2823,7 @@
             .public-profile,
             .public-slot-grid,
             .public-reservation-summary,
+            .public-confirmation-banner,
             .public-home-hero,
             .public-home-secondary,
             .public-dni-form,
@@ -2792,6 +2842,7 @@
             .turno-detail-actions,
             .pagination-actions,
             .public-reservation-details,
+            .public-confirmation-actions,
             .public-form-actions {
                 align-items: stretch;
                 justify-content: flex-start;
@@ -2814,6 +2865,7 @@
             .turno-detail-actions button,
             .agenda-turno-actions .button,
             .agenda-turno-actions button,
+            .public-confirmation-actions .button,
             .public-home-actions .button,
             .public-turno-actions .button,
             .public-turno-actions button,

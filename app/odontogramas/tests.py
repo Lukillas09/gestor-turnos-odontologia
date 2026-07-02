@@ -2,7 +2,7 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from pacientes.models import Paciente, PacienteOdontologo
@@ -18,6 +18,7 @@ def asignar_rol(usuario, nombre_rol):
     usuario.groups.add(grupo)
 
 
+@override_settings(ODONTOGRAMA_FEATURE_ENABLED=True)
 class OdontogramaTests(TestCase):
     def setUp(self):
         self.paciente = Paciente.objects.create(

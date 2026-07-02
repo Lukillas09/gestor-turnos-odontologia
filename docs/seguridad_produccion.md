@@ -8,14 +8,14 @@ No reemplaza una auditoria formal. Sirve como checklist tecnico para no avanzar 
 
 Estado actual:
 
-- Los tokens OAuth de Google Calendar se guardan en `GoogleCalendarConexion`.
+- Los tokens OAuth de Google Calendar se guardan cifrados en `GoogleCalendarConexion`.
 - El admin ya no muestra el valor real de `access_token` ni `refresh_token`.
 - Las pantallas internas muestran estado de conexion, no secretos.
 - Los errores tecnicos de Google Calendar se normalizan antes de mostrarse al usuario.
 
 Antes de produccion real:
 
-- Evaluar cifrado de tokens en base de datos.
+- Configurar `OAUTH_TOKEN_ENCRYPTION_KEY` con una clave Fernet estable fuera del repositorio.
 - Rotar credenciales OAuth si alguna vez se compartieron por error.
 - Mantener el cliente OAuth en Google Cloud con redirect URIs exactos.
 - Revisar accesos del admin y usuarios con permiso `is_staff`.

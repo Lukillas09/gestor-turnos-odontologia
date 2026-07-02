@@ -55,12 +55,12 @@ urlpatterns = [
     path("cancelar/", ConsultaTurnosPublicaView.as_view(), name="consulta_publica"),
     path("api/por-dni/", TurnosPorDniPublicoJsonView.as_view(), name="turnos_por_dni"),
     path(
-        "<int:pk>/cancelar-publico/",
+        "cancelar-publico/",
         TurnoCancelPublicView.as_view(),
         name="cancelar_publico",
     ),
     path(
-        "<int:pk>/reprogramar-publico/",
+        "reprogramar-publico/",
         TurnoReprogramPublicView.as_view(),
         name="reprogramar_publico",
     ),

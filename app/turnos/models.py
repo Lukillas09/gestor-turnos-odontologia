@@ -5,9 +5,12 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import get_valid_filename
+
+from .fields import EncryptedTextField
 
 
 logger = logging.getLogger(__name__)
@@ -181,6 +184,66 @@ class DisponibilidadOdontologo(models.Model):
         )
 
 
+class BloqueoAgendaOdontologo(models.Model):
+    odontologo = models.ForeignKey(
+        Odontologo,
+        on_delete=models.CASCADE,
+        related_name="bloqueos_agenda",
+    )
+    fecha = models.DateField()
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["odontologo", "fecha"]
+        verbose_name = "Bloqueo de agenda"
+        verbose_name_plural = "Bloqueos de agenda"
+        indexes = [
+            models.Index(fields=["odontologo", "fecha"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["odontologo", "fecha"],
+                name="uniq_bloqueo_agenda_odontologo_fecha",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.odontologo} - {self.fecha:%d/%m/%Y}"
+
+
+def bloquear_agendas_de_turnos(claves_agenda):
+    claves = sorted(
+        {
+            (odontologo_id, fecha)
+            for odontologo_id, fecha in claves_agenda
+            if odontologo_id and fecha
+        },
+        key=lambda clave: (clave[0], clave[1]),
+    )
+
+    if not claves:
+        return []
+
+    BloqueoAgendaOdontologo.objects.bulk_create(
+        [
+            BloqueoAgendaOdontologo(odontologo_id=odontologo_id, fecha=fecha)
+            for odontologo_id, fecha in claves
+        ],
+        ignore_conflicts=True,
+    )
+
+    filtro = Q()
+
+    for odontologo_id, fecha in claves:
+        filtro |= Q(odontologo_id=odontologo_id, fecha=fecha)
+
+    return list(
+        BloqueoAgendaOdontologo.objects.select_for_update()
+        .filter(filtro)
+        .order_by("odontologo_id", "fecha")
+    )
+
+
 class Turno(models.Model):
     class Estado(models.TextChoices):
         PENDIENTE = "pendiente", "Pendiente"
@@ -267,9 +330,35 @@ class Turno(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            bloquear_agendas_de_turnos(self._obtener_claves_bloqueo_agenda())
+            self.full_clean()
+            super().save(*args, **kwargs)
+
         self._asegurar_asociacion_paciente_odontologo()
+
+    def _obtener_claves_bloqueo_agenda(self):
+        claves = []
+
+        if self.odontologo_id and self.fecha:
+            claves.append((self.odontologo_id, self.fecha))
+
+        if self.pk:
+            turno_original = (
+                Turno.objects.filter(pk=self.pk)
+                .values("odontologo_id", "fecha")
+                .first()
+            )
+
+            if turno_original:
+                claves.append(
+                    (
+                        turno_original["odontologo_id"],
+                        turno_original["fecha"],
+                    )
+                )
+
+        return claves
 
     def _asegurar_asociacion_paciente_odontologo(self):
         from pacientes.services import asegurar_paciente_asociado_a_odontologo
@@ -332,8 +421,8 @@ class GoogleCalendarConexion(models.Model):
         related_name="google_calendar_conexion",
     )
     calendar_id = models.CharField(max_length=255, default="primary")
-    access_token = models.TextField(blank=True)
-    refresh_token = models.TextField(blank=True)
+    access_token = EncryptedTextField(blank=True)
+    refresh_token = EncryptedTextField(blank=True)
     token_type = models.CharField(max_length=50, default="Bearer")
     scopes = models.JSONField(default=list, blank=True)
     token_expira_en = models.DateTimeField(null=True, blank=True)

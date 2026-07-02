@@ -56,6 +56,28 @@ DJANGO_SECURE_PROXY_SSL_HEADER=True
 DJANGO_SECURE_HSTS_SECONDS=0
 ```
 
+## Seguridad del Flujo Publico de Turnos
+
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS` | `86400` | Tiempo de validez de los enlaces firmados para cancelar o reprogramar turnos desde la web publica. |
+| `TURNOS_PUBLIC_DNI_RATE_LIMIT_ATTEMPTS` | `30` | Cantidad maxima de consultas publicas por DNI permitidas por IP dentro de la ventana configurada. |
+| `TURNOS_PUBLIC_DNI_RATE_LIMIT_SECONDS` | `600` | Ventana, en segundos, para aplicar el limite de consultas publicas por DNI. |
+
+## Cifrado de Tokens OAuth
+
+| Variable | Obligatoria | Uso |
+| --- | --- | --- |
+| `OAUTH_TOKEN_ENCRYPTION_KEY` | Si `DJANGO_DEBUG=False` | Clave Fernet para cifrar `access_token` y `refresh_token` de Google Calendar en base de datos. |
+
+Generar una clave:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+En desarrollo, si la variable queda vacia, se deriva una clave desde `DJANGO_SECRET_KEY`. En produccion debe configurarse una clave Fernet explicita y conservarse estable: si cambia, los tokens OAuth ya guardados no podran descifrarse.
+
 ## Base de Datos
 
 | Variable | Obligatoria | Uso |

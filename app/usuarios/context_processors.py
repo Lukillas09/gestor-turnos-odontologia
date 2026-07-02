@@ -1,3 +1,5 @@
+from django.conf import settings
+
 from .roles import (
     obtener_odontologo_del_usuario,
     puede_borrar_pacientes,
@@ -23,4 +25,5 @@ def permisos_usuario(request):
         "puede_configurar_disponibilidad": puede_configurar_disponibilidad(usuario),
         "puede_conectar_google_calendar": puede_conectar_google_calendar(usuario),
         "puede_gestionar_historias_clinicas": puede_gestionar_historias_clinicas(usuario),
+        "odontograma_feature_enabled": settings.ODONTOGRAMA_FEATURE_ENABLED,
     }

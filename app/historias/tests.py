@@ -198,7 +198,17 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(historia.creado_por, self.usuario_odontologo)
         self.assertEqual(historia.actualizado_por, self.usuario_odontologo)
 
-    def test_formulario_nueva_entrada_incluye_odontograma_diferido(self):
+    def test_formulario_nueva_entrada_no_muestra_odontograma_por_defecto(self):
+        response = self.client.get(
+            reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Odontograma de la entrada")
+        self.assertNotContains(response, 'id="id_estados_odontograma"')
+
+    @override_settings(ODONTOGRAMA_FEATURE_ENABLED=True)
+    def test_formulario_nueva_entrada_incluye_odontograma_diferido_si_esta_activo(self):
         response = self.client.get(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk})
         )
@@ -208,6 +218,7 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertContains(response, 'data-save-mode="deferred"')
         self.assertContains(response, 'id="id_estados_odontograma"')
 
+    @override_settings(ODONTOGRAMA_FEATURE_ENABLED=True)
     def test_creacion_guarda_estados_de_odontograma_asociados_a_historia(self):
         fecha = timezone.localdate()
         estados_odontograma = [

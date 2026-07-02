@@ -234,8 +234,8 @@ Cada odontólogo tiene una conexión independiente en `GoogleCalendarConexion`.
 
 El sistema guarda:
 
-- `access_token`
-- `refresh_token`
+- `access_token` cifrado en reposo
+- `refresh_token` cifrado en reposo
 - `token_expira_en`
 - `calendar_id`
 - `scopes`

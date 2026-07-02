@@ -385,7 +385,6 @@ class ConsultaTurnosPublicaForm(forms.Form):
 
 
 class CancelacionTurnoPublicaForm(forms.Form):
-    documento = forms.CharField(widget=forms.HiddenInput())
     motivo_cancelacion = forms.CharField(
         required=False,
         max_length=500,
@@ -398,12 +397,9 @@ class CancelacionTurnoPublicaForm(forms.Form):
         ),
     )
 
-    def clean_documento(self):
-        return self.cleaned_data["documento"].strip()
-
 
 class TurnoReprogramacionPublicaForm(HorariosDisponiblesFormMixin, forms.ModelForm):
-    documento = forms.CharField(widget=forms.HiddenInput())
+    token = forms.CharField(widget=forms.HiddenInput())
     hora_inicio = HorarioDisponibleChoiceField(
         choices=(),
         coerce=convertir_a_hora,
@@ -422,9 +418,9 @@ class TurnoReprogramacionPublicaForm(HorariosDisponiblesFormMixin, forms.ModelFo
         }
 
     def __init__(self, *args, **kwargs):
-        documento = kwargs.pop("documento", "")
+        token = kwargs.pop("token", "")
         super().__init__(*args, **kwargs)
-        self.fields["documento"].initial = documento
+        self.fields["token"].initial = token
         self.initial.setdefault("fecha", self.instance.fecha)
         self.initial.setdefault("hora_inicio", self._formatear_horario(self.instance.hora_inicio))
         self._configurar_horarios_disponibles()
@@ -441,8 +437,8 @@ class TurnoReprogramacionPublicaForm(HorariosDisponiblesFormMixin, forms.ModelFo
     def _obtener_turno_excluido(self):
         return self.instance
 
-    def clean_documento(self):
-        return self.cleaned_data["documento"].strip()
+    def clean_token(self):
+        return self.cleaned_data["token"].strip()
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]

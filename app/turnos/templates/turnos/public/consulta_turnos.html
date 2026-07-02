@@ -24,6 +24,9 @@
                 {% if form.documento.errors %}
                     <div class="field-error">{{ form.documento.errors }}</div>
                 {% endif %}
+                {% if form.non_field_errors %}
+                    <div class="field-error">{{ form.non_field_errors }}</div>
+                {% endif %}
             </div>
             <button type="submit">Consultar turnos</button>
         </form>
@@ -41,11 +44,10 @@
                                 </div>
                                 <div class="public-turno-actions">
                                     {% if turno.estado == turno.Estado.PENDIENTE %}
-                                        <a class="button button-soft-primary" href="{% url 'turnos:reprogramar_publico' turno.pk %}?dni={{ documento|urlencode }}">Cambiar horario</a>
+                                        <a class="button button-soft-primary" href="{{ turno.reprogramar_url_publica }}">Cambiar horario</a>
                                     {% endif %}
-                                    <form method="post" action="{% url 'turnos:cancelar_publico' turno.pk %}" data-public-cancel-form>
+                                    <form method="post" action="{{ turno.cancelar_url_publica }}" data-public-cancel-form>
                                         {% csrf_token %}
-                                        <input type="hidden" name="documento" value="{{ documento }}">
                                         <label class="sr-only" for="motivo-cancelacion-{{ turno.pk }}">Motivo de cancelación</label>
                                         <textarea id="motivo-cancelacion-{{ turno.pk }}" name="motivo_cancelacion" rows="2" placeholder="Motivo de cancelación"></textarea>
                                         <button class="button-danger" type="submit">Cancelar</button>
@@ -56,7 +58,7 @@
                     </div>
                 {% else %}
                     <div class="empty-state">
-                        <p>No encontramos turnos pendientes o confirmados para ese DNI.</p>
+                        <p>No hay turnos activos para mostrar con los datos ingresados.</p>
                     </div>
                 {% endif %}
             {% else %}
@@ -99,7 +101,7 @@
 
             function renderTurnos(data, documento) {
                 if (!data.ok || data.turnos.length === 0) {
-                    renderMessage(data.mensaje || "No encontramos turnos activos para ese DNI.");
+                    renderMessage(data.mensaje || "No hay turnos activos para mostrar con los datos ingresados.");
                     return;
                 }
 
@@ -116,7 +118,6 @@
                                     ${turno.puede_reprogramar ? `<a class="button button-soft-primary" href="${escapeHtml(turno.reprogramar_url)}">Cambiar horario</a>` : ""}
                                     <form method="post" action="${escapeHtml(turno.cancelar_url)}" data-public-cancel-form>
                                         <input type="hidden" name="csrfmiddlewaretoken" value="${escapeHtml(csrfToken)}">
-                                        <input type="hidden" name="documento" value="${escapeHtml(documento)}">
                                         <label class="sr-only">Motivo de cancelación</label>
                                         <textarea name="motivo_cancelacion" rows="2" placeholder="Motivo de cancelación"></textarea>
                                         <button class="button-danger" type="submit">Cancelar</button>

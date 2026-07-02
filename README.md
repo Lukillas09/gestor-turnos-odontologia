@@ -19,7 +19,7 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 - Roles internos con grupos de Django: `Recepcionista`, `Odontologo` y `Administrador`.
 - Asociación paciente-odontólogo y derivación de pacientes.
 - Ficha odontológica combinada con datos personales, administrativos y clínicos.
-- Historia clínica con adjuntos y odontograma integrado en nuevas entradas clínicas.
+- Historia clínica con adjuntos clínicos. El odontograma queda desactivado como implementación futura.
 - Turnos con estados `Pendiente`, `Confirmado` y `Cancelado`.
 - Turnos internos confirmados automáticamente.
 - Solicitudes públicas guardadas como pendientes con duración inicial de 30 minutos.
@@ -29,7 +29,13 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 - Supabase PostgreSQL como base de datos para deploy.
 - Supabase Storage privado para adjuntos clínicos.
 - Deploy preparado para Railway con Gunicorn, WhiteNoise y scripts de build/start/release.
-- Tests automatizados para dominio, permisos, turnos, agenda, emails, Google Calendar, historia clínica, odontograma e interfaz pública.
+- Tests automatizados para dominio, permisos, turnos, agenda, emails, Google Calendar, historia clínica e interfaz pública. El módulo de odontograma conserva pruebas propias para una reactivación controlada.
+
+### Estado Del Odontograma
+
+El código del odontograma se conserva en el repositorio como una implementación experimental y futura. La app `odontogramas`, sus modelos, migraciones, templates, assets y tests no fueron eliminados, pero la funcionalidad está desactivada por defecto mediante `ODONTOGRAMA_FEATURE_ENABLED=False`.
+
+Mientras ese flag permanezca apagado, el odontograma no se muestra en las pantallas clínicas, no se integra al alta de entradas de historia clínica y las URLs directas del módulo responden como no disponibles. Para retomarlo más adelante se debe completar la validación funcional/UX y activarlo explícitamente por configuración.
 
 ## Stack Tecnológico
 
@@ -57,7 +63,7 @@ El proyecto está organizado por apps Django con responsabilidades separadas:
 | `pacientes` | Datos personales, ficha odontológica, asociación con odontólogos, derivación y borrado seguro. |
 | `turnos` | Odontólogos, disponibilidad, turnos, agenda, solicitud pública, emails, recordatorios y Google Calendar. |
 | `historias` | Historia clínica, adjuntos clínicos, auditoría básica y permisos clínicos. |
-| `odontogramas` | Odontograma FDI interactivo, estados dentales, historial y editor integrado. |
+| `odontogramas` | Implementación experimental del odontograma FDI, conservada detrás del feature flag `ODONTOGRAMA_FEATURE_ENABLED` para retomarla en una etapa futura. |
 
 Documentación técnica principal:
 
@@ -147,6 +153,9 @@ Variables principales:
 | Grupo | Variables |
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
+| Feature flags | `ODONTOGRAMA_FEATURE_ENABLED` |
+| Seguridad pública de turnos | `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_DNI_RATE_LIMIT_ATTEMPTS`, `TURNOS_PUBLIC_DNI_RATE_LIMIT_SECONDS` |
+| Cifrado OAuth | `OAUTH_TOKEN_ENCRYPTION_KEY` |
 | Seguridad HTTPS | `DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE`, `DJANGO_SECURE_PROXY_SSL_HEADER`, `DJANGO_SECURE_HSTS_SECONDS`, `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SECURE_HSTS_PRELOAD` |
 | Base de datos | `DATABASE_URL` |
 | Email | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL`, `EMAIL_API_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_API_URL` |
@@ -177,7 +186,7 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 3. Gestiona pacientes, turnos y agenda según rol.
 4. Confirma turnos pendientes eligiendo duración real.
 5. Reprograma o cancela turnos.
-6. Gestiona ficha odontológica, historia clínica, adjuntos y odontograma.
+6. Gestiona ficha odontológica, historia clínica y adjuntos clínicos.
 7. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
 
 Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
@@ -203,7 +212,7 @@ Cada odontólogo puede conectar su propia cuenta de Google Calendar desde:
 /turnos/google-calendar/
 ```
 
-El sistema guarda tokens OAuth en `GoogleCalendarConexion` y conserva el `google_calendar_event_id` en cada turno sincronizado.
+El sistema guarda tokens OAuth cifrados en `GoogleCalendarConexion` y conserva el `google_calendar_event_id` en cada turno sincronizado.
 
 Cuando hay conexión activa:
 
@@ -316,9 +325,10 @@ python manage.py collectstatic --noinput
 - La interfaz pública no muestra historia clínica ni datos sensibles.
 - Las acciones públicas de cancelación/reprogramación validan DNI contra el turno.
 - Las vistas internas requieren login.
-- La historia clínica y el odontograma tienen permisos clínicos propios.
+- La historia clínica tiene permisos clínicos propios.
+- El odontograma conserva permisos internos, pero queda desactivado por defecto y fuera del flujo activo hasta una implementación futura.
 - Los adjuntos clínicos se sirven a través de Django y pueden mantenerse en bucket privado.
-- Antes de producción real se recomienda rotar secretos expuestos durante configuración, revisar cifrado de tokens OAuth, backups, dominio definitivo, logs y permisos.
+- Antes de producción real se recomienda rotar secretos expuestos durante configuración, validar backups, dominio definitivo, logs y permisos.
 
 ## Roadmap
 

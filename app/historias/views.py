@@ -1,6 +1,7 @@
 import logging
 
 from django.contrib import messages
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
@@ -155,7 +156,6 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        odontograma = obtener_o_crear_odontograma(self.paciente)
         context["titulo"] = "Nueva entrada de historia clínica"
         context["subtitulo"] = f"Registro clínico de {self.paciente}."
         context["texto_boton"] = "Guardar entrada"
@@ -163,7 +163,12 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
             "historias:lista_paciente",
             kwargs={"paciente_pk": self.paciente.pk},
         )
-        context["mostrar_odontograma_en_form"] = True
+        context["mostrar_odontograma_en_form"] = settings.ODONTOGRAMA_FEATURE_ENABLED
+
+        if not settings.ODONTOGRAMA_FEATURE_ENABLED:
+            return context
+
+        odontograma = obtener_o_crear_odontograma(self.paciente)
         context["odontograma"] = odontograma
         context["filas_odontograma"] = construir_filas_odontograma(odontograma)
         context["estado_form"] = EstadoDentalForm()
@@ -183,8 +188,6 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
         if odontologo is None:
             raise PermissionDenied("Solo un odontólogo puede cargar historia clínica.")
 
-        odontograma = obtener_o_crear_odontograma(self.paciente)
-
         with transaction.atomic():
             self.object = form.save(commit=False)
             self.object.paciente = self.paciente
@@ -193,11 +196,13 @@ class HistoriaClinicaCreateView(PacienteHistoriaClinicaMixin, CreateView):
             self.object.actualizado_por = self.request.user
             self.object.save()
             form.guardar_adjuntos(self.object, self.request.user)
-            form.guardar_estados_odontograma(
-                self.object,
-                odontograma,
-                self.request.user,
-            )
+            if settings.ODONTOGRAMA_FEATURE_ENABLED:
+                odontograma = obtener_o_crear_odontograma(self.paciente)
+                form.guardar_estados_odontograma(
+                    self.object,
+                    odontograma,
+                    self.request.user,
+                )
 
         _registrar_evento_clinico(
             self.request,
@@ -250,6 +255,7 @@ class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailV
             self.request.user,
             self.object,
         )
+        context["mostrar_odontograma"] = settings.ODONTOGRAMA_FEATURE_ENABLED
         return context
 
 

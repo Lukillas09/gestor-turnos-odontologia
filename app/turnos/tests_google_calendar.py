@@ -4,12 +4,14 @@ from urllib.parse import parse_qs, urlparse
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from pacientes.models import Paciente
+from turnos.fields import ENCRYPTED_TEXT_PREFIX
 from turnos.integrations.google_calendar import (
     GoogleCalendarClient,
     GoogleCalendarError,
@@ -180,6 +182,16 @@ class GoogleCalendarConexionModelTests(TestCase):
             matricula="MN-CONEXION",
         )
 
+    def _obtener_tokens_raw(self, conexion):
+        tabla = connection.ops.quote_name(GoogleCalendarConexion._meta.db_table)
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT access_token, refresh_token FROM {tabla} WHERE id = %s",
+                [conexion.pk],
+            )
+            return cursor.fetchone()
+
     def test_conexion_pertenece_a_un_odontologo(self):
         conexion = GoogleCalendarConexion.objects.create(
             odontologo=self.odontologo,
@@ -222,6 +234,62 @@ class GoogleCalendarConexionModelTests(TestCase):
         self.assertEqual(conexion.scopes, ["scope-a", "scope-b"])
         self.assertTrue(conexion.esta_conectada)
         self.assertFalse(conexion.necesita_renovar_access_token)
+
+    def test_tokens_oauth_se_guardan_cifrados_en_base_de_datos(self):
+        conexion = GoogleCalendarConexion.objects.create(
+            odontologo=self.odontologo,
+            access_token="access-token-secreto",
+            refresh_token="refresh-token-secreto",
+        )
+        access_token_raw, refresh_token_raw = self._obtener_tokens_raw(conexion)
+
+        self.assertNotEqual(access_token_raw, "access-token-secreto")
+        self.assertNotEqual(refresh_token_raw, "refresh-token-secreto")
+        self.assertTrue(access_token_raw.startswith(ENCRYPTED_TEXT_PREFIX))
+        self.assertTrue(refresh_token_raw.startswith(ENCRYPTED_TEXT_PREFIX))
+
+        conexion.refresh_from_db()
+
+        self.assertEqual(conexion.access_token, "access-token-secreto")
+        self.assertEqual(conexion.refresh_token, "refresh-token-secreto")
+
+    def test_tokens_oauth_legacy_en_texto_plano_se_recifran_al_guardar(self):
+        conexion = GoogleCalendarConexion.objects.create(odontologo=self.odontologo)
+        tabla = connection.ops.quote_name(GoogleCalendarConexion._meta.db_table)
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"UPDATE {tabla} SET access_token = %s, refresh_token = %s WHERE id = %s",
+                ["access-token-legacy", "refresh-token-legacy", conexion.pk],
+            )
+
+        conexion.refresh_from_db()
+
+        self.assertEqual(conexion.access_token, "access-token-legacy")
+        self.assertEqual(conexion.refresh_token, "refresh-token-legacy")
+
+        conexion.save(update_fields=["access_token", "refresh_token", "actualizado_en"])
+        access_token_raw, refresh_token_raw = self._obtener_tokens_raw(conexion)
+
+        self.assertTrue(access_token_raw.startswith(ENCRYPTED_TEXT_PREFIX))
+        self.assertTrue(refresh_token_raw.startswith(ENCRYPTED_TEXT_PREFIX))
+        self.assertNotEqual(access_token_raw, "access-token-legacy")
+        self.assertNotEqual(refresh_token_raw, "refresh-token-legacy")
+
+    @override_settings(
+        DEBUG=False,
+        OAUTH_TOKEN_ENCRYPTION_KEY="",
+        OAUTH_TOKEN_ENCRYPTION_KEY_REQUIRED=True,
+    )
+    def test_exige_clave_de_cifrado_explicita_en_produccion(self):
+        conexion = GoogleCalendarConexion(
+            odontologo=self.odontologo,
+            access_token="access-token",
+            refresh_token="refresh-token",
+        )
+
+        with self.assertRaisesMessage(ImproperlyConfigured, "OAUTH_TOKEN_ENCRYPTION_KEY"):
+            conexion.save()
 
     def test_detecta_access_token_expirado(self):
         conexion = GoogleCalendarConexion.objects.create(

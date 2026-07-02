@@ -3,6 +3,24 @@
 {% block title %}Turnos online | Gestor de Turnos{% endblock %}
 
 {% block content %}
+    {% if solicitud_turno_confirmada %}
+        <section class="public-confirmation-banner animate-fade-up" role="status" aria-live="polite">
+            <span class="public-confirmation-icon" aria-hidden="true">✓</span>
+            <div class="public-confirmation-copy">
+                <strong>Tu solicitud de turno fue registrada</strong>
+                {% if solicitud_turno_confirmada_con_email %}
+                    <p>Te avisaremos por email cuando el consultorio confirme el turno.</p>
+                {% else %}
+                    <p>El consultorio se comunicará con vos cuando el turno quede confirmado.</p>
+                {% endif %}
+            </div>
+            <div class="public-confirmation-actions">
+                <a class="button public-primary-action" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
+                <a class="button button-secondary" href="{% url 'turnos:consulta_publica' %}">Consultar mis turnos</a>
+            </div>
+        </section>
+    {% endif %}
+
     <section class="public-home-hero animate-fade-up">
         <div class="public-home-copy">
             <span class="public-pill public-pill-light">Autogestión para pacientes</span>

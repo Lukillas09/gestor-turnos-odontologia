@@ -14,7 +14,7 @@ from .google_calendar_sync import (
     sincronizar_turno_cancelado,
     sincronizar_turno_creado,
 )
-from .models import Turno
+from .models import Turno, bloquear_agendas_de_turnos
 from .notifications import (
     notificar_recordatorio_turno,
     notificar_solicitud_turno_recibida,
@@ -84,13 +84,6 @@ def confirmar_turno(turno):
 
 
 def confirmar_turno_con_duracion(turno, duracion_minutos):
-    if turno.estado != Turno.Estado.PENDIENTE:
-        return ResultadoConfirmacionTurno(
-            confirmado=False,
-            turno=turno,
-            mensaje="Solo se pueden confirmar turnos pendientes.",
-        )
-
     try:
         duracion = int(duracion_minutos)
     except (TypeError, ValueError):
@@ -107,30 +100,43 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
             mensaje="La duración debe ser mayor a cero.",
         )
 
-    conflicto = obtener_turno_superpuesto(
-        odontologo=turno.odontologo,
-        fecha=turno.fecha,
-        hora_inicio=turno.hora_inicio,
-        duracion_minutos=duracion,
-        turno_excluido=turno,
-    )
-
-    if conflicto:
-        return ResultadoConfirmacionTurno(
-            confirmado=False,
-            turno=turno,
-            conflicto=conflicto,
-            mensaje=(
-                "No se puede confirmar este turno con esa duración porque "
-                "se superpone con otro turno."
-            ),
-        )
-
-    turno.duracion_minutos = duracion
-    turno.estado = Turno.Estado.CONFIRMADO
-
     try:
         with transaction.atomic():
+            bloquear_agendas_de_turnos([(turno.odontologo_id, turno.fecha)])
+            turno = (
+                Turno.objects.select_for_update()
+                .select_related("paciente", "odontologo", "odontologo__usuario")
+                .get(pk=turno.pk)
+            )
+
+            if turno.estado != Turno.Estado.PENDIENTE:
+                return ResultadoConfirmacionTurno(
+                    confirmado=False,
+                    turno=turno,
+                    mensaje="Solo se pueden confirmar turnos pendientes.",
+                )
+
+            conflicto = obtener_turno_superpuesto(
+                odontologo=turno.odontologo,
+                fecha=turno.fecha,
+                hora_inicio=turno.hora_inicio,
+                duracion_minutos=duracion,
+                turno_excluido=turno,
+            )
+
+            if conflicto:
+                return ResultadoConfirmacionTurno(
+                    confirmado=False,
+                    turno=turno,
+                    conflicto=conflicto,
+                    mensaje=(
+                        "No se puede confirmar este turno con esa duración porque "
+                        "se superpone con otro turno."
+                    ),
+                )
+
+            turno.duracion_minutos = duracion
+            turno.estado = Turno.Estado.CONFIRMADO
             turno.save(update_fields=["duracion_minutos", "estado", "actualizado_en"])
     except ValidationError as error:
         return ResultadoConfirmacionTurno(

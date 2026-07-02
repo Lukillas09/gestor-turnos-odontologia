@@ -4,8 +4,10 @@
 {% block title %}Entrada clínica de {{ historia.paciente }} | Gestor de Turnos{% endblock %}
 
 {% block extra_head %}
-    {% get_static_prefix as STATIC_PREFIX %}
-    <link rel="stylesheet" href="{{ STATIC_PREFIX }}odontogramas/odontograma.css">
+    {% if mostrar_odontograma %}
+        {% get_static_prefix as STATIC_PREFIX %}
+        <link rel="stylesheet" href="{{ STATIC_PREFIX }}odontogramas/odontograma.css">
+    {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -87,6 +89,7 @@
         </dl>
     </section>
 
+    {% if mostrar_odontograma %}
     <section class="panel-section animate-fade-up">
         <div class="section-heading">
             <div>
@@ -107,6 +110,8 @@
             </div>
         {% endif %}
     </section>
+
+    {% endif %}
 
     <section class="panel-section animate-fade-up">
         <div class="section-heading">

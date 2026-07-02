@@ -4,7 +4,7 @@
 
 {% block content %}
     <div class="patient-backline animate-fade-up">
-        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:consulta_publica' %}?dni={{ documento|urlencode }}">&larr; Volver a mis turnos</a>
+        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:consulta_publica' %}">&larr; Volver a mis turnos</a>
     </div>
 
     <div class="page-header public-data-header animate-fade-up">
@@ -49,7 +49,7 @@
         data-turno-id="{{ turno.pk }}"
     >
         {% csrf_token %}
-        {{ form.documento }}
+        {{ form.token }}
         <input type="hidden" name="duracion_minutos" value="{{ turno.duracion_minutos }}">
 
         {% if form.non_field_errors %}
@@ -78,7 +78,7 @@
 
         <div class="form-actions public-form-actions">
             <button type="submit">Guardar nuevo horario</button>
-            <a class="button button-secondary" href="{% url 'turnos:consulta_publica' %}?dni={{ documento|urlencode }}">Cancelar</a>
+            <a class="button button-secondary" href="{% url 'turnos:consulta_publica' %}">Cancelar</a>
         </div>
     </form>
 

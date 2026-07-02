@@ -1,6 +1,7 @@
 import json
 
 from django import forms
+from django.conf import settings
 
 from config.form_widgets import HtmlDateInput
 from odontogramas.domain import DIENTES_FDI
@@ -94,6 +95,12 @@ class HistoriaClinicaForm(forms.ModelForm):
             "observaciones": forms.Textarea(attrs={"rows": 3}),
             "proximo_control": HtmlDateInput(),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if not settings.ODONTOGRAMA_FEATURE_ENABLED:
+            self.fields.pop("estados_odontograma", None)
 
     def clean_adjuntos(self):
         adjuntos = self.cleaned_data.get("adjuntos") or []

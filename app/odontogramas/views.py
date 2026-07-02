@@ -1,7 +1,8 @@
 import json
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views import View
@@ -22,6 +23,9 @@ class PacienteOdontogramaMixin(VerPacientesRequeridoMixin):
     odontograma = None
 
     def dispatch(self, request, *args, **kwargs):
+        if not settings.ODONTOGRAMA_FEATURE_ENABLED:
+            raise Http404("El odontograma todavia no esta disponible.")
+
         if not request.user.is_authenticated:
             return super().dispatch(request, *args, **kwargs)
 
