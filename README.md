@@ -12,7 +12,7 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 
 - Landing pública para pacientes en `/`.
 - Solicitud pública de turnos en `/turnos/solicitar/`.
-- Consulta, cancelación y reprogramación pública de turnos por DNI en `/turnos/cancelar/`.
+- Autogestión pública de turnos en `/turnos/mis-turnos/` con acceso por código OTP enviado al email registrado.
 - Login interno separado en `/cuentas/login/`.
 - Dashboard interno en `/inicio/`.
 - Gestión visual de pacientes, turnos, agenda diaria/semanal e historia clínica.
@@ -23,6 +23,8 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 - Turnos con estados `Pendiente`, `Confirmado` y `Cancelado`.
 - Turnos internos confirmados automáticamente.
 - Solicitudes públicas guardadas como pendientes con duración inicial de 30 minutos.
+- Las solicitudes públicas guardan una fotografía independiente de los datos enviados y no actualizan automáticamente pacientes existentes.
+- Bandeja interna para que recepción revise diferencias de datos y aplique solo campos seleccionados.
 - Confirmación de turnos pendientes con duración real y validación de superposición.
 - Emails transaccionales para solicitud, confirmación, cancelación, reprogramación y recordatorios.
 - Google Calendar OAuth por odontólogo y sincronización de eventos.
@@ -133,7 +135,7 @@ URLs locales principales:
 ```text
 http://127.0.0.1:8000/                       # landing pública para pacientes
 http://127.0.0.1:8000/turnos/solicitar/       # solicitud pública
-http://127.0.0.1:8000/turnos/cancelar/        # consulta/cancelación pública por DNI
+http://127.0.0.1:8000/turnos/mis-turnos/solicitar-acceso/  # acceso público por OTP
 http://127.0.0.1:8000/cuentas/login/          # login interno
 http://127.0.0.1:8000/inicio/                 # dashboard interno
 http://127.0.0.1:8000/admin/                  # Django Admin
@@ -154,7 +156,7 @@ Variables principales:
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
 | Feature flags | `ODONTOGRAMA_FEATURE_ENABLED` |
-| Seguridad pública de turnos | `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_DNI_RATE_LIMIT_ATTEMPTS`, `TURNOS_PUBLIC_DNI_RATE_LIMIT_SECONDS` |
+| Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Cifrado OAuth | `OAUTH_TOKEN_ENCRYPTION_KEY` |
 | Seguridad HTTPS | `DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE`, `DJANGO_SECURE_PROXY_SSL_HEADER`, `DJANGO_SECURE_HSTS_SECONDS`, `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SECURE_HSTS_PRELOAD` |
 | Base de datos | `DATABASE_URL` |
@@ -173,11 +175,12 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 1. Ingresa a `/`.
 2. Solicita turno desde `/turnos/solicitar/`.
 3. Elige odontólogo, fecha y horario disponible.
-4. Completa nombre, apellido, teléfono y datos opcionales.
-5. El turno queda `Pendiente` con duración inicial de 30 minutos.
-6. Puede consultar sus turnos por DNI en `/turnos/cancelar/`.
-7. Puede cancelar turnos pendientes/confirmados.
-8. Puede reprogramar solo turnos pendientes.
+4. Completa nombre, apellido, DNI obligatorio, teléfono, email opcional y motivo opcional.
+5. El sistema normaliza el DNI, crea un turno `Pendiente` con duración inicial de 30 minutos y guarda una `SolicitudTurnoPublica` con la fotografía de lo enviado.
+6. Si el DNI ya pertenecía a un paciente, los datos principales del paciente no se modifican desde la web; recepción revisa diferencias desde la bandeja interna.
+7. Solicita acceso temporal desde `/turnos/mis-turnos/solicitar-acceso/`; si el DNI coincide con un paciente con email registrado, recibe un código OTP en ese contacto.
+8. Puede cancelar turnos pendientes/confirmados.
+9. Puede reprogramar solo turnos pendientes.
 
 ### Equipo Interno
 
@@ -186,8 +189,9 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 3. Gestiona pacientes, turnos y agenda según rol.
 4. Confirma turnos pendientes eligiendo duración real.
 5. Reprograma o cancela turnos.
-6. Gestiona ficha odontológica, historia clínica y adjuntos clínicos.
-7. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
+6. Revisa solicitudes públicas con diferencias, valida pacientes nuevos y aplica cambios campo por campo.
+7. Gestiona ficha odontológica, historia clínica y adjuntos clínicos.
+8. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
 
 Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 
@@ -198,6 +202,8 @@ Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 - Los turnos pendientes y confirmados sí bloquean disponibilidad.
 - Los turnos internos se crean confirmados automáticamente.
 - Las solicitudes públicas se crean pendientes y duran 30 minutos inicialmente.
+- Una solicitud pública nunca reemplaza por sí sola nombre, apellido, teléfono o email de un paciente existente.
+- Los pacientes nuevos creados desde la web quedan con `origen_alta=solicitud_publica` y `estado_validacion_datos=pendiente`.
 - La confirmación interna permite elegir duración real.
 - Si la duración elegida se superpone con otro turno activo del mismo odontólogo, no confirma y muestra el conflicto.
 - La reprogramación valida disponibilidad y superposiciones.
@@ -240,6 +246,7 @@ El proyecto usa plantillas en `app/turnos/templates/turnos/emails/`.
 Notificaciones implementadas:
 
 - solicitud recibida;
+- aviso de solicitud asociada a un paciente existente, enviado solo al contacto ya registrado;
 - turno confirmado;
 - turno cancelado;
 - turno reprogramado;
@@ -323,7 +330,9 @@ python manage.py collectstatic --noinput
 
 - `.env`, tokens, credenciales OAuth y claves reales no se versionan.
 - La interfaz pública no muestra historia clínica ni datos sensibles.
-- Las acciones públicas de cancelación/reprogramación validan DNI contra el turno.
+- La respuesta pública de solicitud de turno es neutral y no revela si el DNI ya existía, si hubo diferencias o a qué contacto se notificó.
+- El email/teléfono enviado en una solicitud pública no reemplaza automáticamente al contacto existente.
+- Las acciones públicas usan sesión temporal verificada por OTP y permisos persistentes de un solo uso por turno.
 - Las vistas internas requieren login.
 - La historia clínica tiene permisos clínicos propios.
 - El odontograma conserva permisos internos, pero queda desactivado por defecto y fuera del flujo activo hasta una implementación futura.
@@ -335,7 +344,7 @@ python manage.py collectstatic --noinput
 Prioridades sugeridas:
 
 1. Verificar deploy del último commit en Railway cuando el incidente de builds esté resuelto.
-2. Probar flujo público completo en Railway: solicitud, consulta por DNI, cancelación y reprogramación.
+2. Probar flujo público completo en Railway: solicitud, acceso OTP, listado de mis turnos, cancelación y reprogramación.
 3. Ejecutar migraciones después de cada deploy con cambios de modelo.
 4. Completar prueba de backups base + Storage en entorno separado.
 5. Rotar secretos expuestos durante configuración inicial.

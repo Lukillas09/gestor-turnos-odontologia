@@ -20,7 +20,32 @@ Antes de produccion real:
 - Mantener el cliente OAuth en Google Cloud con redirect URIs exactos.
 - Revisar accesos del admin y usuarios con permiso `is_staff`.
 
-## 2. Backups
+## 2. Acceso publico a turnos
+
+Estado actual:
+
+- El DNI por si solo ya no permite consultar turnos.
+- El acceso publico usa OTP por email enviado al contacto ya registrado del paciente.
+- Las respuestas al solicitar acceso son genericas para evitar enumeracion.
+- Los codigos OTP y tokens de accion se guardan hasheados.
+- Cancelar y reprogramar requieren sesion publica verificada, `POST`, CSRF y permisos de un solo uso.
+- Los permisos quedan invalidos si cambia la version publica del turno.
+- La solicitud publica de turno exige DNI, guarda una fotografia en `SolicitudTurnoPublica` y no sobrescribe datos de un `Paciente` existente.
+- Si el DNI ya existe y el formulario trae telefono/email diferentes, se crea alerta interna para recepcion y se notifica solo al contacto almacenado previamente.
+- Los pacientes nuevos creados desde la web quedan pendientes de validacion administrativa; esto no verifica automaticamente email ni telefono.
+
+Antes de produccion real:
+
+- Configurar `REDIS_URL` para rate limiting distribuido.
+- Mantener `TURNOS_PUBLIC_REDIS_REQUIRED=True` fuera de desarrollo.
+- Verificar limites de solicitud, OTP, reenvio y acciones publicas segun el trafico real.
+- Evaluar `TURNSTILE_ENABLED=True` y cargar `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`.
+- Programar `python manage.py limpiar_desafios_acceso_publico` para limpiar OTP vencidos y permisos inactivos.
+- Capacitar a recepcion para actualizar el email del paciente desde el panel interno si no tiene contacto utilizable.
+- Revisar periodicamente la bandeja `/turnos/solicitudes-publicas/` y aplicar cambios solo campo por campo.
+- No pedir ni aceptar emails nuevos como prueba de identidad dentro del flujo publico.
+
+## 3. Backups
 
 Para staging con Supabase:
 
@@ -79,7 +104,7 @@ El backup queda en `backups/storage/` e incluye `manifest.json` con ids internos
 
 La guia completa esta en `docs/backups.md`.
 
-## 3. Logs
+## 4. Logs
 
 El proyecto ya define logging por consola con:
 
@@ -103,10 +128,12 @@ Reglas:
 
 - No registrar tokens OAuth.
 - No registrar passwords SMTP.
+- No registrar codigos OTP, tokens de accion, DNI o IP en texto plano.
+- No registrar fotografias completas de solicitudes publicas ni diferencias de telefono/email en logs.
 - No registrar contenido clinico sensible.
 - Revisar logs de errores de Google Calendar y email sin exponer secretos.
 
-## 4. Dominio real
+## 5. Dominio real
 
 Staging puede usar `tu-app.up.railway.app`.
 
@@ -126,7 +153,7 @@ GOOGLE_CALENDAR_REDIRECT_URI=https://turnos.tuconsultorio.com/turnos/google-cale
 
 Tambien agregar ese redirect URI en Google Cloud.
 
-## 5. HTTPS final
+## 6. HTTPS final
 
 Para staging:
 
@@ -166,4 +193,7 @@ No activar `DJANGO_SECURE_HSTS_PRELOAD=True` hasta estar seguro de que todos los
 - `DEBUG=False`.
 - `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` sin comodines inseguros.
 - Tokens OAuth no visibles en admin ni templates.
+- `REDIS_URL` configurado y `TURNOS_PUBLIC_REDIS_REQUIRED=True`.
+- Turnstile configurado o decision documentada para mantenerlo apagado.
+- Limpieza de desafios OTP y acciones publicas agendada.
 - Logs sin secretos ni datos clinicos sensibles.

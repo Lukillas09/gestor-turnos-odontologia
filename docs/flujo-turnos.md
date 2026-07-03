@@ -53,13 +53,16 @@ Flujo:
    - nombre;
    - apellido;
    - teléfono;
-   - DNI opcional;
+   - DNI obligatorio;
    - email opcional;
    - motivo breve opcional.
-5. Se crea o actualiza el paciente.
-6. Se crea un turno pendiente con duración inicial de 30 minutos.
-7. Se envía email de solicitud recibida si el paciente cargó email.
-8. Se muestra pantalla de confirmación.
+5. El DNI se normaliza con una función centralizada para evitar duplicados por formato.
+6. Si el DNI no existe, se crea un paciente nuevo con `origen_alta=solicitud_publica` y `estado_validacion_datos=pendiente`.
+7. Si el DNI ya existe, el paciente se reutiliza sin modificar nombre, apellido, teléfono ni email.
+8. Se crea un turno pendiente con duración inicial de 30 minutos.
+9. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados.
+10. Si hay diferencias contra el paciente existente, la solicitud queda pendiente de revisión para recepción.
+11. La respuesta pública es neutral y no revela si el paciente existía, si se creó o si hubo diferencias.
 
 Servicio principal:
 
@@ -67,66 +70,85 @@ Servicio principal:
 crear_solicitud_turno_publica(datos)
 ```
 
+Internamente delega en el caso de uso transaccional `crear_solicitud_publica_de_turno(datos)`, que crea el paciente nuevo cuando corresponde, bloquea pacientes existentes con `select_for_update()`, maneja carreras por DNI duplicado y agenda notificaciones con `transaction.on_commit()`.
+
 Reglas:
 
 - No permite fechas pasadas.
 - No permite horarios ocupados.
 - No pide datos clínicos ni administrativos extensos.
 - Crea asociación paciente-odontólogo.
+- No usa el email enviado para notificar a un paciente ya registrado.
+- Para pacientes existentes, el aviso se envía al email almacenado previamente, si existe.
+- Para pacientes nuevos, se puede enviar confirmación al email enviado, pero ese contacto no queda verificado automáticamente.
+- Las diferencias se guardan en `diferencias_detectadas` y solo se muestran a usuarios internos autorizados.
 
-## Consulta y Cancelación Pública
+## Revisión Interna de Solicitudes Públicas
 
 Ruta:
 
 ```text
-/turnos/cancelar/
+/turnos/solicitudes-publicas/
 ```
 
-El paciente ingresa su DNI y ve solo turnos:
+Recepción puede revisar solicitudes con estado `pendiente` desde una bandeja interna. La pantalla muestra datos actuales del paciente y datos enviados desde la web lado a lado, resaltando solo los campos diferentes.
+
+Acciones permitidas:
+
+- conservar los datos actuales;
+- aplicar únicamente campos seleccionados;
+- validar administrativamente un paciente nuevo;
+- descartar los datos enviados.
+
+Cada revisión requiere `POST`, CSRF y permisos internos de gestión del consultorio. El servicio bloquea la solicitud y el paciente con `select_for_update()`, registra usuario, fecha, observaciones, campos aceptados y campos descartados, e impide procesar dos veces la misma solicitud.
+
+## Autogestion Publica de Turnos
+
+Rutas:
+
+```text
+/turnos/mis-turnos/solicitar-acceso/
+/turnos/mis-turnos/verificar/
+/turnos/mis-turnos/
+/turnos/mis-turnos/<uuid>/cancelar/
+/turnos/mis-turnos/<uuid>/reprogramar/
+```
+
+El paciente ingresa su DNI para iniciar un desafio de acceso. La respuesta siempre es generica: si el DNI corresponde a un paciente registrado con email, se envia un codigo OTP de 6 digitos; si no corresponde, se crea un desafio ficticio y no se revela si el paciente existe.
+
+Luego de validar el codigo, se crea una sesion publica temporal. Desde esa sesion se muestran solo turnos activos del paciente:
 
 - pendientes;
 - confirmados.
 
-No se muestran turnos cancelados.
+No se muestran turnos cancelados, datos clinicos, notas internas ni motivo del turno.
 
 Acciones:
 
 - Cancelar turno pendiente o confirmado.
 - Reprogramar solo turno pendiente.
 
-La cancelación pública:
+Cada accion se protege con un registro persistente `AccionPublicaTurno` y un token de un solo uso guardado hasheado en base de datos. El permiso queda atado al paciente, turno, tipo de accion, version publica del turno y vencimiento. Si el turno cambia, se cancela o se reprograma, la version publica rota y los permisos anteriores dejan de ser validos.
 
-- valida que el DNI coincida con el paciente del turno;
+La cancelacion publica:
+
+- requiere sesion OTP verificada;
+- requiere permiso de cancelacion activo y token correcto;
 - permite motivo opcional;
 - cambia estado a `cancelado`;
 - no borra el turno;
-- dispara sincronización con Google Calendar si corresponde;
-- envía email de cancelación si corresponde.
+- dispara sincronizacion con Google Calendar si corresponde;
+- envia email de cancelacion si corresponde.
 
-Campo usado para motivo:
+La reprogramacion publica:
 
-```text
-Turno.motivo_cancelacion_paciente
-```
+- requiere sesion OTP verificada;
+- requiere permiso de reprogramacion activo y token correcto;
+- solo se permite para turnos pendientes;
+- valida fecha futura y disponibilidad del nuevo horario;
+- conserva el turno en estado `pendiente`.
 
-## Reprogramación Pública
-
-Ruta:
-
-```text
-/turnos/<id>/reprogramar-publico/
-```
-
-Solo se permite si:
-
-- el DNI coincide;
-- el turno está pendiente;
-- el nuevo horario está disponible;
-- la fecha no es pasada;
-- no hay superposición.
-
-Los turnos confirmados no pueden reprogramarse desde la interfaz pública.
-
+El flujo aplica rate limiting por IP y DNI hasheados. En produccion debe usar Redis mediante `REDIS_URL`; Turnstile puede activarse como desafio adicional despues de varios intentos.
 ## Creación Interna
 
 Ruta:

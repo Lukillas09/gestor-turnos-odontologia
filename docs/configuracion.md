@@ -58,12 +58,28 @@ DJANGO_SECURE_HSTS_SECONDS=0
 
 ## Seguridad del Flujo Publico de Turnos
 
+El flujo publico de autogestion usa un desafio OTP por email, sesion temporal verificada, permisos persistentes de un solo uso por turno y rate limiting en cache. En produccion `REDIS_URL` debe apuntar a Redis para que los limites funcionen entre procesos/instancias.
+
 | Variable | Default | Uso |
 | --- | --- | --- |
-| `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS` | `86400` | Tiempo de validez de los enlaces firmados para cancelar o reprogramar turnos desde la web publica. |
-| `TURNOS_PUBLIC_DNI_RATE_LIMIT_ATTEMPTS` | `30` | Cantidad maxima de consultas publicas por DNI permitidas por IP dentro de la ventana configurada. |
-| `TURNOS_PUBLIC_DNI_RATE_LIMIT_SECONDS` | `600` | Ventana, en segundos, para aplicar el limite de consultas publicas por DNI. |
-
+| `REDIS_URL` | vacio | URL de Redis para cache y rate limiting distribuido. |
+| `TURNOS_PUBLIC_REDIS_REQUIRED` | `not DEBUG` | Exige Redis cuando la app corre fuera de desarrollo. |
+| `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT` | `5` | Cantidad maxima de solicitudes de acceso por IP/DNI hasheados dentro de la ventana. |
+| `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS` | `900` | Ventana de rate limit para solicitudes de acceso. |
+| `TURNOS_PUBLIC_OTP_ATTEMPTS` | `5` | Intentos maximos antes de invalidar un desafio OTP. |
+| `TURNOS_PUBLIC_OTP_SECONDS` | `600` | Tiempo de vida del codigo OTP. |
+| `TURNOS_PUBLIC_SESSION_SECONDS` | `900` | Duracion de la sesion publica verificada. |
+| `TURNOS_PUBLIC_RESEND_SECONDS` | `60` | Cooldown minimo entre reenvios de codigo. |
+| `TURNOS_PUBLIC_RESEND_LIMIT` | `3` | Reenvios maximos por IP/DNI hasheados dentro de la ventana. |
+| `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS` | `3600` | Ventana de rate limit para reenvios. |
+| `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS` | `900` | Tiempo de vida de permisos de cancelar/reprogramar generados para la sesion. |
+| `TURNOS_PUBLIC_ACTION_LIMIT` | `20` | Cantidad maxima de acciones publicas verificadas por IP dentro de la ventana. |
+| `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS` | `900` | Ventana de rate limit para cancelar/reprogramar desde la sesion publica. |
+| `TURNSTILE_ENABLED` | `False` | Activa Cloudflare Turnstile despues de superar el umbral configurado. |
+| `TURNSTILE_SITE_KEY` | vacio | Site key publica de Turnstile. |
+| `TURNSTILE_SECRET_KEY` | vacio | Secret key privada de Turnstile. |
+| `TURNSTILE_REQUIRED_AFTER_ATTEMPTS` | `3` | Umbral de intentos desde el cual se exige Turnstile. |
+| `TURNSTILE_TIMEOUT_SECONDS` | `5` | Timeout para verificar Turnstile. |
 ## Cifrado de Tokens OAuth
 
 | Variable | Obligatoria | Uso |

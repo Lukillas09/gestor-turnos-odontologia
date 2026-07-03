@@ -78,6 +78,43 @@ DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=
 
 La URL debe venir de Supabase y debe incluir `sslmode=require`.
 
+### Redis para rate limiting publico
+
+Agregar un servicio Redis al proyecto de Railway o usar un proveedor Redis externo compatible. Cargar la URL en:
+
+```env
+REDIS_URL=redis://usuario:password@host:puerto/0
+TURNOS_PUBLIC_REDIS_REQUIRED=True
+TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT=5
+TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS=900
+TURNOS_PUBLIC_OTP_ATTEMPTS=5
+TURNOS_PUBLIC_OTP_SECONDS=600
+TURNOS_PUBLIC_SESSION_SECONDS=900
+TURNOS_PUBLIC_RESEND_SECONDS=60
+TURNOS_PUBLIC_RESEND_LIMIT=3
+TURNOS_PUBLIC_RESEND_WINDOW_SECONDS=3600
+TURNOS_PUBLIC_ACTION_TOKEN_SECONDS=900
+TURNOS_PUBLIC_ACTION_LIMIT=20
+TURNOS_PUBLIC_ACTION_WINDOW_SECONDS=900
+```
+
+Sin `REDIS_URL`, la app debe fallar en deploy con `TURNOS_PUBLIC_REDIS_REQUIRED=True`. Esto evita rate limits locales por proceso en produccion.
+
+### Turnstile opcional
+
+Crear las claves en Cloudflare Turnstile para el dominio real o el dominio de Railway. Luego cargar:
+
+```env
+TURNSTILE_ENABLED=True
+TURNSTILE_SITE_KEY=site-key
+TURNSTILE_SECRET_KEY=secret-key
+TURNSTILE_VERIFY_URL=https://challenges.cloudflare.com/turnstile/v0/siteverify
+TURNSTILE_REQUIRED_AFTER_ATTEMPTS=3
+TURNSTILE_TIMEOUT_SECONDS=5
+```
+
+Puede mantenerse apagado en staging inicial con `TURNSTILE_ENABLED=False`, pero Redis debe quedar activo para los limites.
+
 ### Deploy
 
 ```env
@@ -177,7 +214,7 @@ WhiteNoise sirve los archivos desde `app/staticfiles/`.
 - Login interno probado.
 - Landing pública probada.
 - Solicitud pública probada.
-- Consulta/cancelación por DNI probada.
+- Acceso publico OTP, listado de mis turnos, cancelacion y reprogramacion probados.
 - Email real probado.
 - Google Calendar probado con al menos un odontólogo.
 - Adjuntos clínicos probados si Storage está activo.

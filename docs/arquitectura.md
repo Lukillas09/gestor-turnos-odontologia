@@ -86,7 +86,7 @@ Responsabilidades:
 - Disponibilidad por día de semana.
 - Turnos.
 - Solicitud pública.
-- Consulta/cancelación/reprogramación pública por DNI.
+- Autogestión pública con OTP por email, sesión temporal y permisos de acción de un solo uso.
 - Agenda diaria y semanal.
 - Emails transaccionales.
 - Recordatorios.
@@ -97,7 +97,12 @@ Modelos:
 - `Odontologo`
 - `DisponibilidadOdontologo`
 - `Turno`
+- `SolicitudTurnoPublica`
+- `DesafioAccesoPublicoTurnos`
+- `AccionPublicaTurno`
 - `GoogleCalendarConexion`
+
+`SolicitudTurnoPublica` separa lo enviado desde la web pública del registro principal del paciente. Guarda documento, nombre, apellido, teléfono, email y motivo enviados como fotografía de auditoría, junto con diferencias detectadas, estado de revisión, usuario revisor y campos aceptados/descartados. Esa fotografía no debe usarse como fuente confiable para datos clínicos ni reemplaza automáticamente a `Paciente`.
 
 Capas internas:
 
@@ -110,6 +115,8 @@ Capas internas:
 - `integrations/google_calendar.py`: cliente HTTP de Google Calendar.
 - `google_calendar_oauth.py`: guardado/desconexión OAuth.
 - `google_calendar_sync.py`: coordinación entre turnos y Google Calendar.
+- `solicitudes_publicas/`: caso de uso transaccional de solicitud pública, comparación de datos, selectores y permisos de revisión.
+- `public_access/`: OTP público, sesión temporal, rate limiting y acciones públicas de un solo uso.
 
 ### `historias`
 
@@ -160,10 +167,12 @@ URLs públicas:
 /turnos/solicitar/horarios/            endpoint JSON de horarios públicos
 /turnos/solicitar/datos/               formulario público de datos mínimos
 /turnos/solicitar/gracias/             confirmación pública
-/turnos/cancelar/                      consulta/cancelación por DNI
-/turnos/api/por-dni/                   endpoint JSON por DNI
-/turnos/<id>/cancelar-publico/         cancelación pública con validación de DNI
-/turnos/<id>/reprogramar-publico/      reprogramación pública si el turno está pendiente
+/turnos/mis-turnos/solicitar-acceso/  solicitud de acceso publico por OTP
+/turnos/mis-turnos/verificar/         verificacion de codigo OTP
+/turnos/mis-turnos/                   listado publico de turnos activos con sesion verificada
+/turnos/mis-turnos/cerrar/            cierre de sesion publica
+/turnos/mis-turnos/<uuid>/cancelar/   cancelacion publica por permiso persistente
+/turnos/mis-turnos/<uuid>/reprogramar/ reprogramacion publica por permiso persistente
 ```
 
 URLs internas:
@@ -175,6 +184,8 @@ URLs internas:
 /turnos/
 /turnos/agenda/dia/
 /turnos/agenda/semana/
+/turnos/solicitudes-publicas/
+/turnos/solicitudes-publicas/<uuid>/
 /turnos/google-calendar/
 /historias/pacientes/<paciente_id>/
 /odontogramas/pacientes/<paciente_id>/
@@ -195,6 +206,7 @@ Reglas:
 
 - Turnos internos: se crean como `confirmado`.
 - Turnos públicos: se crean como `pendiente` y `duracion_minutos=30`.
+- Solicitudes públicas: crean un `Turno` y una `SolicitudTurnoPublica`; si el DNI ya existe, no modifican automáticamente el `Paciente`.
 - Turnos pendientes y confirmados bloquean disponibilidad.
 - Turnos cancelados no bloquean disponibilidad.
 - No se puede crear turno en odontólogo inactivo.
@@ -224,7 +236,9 @@ Interfaz pública:
 
 - No requiere login.
 - No expone historia clínica.
-- Opera por DNI y valida DNI contra el turno antes de cancelar/reprogramar.
+- Opera con desafio OTP por email, respuesta generica para evitar enumeracion y permisos de accion atados a paciente, turno, tipo de accion, version del turno y vencimiento.
+- La solicitud pública de turno usa respuesta neutral: no revela si el DNI existe, si hubo diferencias ni a qué contacto se notificó.
+- La revisión de diferencias queda restringida a usuarios con permiso de gestión del consultorio, principalmente recepción.
 
 ## Integraciones
 
