@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar solicitud publica | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="patient-backline animate-fade-up">
+        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:solicitudes_publicas' %}">&larr; Volver a solicitudes</a>
+    </div>
+
+    <div class="page-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Revision administrativa</p>
+            <h1>Solicitud publica</h1>
+            <p class="subtitle">Compará los datos actuales con la fotografia enviada desde la web publica.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button button-secondary" href="{% url 'pacientes:detalle' solicitud.paciente_id %}">Ver paciente</a>
+            <a class="button button-secondary" href="{% url 'turnos:detalle' solicitud.turno_id %}">Ver turno</a>
+        </div>
+    </div>
+
+    <section class="detail-panel animate-fade-up">
+        <dl class="detail-grid">
+            <div>
+                <dt>Origen</dt>
+                <dd>{% if solicitud.paciente_existente %}Paciente existente{% else %}Paciente nuevo{% endif %}</dd>
+            </div>
+            <div>
+                <dt>Estado</dt>
+                <dd>{{ solicitud.get_estado_revision_display }}</dd>
+            </div>
+            <div>
+                <dt>DNI enviado</dt>
+                <dd>{{ solicitud.documento_enviado }}</dd>
+            </div>
+            <div>
+                <dt>Turno solicitado</dt>
+                <dd>{{ solicitud.turno.fecha|date:"d/m/Y" }} {{ solicitud.turno.hora_inicio|time:"H:i" }} con {{ solicitud.turno.odontologo }}</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="panel-section animate-fade-up">
+        <div class="section-header">
+            <div>
+                <h2>Comparacion de datos</h2>
+                <p class="subtitle">Solo los campos seleccionados se aplican al paciente.</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Campo</th>
+                        <th>Dato actual</th>
+                        <th>Dato enviado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas_revision %}
+                        <tr {% if fila.diferente %}class="message warning"{% endif %}>
+                            <td>{{ fila.etiqueta }}</td>
+                            <td>{{ fila.actual }}</td>
+                            <td>{{ fila.enviado }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <form class="form-panel animate-fade-up" method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="field-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="form-grid">
+            <div>
+                <label>Accion</label>
+                {{ form.accion }}
+                {% if form.accion.errors %}<div class="field-error">{{ form.accion.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label>Campos a actualizar</label>
+                {{ form.campos }}
+                {% if form.campos.errors %}<div class="field-error">{{ form.campos.errors }}</div>{% endif %}
+            </div>
+            <div class="field-full">
+                <label for="{{ form.observaciones.id_for_label }}">Observaciones</label>
+                {{ form.observaciones }}
+                {% if form.observaciones.errors %}<div class="field-error">{{ form.observaciones.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit">Guardar revision</button>
+            <a class="button button-secondary" href="{% url 'turnos:solicitudes_publicas' %}">Cancelar</a>
+        </div>
+    </form>
+{% endblock %}

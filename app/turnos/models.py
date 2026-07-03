@@ -274,6 +274,7 @@ class Turno(models.Model):
     google_calendar_event_id = models.CharField(max_length=255, blank=True)
     recordatorio_email_enviado_en = models.DateTimeField(null=True, blank=True)
     recordatorio_email_ultimo_error = models.TextField(blank=True)
+    version_publica = models.UUIDField(default=uuid4, editable=False)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -332,10 +333,41 @@ class Turno(models.Model):
     def save(self, *args, **kwargs):
         with transaction.atomic():
             bloquear_agendas_de_turnos(self._obtener_claves_bloqueo_agenda())
+            self._rotar_version_publica_si_corresponde(kwargs)
             self.full_clean()
             super().save(*args, **kwargs)
 
         self._asegurar_asociacion_paciente_odontologo()
+
+    def _rotar_version_publica_si_corresponde(self, save_kwargs):
+        if not self.pk:
+            return
+
+        campos_relevantes = {
+            "paciente_id",
+            "odontologo_id",
+            "fecha",
+            "hora_inicio",
+            "duracion_minutos",
+            "estado",
+        }
+        turno_original = Turno.objects.filter(pk=self.pk).values(*campos_relevantes).first()
+
+        if not turno_original:
+            return
+
+        if not any(getattr(self, campo) != turno_original[campo] for campo in campos_relevantes):
+            return
+
+        self.version_publica = uuid4()
+
+        update_fields = save_kwargs.get("update_fields")
+
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            update_fields.add("version_publica")
+            update_fields.add("actualizado_en")
+            save_kwargs["update_fields"] = update_fields
 
     def _obtener_claves_bloqueo_agenda(self):
         claves = []
@@ -412,6 +444,170 @@ class Turno(models.Model):
 
     def __str__(self):
         return f"{self.fecha} {self.hora_inicio} - {self.paciente}"
+
+
+class DesafioAccesoPublicoTurnos(models.Model):
+    class Canal(models.TextChoices):
+        EMAIL = "email", "Email"
+        FICTICIO = "ficticio", "Ficticio"
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    paciente = models.ForeignKey(
+        "pacientes.Paciente",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="desafios_acceso_turnos",
+    )
+    canal = models.CharField(max_length=20, choices=Canal.choices, default=Canal.EMAIL)
+    codigo_hash = models.TextField(blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    expira_en = models.DateTimeField()
+    validado_en = models.DateTimeField(null=True, blank=True)
+    invalidado_en = models.DateTimeField(null=True, blank=True)
+    intentos_fallidos = models.PositiveSmallIntegerField(default=0)
+    cantidad_envios = models.PositiveSmallIntegerField(default=0)
+    ultimo_envio_en = models.DateTimeField(null=True, blank=True)
+    ip_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    dni_hash = models.CharField(max_length=64, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ["-creado_en"]
+        verbose_name = "Desafío de acceso público a turnos"
+        verbose_name_plural = "Desafíos de acceso público a turnos"
+        indexes = [
+            models.Index(fields=["expira_en"]),
+            models.Index(fields=["paciente", "invalidado_en", "validado_en"]),
+            models.Index(fields=["dni_hash", "creado_en"]),
+        ]
+
+    @property
+    def esta_activo(self):
+        return (
+            self.invalidado_en is None
+            and self.validado_en is None
+            and self.expira_en > timezone.now()
+        )
+
+    def invalidar(self, momento=None):
+        self.invalidado_en = momento or timezone.now()
+
+    def __str__(self):
+        return f"Desafío público {self.id}"
+
+
+class AccionPublicaTurno(models.Model):
+    class TipoAccion(models.TextChoices):
+        CANCELAR = "cancelar", "Cancelar"
+        REPROGRAMAR = "reprogramar", "Reprogramar"
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    turno = models.ForeignKey(
+        Turno,
+        on_delete=models.CASCADE,
+        related_name="acciones_publicas",
+    )
+    paciente = models.ForeignKey(
+        "pacientes.Paciente",
+        on_delete=models.CASCADE,
+        related_name="acciones_publicas_turnos",
+    )
+    tipo_accion = models.CharField(max_length=20, choices=TipoAccion.choices)
+    token_hash = models.TextField()
+    version_turno = models.UUIDField()
+    creado_en = models.DateTimeField(auto_now_add=True)
+    expira_en = models.DateTimeField()
+    utilizado_en = models.DateTimeField(null=True, blank=True)
+    revocado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-creado_en"]
+        verbose_name = "Acción pública de turno"
+        verbose_name_plural = "Acciones públicas de turnos"
+        indexes = [
+            models.Index(fields=["turno", "tipo_accion", "revocado_en", "utilizado_en"]),
+            models.Index(fields=["paciente", "expira_en"]),
+            models.Index(fields=["expira_en"]),
+        ]
+
+    @property
+    def esta_activa(self):
+        return (
+            self.utilizado_en is None
+            and self.revocado_en is None
+            and self.expira_en > timezone.now()
+        )
+
+    def __str__(self):
+        return f"{self.get_tipo_accion_display()} - {self.turno_id}"
+
+
+class SolicitudTurnoPublica(models.Model):
+    class EstadoRevision(models.TextChoices):
+        SIN_DIFERENCIAS = "sin_diferencias", "Sin diferencias"
+        PENDIENTE = "pendiente", "Pendiente de revision"
+        REVISADA_SIN_CAMBIOS = "revisada_sin_cambios", "Revisada sin cambios"
+        CAMBIOS_APLICADOS = "cambios_aplicados", "Cambios aplicados"
+        RECHAZADA = "rechazada", "Descartada"
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    turno = models.OneToOneField(
+        Turno,
+        on_delete=models.CASCADE,
+        related_name="solicitud_publica",
+    )
+    paciente = models.ForeignKey(
+        "pacientes.Paciente",
+        on_delete=models.PROTECT,
+        related_name="solicitudes_turno_publicas",
+    )
+    documento_enviado = models.CharField(max_length=20)
+    nombre_enviado = models.CharField(max_length=100)
+    apellido_enviado = models.CharField(max_length=100)
+    telefono_enviado = models.CharField(max_length=30)
+    email_enviado = models.EmailField(blank=True)
+    motivo_enviado = models.CharField(max_length=200, blank=True)
+    paciente_existente = models.BooleanField(default=False)
+    requiere_revision = models.BooleanField(default=False)
+    diferencias_detectadas = models.JSONField(default=dict, blank=True)
+    estado_revision = models.CharField(
+        max_length=30,
+        choices=EstadoRevision.choices,
+        default=EstadoRevision.PENDIENTE,
+    )
+    revisada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_publicas_revisadas",
+    )
+    revisada_en = models.DateTimeField(null=True, blank=True)
+    observaciones_revision = models.TextField(blank=True)
+    campos_actualizados = models.JSONField(default=list, blank=True)
+    campos_descartados = models.JSONField(default=list, blank=True)
+    notificacion_contacto_existente_en = models.DateTimeField(null=True, blank=True)
+    notificacion_contacto_existente_error = models.TextField(blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-creado_en"]
+        verbose_name = "Solicitud publica de turno"
+        verbose_name_plural = "Solicitudes publicas de turnos"
+        indexes = [
+            models.Index(fields=["estado_revision", "creado_en"]),
+            models.Index(fields=["requiere_revision", "creado_en"]),
+            models.Index(fields=["paciente", "creado_en"]),
+            models.Index(fields=["turno"]),
+        ]
+
+    @property
+    def esta_pendiente_revision(self):
+        return self.estado_revision == self.EstadoRevision.PENDIENTE
+
+    def __str__(self):
+        return f"Solicitud publica {self.creado_en:%Y-%m-%d} - {self.paciente}"
 
 
 class GoogleCalendarConexion(models.Model):

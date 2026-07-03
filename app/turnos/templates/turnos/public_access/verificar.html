@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Verificar acceso | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header public-data-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Código temporal</p>
+            <h1>Verificar acceso</h1>
+            <p class="subtitle">Revisá tu medio de contacto. Si los datos ingresados coinciden con un paciente registrado, recibirás un código para continuar.</p>
+        </div>
+    </div>
+
+    <section class="public-query-panel animate-fade-up">
+        <form class="public-dni-form" method="post" novalidate>
+            {% csrf_token %}
+            <div>
+                <label for="{{ form.codigo.id_for_label }}">{{ form.codigo.label }}</label>
+                {{ form.codigo }}
+                {% if form.codigo.errors %}
+                    <div class="field-error">{{ form.codigo.errors }}</div>
+                {% endif %}
+                {% if form.non_field_errors %}
+                    <div class="field-error">{{ form.non_field_errors }}</div>
+                {% endif %}
+            </div>
+            <button type="submit">Validar código</button>
+        </form>
+
+        <form class="public-dni-form public-form-actions" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="reenviar">
+            <button class="button button-secondary" type="submit">Reenviar código</button>
+            <a class="button button-secondary" href="{% url 'turnos:acceso_publico_solicitar' %}">Volver</a>
+        </form>
+
+        <div class="empty-state" aria-live="polite">
+            <p>El código vence en pocos minutos y es de un solo uso.</p>
+        </div>
+    </section>
+{% endblock %}

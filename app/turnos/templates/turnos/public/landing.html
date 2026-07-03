@@ -7,16 +7,12 @@
         <section class="public-confirmation-banner animate-fade-up" role="status" aria-live="polite">
             <span class="public-confirmation-icon" aria-hidden="true">✓</span>
             <div class="public-confirmation-copy">
-                <strong>Tu solicitud de turno fue registrada</strong>
-                {% if solicitud_turno_confirmada_con_email %}
-                    <p>Te avisaremos por email cuando el consultorio confirme el turno.</p>
-                {% else %}
-                    <p>El consultorio se comunicará con vos cuando el turno quede confirmado.</p>
-                {% endif %}
+                <strong>Tu solicitud fue registrada</strong>
+                <p>El consultorio revisará la información y se comunicará por un medio de contacto válido.</p>
             </div>
             <div class="public-confirmation-actions">
                 <a class="button public-primary-action" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
-                <a class="button button-secondary" href="{% url 'turnos:consulta_publica' %}">Consultar mis turnos</a>
+                <a class="button button-secondary" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar mis turnos</a>
             </div>
         </section>
     {% endif %}
@@ -34,7 +30,7 @@
             <h2>Gestión rápida</h2>
             <ul class="public-feature-list">
                 <li>Solicitá turnos sin crear una cuenta.</li>
-                <li>Consultá tus turnos activos con tu DNI.</li>
+                <li>Consultá tus turnos con un código enviado a tu contacto registrado.</li>
                 <li>Cancelá turnos pendientes o confirmados.</li>
                 <li>Cambiá el horario si el turno sigue pendiente.</li>
             </ul>
@@ -42,13 +38,13 @@
     </section>
 
     <section class="public-home-secondary animate-fade-up">
-        <a class="public-secondary-card card-hover" href="{% url 'turnos:consulta_publica' %}">
+        <a class="public-secondary-card card-hover" href="{% url 'turnos:acceso_publico_solicitar' %}">
             <span>Consultar mis turnos</span>
-            <strong>Revisá tus turnos pendientes o confirmados con tu DNI.</strong>
+            <strong>Solicitá un código temporal para revisar tus turnos activos.</strong>
         </a>
-        <a class="public-secondary-card card-hover" href="{% url 'turnos:consulta_publica' %}">
+        <a class="public-secondary-card card-hover" href="{% url 'turnos:acceso_publico_solicitar' %}">
             <span>Cancelar turno</span>
-            <strong>Ingresá con tu DNI y elegí el turno que querés cancelar.</strong>
+            <strong>Verificá tu identidad y elegí el turno que querés cancelar.</strong>
         </a>
         <a class="public-secondary-card public-secondary-card-muted card-hover" href="{% url 'login' %}">
             <span>Personal del consultorio</span>

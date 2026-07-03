@@ -30,6 +30,10 @@ def puede_gestionar_consultorio(usuario):
     )
 
 
+def puede_revisar_solicitudes_publicas(usuario):
+    return puede_gestionar_consultorio(usuario)
+
+
 def puede_ver_pacientes(usuario):
     return (
         puede_gestionar_consultorio(usuario)

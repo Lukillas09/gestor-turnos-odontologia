@@ -1,0 +1,397 @@
+from dataclasses import dataclass
+from datetime import timedelta
+from uuid import UUID
+import logging
+
+from django.conf import settings
+from django.contrib.auth.hashers import check_password, make_password
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.utils import timezone
+
+from pacientes.models import Paciente
+from turnos.notifications import notificar_codigo_acceso_publico_turnos
+from turnos.services import cancelar_turno, reprogramar_turno
+
+from .rate_limit import incrementar_limite
+from .tokens import (
+    PUBLIC_ACCESS_PENDING_CHALLENGE_KEY,
+    PUBLIC_ACCESS_SESSION_KEY,
+    PUBLIC_ACTION_TOKENS_SESSION_KEY,
+    generar_codigo_otp,
+    generar_token_accion,
+    hash_valor_publico,
+    normalizar_documento,
+    obtener_ip_cliente,
+)
+from ..models import AccionPublicaTurno, DesafioAccesoPublicoTurnos, Turno
+
+
+logger = logging.getLogger(__name__)
+
+MENSAJE_SOLICITUD_GENERICA = (
+    "Revisá tu medio de contacto. Si los datos ingresados coinciden con un paciente "
+    "registrado, recibirás un código para continuar."
+)
+MENSAJE_CODIGO_INVALIDO = "El código no es válido o ya venció. Revisalo o solicitá uno nuevo."
+MENSAJE_ACCION_INVALIDA = "La acción ya no es válida. Volvé a consultar tus turnos."
+
+
+@dataclass(frozen=True)
+class ResultadoSolicitudAcceso:
+    desafio_id: str
+    mensaje: str = MENSAJE_SOLICITUD_GENERICA
+    limitado: bool = False
+    requiere_turnstile: bool = False
+
+
+@dataclass(frozen=True)
+class ResultadoValidacionOTP:
+    valido: bool
+    mensaje: str = MENSAJE_CODIGO_INVALIDO
+    paciente_id: int | None = None
+    desafio_id: str | None = None
+
+
+def solicitar_acceso_publico_turnos(request, documento):
+    documento = normalizar_documento(documento)
+    ip_hash = hash_valor_publico(obtener_ip_cliente(request), "ip")
+    dni_hash = hash_valor_publico(documento, "dni")
+
+    limite_ip = incrementar_limite(
+        "solicitud_ip",
+        ip_hash,
+        settings.TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT,
+        settings.TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS,
+    )
+    limite_dni = incrementar_limite(
+        "solicitud_dni",
+        dni_hash,
+        settings.TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT,
+        settings.TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS,
+    )
+
+    desafio = _crear_desafio(documento, ip_hash, dni_hash)
+    request.session[PUBLIC_ACCESS_PENDING_CHALLENGE_KEY] = str(desafio.id)
+    request.session.modified = True
+
+    if not limite_ip.permitido or not limite_dni.permitido:
+        return ResultadoSolicitudAcceso(str(desafio.id), limitado=True)
+
+    _enviar_codigo_si_corresponde(desafio)
+    return ResultadoSolicitudAcceso(str(desafio.id))
+
+
+def _crear_desafio(documento, ip_hash, dni_hash):
+    paciente = Paciente.objects.filter(documento=documento).first() if documento else None
+    canal = DesafioAccesoPublicoTurnos.Canal.EMAIL
+
+    if not paciente or not paciente.email:
+        paciente = None
+        canal = DesafioAccesoPublicoTurnos.Canal.FICTICIO
+
+    ahora = timezone.now()
+
+    if paciente:
+        DesafioAccesoPublicoTurnos.objects.filter(
+            paciente=paciente,
+            validado_en__isnull=True,
+            invalidado_en__isnull=True,
+        ).update(invalidado_en=ahora)
+
+    codigo = generar_codigo_otp()
+    return DesafioAccesoPublicoTurnos.objects.create(
+        paciente=paciente,
+        canal=canal,
+        codigo_hash=make_password(codigo),
+        expira_en=ahora + timedelta(seconds=settings.TURNOS_PUBLIC_OTP_SECONDS),
+        cantidad_envios=0,
+        ip_hash=ip_hash,
+        dni_hash=dni_hash,
+    )
+
+
+def _enviar_codigo_si_corresponde(desafio):
+    if desafio.canal != DesafioAccesoPublicoTurnos.Canal.EMAIL or not desafio.paciente_id:
+        return
+
+    codigo = _regenerar_codigo(desafio)
+    resultado = notificar_codigo_acceso_publico_turnos(
+        paciente=desafio.paciente,
+        codigo=codigo,
+        expira_en=desafio.expira_en,
+    )
+
+    ahora = timezone.now()
+    desafio.cantidad_envios += 1
+    desafio.ultimo_envio_en = ahora
+    desafio.save(update_fields=["cantidad_envios", "ultimo_envio_en"])
+
+    if not resultado.enviada:
+        logger.warning(
+            "No se pudo enviar OTP de acceso público. desafio_id=%s motivo=%s",
+            desafio.id,
+            resultado.motivo,
+        )
+
+
+def _regenerar_codigo(desafio):
+    codigo = generar_codigo_otp()
+    desafio.codigo_hash = make_password(codigo)
+    desafio.save(update_fields=["codigo_hash"])
+    return codigo
+
+
+def reenviar_codigo_acceso_publico(request):
+    desafio = obtener_desafio_pendiente(request)
+
+    if not desafio:
+        return MENSAJE_SOLICITUD_GENERICA
+
+    ip_hash = hash_valor_publico(obtener_ip_cliente(request), "ip")
+    limite_ip = incrementar_limite(
+        "reenvio_ip",
+        ip_hash,
+        settings.TURNOS_PUBLIC_RESEND_LIMIT,
+        settings.TURNOS_PUBLIC_RESEND_WINDOW_SECONDS,
+    )
+    limite_dni = incrementar_limite(
+        "reenvio_dni",
+        desafio.dni_hash or "sin-dni",
+        settings.TURNOS_PUBLIC_RESEND_LIMIT,
+        settings.TURNOS_PUBLIC_RESEND_WINDOW_SECONDS,
+    )
+
+    ahora = timezone.now()
+    en_cooldown = (
+        desafio.ultimo_envio_en
+        and ahora - desafio.ultimo_envio_en
+        < timedelta(seconds=settings.TURNOS_PUBLIC_RESEND_SECONDS)
+    )
+
+    if not limite_ip.permitido or not limite_dni.permitido or en_cooldown:
+        return MENSAJE_SOLICITUD_GENERICA
+
+    _enviar_codigo_si_corresponde(desafio)
+    return MENSAJE_SOLICITUD_GENERICA
+
+
+def obtener_desafio_pendiente(request):
+    desafio_id = request.session.get(PUBLIC_ACCESS_PENDING_CHALLENGE_KEY)
+
+    if not desafio_id:
+        return None
+
+    try:
+        return DesafioAccesoPublicoTurnos.objects.select_related("paciente").get(pk=desafio_id)
+    except (DesafioAccesoPublicoTurnos.DoesNotExist, ValueError, TypeError):
+        return None
+
+
+def validar_codigo_acceso_publico(request, codigo):
+    desafio = obtener_desafio_pendiente(request)
+
+    if not desafio or not desafio.esta_activo:
+        return ResultadoValidacionOTP(False)
+
+    if desafio.intentos_fallidos >= settings.TURNOS_PUBLIC_OTP_ATTEMPTS:
+        desafio.invalidar()
+        desafio.save(update_fields=["invalidado_en"])
+        return ResultadoValidacionOTP(False)
+
+    if not check_password(codigo, desafio.codigo_hash):
+        desafio.intentos_fallidos += 1
+
+        if desafio.intentos_fallidos >= settings.TURNOS_PUBLIC_OTP_ATTEMPTS:
+            desafio.invalidar()
+            desafio.save(update_fields=["intentos_fallidos", "invalidado_en"])
+        else:
+            desafio.save(update_fields=["intentos_fallidos"])
+
+        return ResultadoValidacionOTP(False)
+
+    if not desafio.paciente_id:
+        desafio.invalidar()
+        desafio.save(update_fields=["invalidado_en"])
+        return ResultadoValidacionOTP(False)
+
+    ahora = timezone.now()
+    desafio.validado_en = ahora
+    desafio.save(update_fields=["validado_en"])
+
+    paciente = desafio.paciente
+
+    if paciente.email and paciente.email_verificado_en is None:
+        paciente.email_verificado_en = ahora
+        paciente.save(update_fields=["email_verificado_en", "actualizado_en"])
+
+    request.session.cycle_key()
+    request.session[PUBLIC_ACCESS_SESSION_KEY] = {
+        "paciente_id": desafio.paciente_id,
+        "desafio_id": str(desafio.id),
+        "validado_en": ahora.isoformat(),
+    }
+    request.session.pop(PUBLIC_ACCESS_PENDING_CHALLENGE_KEY, None)
+    request.session.pop(PUBLIC_ACTION_TOKENS_SESSION_KEY, None)
+    request.session.set_expiry(settings.TURNOS_PUBLIC_SESSION_SECONDS)
+    request.session.modified = True
+
+    return ResultadoValidacionOTP(True, paciente_id=desafio.paciente_id, desafio_id=str(desafio.id))
+
+
+def cerrar_acceso_publico(request):
+    request.session.pop(PUBLIC_ACCESS_SESSION_KEY, None)
+    request.session.pop(PUBLIC_ACCESS_PENDING_CHALLENGE_KEY, None)
+    request.session.pop(PUBLIC_ACTION_TOKENS_SESSION_KEY, None)
+    request.session.modified = True
+
+
+def generar_permisos_para_turnos(request, paciente_id, turnos):
+    ahora = timezone.now()
+    acciones_por_turno = {}
+    tokens_session = {}
+
+    for turno in turnos:
+        acciones_por_turno[turno.pk] = {}
+
+        for tipo_accion in _tipos_accion_para_turno(turno):
+            AccionPublicaTurno.objects.filter(
+                paciente_id=paciente_id,
+                turno=turno,
+                tipo_accion=tipo_accion,
+                utilizado_en__isnull=True,
+                revocado_en__isnull=True,
+            ).update(revocado_en=ahora)
+
+            token = generar_token_accion()
+            accion = AccionPublicaTurno.objects.create(
+                paciente_id=paciente_id,
+                turno=turno,
+                tipo_accion=tipo_accion,
+                token_hash=make_password(token),
+                version_turno=turno.version_publica,
+                expira_en=ahora + timedelta(seconds=settings.TURNOS_PUBLIC_ACTION_TOKEN_SECONDS),
+            )
+            acciones_por_turno[turno.pk][tipo_accion] = accion
+            tokens_session[str(accion.id)] = token
+
+    request.session[PUBLIC_ACTION_TOKENS_SESSION_KEY] = tokens_session
+    request.session.modified = True
+    return acciones_por_turno
+
+
+def _tipos_accion_para_turno(turno):
+    acciones = [AccionPublicaTurno.TipoAccion.CANCELAR]
+
+    if turno.estado == Turno.Estado.PENDIENTE:
+        acciones.append(AccionPublicaTurno.TipoAccion.REPROGRAMAR)
+
+    return acciones
+
+
+def obtener_token_accion_desde_session(request, accion_id):
+    return request.session.get(PUBLIC_ACTION_TOKENS_SESSION_KEY, {}).get(str(accion_id), "")
+
+
+def validar_accion_publica_sin_consumir(accion_id, token, paciente_id, tipo_accion):
+    try:
+        accion = AccionPublicaTurno.objects.select_related("turno", "paciente").get(pk=accion_id)
+    except (AccionPublicaTurno.DoesNotExist, ValueError, TypeError, ValidationError):
+        return None
+
+    if not _accion_publica_valida(accion, token, paciente_id, tipo_accion):
+        return None
+
+    return accion
+
+
+def cancelar_turno_publico_seguro(accion_id, token, paciente_id, motivo_cancelacion):
+    with transaction.atomic():
+        accion = _obtener_accion_bloqueada(accion_id)
+
+        if not _accion_publica_valida(
+            accion,
+            token,
+            paciente_id,
+            AccionPublicaTurno.TipoAccion.CANCELAR,
+        ):
+            return False
+
+        turno = Turno.objects.select_for_update().get(pk=accion.turno_id)
+
+        if turno.estado not in [Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO]:
+            return False
+
+        cancelar_turno(turno, motivo_cancelacion_paciente=motivo_cancelacion)
+        _consumir_accion(accion)
+        revocar_acciones_publicas_de_turno(turno)
+        return True
+
+
+def reprogramar_turno_publico_seguro(accion_id, token, paciente_id, datos):
+    with transaction.atomic():
+        accion = _obtener_accion_bloqueada(accion_id)
+
+        if not _accion_publica_valida(
+            accion,
+            token,
+            paciente_id,
+            AccionPublicaTurno.TipoAccion.REPROGRAMAR,
+        ):
+            return False, None
+
+        turno = Turno.objects.select_for_update().get(pk=accion.turno_id)
+
+        if turno.estado != Turno.Estado.PENDIENTE:
+            return False, None
+
+        turno = reprogramar_turno(turno, datos)
+        _consumir_accion(accion)
+        revocar_acciones_publicas_de_turno(turno)
+        return True, turno
+
+
+def _obtener_accion_bloqueada(accion_id):
+    try:
+        return AccionPublicaTurno.objects.select_for_update().select_related("turno").get(pk=accion_id)
+    except (AccionPublicaTurno.DoesNotExist, ValueError, TypeError):
+        return None
+
+
+def _accion_publica_valida(accion, token, paciente_id, tipo_accion):
+    if accion is None or not token:
+        return False
+
+    if not accion.esta_activa:
+        return False
+
+    if accion.paciente_id != paciente_id or accion.tipo_accion != tipo_accion:
+        return False
+
+    if accion.turno.paciente_id != paciente_id:
+        return False
+
+    if accion.turno.version_publica != accion.version_turno:
+        return False
+
+    return check_password(token, accion.token_hash)
+
+
+def _consumir_accion(accion):
+    accion.utilizado_en = timezone.now()
+    accion.save(update_fields=["utilizado_en"])
+
+
+def revocar_acciones_publicas_de_turno(turno):
+    AccionPublicaTurno.objects.filter(
+        turno=turno,
+        utilizado_en__isnull=True,
+        revocado_en__isnull=True,
+    ).update(revocado_en=timezone.now())
+
+
+def obtener_uuid(valor):
+    try:
+        return UUID(str(valor))
+    except (TypeError, ValueError):
+        return None

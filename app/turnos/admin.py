@@ -4,6 +4,7 @@ from .models import (
     DisponibilidadOdontologo,
     GoogleCalendarConexion,
     Odontologo,
+    SolicitudTurnoPublica,
     Turno,
 )
 
@@ -325,3 +326,53 @@ class TurnoAdmin(admin.ModelAdmin):
     @admin.display(description="Hora fin")
     def hora_fin_display(self, obj):
         return obj.hora_fin
+
+
+@admin.register(SolicitudTurnoPublica)
+class SolicitudTurnoPublicaAdmin(admin.ModelAdmin):
+    list_display = (
+        "creado_en",
+        "paciente",
+        "turno",
+        "paciente_existente",
+        "requiere_revision",
+        "estado_revision",
+    )
+    list_filter = (
+        "paciente_existente",
+        "requiere_revision",
+        "estado_revision",
+        ("creado_en", admin.DateFieldListFilter),
+    )
+    search_fields = (
+        "documento_enviado",
+        "nombre_enviado",
+        "apellido_enviado",
+        "paciente__documento",
+        "paciente__nombre",
+        "paciente__apellido",
+    )
+    autocomplete_fields = ("paciente", "turno", "revisada_por")
+    readonly_fields = (
+        "documento_enviado",
+        "nombre_enviado",
+        "apellido_enviado",
+        "telefono_enviado",
+        "email_enviado",
+        "motivo_enviado",
+        "diferencias_detectadas",
+        "paciente_existente",
+        "requiere_revision",
+        "estado_revision",
+        "revisada_por",
+        "revisada_en",
+        "observaciones_revision",
+        "campos_actualizados",
+        "campos_descartados",
+        "notificacion_contacto_existente_en",
+        "notificacion_contacto_existente_error",
+        "creado_en",
+        "actualizado_en",
+    )
+    ordering = ("-creado_en",)
+    list_per_page = 25

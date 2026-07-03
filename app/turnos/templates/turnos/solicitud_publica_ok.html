@@ -6,7 +6,7 @@
     <div class="page-header animate-fade-up">
         <div>
             <h1>Solicitud recibida</h1>
-            <p class="subtitle">El turno quedó registrado como pendiente.</p>
+            <p class="subtitle">El consultorio revisará la información y se comunicará por un medio de contacto válido.</p>
         </div>
         <div class="header-actions">
             <a class="button" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
@@ -16,10 +16,6 @@
     {% if turno %}
         <section class="detail-panel animate-fade-up card-hover">
             <dl class="detail-grid">
-                <div>
-                    <dt>Paciente</dt>
-                    <dd>{{ turno.paciente }}</dd>
-                </div>
                 <div>
                     <dt>Odontólogo</dt>
                     <dd>{{ turno.odontologo }}</dd>
@@ -35,10 +31,6 @@
                 <div>
                     <dt>Estado</dt>
                     <dd><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></dd>
-                </div>
-                <div>
-                    <dt>Motivo</dt>
-                    <dd>{{ turno.motivo|default:"-" }}</dd>
                 </div>
             </dl>
         </section>

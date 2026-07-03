@@ -35,7 +35,16 @@ class FichaOdontologicaInline(admin.StackedInline):
 @admin.register(Paciente)
 class PacienteAdmin(admin.ModelAdmin):
     inlines = (PacienteOdontologoInline, FichaOdontologicaInline)
-    list_display = ("nombre", "apellido", "dni", "telefono", "email", "obra_social")
+    list_display = (
+        "nombre",
+        "apellido",
+        "dni",
+        "telefono",
+        "email",
+        "estado_validacion_datos",
+        "origen_alta",
+        "obra_social",
+    )
     search_fields = (
         "apellido",
         "nombre",
@@ -45,8 +54,15 @@ class PacienteAdmin(admin.ModelAdmin):
         "localidad",
         "obra_social",
     )
-    list_filter = ("genero", "obra_social", ("creado_en", admin.DateFieldListFilter))
-    readonly_fields = ("creado_en", "actualizado_en")
+    list_filter = (
+        "genero",
+        "estado_validacion_datos",
+        "origen_alta",
+        "obra_social",
+        ("creado_en", admin.DateFieldListFilter),
+    )
+    readonly_fields = ("creado_en", "actualizado_en", "email_verificado_en", "telefono_verificado_en")
+    autocomplete_fields = ("validado_por",)
     ordering = ("apellido", "nombre")
     list_per_page = 25
     fieldsets = (
@@ -68,9 +84,22 @@ class PacienteAdmin(admin.ModelAdmin):
                 "fields": (
                     "telefono",
                     "email",
+                    "email_verificado_en",
+                    "telefono_verificado_en",
                     "domicilio",
                     "localidad",
                     "contacto_emergencia",
+                )
+            },
+        ),
+        (
+            "Validacion administrativa",
+            {
+                "fields": (
+                    "estado_validacion_datos",
+                    "origen_alta",
+                    "validado_por",
+                    "validado_en",
                 )
             },
         ),

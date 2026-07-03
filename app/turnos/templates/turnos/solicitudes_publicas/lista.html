@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitudes publicas | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Recepcion</p>
+            <h1>Solicitudes publicas</h1>
+            <p class="subtitle">Revision administrativa de datos enviados desde la web publica.</p>
+        </div>
+    </div>
+
+    <section class="filter-panel animate-fade-up">
+        <form class="turnos-filter-form" method="get">
+            <div>
+                <label for="estado">Estado</label>
+                <select id="estado" name="estado">
+                    <option value="">Todos</option>
+                    {% for valor, etiqueta in estados_revision %}
+                        <option value="{{ valor }}" {% if estado_actual == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit">Filtrar</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel-section animate-fade-up">
+        <div class="section-header">
+            <div>
+                <h2>Solicitudes por revisar: {{ pendientes_revision }}</h2>
+                <p class="subtitle">Los datos enviados no reemplazan al paciente hasta que recepcion los revise.</p>
+            </div>
+        </div>
+
+        {% if solicitudes %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Paciente</th>
+                            <th>Turno</th>
+                            <th>Origen</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for solicitud in solicitudes %}
+                            <tr>
+                                <td>{{ solicitud.creado_en|date:"d/m/Y H:i" }}</td>
+                                <td>{{ solicitud.paciente }}</td>
+                                <td>{{ solicitud.turno.fecha|date:"d/m/Y" }} {{ solicitud.turno.hora_inicio|time:"H:i" }}</td>
+                                <td>{% if solicitud.paciente_existente %}Paciente existente{% else %}Paciente nuevo{% endif %}</td>
+                                <td>{{ solicitud.get_estado_revision_display }}</td>
+                                <td><a class="button button-secondary button-small" href="{% url 'turnos:solicitud_publica_revision' solicitud.id %}">Revisar</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <p>No hay solicitudes para mostrar.</p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

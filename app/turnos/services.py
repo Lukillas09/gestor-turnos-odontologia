@@ -6,7 +6,6 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from pacientes.models import Paciente
 from pacientes.services import asegurar_paciente_asociado_a_odontologo
 
 from .google_calendar_sync import (
@@ -17,12 +16,12 @@ from .google_calendar_sync import (
 from .models import Turno, bloquear_agendas_de_turnos
 from .notifications import (
     notificar_recordatorio_turno,
-    notificar_solicitud_turno_recibida,
     notificar_turno_cancelado,
     notificar_turno_confirmado,
     notificar_turno_reprogramado,
 )
 from .selectors import obtener_turno_superpuesto
+from .solicitudes_publicas.services import crear_solicitud_publica_de_turno
 
 
 @dataclass(frozen=True)
@@ -250,25 +249,7 @@ def _normalizar_momento(momento):
 
 
 def crear_solicitud_turno_publica(datos):
-    paciente = obtener_o_crear_paciente_desde_solicitud(datos)
-    odontologo = datos["odontologo"]
-
-    turno = Turno.objects.create(
-        paciente=paciente,
-        odontologo=odontologo,
-        fecha=datos["fecha"],
-        hora_inicio=datos["hora_inicio"],
-        duracion_minutos=30,
-        motivo=datos["motivo"],
-        estado=Turno.Estado.PENDIENTE,
-    )
-    asegurar_paciente_asociado_a_odontologo(
-        paciente,
-        odontologo,
-        motivo="Solicitud pública de turno",
-    )
-    notificar_solicitud_turno_recibida(turno)
-    return turno
+    return crear_solicitud_publica_de_turno(datos).turno
 
 
 def _mensaje_validacion(error):
@@ -279,41 +260,3 @@ def _mensaje_validacion(error):
         return " ".join(mensajes)
 
     return " ".join(str(mensaje) for mensaje in getattr(error, "messages", [error]))
-
-
-def obtener_o_crear_paciente_desde_solicitud(datos):
-    documento = datos.get("documento")
-    email = datos.get("email", "")
-    paciente = None
-    datos_paciente = {
-        "nombre": datos["nombre"],
-        "apellido": datos["apellido"],
-        "telefono": datos["telefono"],
-    }
-
-    if documento:
-        paciente = Paciente.objects.filter(documento=documento).first()
-        datos_paciente["documento"] = documento
-
-    if email:
-        datos_paciente["email"] = email
-
-    if not paciente:
-        return Paciente.objects.create(
-            **{
-                **datos_paciente,
-                "documento": documento,
-                "email": email,
-            }
-        )
-
-    for campo, valor in datos_paciente.items():
-        setattr(paciente, campo, valor)
-
-    paciente.save(
-        update_fields=[
-            *datos_paciente.keys(),
-            "actualizado_en",
-        ]
-    )
-    return paciente

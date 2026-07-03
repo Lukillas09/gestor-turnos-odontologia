@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Mis turnos | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header public-data-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Acceso verificado</p>
+            <h1>Mis turnos</h1>
+            <p class="subtitle">Este acceso es temporal. Cerralo cuando termines de consultar o modificar tus turnos.</p>
+        </div>
+        <form method="post" action="{% url 'turnos:acceso_publico_cerrar' %}">
+            {% csrf_token %}
+            <button class="button button-secondary" type="submit">Cerrar acceso</button>
+        </form>
+    </div>
+
+    <section class="public-query-panel animate-fade-up">
+        {% if items_turnos %}
+            <div class="public-turno-list stagger-list">
+                {% for item in items_turnos %}
+                    <article class="public-turno-card animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
+                        <div>
+                            <span class="status-badge status-{{ item.turno.estado }}">{{ item.estado }}</span>
+                            <h2>{{ item.fecha }} · {{ item.hora }}</h2>
+                            <p>{{ item.odontologo }}</p>
+                        </div>
+                        <div class="public-turno-actions">
+                            {% if item.reprogramar_accion %}
+                                <a class="button button-soft-primary" href="{% url 'turnos:mis_turnos_reprogramar' item.reprogramar_accion.id %}">Cambiar horario</a>
+                            {% endif %}
+                            {% if item.cancelar_accion %}
+                                <form method="post" action="{% url 'turnos:mis_turnos_cancelar' item.cancelar_accion.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="accion_token" value="{{ item.cancelar_token }}">
+                                    <label class="sr-only" for="motivo-cancelacion-{{ forloop.counter }}">Motivo de cancelación</label>
+                                    <textarea id="motivo-cancelacion-{{ forloop.counter }}" name="motivo_cancelacion" rows="2" placeholder="Motivo de cancelación"></textarea>
+                                    <button class="button-danger" type="submit">Cancelar</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <p>No hay turnos activos para mostrar.</p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

@@ -46,6 +46,16 @@
             <strong>{{ turnos_pendientes }}</strong>
             <span class="dashboard-card-action">Gestionar pendientes</span>
         </a>
+        {% if puede_revisar_solicitudes_publicas %}
+            <a class="metric-card dashboard-card animate-fade-up card-hover" style="--stagger-index: 3;" href="{% url 'turnos:solicitudes_publicas' %}">
+                <span class="dashboard-card-header">
+                    <span class="dashboard-card-title">Solicitudes por revisar</span>
+                    <span class="dashboard-card-icon" aria-hidden="true"></span>
+                </span>
+                <strong>{{ solicitudes_publicas_pendientes_dashboard }}</strong>
+                <span class="dashboard-card-action">Abrir bandeja</span>
+            </a>
+        {% endif %}
     </section>
 
     <section class="panel-section animate-fade-up" style="--stagger-index: 3;">

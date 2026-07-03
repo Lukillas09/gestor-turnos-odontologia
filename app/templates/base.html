@@ -3121,6 +3121,12 @@
                         Turnos
                     </a>
 
+                    {% if puede_revisar_solicitudes_publicas %}
+                        <a class="app-sidebar-link {% if request.resolver_match.url_name == 'solicitudes_publicas' or request.resolver_match.url_name == 'solicitud_publica_revision' %}is-active{% endif %}" href="{% url 'turnos:solicitudes_publicas' %}">
+                            <span class="app-sidebar-link-icon">!</span>
+                            Solicitudes{% if solicitudes_publicas_pendientes %} ({{ solicitudes_publicas_pendientes }}){% endif %}
+                        </a>
+                    {% endif %}
                     <span class="app-sidebar-label">Agenda</span>
                     <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_dia' %}is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}">
                         <span class="app-sidebar-link-icon">□</span>
@@ -3154,8 +3160,8 @@
                 <a class="brand" href="{% url 'landing_publica' %}">Gestor de Turnos</a>
                 <nav class="nav" aria-label="Principal">
                     <a class="nav-link nav-link-public-primary" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
-                    <a class="nav-link" href="{% url 'turnos:consulta_publica' %}">Consultar turnos</a>
-                    <a class="nav-link" href="{% url 'turnos:consulta_publica' %}">Cancelar turno</a>
+                    <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar turnos</a>
+                    <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Cancelar turno</a>
                     <a class="nav-link nav-link-internal" href="{% url 'login' %}">Ingresar</a>
                 </nav>
             </div>

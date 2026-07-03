@@ -3,6 +3,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
+from .normalizacion import normalizar_documento
+
 
 class Paciente(models.Model):
     class Genero(models.TextChoices):
@@ -11,11 +13,39 @@ class Paciente(models.Model):
         OTRO = "otro", "Otro"
         PREFIERE_NO_DECIR = "prefiere_no_decir", "Prefiere no decir"
 
+    class EstadoValidacionDatos(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        VALIDADO = "validado", "Validado"
+
+    class OrigenAlta(models.TextChoices):
+        INTERNO = "interno", "Carga interna"
+        SOLICITUD_PUBLICA = "solicitud_publica", "Solicitud publica"
+
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
     documento = models.CharField(max_length=20, unique=True, null=True, blank=True)
     telefono = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
+    email_verificado_en = models.DateTimeField(null=True, blank=True)
+    telefono_verificado_en = models.DateTimeField(null=True, blank=True)
+    estado_validacion_datos = models.CharField(
+        max_length=20,
+        choices=EstadoValidacionDatos.choices,
+        default=EstadoValidacionDatos.VALIDADO,
+    )
+    origen_alta = models.CharField(
+        max_length=30,
+        choices=OrigenAlta.choices,
+        default=OrigenAlta.INTERNO,
+    )
+    validado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pacientes_validados",
+    )
+    validado_en = models.DateTimeField(null=True, blank=True)
     fecha_nacimiento = models.DateField(null=True, blank=True)
     genero = models.CharField(max_length=30, choices=Genero.choices, blank=True)
     domicilio = models.CharField(max_length=200, blank=True)
@@ -45,11 +75,7 @@ class Paciente(models.Model):
 
     @staticmethod
     def _normalizar_documento(documento):
-        if documento is None:
-            return None
-
-        documento = documento.strip()
-        return documento or None
+        return normalizar_documento(documento)
 
     def __str__(self):
         return self.nombre_completo

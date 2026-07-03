@@ -4,9 +4,10 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 
 from config.form_widgets import HtmlDateInput
+from pacientes.normalizacion import normalizar_documento
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
 
-from .models import Odontologo, Turno
+from .models import Odontologo, SolicitudTurnoPublica, Turno
 from .selectors import obtener_horarios_disponibles
 
 
@@ -295,8 +296,8 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     )
     documento = forms.CharField(
         max_length=20,
-        required=False,
         label="DNI",
+        error_messages={"required": "IngresÃ¡ tu DNI."},
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "off",
@@ -354,8 +355,12 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         return DURACION_SOLICITUD_PUBLICA_MINUTOS
 
     def clean_documento(self):
-        documento = self.cleaned_data["documento"].strip()
-        return documento or None
+        documento = normalizar_documento(self.cleaned_data["documento"])
+
+        if not documento:
+            raise forms.ValidationError("IngresÃ¡ tu DNI.")
+
+        return documento
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
@@ -366,11 +371,11 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         return fecha
 
 
-class ConsultaTurnosPublicaForm(forms.Form):
+class SolicitudAccesoPublicoTurnosForm(forms.Form):
     documento = forms.CharField(
         max_length=20,
         label="DNI",
-        error_messages={"required": "Ingresá tu DNI para consultar tus turnos."},
+        error_messages={"required": "Ingresá tu DNI para solicitar acceso."},
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "off",
@@ -379,12 +384,42 @@ class ConsultaTurnosPublicaForm(forms.Form):
             }
         ),
     )
+    turnstile_token = forms.CharField(required=False, widget=forms.HiddenInput())
 
     def clean_documento(self):
-        return self.cleaned_data["documento"].strip()
+        return normalizar_documento(self.cleaned_data["documento"]) or ""
 
 
-class CancelacionTurnoPublicaForm(forms.Form):
+class VerificacionAccesoPublicoTurnosForm(forms.Form):
+    codigo = forms.CharField(
+        min_length=6,
+        max_length=6,
+        label="Código de acceso",
+        error_messages={
+            "required": "Ingresá el código de acceso.",
+            "min_length": "El código debe tener 6 dígitos.",
+            "max_length": "El código debe tener 6 dígitos.",
+        },
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "one-time-code",
+                "inputmode": "numeric",
+                "placeholder": "000000",
+            }
+        ),
+    )
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data["codigo"].strip()
+
+        if not codigo.isdigit():
+            raise forms.ValidationError("El código debe tener 6 dígitos.")
+
+        return codigo
+
+
+class CancelacionAccesoPublicoTurnoForm(forms.Form):
+    accion_token = forms.CharField(widget=forms.HiddenInput())
     motivo_cancelacion = forms.CharField(
         required=False,
         max_length=500,
@@ -398,8 +433,8 @@ class CancelacionTurnoPublicaForm(forms.Form):
     )
 
 
-class TurnoReprogramacionPublicaForm(HorariosDisponiblesFormMixin, forms.ModelForm):
-    token = forms.CharField(widget=forms.HiddenInput())
+class TurnoReprogramacionAccesoPublicoForm(HorariosDisponiblesFormMixin, forms.ModelForm):
+    accion_token = forms.CharField(widget=forms.HiddenInput())
     hora_inicio = HorarioDisponibleChoiceField(
         choices=(),
         coerce=convertir_a_hora,
@@ -418,9 +453,9 @@ class TurnoReprogramacionPublicaForm(HorariosDisponiblesFormMixin, forms.ModelFo
         }
 
     def __init__(self, *args, **kwargs):
-        token = kwargs.pop("token", "")
+        accion_token = kwargs.pop("accion_token", "")
         super().__init__(*args, **kwargs)
-        self.fields["token"].initial = token
+        self.fields["accion_token"].initial = accion_token
         self.initial.setdefault("fecha", self.instance.fecha)
         self.initial.setdefault("hora_inicio", self._formatear_horario(self.instance.hora_inicio))
         self._configurar_horarios_disponibles()
@@ -437,8 +472,8 @@ class TurnoReprogramacionPublicaForm(HorariosDisponiblesFormMixin, forms.ModelFo
     def _obtener_turno_excluido(self):
         return self.instance
 
-    def clean_token(self):
-        return self.cleaned_data["token"].strip()
+    def clean_accion_token(self):
+        return self.cleaned_data["accion_token"].strip()
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
@@ -549,6 +584,61 @@ class AgendaFiltroForm(forms.Form):
     def __init__(self, *args, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)
         limitar_odontologos_por_usuario(self.fields["odontologo"], usuario)
+
+
+class RevisionSolicitudTurnoPublicaForm(forms.Form):
+    ACCIONES = (
+        ("conservar", "Conservar datos actuales"),
+        ("aplicar_campos", "Actualizar campos seleccionados"),
+        ("validar_paciente", "Validar paciente nuevo sin cambiar datos"),
+        ("rechazar", "Descartar datos enviados"),
+    )
+    CAMPOS_ACTUALIZABLES = (
+        ("nombre", "Actualizar nombre"),
+        ("apellido", "Actualizar apellido"),
+        ("telefono", "Actualizar telefono"),
+        ("email", "Actualizar email"),
+    )
+
+    accion = forms.ChoiceField(choices=ACCIONES, widget=forms.RadioSelect)
+    campos = forms.MultipleChoiceField(
+        choices=CAMPOS_ACTUALIZABLES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+    observaciones = forms.CharField(
+        required=False,
+        max_length=1000,
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Observaciones internas"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.solicitud = kwargs.pop("solicitud", None)
+        super().__init__(*args, **kwargs)
+
+        if self.solicitud and not self.solicitud.paciente_existente:
+            self.fields["accion"].choices = (
+                ("validar_paciente", "Validar paciente nuevo"),
+                ("conservar", "Mantener pendiente sin cambios"),
+                ("rechazar", "Descartar datos enviados"),
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        accion = cleaned_data.get("accion")
+        campos = cleaned_data.get("campos") or []
+
+        if accion == "aplicar_campos" and not campos:
+            raise forms.ValidationError("Selecciona al menos un campo para actualizar.")
+
+        if (
+            self.solicitud
+            and self.solicitud.estado_revision
+            != SolicitudTurnoPublica.EstadoRevision.PENDIENTE
+        ):
+            raise forms.ValidationError("Esta solicitud ya fue revisada.")
+
+        return cleaned_data
 
 
 def limitar_odontologos_por_usuario(campo_odontologo, usuario):

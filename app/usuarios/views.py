@@ -8,7 +8,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import FormView, TemplateView
 
-from turnos.models import Turno
+from turnos.models import SolicitudTurnoPublica, Turno
 from turnos.selectors import obtener_inicio_semana
 
 from .forms import PerfilUsuarioForm
@@ -17,6 +17,7 @@ from .roles import (
     obtener_odontologo_del_usuario,
     puede_configurar_disponibilidad,
     puede_gestionar_consultorio,
+    puede_revisar_solicitudes_publicas,
     puede_ver_turnos,
 )
 
@@ -84,6 +85,13 @@ class InicioView(TemplateView):
         pendientes_queryset = turnos_visibles_con_relaciones.filter(
             estado=Turno.Estado.PENDIENTE,
         )
+        solicitudes_publicas_pendientes = (
+            SolicitudTurnoPublica.objects.filter(
+                estado_revision=SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
+            ).count()
+            if puede_revisar_solicitudes_publicas(usuario)
+            else 0
+        )
 
         context.update(
             {
@@ -96,6 +104,7 @@ class InicioView(TemplateView):
                 "turnos_hoy": turnos_hoy_queryset.count(),
                 "turnos_semana": turnos_semana_queryset.count(),
                 "turnos_pendientes": pendientes_queryset.count(),
+                "solicitudes_publicas_pendientes_dashboard": solicitudes_publicas_pendientes,
                 "turnos_hoy_lista": turnos_hoy_queryset.order_by("hora_inicio")[:10],
                 "url_turnos_hoy": self._crear_url_agenda_dia(hoy, odontologo_filtro_url),
                 "url_turnos_semana": self._crear_url_agenda_semana(

@@ -23,6 +23,15 @@ def notificar_solicitud_turno_recibida(turno, fail_silently=True):
     )
 
 
+def notificar_solicitud_turno_contacto_existente(solicitud, fail_silently=True):
+    return _enviar_email_turno(
+        turno=solicitud.turno,
+        asunto="Solicitud de turno recibida",
+        template_name="turnos/emails/solicitud_contacto_existente.txt",
+        fail_silently=fail_silently,
+    )
+
+
 def notificar_turno_confirmado(turno, fail_silently=True):
     return _enviar_email_turno(
         turno=turno,
@@ -59,6 +68,39 @@ def notificar_recordatorio_turno(turno, fail_silently=True):
     )
 
 
+def notificar_codigo_acceso_publico_turnos(paciente, codigo, expira_en, fail_silently=True):
+    if not paciente.email:
+        return ResultadoNotificacionEmail(
+            enviada=False,
+            motivo="El paciente no tiene email cargado.",
+        )
+
+    try:
+        enviados = send_mail(
+            subject="Código de acceso a tus turnos",
+            message=render_to_string(
+                "turnos/emails/codigo_acceso_publico.txt",
+                {
+                    "codigo": codigo,
+                    "expira_en": expira_en,
+                    "consultorio": getattr(settings, "CONSULTORIO_NOMBRE", "Consultorio odontológico"),
+                },
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[paciente.email],
+            fail_silently=False,
+        )
+    except Exception as error:
+        logger.exception("No se pudo enviar el código de acceso público.")
+
+        if not fail_silently:
+            raise
+
+        return ResultadoNotificacionEmail(enviada=False, motivo=error.__class__.__name__)
+
+    return ResultadoNotificacionEmail(enviada=enviados > 0)
+
+
 def _enviar_email_turno(turno, asunto, template_name, fail_silently=True):
     destinatario = turno.paciente.email
 
@@ -77,7 +119,7 @@ def _enviar_email_turno(turno, asunto, template_name, fail_silently=True):
             fail_silently=False,
         )
     except Exception as error:
-        logger.exception("No se pudo enviar el email '%s' a %s.", asunto, destinatario)
+        logger.exception("No se pudo enviar el email '%s'.", asunto)
 
         if not fail_silently:
             raise
