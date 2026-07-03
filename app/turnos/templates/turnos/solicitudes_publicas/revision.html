@@ -1,102 +1,259 @@
 {% extends "base.html" %}
 
-{% block title %}Revisar solicitud publica | Gestor de Turnos{% endblock %}
+{% block title %}{{ titulo_revision }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="patient-backline animate-fade-up">
-        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:solicitudes_publicas' %}">&larr; Volver a solicitudes</a>
-    </div>
-
-    <div class="page-header animate-fade-up">
-        <div>
-            <p class="eyebrow">Revision administrativa</p>
-            <h1>Solicitud publica</h1>
-            <p class="subtitle">Compará los datos actuales con la fotografia enviada desde la web publica.</p>
+    <div class="review-shell">
+        <div class="patient-backline animate-fade-up">
+            <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:solicitudes_publicas' %}">&larr; Volver a solicitudes</a>
         </div>
-        <div class="header-actions">
-            <a class="button button-secondary" href="{% url 'pacientes:detalle' solicitud.paciente_id %}">Ver paciente</a>
-            <a class="button button-secondary" href="{% url 'turnos:detalle' solicitud.turno_id %}">Ver turno</a>
-        </div>
-    </div>
 
-    <section class="detail-panel animate-fade-up">
-        <dl class="detail-grid">
-            <div>
-                <dt>Origen</dt>
-                <dd>{% if solicitud.paciente_existente %}Paciente existente{% else %}Paciente nuevo{% endif %}</dd>
+        <div class="review-hero animate-fade-up">
+            <div class="review-hero-copy">
+                <p class="eyebrow">Revisión administrativa</p>
+                <h1>{{ titulo_revision }}</h1>
+                <span class="status-badge review-state-badge {% if es_paciente_nuevo %}status-pendiente{% else %}status-sync-ok{% endif %}">{{ badge_revision }}</span>
+                {% if paciente_archivado %}
+                    <p>El DNI corresponde a un paciente archivado. No se creó turno ni asociación automática; resolvé la reactivación manual antes de continuar.</p>
+                {% elif es_paciente_nuevo %}
+                    <p>Este paciente solicitó su primer turno desde la web. Revisá sus datos antes de incorporarlo como paciente validado.</p>
+                {% else %}
+                    <p>Compará la fotografía enviada desde la web pública con los datos actuales del paciente. Solo se aplican los campos que recepción seleccione.</p>
+                {% endif %}
             </div>
-            <div>
-                <dt>Estado</dt>
-                <dd>{{ solicitud.get_estado_revision_display }}</dd>
-            </div>
-            <div>
-                <dt>DNI enviado</dt>
-                <dd>{{ solicitud.documento_enviado }}</dd>
-            </div>
-            <div>
-                <dt>Turno solicitado</dt>
-                <dd>{{ solicitud.turno.fecha|date:"d/m/Y" }} {{ solicitud.turno.hora_inicio|time:"H:i" }} con {{ solicitud.turno.odontologo }}</dd>
-            </div>
-        </dl>
-    </section>
-
-    <section class="panel-section animate-fade-up">
-        <div class="section-header">
-            <div>
-                <h2>Comparacion de datos</h2>
-                <p class="subtitle">Solo los campos seleccionados se aplican al paciente.</p>
+            <div class="review-hero-actions">
+                <a class="button button-secondary" href="{% url 'pacientes:detalle' solicitud.paciente_id %}">Ver paciente</a>
+                {% if solicitud.turno %}
+                    <a class="button button-secondary" href="{% url 'turnos:detalle' solicitud.turno_id %}">Ver turno</a>
+                {% endif %}
             </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Campo</th>
-                        <th>Dato actual</th>
-                        <th>Dato enviado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for fila in filas_revision %}
-                        <tr {% if fila.diferente %}class="message warning"{% endif %}>
-                            <td>{{ fila.etiqueta }}</td>
-                            <td>{{ fila.actual }}</td>
-                            <td>{{ fila.enviado }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
 
-    <form class="form-panel animate-fade-up" method="post" novalidate>
-        {% csrf_token %}
+        {% if es_paciente_nuevo %}
+            <section class="review-summary-grid animate-fade-up" aria-label="Resumen de la solicitud">
+                <article class="review-info-card">
+                    <div class="review-card-header">
+                        <h2>Datos del paciente</h2>
+                    </div>
+                    <dl class="review-data-list">
+                        <div>
+                            <dt>Nombre y apellido</dt>
+                            <dd>{{ solicitud.apellido_enviado }}, {{ solicitud.nombre_enviado }}</dd>
+                        </div>
+                        <div>
+                            <dt>DNI</dt>
+                            <dd>{{ solicitud.documento_enviado }}</dd>
+                        </div>
+                        <div>
+                            <dt>Teléfono</dt>
+                            <dd>{{ solicitud.telefono_enviado }}</dd>
+                        </div>
+                        <div>
+                            <dt>Email</dt>
+                            <dd>{{ solicitud.email_enviado|default:"Sin email registrado" }}</dd>
+                        </div>
+                        <div>
+                            <dt>Solicitud recibida</dt>
+                            <dd>{{ solicitud.creado_en|date:"d/m/Y H:i" }}</dd>
+                        </div>
+                    </dl>
+                </article>
 
-        {% if form.non_field_errors %}
-            <div class="field-error">{{ form.non_field_errors }}</div>
+                <article class="review-info-card">
+                    <div class="review-card-header">
+                        <h2>Turno solicitado</h2>
+                        <a class="button button-secondary button-small" href="{% url 'turnos:detalle' solicitud.turno_id %}">Ver turno</a>
+                    </div>
+                    <dl class="review-data-list">
+                        <div>
+                            <dt>Fecha</dt>
+                            <dd>{{ solicitud.turno.fecha|date:"d/m/Y" }}</dd>
+                        </div>
+                        <div>
+                            <dt>Hora</dt>
+                            <dd>{{ solicitud.turno.hora_inicio|time:"H:i" }} a {{ solicitud.turno.hora_fin|time:"H:i" }}</dd>
+                        </div>
+                        <div>
+                            <dt>Odontólogo</dt>
+                            <dd>{{ solicitud.turno.odontologo }}</dd>
+                        </div>
+                        <div>
+                            <dt>Estado del turno</dt>
+                            <dd><span class="status-badge status-{{ solicitud.turno.estado }}">{{ solicitud.turno.get_estado_display }}</span></dd>
+                        </div>
+                    </dl>
+                </article>
+            </section>
+        {% else %}
+            <section class="review-comparison-card animate-fade-up" aria-labelledby="diferencias-title">
+                <div class="review-card-header">
+                    <div>
+                        <h2 id="diferencias-title">Diferencias informadas</h2>
+                        <p>Los campos diferentes aparecen primero. Marcá únicamente los que quieras aplicar al paciente.</p>
+                    </div>
+                </div>
+
+                {% if filas_diferentes %}
+                    <div class="review-field-list" data-review-field-group>
+                        {% for fila in filas_diferentes %}
+                            <article class="review-field-card is-different">
+                                <div class="review-field-main">
+                                    <div class="review-field-title">
+                                        <h3>{{ fila.etiqueta }}</h3>
+                                        <span class="status-badge review-difference-badge">Diferente</span>
+                                    </div>
+                                    <div class="review-field-values">
+                                        <div>
+                                            <span>Dato actual</span>
+                                            <strong>{{ fila.actual }}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Dato enviado</span>
+                                            <strong>{{ fila.enviado }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if form.campos %}
+                                    <div class="review-field-action">
+                                        <input
+                                            class="sr-only review-field-input"
+                                            type="checkbox"
+                                            name="campos"
+                                            value="{{ fila.campo }}"
+                                            id="campo-{{ fila.campo }}"
+                                            data-review-field-checkbox
+                                            {% if fila.campo in campos_seleccionados %}checked{% endif %}
+                                        >
+                                        <label class="review-field-checkbox" for="campo-{{ fila.campo }}">
+                                            <span class="review-checkbox-visual" aria-hidden="true"></span>
+                                            <span>Actualizar este campo</span>
+                                        </label>
+                                    </div>
+                                {% endif %}
+                            </article>
+                        {% endfor %}
+                    </div>
+                    {% if form.campos.errors %}
+                        <div class="field-error" aria-live="polite">{{ form.campos.errors }}</div>
+                    {% endif %}
+                {% else %}
+                    <div class="review-empty-note">
+                        <p>No se detectaron diferencias reales entre los datos actuales y los enviados.</p>
+                    </div>
+                {% endif %}
+
+                {% if filas_iguales %}
+                    <details class="review-equal-fields">
+                        <summary>Ver campos sin diferencias</summary>
+                        <div class="review-equal-grid">
+                            {% for fila in filas_iguales %}
+                                <div class="review-equal-item">
+                                    <span>{{ fila.etiqueta }}</span>
+                                    <strong>{{ fila.enviado }}</strong>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+            </section>
         {% endif %}
 
-        <div class="form-grid">
-            <div>
-                <label>Accion</label>
-                {{ form.accion }}
-                {% if form.accion.errors %}<div class="field-error">{{ form.accion.errors }}</div>{% endif %}
-            </div>
-            <div>
-                <label>Campos a actualizar</label>
-                {{ form.campos }}
-                {% if form.campos.errors %}<div class="field-error">{{ form.campos.errors }}</div>{% endif %}
-            </div>
-            <div class="field-full">
-                <label for="{{ form.observaciones.id_for_label }}">Observaciones</label>
-                {{ form.observaciones }}
-                {% if form.observaciones.errors %}<div class="field-error">{{ form.observaciones.errors }}</div>{% endif %}
-            </div>
-        </div>
+        <form class="review-form animate-fade-up" method="post" novalidate data-review-form>
+            {% csrf_token %}
 
-        <div class="form-actions">
-            <button type="submit">Guardar revision</button>
-            <a class="button button-secondary" href="{% url 'turnos:solicitudes_publicas' %}">Cancelar</a>
-        </div>
-    </form>
+            {% if form.non_field_errors %}
+                <div class="field-error review-form-error" aria-live="polite">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <fieldset class="review-action-fieldset">
+                <legend>¿Qué querés hacer?</legend>
+                <div class="review-action-grid">
+                    {% for accion in acciones_revision %}
+                        <div class="review-action-option review-action-{{ accion.variante }}">
+                            <input
+                                class="sr-only review-action-input"
+                                type="radio"
+                                name="{{ form.accion.html_name }}"
+                                value="{{ accion.valor }}"
+                                id="accion-{{ accion.valor }}"
+                                data-review-action
+                                data-button-label="{{ accion.boton }}"
+                                {% if accion.seleccionada %}checked{% endif %}
+                                aria-describedby="descripcion-{{ accion.valor }}"
+                            >
+                            <label class="review-action-card" for="accion-{{ accion.valor }}">
+                                <span class="review-radio-visual" aria-hidden="true"></span>
+                                <span class="review-action-content">
+                                    <strong>{{ accion.titulo }}</strong>
+                                    <span id="descripcion-{{ accion.valor }}">{{ accion.descripcion }}</span>
+                                </span>
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if form.accion.errors %}
+                    <div class="field-error" aria-live="polite">{{ form.accion.errors }}</div>
+                {% endif %}
+            </fieldset>
+
+            <div class="review-observations">
+                <label for="{{ form.observaciones.id_for_label }}">Observaciones internas</label>
+                {{ form.observaciones }}
+                {% if form.observaciones.errors %}
+                    <div class="field-error" aria-live="polite">{{ form.observaciones.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="review-form-actions">
+                <button class="review-primary-button" type="submit" data-review-submit>{{ boton_principal_revision }}</button>
+                <a class="button button-secondary" href="{% url 'turnos:solicitudes_publicas' %}">Volver sin guardar</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script>
+        (() => {
+            const form = document.querySelector("[data-review-form]");
+
+            if (!form) {
+                return;
+            }
+
+            const submitButton = form.querySelector("[data-review-submit]");
+            const actionInputs = Array.from(form.querySelectorAll("[data-review-action]"));
+            const fieldGroup = document.querySelector("[data-review-field-group]");
+            const fieldCheckboxes = Array.from(document.querySelectorAll("[data-review-field-checkbox]"));
+
+            function syncReviewState() {
+                const selectedAction = actionInputs.find((input) => input.checked);
+
+                if (!selectedAction) {
+                    return;
+                }
+
+                if (submitButton && selectedAction.dataset.buttonLabel) {
+                    submitButton.textContent = selectedAction.dataset.buttonLabel;
+                }
+
+                const canSelectFields = selectedAction.value === "aplicar_campos";
+
+                if (fieldGroup) {
+                    fieldGroup.classList.toggle("is-disabled", !canSelectFields);
+                }
+
+                fieldCheckboxes.forEach((checkbox) => {
+                    checkbox.disabled = !canSelectFields;
+                });
+            }
+
+            actionInputs.forEach((input) => {
+                input.addEventListener("change", syncReviewState);
+            });
+
+            syncReviewState();
+        })();
+    </script>
 {% endblock %}

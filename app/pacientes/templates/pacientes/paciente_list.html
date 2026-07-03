@@ -17,6 +17,7 @@
     <section class="patient-search-panel animate-fade-up" aria-label="Búsqueda de pacientes" style="--stagger-index: 1;">
         <form class="patient-search-form" method="get">
             <div class="patient-search-field">
+                <input type="hidden" name="estado" value="{{ estado_actual }}">
                 <span aria-hidden="true">⌕</span>
                 <input
                     type="search"
@@ -32,6 +33,12 @@
                     <a class="button button-secondary" href="{% url 'pacientes:lista' %}">Limpiar</a>
                 {% endif %}
             </div>
+            {% if puede_ver_archivados %}
+                <div class="patient-search-actions">
+                    <a class="button button-small {% if estado_actual == 'activos' %}button{% else %}button-secondary{% endif %}" href="{% url 'pacientes:lista' %}?estado=activos{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Activos</a>
+                    <a class="button button-small {% if estado_actual == 'archivados' %}button{% else %}button-secondary{% endif %}" href="{% url 'pacientes:lista' %}?estado=archivados{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Archivados</a>
+                </div>
+            {% endif %}
         </form>
     </section>
 
@@ -52,6 +59,9 @@
                             <div class="patient-card-meta">
                                 <span>DNI {{ paciente.documento|default:"-" }}</span>
                                 <span>{{ paciente.obra_social|default:"Sin obra social" }}</span>
+                                {% if not paciente.activo %}
+                                    <span class="status-badge status-cancelado">Archivado</span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -98,11 +108,11 @@
     {% if is_paginated %}
         <nav class="pagination-actions animate-fade-up" aria-label="Paginación de pacientes">
             {% if page_obj.has_previous %}
-                <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Anterior</a>
+                <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}">Anterior</a>
             {% endif %}
             <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
             {% if page_obj.has_next %}
-                <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}">Siguiente</a>
+                <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if busqueda %}&q={{ busqueda|urlencode }}{% endif %}{% if estado_actual %}&estado={{ estado_actual }}{% endif %}">Siguiente</a>
             {% endif %}
         </nav>
     {% endif %}

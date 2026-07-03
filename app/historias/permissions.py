@@ -1,32 +1,23 @@
-from usuarios.roles import obtener_odontologo_del_usuario
+from .access_policy import (
+    datos_clinicos_compartidos_habilitados,
+    limitar_historias_clinicas_por_usuario,
+    limitar_historias_clinicas_para_request,
+    limitar_pacientes_clinicos_por_usuario,
+    limitar_pacientes_clinicos_para_request,
+    obtener_politica_lectura,
+    obtener_politica_escritura,
+    puede_crear_historia_de_paciente,
+    puede_editar_ficha_odontologica,
+    puede_editar_historia_clinica,
+    puede_modificar_datos_clinicos_de_paciente,
+    puede_ver_datos_clinicos_de_paciente,
+    registrar_evento_acceso_clinico,
+)
 
 
-def puede_ver_historia_de_paciente(usuario, paciente):
-    odontologo = obtener_odontologo_del_usuario(usuario)
-    return odontologo is not None
+def usuario_tiene_alcance_clinico_global(usuario):
+    return datos_clinicos_compartidos_habilitados()
 
 
-def puede_crear_historia_de_paciente(usuario, paciente):
-    odontologo = obtener_odontologo_del_usuario(usuario)
-
-    if odontologo is None:
-        return False
-
-    return paciente.odontologos_asociados.filter(
-        odontologo=odontologo,
-        activo=True,
-    ).exists()
-
-
-def puede_editar_historia_clinica(usuario, historia):
-    odontologo = obtener_odontologo_del_usuario(usuario)
-    return odontologo is not None and historia.odontologo_id == odontologo.pk
-
-
-def limitar_historias_clinicas_por_usuario(queryset, usuario):
-    odontologo = obtener_odontologo_del_usuario(usuario)
-
-    if odontologo is None:
-        return queryset.none()
-
-    return queryset
+def puede_ver_historia_de_paciente(usuario, paciente, request=None):
+    return puede_ver_datos_clinicos_de_paciente(usuario, paciente, request=request)

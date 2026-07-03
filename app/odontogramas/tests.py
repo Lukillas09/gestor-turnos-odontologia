@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from pacientes.models import Paciente, PacienteOdontologo
 from turnos.models import Odontologo
-from usuarios.roles import ROL_ODONTOLOGO, ROL_RECEPCIONISTA
+from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 from .domain import color_para_estado
 from .models import EstadoDental, Odontograma
@@ -120,7 +120,7 @@ class OdontogramaTests(TestCase):
         self.assertEqual(estados.filter(activo=True).count(), 1)
         self.assertEqual(estados.get(activo=True).estado_clinico, "obturacion")
 
-    def test_recepcionista_visualiza_pero_no_edita(self):
+    def test_recepcionista_sin_perfil_odontologico_no_visualiza_odontograma(self):
         usuario = get_user_model().objects.create_user(username="recepcion.odonto")
         asignar_rol(usuario, ROL_RECEPCIONISTA)
         self.client.force_login(usuario)
@@ -142,11 +142,24 @@ class OdontogramaTests(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(response_get.status_code, 200)
-        self.assertContains(response_get, "Solo lectura")
-        self.assertEqual(response_post.status_code, 403)
+        self.assertEqual(response_get.status_code, 404)
+        self.assertEqual(response_post.status_code, 404)
+        self.assertFalse(Odontograma.objects.filter(paciente=self.paciente).exists())
+        self.assertFalse(EstadoDental.objects.exists())
 
-    def test_odontologo_no_asociado_visualiza_pero_no_edita(self):
+    def test_administrador_sin_perfil_odontologico_no_visualiza_odontograma(self):
+        usuario = get_user_model().objects.create_user(username="admin.odonto")
+        asignar_rol(usuario, ROL_ADMINISTRADOR)
+        self.client.force_login(usuario)
+
+        response = self.client.get(
+            reverse("odontogramas:detalle_paciente", kwargs={"paciente_pk": self.paciente.pk})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Odontograma.objects.filter(paciente=self.paciente).exists())
+
+    def test_odontologo_no_asociado_no_visualiza_ni_edita(self):
         usuario = get_user_model().objects.create_user(username="dr.no.asociado")
         asignar_rol(usuario, ROL_ODONTOLOGO)
         Odontologo.objects.create(usuario=usuario, matricula="MN-NO-ASOC")
@@ -169,8 +182,40 @@ class OdontogramaTests(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(response_get.status_code, 200)
-        self.assertEqual(response_post.status_code, 403)
+        self.assertEqual(response_get.status_code, 404)
+        self.assertEqual(response_post.status_code, 404)
+        self.assertFalse(Odontograma.objects.filter(paciente=self.paciente).exists())
+        self.assertFalse(EstadoDental.objects.exists())
+
+    def test_asociacion_inactiva_no_concede_acceso(self):
+        usuario = get_user_model().objects.create_user(username="dr.inactivo.odonto")
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula="MN-INAC-ODONTO")
+        PacienteOdontologo.objects.create(
+            paciente=self.paciente,
+            odontologo=odontologo,
+            activo=False,
+            motivo="Relacion inactiva",
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(
+            reverse("odontogramas:detalle_paciente", kwargs={"paciente_pk": self.paciente.pk})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Odontograma.objects.filter(paciente=self.paciente).exists())
+
+    @override_settings(ODONTOGRAMA_FEATURE_ENABLED=False)
+    def test_feature_flag_apagado_devuelve_404(self):
+        self.client.force_login(self.usuario_odontologo)
+
+        response = self.client.get(
+            reverse("odontogramas:detalle_paciente", kwargs={"paciente_pk": self.paciente.pk})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Odontograma.objects.filter(paciente=self.paciente).exists())
 
     def test_acceso_requiere_login(self):
         response = self.client.get(

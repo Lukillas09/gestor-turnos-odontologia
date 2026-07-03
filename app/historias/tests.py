@@ -17,7 +17,7 @@ from odontogramas.models import EstadoDental, Odontograma
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
-from .models import HistoriaClinica, HistoriaClinicaAdjunto
+from .models import AccesoClinicoAuditoria, HistoriaClinica, HistoriaClinicaAdjunto
 
 
 def asignar_rol(usuario, nombre_rol):
@@ -44,6 +44,12 @@ def crear_disponibilidad_laboral(odontologo, hora_inicio=time(9, 0), hora_fin=ti
 
 def crear_turno_de_atencion(paciente, odontologo, fecha=date(2026, 5, 8)):
     crear_disponibilidad_laboral(odontologo)
+    PacienteOdontologo.objects.get_or_create(
+        paciente=paciente,
+        odontologo=odontologo,
+        activo=True,
+        defaults={"motivo": "Atencion de prueba"},
+    )
     return Turno.objects.create(
         paciente=paciente,
         odontologo=odontologo,
@@ -81,6 +87,51 @@ class HistoriaClinicaAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_superusuario_requiere_emergencia_para_leer_historia_clinica(self):
+        historia = HistoriaClinica.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=timezone.localdate(),
+            motivo_consulta="Dato sensible",
+        )
+        usuario = get_user_model().objects.create_superuser(
+            username="super.clinico",
+            password="Password123!",
+        )
+        self.client.force_login(usuario)
+
+        response_sin_emergencia = self.client.get(
+            reverse("historias:detalle", kwargs={"pk": historia.pk})
+        )
+
+        self.assertEqual(response_sin_emergencia.status_code, 404)
+
+        response_emergencia = self.client.post(
+            reverse("pacientes:emergencia_clinica", kwargs={"pk": self.paciente.pk}),
+            {
+                "motivo": "Auditoria de emergencia clinica justificada",
+                "confirmacion": "on",
+            },
+        )
+
+        self.assertRedirects(
+            response_emergencia,
+            reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk}),
+        )
+        response_con_emergencia = self.client.get(
+            reverse("historias:detalle", kwargs={"pk": historia.pk})
+        )
+
+        self.assertEqual(response_con_emergencia.status_code, 200)
+        self.assertTrue(
+            AccesoClinicoAuditoria.objects.filter(
+                usuario=usuario,
+                paciente=self.paciente,
+                accion=AccesoClinicoAuditoria.Accion.INICIAR_EMERGENCIA,
+                resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            ).exists()
+        )
+
     def test_administrador_no_puede_acceder_a_historia_clinica(self):
         usuario = get_user_model().objects.create_user(
             username="admin.historia",
@@ -106,28 +157,99 @@ class HistoriaClinicaAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Historia clínica")
 
-    def test_odontologo_no_asociado_ve_historia_pero_no_acciones_clinicas(self):
+    def test_odontologo_no_asociado_no_resuelve_paciente_por_id(self):
         self.client.force_login(self.usuario_odontologo)
 
         response = self.client.get(
             reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk})
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Historia clínica")
-        self.assertNotContains(response, "Editar ficha")
-        self.assertNotContains(response, "Cargar ficha")
-        self.assertNotContains(response, "Derivar paciente")
+        self.assertEqual(response.status_code, 404)
+        self.assertNotContains(response, "Ana", status_code=404)
+        self.assertNotContains(response, "55111222", status_code=404)
 
-    def test_odontologo_no_asociado_puede_leer_historia_del_paciente(self):
+    def test_odontologo_no_asociado_no_puede_listar_historia_del_paciente(self):
         self.client.force_login(self.usuario_odontologo)
 
         response = self.client.get(
             reverse("historias:lista_paciente", kwargs={"paciente_pk": self.paciente.pk})
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Nueva entrada")
+        self.assertEqual(response.status_code, 404)
+        self.assertNotContains(response, "Ana", status_code=404)
+        self.assertNotContains(response, "55111222", status_code=404)
+
+    def test_asociacion_inactiva_no_concede_acceso_a_historia(self):
+        PacienteOdontologo.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            activo=False,
+            motivo="Relacion inactiva",
+        )
+        self.client.force_login(self.usuario_odontologo)
+
+        response = self.client.get(
+            reverse("historias:lista_paciente", kwargs={"paciente_pk": self.paciente.pk})
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_paciente_archivado_no_concede_acceso_clinico_a_odontologo_asociado(self):
+        PacienteOdontologo.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            motivo="Relacion clinica previa",
+        )
+        historia = HistoriaClinica.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=timezone.localdate(),
+            motivo_consulta="Dato clinico conservado",
+        )
+        self.paciente.archivar_en_memoria(
+            self.usuario_odontologo,
+            "Archivo administrativo de prueba",
+        )
+        self.paciente.save()
+        self.client.force_login(self.usuario_odontologo)
+
+        response_lista = self.client.get(
+            reverse("historias:lista_paciente", kwargs={"paciente_pk": self.paciente.pk})
+        )
+        response_detalle = self.client.get(
+            reverse("historias:detalle", kwargs={"pk": historia.pk})
+        )
+
+        self.assertEqual(response_lista.status_code, 404)
+        self.assertEqual(response_detalle.status_code, 404)
+
+    @override_settings(DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS=True)
+    def test_lectura_compartida_no_incluye_pacientes_archivados(self):
+        PacienteOdontologo.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            motivo="Relacion clinica previa",
+        )
+        historia = HistoriaClinica.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=timezone.localdate(),
+            motivo_consulta="Dato clinico archivado",
+        )
+        self.paciente.archivar_en_memoria(
+            self.usuario_odontologo,
+            "Archivo administrativo de prueba",
+        )
+        self.paciente.save()
+        usuario_otro, _ = crear_odontologo(
+            username="dr.compartido.archivado",
+            matricula="MN-COMP-ARCH",
+        )
+        self.client.force_login(usuario_otro)
+
+        response = self.client.get(reverse("historias:detalle", kwargs={"pk": historia.pk}))
+
+        self.assertEqual(response.status_code, 404)
 
     def test_recepcionista_no_ve_boton_de_historia_en_detalle_de_paciente(self):
         usuario = get_user_model().objects.create_user(username="recepcion.sin.historia")
@@ -364,7 +486,10 @@ class HistoriaClinicaViewsTests(TestCase):
         )
         self.client.force_login(otro_usuario)
 
-        response = self.client.post(
+        response_get = self.client.get(
+            reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk})
+        )
+        response_post = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
                 "fecha": timezone.localdate().isoformat(),
@@ -377,10 +502,14 @@ class HistoriaClinicaViewsTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response_get.status_code, 404)
+        self.assertEqual(response_post.status_code, 404)
         self.assertFalse(
             HistoriaClinica.objects.filter(motivo_consulta="Control no permitido").exists()
         )
+        self.assertFalse(HistoriaClinicaAdjunto.objects.exists())
+        self.assertFalse(Odontograma.objects.filter(paciente=self.paciente).exists())
+        self.assertFalse(EstadoDental.objects.exists())
 
     def test_odontologo_asociado_por_derivacion_puede_crear_historia_clinica(self):
         otro_usuario, otro_odontologo = crear_odontologo(
@@ -506,7 +635,7 @@ class HistoriaClinicaViewsTests(TestCase):
 
         response = self.client.get(reverse("historias:editar", kwargs={"pk": historia.pk}))
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
     def test_odontologo_relacionado_no_responsable_no_edita_historia_clinica(self):
         historia = HistoriaClinica.objects.create(
@@ -530,7 +659,7 @@ class HistoriaClinicaViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_otro_odontologo_sin_relacion_ve_detalle_clinico_solo_lectura(self):
+    def test_otro_odontologo_sin_relacion_no_ve_detalle_clinico(self):
         historia = HistoriaClinica.objects.create(
             paciente=self.paciente,
             odontologo=self.odontologo,
@@ -545,9 +674,8 @@ class HistoriaClinicaViewsTests(TestCase):
 
         response = self.client.get(reverse("historias:detalle", kwargs={"pk": historia.pk}))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Control privado")
-        self.assertNotContains(response, reverse("historias:editar", kwargs={"pk": historia.pk}))
+        self.assertEqual(response.status_code, 404)
+        self.assertNotContains(response, "Control privado", status_code=404)
 
     def test_odontologo_con_turno_propio_ve_historia_del_paciente(self):
         usuario_autor, odontologo_autor = crear_odontologo(
@@ -573,7 +701,7 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Entrada compartida por paciente relacionado")
 
-    def test_odontologo_sin_relacion_descarga_adjunto_clinico_solo_lectura(self):
+    def test_odontologo_sin_relacion_no_descarga_adjunto_clinico(self):
         historia = HistoriaClinica.objects.create(
             paciente=self.paciente,
             odontologo=self.odontologo,
@@ -595,9 +723,8 @@ class HistoriaClinicaViewsTests(TestCase):
             reverse("historias:descargar_adjunto", kwargs={"pk": adjunto.pk})
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(b"".join(response.streaming_content), b"contenido")
-        response.close()
+        self.assertEqual(response.status_code, 404)
+        self.assertNotContains(response, "privado.pdf", status_code=404)
 
     def test_no_permite_fecha_de_atencion_futura(self):
         fecha_futura = timezone.localdate() + timedelta(days=1)
@@ -659,15 +786,15 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": self.paciente.pk}),
             {
-                "nombre": "Lucas",
-                "apellido": "Paciente",
+                "motivo": "Archivo administrativo de prueba",
+                "confirmacion": "ARCHIVAR",
                 "documento": "56111222",
             },
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.assertTrue(Paciente.objects.filter(pk=self.paciente.pk).exists())
-        self.assertContains(response, "tiene historia clínica cargada")
+        self.assertTrue(HistoriaClinica.objects.filter(paciente=self.paciente).exists())
 
 
 class HistoriaClinicaStorageBackupTests(TestCase):

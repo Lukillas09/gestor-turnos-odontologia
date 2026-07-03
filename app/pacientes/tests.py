@@ -106,10 +106,21 @@ class PacienteAccessTests(TestCase):
             apellido="Externo",
             documento="20111223",
         )
+        paciente_asociacion_inactiva = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Inactivo",
+            documento="20111226",
+        )
         PacienteOdontologo.objects.create(
             paciente=paciente_asociado,
             odontologo=odontologo,
             motivo="Asignacion inicial",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=paciente_asociacion_inactiva,
+            odontologo=odontologo,
+            activo=False,
+            motivo="Relacion cerrada",
         )
         self.client.force_login(usuario)
 
@@ -118,6 +129,7 @@ class PacienteAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Asociado")
         self.assertNotContains(response, "Externo")
+        self.assertNotContains(response, "Inactivo")
 
     def test_derivar_paciente_crea_asociacion_para_odontologo_destino(self):
         usuario_origen = get_user_model().objects.create_user(username="dr.origen")
@@ -166,6 +178,160 @@ class PacienteAccessTests(TestCase):
         response_lista_destino = self.client.get(reverse("pacientes:lista"))
 
         self.assertContains(response_lista_destino, "Clinico")
+
+    def test_odontologo_asociado_abre_detalle_y_ficha(self):
+        usuario = get_user_model().objects.create_user(username="dr.asociado.paciente")
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula="MN-ASOC-PAC")
+        paciente = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Visible",
+            documento="20111227",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            motivo="Tratamiento activo",
+        )
+        self.client.force_login(usuario)
+
+        response_detalle = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+        response_ficha = self.client.get(
+            reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk})
+        )
+
+        self.assertEqual(response_detalle.status_code, 200)
+        self.assertContains(response_detalle, "Visible")
+        self.assertEqual(response_ficha.status_code, 200)
+
+    @override_settings(STORAGES=TEST_STORAGES)
+    def test_odontologo_no_asociado_recibe_404_y_no_modifica_datos_por_url(self):
+        usuario_duenio = get_user_model().objects.create_user(username="dr.duenio.scope")
+        usuario_atacante = get_user_model().objects.create_user(username="dr.atacante.scope")
+        asignar_rol(usuario_duenio, ROL_ODONTOLOGO)
+        asignar_rol(usuario_atacante, ROL_ODONTOLOGO)
+        odontologo_duenio = Odontologo.objects.create(
+            usuario=usuario_duenio,
+            matricula="MN-DUENIO-SCOPE",
+        )
+        odontologo_atacante = Odontologo.objects.create(
+            usuario=usuario_atacante,
+            matricula="MN-ATACANTE-SCOPE",
+        )
+        paciente = Paciente.objects.create(
+            nombre="Secreto",
+            apellido="Paciente",
+            documento="99111222",
+            telefono="11112222",
+            email="secreto@example.com",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=paciente,
+            odontologo=odontologo_duenio,
+            motivo="Profesional tratante",
+        )
+        historia = HistoriaClinica.objects.create(
+            paciente=paciente,
+            odontologo=odontologo_duenio,
+            fecha=date(2026, 5, 8),
+            motivo_consulta="Dato clinico privado",
+        )
+        adjunto = HistoriaClinicaAdjunto.objects.create(
+            historia=historia,
+            archivo=SimpleUploadedFile("privado.pdf", b"contenido", content_type="application/pdf"),
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=odontologo_duenio,
+            fecha=date(2026, 5, 8),
+            hora_inicio=time(10, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CANCELADO,
+        )
+        self.client.force_login(usuario_atacante)
+
+        response_detalle = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+        response_ficha_get = self.client.get(
+            reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk})
+        )
+        response_ficha_post = self.client.post(
+            reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
+            self._datos_ficha_post(paciente, telefono="99999999"),
+        )
+        response_derivar_post = self.client.post(
+            reverse("pacientes:derivar", kwargs={"pk": paciente.pk}),
+            {
+                "odontologo": odontologo_atacante.pk,
+                "motivo": "Acceso no autorizado",
+            },
+        )
+        response_derivar_get = self.client.get(
+            reverse("pacientes:derivar", kwargs={"pk": paciente.pk})
+        )
+        response_borrar_get = self.client.get(
+            reverse("pacientes:borrar", kwargs={"pk": paciente.pk})
+        )
+        response_borrar_post = self.client.post(
+            reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
+            {
+                "nombre": "Secreto",
+                "apellido": "Paciente",
+                "documento": "99111222",
+                "confirmacion_clinica": "CONFIRMAR",
+            },
+        )
+
+        self.assertEqual(response_detalle.status_code, 404)
+        self.assertNotContains(response_detalle, "Secreto", status_code=404)
+        self.assertNotContains(response_detalle, "99111222", status_code=404)
+        self.assertNotContains(response_detalle, "secreto@example.com", status_code=404)
+        self.assertEqual(response_ficha_get.status_code, 404)
+        self.assertEqual(response_ficha_post.status_code, 404)
+        self.assertEqual(response_derivar_get.status_code, 404)
+        self.assertEqual(response_derivar_post.status_code, 404)
+        self.assertEqual(response_borrar_get.status_code, 403)
+        self.assertEqual(response_borrar_post.status_code, 403)
+
+        paciente.refresh_from_db()
+        self.assertEqual(paciente.telefono, "11112222")
+        self.assertFalse(FichaOdontologica.objects.filter(paciente=paciente).exists())
+        self.assertFalse(
+            PacienteOdontologo.objects.filter(
+                paciente=paciente,
+                odontologo=odontologo_atacante,
+            ).exists()
+        )
+        self.assertTrue(Paciente.objects.filter(pk=paciente.pk).exists())
+        self.assertTrue(Turno.objects.filter(pk=turno.pk).exists())
+        self.assertTrue(HistoriaClinica.objects.filter(pk=historia.pk).exists())
+        self.assertTrue(HistoriaClinicaAdjunto.objects.filter(pk=adjunto.pk).exists())
+
+    @staticmethod
+    def _datos_ficha_post(paciente, telefono):
+        return {
+            "paciente-nombre": paciente.nombre,
+            "paciente-apellido": paciente.apellido,
+            "paciente-documento": paciente.documento,
+            "paciente-telefono": telefono,
+            "paciente-email": paciente.email,
+            "paciente-fecha_nacimiento": "",
+            "paciente-genero": "",
+            "paciente-domicilio": "",
+            "paciente-localidad": "",
+            "paciente-obra_social": "",
+            "paciente-numero_afiliado": "",
+            "paciente-contacto_emergencia": "",
+            "paciente-observaciones": "",
+            "ficha-antecedentes_medicos": "Dato no autorizado",
+            "ficha-alergias": "Latex",
+            "ficha-medicacion_actual": "",
+            "ficha-enfermedades_relevantes": "",
+            "ficha-embarazo": "",
+            "ficha-hipertension": "",
+            "ficha-diabetes": "",
+            "ficha-problemas_cardiacos": "",
+            "ficha-observaciones_generales": "",
+        }
 
 
 class PacienteViewsTests(TestCase):
@@ -275,7 +441,7 @@ class PacienteViewsTests(TestCase):
         response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Ficha odontológica")
+        self.assertContains(response, "Información clínica restringida")
         self.assertNotContains(response, "Odontograma")
         self.assertNotContains(response, "Editar paciente")
         self.assertNotContains(
@@ -350,7 +516,7 @@ class PacienteViewsTests(TestCase):
         response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Sin alertas clínicas registradas")
+        self.assertContains(response, "Información clínica restringida")
         self.assertContains(response, "Sin próximo turno")
 
     def test_edicion_actualiza_paciente(self):
@@ -400,6 +566,7 @@ class PacienteViewsTests(TestCase):
             documento="23111222",
             telefono="1111",
         )
+        usuario_odontologo = self._login_odontologo_asociado(paciente, "FICHA-NUEVA")
 
         response = self.client.post(
             reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
@@ -444,7 +611,7 @@ class PacienteViewsTests(TestCase):
         self.assertEqual(paciente.observaciones, "Prefiere atencion por la tarde.")
         self.assertEqual(ficha.alergias, "Penicilina")
         self.assertEqual(ficha.problemas_cardiacos, FichaOdontologica.RespuestaClinica.SI)
-        self.assertEqual(ficha.actualizado_por, self.usuario)
+        self.assertEqual(ficha.actualizado_por, usuario_odontologo)
 
     def test_ficha_odontologica_actualiza_ficha_existente_sin_duplicar(self):
         paciente = Paciente.objects.create(
@@ -457,6 +624,7 @@ class PacienteViewsTests(TestCase):
             paciente=paciente,
             alergias="Latex",
         )
+        self._login_odontologo_asociado(paciente, "FICHA-EDIT")
 
         response = self.client.post(
             reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
@@ -494,7 +662,7 @@ class PacienteViewsTests(TestCase):
         self.assertEqual(ficha.alergias, "Penicilina")
         self.assertEqual(ficha.medicacion_actual, "Ibuprofeno")
 
-    def test_ficha_odontologica_rechaza_usuario_sin_permiso(self):
+    def test_ficha_odontologica_devuelve_404_a_odontologo_no_asociado(self):
         paciente = Paciente.objects.create(
             nombre="Camila",
             apellido="Sin permiso",
@@ -509,7 +677,7 @@ class PacienteViewsTests(TestCase):
             reverse("pacientes:ficha_odontologica", kwargs={"pk": paciente.pk}),
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
     def test_edicion_muestra_fecha_de_nacimiento_cargada(self):
         paciente = Paciente.objects.create(
@@ -557,8 +725,8 @@ class PacienteViewsTests(TestCase):
         response = self.client.get(reverse("pacientes:borrar", kwargs={"pk": paciente.pk}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Borrar paciente")
-        self.assertContains(response, "Confirmación segura")
+        self.assertContains(response, "Archivar paciente")
+        self.assertContains(response, "sin eliminar turnos, ficha, historias ni adjuntos")
         self.assertContains(response, "40111222")
 
     def test_borrado_rechaza_datos_que_no_coinciden(self):
@@ -571,15 +739,15 @@ class PacienteViewsTests(TestCase):
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
             {
-                "nombre": "Clara",
-                "apellido": "Otro",
-                "documento": "40111222",
+                "motivo": "Archivo administrativo de prueba",
+                "confirmacion": "ARCHIVAR",
+                "documento": "99999999",
             },
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Paciente.objects.filter(pk=paciente.pk).exists())
-        self.assertContains(response, "Los datos ingresados no coinciden")
+        self.assertContains(response, "El DNI ingresado no coincide")
 
     def test_borrado_elimina_paciente_con_confirmacion_correcta(self):
         paciente = Paciente.objects.create(
@@ -590,15 +758,12 @@ class PacienteViewsTests(TestCase):
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
-            {
-                "nombre": "clara",
-                "apellido": "borrar",
-                "documento": "40111222",
-            },
+            self._datos_archivo(paciente),
         )
 
         self.assertRedirects(response, reverse("pacientes:lista"))
-        self.assertFalse(Paciente.objects.filter(pk=paciente.pk).exists())
+        paciente.refresh_from_db()
+        self.assertFalse(paciente.activo)
 
     def test_borrado_no_elimina_paciente_con_turno_pendiente(self):
         paciente = Paciente.objects.create(
@@ -613,11 +778,7 @@ class PacienteViewsTests(TestCase):
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
-            {
-                "nombre": "Clara",
-                "apellido": "Protegida",
-                "documento": "42111222",
-            },
+            self._datos_archivo(paciente),
         )
 
         self.assertEqual(response.status_code, 200)
@@ -637,11 +798,7 @@ class PacienteViewsTests(TestCase):
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
-            {
-                "nombre": "Clara",
-                "apellido": "Confirmada",
-                "documento": "45111222",
-            },
+            self._datos_archivo(paciente),
         )
 
         self.assertEqual(response.status_code, 200)
@@ -661,16 +818,13 @@ class PacienteViewsTests(TestCase):
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
-            {
-                "nombre": "Clara",
-                "apellido": "Cancelada",
-                "documento": "44111222",
-            },
+            self._datos_archivo(paciente),
         )
 
         self.assertRedirects(response, reverse("pacientes:lista"))
-        self.assertFalse(Paciente.objects.filter(pk=paciente.pk).exists())
-        self.assertFalse(Turno.objects.filter(pk=turno.pk).exists())
+        paciente.refresh_from_db()
+        self.assertFalse(paciente.activo)
+        self.assertTrue(Turno.objects.filter(pk=turno.pk).exists())
 
     def test_borrado_elimina_paciente_con_turnos_cancelados_historicos(self):
         paciente = Paciente.objects.create(
@@ -685,16 +839,13 @@ class PacienteViewsTests(TestCase):
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
-            {
-                "nombre": "Clara",
-                "apellido": "Historica",
-                "documento": "46111222",
-            },
+            self._datos_archivo(paciente),
         )
 
         self.assertRedirects(response, reverse("pacientes:lista"))
-        self.assertFalse(Paciente.objects.filter(pk=paciente.pk).exists())
-        self.assertFalse(Turno.objects.filter(pk=turno.pk).exists())
+        paciente.refresh_from_db()
+        self.assertFalse(paciente.activo)
+        self.assertTrue(Turno.objects.filter(pk=turno.pk).exists())
 
     def test_borrado_con_ficha_odontologica_exige_confirmacion_clinica(self):
         paciente = Paciente.objects.create(
@@ -710,23 +861,22 @@ class PacienteViewsTests(TestCase):
         response_get = self.client.get(reverse("pacientes:borrar", kwargs={"pk": paciente.pk}))
 
         self.assertEqual(response_get.status_code, 200)
-        self.assertContains(response_get, "Atención: datos clínicos cargados")
-        self.assertContains(response_get, "CONFIRMAR")
+        self.assertContains(response_get, "Historias cl")
+        self.assertContains(response_get, "ARCHIVAR")
 
         response_post = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
             {
-                "nombre": "Clara",
-                "apellido": "Ficha",
+                "motivo": "Archivo administrativo de prueba",
                 "documento": "47111222",
-                "confirmacion_clinica": "confirmar",
+                "confirmacion": "confirmar",
             },
         )
 
         self.assertEqual(response_post.status_code, 200)
         self.assertTrue(Paciente.objects.filter(pk=paciente.pk).exists())
         self.assertTrue(FichaOdontologica.objects.filter(paciente=paciente).exists())
-        self.assertContains(response_post, "escribí CONFIRMAR en mayúsculas")
+        self.assertContains(response_post, "ARCHIVAR")
 
     @override_settings(STORAGES=TEST_STORAGES)
     def test_borrado_confirmado_elimina_historia_ficha_adjuntos_y_turnos_no_activos(self):
@@ -771,20 +921,23 @@ class PacienteViewsTests(TestCase):
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": paciente.pk}),
-            {
-                "nombre": "Clara",
-                "apellido": "Clinica",
-                "documento": "48111222",
-                "confirmacion_clinica": "CONFIRMAR",
-            },
+            self._datos_archivo(paciente),
         )
 
         self.assertRedirects(response, reverse("pacientes:lista"))
-        self.assertFalse(Paciente.objects.filter(pk=paciente.pk).exists())
-        self.assertFalse(FichaOdontologica.objects.filter(paciente_id=paciente.pk).exists())
-        self.assertFalse(HistoriaClinica.objects.filter(pk=historia.pk).exists())
-        self.assertFalse(HistoriaClinicaAdjunto.objects.filter(pk=adjunto.pk).exists())
-        self.assertFalse(Turno.objects.filter(pk=turno.pk).exists())
+        paciente.refresh_from_db()
+        self.assertFalse(paciente.activo)
+        self.assertTrue(FichaOdontologica.objects.filter(paciente_id=paciente.pk).exists())
+        self.assertTrue(HistoriaClinica.objects.filter(pk=historia.pk).exists())
+        self.assertTrue(HistoriaClinicaAdjunto.objects.filter(pk=adjunto.pk).exists())
+        self.assertTrue(Turno.objects.filter(pk=turno.pk).exists())
+
+    def _datos_archivo(self, paciente, motivo="Archivo administrativo de prueba"):
+        return {
+            "motivo": motivo,
+            "confirmacion": "ARCHIVAR",
+            "documento": paciente.documento,
+        }
 
     def _crear_turno_para_paciente(self, paciente, estado):
         odontologo = self._crear_odontologo_para_paciente(paciente, "TURNO")
@@ -807,10 +960,33 @@ class PacienteViewsTests(TestCase):
         usuario_odontologo = get_user_model().objects.create_user(
             username=f"dr.{paciente.documento}.{sufijo.lower()}"
         )
-        return Odontologo.objects.create(
+        odontologo = Odontologo.objects.create(
             usuario=usuario_odontologo,
             matricula=f"MN-{paciente.documento}-{sufijo}",
         )
+        PacienteOdontologo.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            motivo="Relacion de prueba",
+        )
+        return odontologo
+
+    def _login_odontologo_asociado(self, paciente, sufijo):
+        usuario_odontologo = get_user_model().objects.create_user(
+            username=f"dr.{paciente.documento}.{sufijo.lower()}"
+        )
+        asignar_rol(usuario_odontologo, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(
+            usuario=usuario_odontologo,
+            matricula=f"MN-{paciente.documento}-{sufijo}",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            motivo="Relacion clinica activa",
+        )
+        self.client.force_login(usuario_odontologo)
+        return usuario_odontologo
 
 
 class PacienteDeleteRoleTests(TestCase):
@@ -821,23 +997,24 @@ class PacienteDeleteRoleTests(TestCase):
             documento="43111222",
         )
 
-    def test_odontologo_puede_borrar_paciente_con_confirmacion(self):
+    def test_odontologo_no_puede_archivar_paciente(self):
         usuario = get_user_model().objects.create_user(username="dr.delete")
         asignar_rol(usuario, ROL_ODONTOLOGO)
-        Odontologo.objects.create(usuario=usuario, matricula="MN-DEL-ODO")
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula="MN-DEL-ODO")
+        PacienteOdontologo.objects.create(
+            paciente=self.paciente,
+            odontologo=odontologo,
+            motivo="Paciente propio",
+        )
         self.client.force_login(usuario)
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": self.paciente.pk}),
-            {
-                "nombre": "Rol",
-                "apellido": "Delete",
-                "documento": "43111222",
-            },
+            self._datos_archivo(self.paciente),
         )
 
-        self.assertRedirects(response, reverse("pacientes:lista"))
-        self.assertFalse(Paciente.objects.filter(pk=self.paciente.pk).exists())
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Paciente.objects.filter(pk=self.paciente.pk, activo=True).exists())
 
     def test_administrador_puede_borrar_paciente_con_confirmacion(self):
         usuario = get_user_model().objects.create_user(username="admin.delete", is_staff=True)
@@ -846,12 +1023,16 @@ class PacienteDeleteRoleTests(TestCase):
 
         response = self.client.post(
             reverse("pacientes:borrar", kwargs={"pk": self.paciente.pk}),
-            {
-                "nombre": "Rol",
-                "apellido": "Delete",
-                "documento": "43111222",
-            },
+            self._datos_archivo(self.paciente),
         )
 
         self.assertRedirects(response, reverse("pacientes:lista"))
-        self.assertFalse(Paciente.objects.filter(pk=self.paciente.pk).exists())
+        self.paciente.refresh_from_db()
+        self.assertFalse(self.paciente.activo)
+
+    def _datos_archivo(self, paciente):
+        return {
+            "motivo": "Archivo administrativo por rol",
+            "confirmacion": "ARCHIVAR",
+            "documento": paciente.documento,
+        }

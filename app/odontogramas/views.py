@@ -8,11 +8,17 @@ from django.template.loader import render_to_string
 from django.views import View
 from django.views.generic import TemplateView
 
+from historias.access_policy import (
+    limitar_pacientes_clinicos_para_request,
+    obtener_politica_lectura,
+    registrar_evento_acceso_clinico,
+)
+from historias.models import AccesoClinicoAuditoria
 from pacientes.models import Paciente
 from usuarios.mixins import VerPacientesRequeridoMixin
 
 from .forms import EstadoDentalForm
-from .models import EstadoDental
+from .models import EstadoDental, Odontograma
 from .permissions import puede_editar_odontograma, puede_ver_odontograma
 from .selectors import construir_filas_odontograma, construir_leyenda_colores, construir_tooltip
 from .services import obtener_o_crear_odontograma, registrar_estado_dental
@@ -29,12 +35,30 @@ class PacienteOdontogramaMixin(VerPacientesRequeridoMixin):
         if not request.user.is_authenticated:
             return super().dispatch(request, *args, **kwargs)
 
-        self.paciente = get_object_or_404(Paciente, pk=kwargs["paciente_pk"])
+        if not self.test_func():
+            return super().dispatch(request, *args, **kwargs)
 
-        if not puede_ver_odontograma(request.user, self.paciente):
+        self.paciente = get_object_or_404(
+            limitar_pacientes_clinicos_para_request(Paciente.objects.all(), request),
+            pk=kwargs["paciente_pk"],
+        )
+
+        if not puede_ver_odontograma(request.user, self.paciente, request=request):
             raise PermissionDenied("No tenés permiso para ver este odontograma.")
 
-        self.odontograma = obtener_o_crear_odontograma(self.paciente)
+        if puede_editar_odontograma(request.user, self.paciente):
+            self.odontograma = obtener_o_crear_odontograma(self.paciente)
+        else:
+            self.odontograma = get_object_or_404(Odontograma, paciente=self.paciente)
+
+        registrar_evento_acceso_clinico(
+            request=request,
+            accion=AccesoClinicoAuditoria.Accion.VER_ODONTOGRAMA,
+            resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            politica=obtener_politica_lectura(request.user, self.paciente, request=request),
+            paciente=self.paciente,
+            motivo="Odontograma consultado.",
+        )
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -101,6 +125,14 @@ class EstadoDentalCreateView(PacienteOdontogramaMixin, View):
             observacion=form.cleaned_data["observacion"],
             realizado=form.cleaned_data["realizado"],
             usuario=request.user,
+        )
+        registrar_evento_acceso_clinico(
+            request=request,
+            accion=AccesoClinicoAuditoria.Accion.EDITAR_ODONTOGRAMA,
+            resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            politica=AccesoClinicoAuditoria.Politica.ASOCIACION_ACTIVA,
+            paciente=self.paciente,
+            motivo="Estado dental registrado.",
         )
 
         historial_html = render_to_string(

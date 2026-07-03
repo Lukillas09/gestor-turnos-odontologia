@@ -16,6 +16,7 @@ def obtener_turnos_activos_de_paciente(paciente_id):
         Turno.objects.select_related("paciente", "odontologo", "odontologo__usuario")
         .filter(
             paciente_id=paciente_id,
+            paciente__activo=True,
             estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
         )
         .order_by("fecha", "hora_inicio")

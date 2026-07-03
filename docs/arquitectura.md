@@ -220,17 +220,53 @@ Reglas:
 
 El scope de pacientes y turnos se centraliza en `usuarios/roles.py`.
 
+La autorizacion por objeto se aplica al construir el queryset, antes de resolver `pk`,
+`paciente_pk` o cualquier identificador de URL. El patron esperado es limitar primero y
+recien despues usar `get_object_or_404()`. Un ID interno no concede acceso por si solo.
+
 Recepción y administración:
 
-- Pueden ver y gestionar el consultorio según permisos.
+- Pueden ver y gestionar el consultorio segun permisos operativos.
+- Mantienen alcance administrativo sobre pacientes y turnos.
+- Si no tienen perfil `Odontologo`, no acceden a historias clinicas, adjuntos clinicos ni odontogramas.
 
 Odontólogo:
 
 - Ve turnos propios y turnos de pacientes asociados.
-- Ve pacientes asociados.
-- Puede cargar historia clínica si está asociado al paciente.
-- Puede editar entradas clínicas propias.
+- Ve solo pacientes con asociacion activa en `PacienteOdontologo`.
+- Una asociacion con `activo=False` no concede alcance.
+- Puede cargar historia clinica solo si esta asociado a un paciente activo.
+- Puede editar entradas clinicas propias.
 - Puede conectar su propia cuenta de Google Calendar.
+
+Lectura clinica compartida y emergencia:
+
+- `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS=False` es el comportamiento recomendado: sin asociacion activa no hay lectura clinica.
+- Si se activa lectura compartida, es solo lectura, requiere perfil `Odontologo` y queda auditada.
+- Un usuario administrativo sin perfil odontologico no recibe acceso clinico por ser administrador.
+- El superusuario debe iniciar un acceso de emergencia por paciente para leer datos clinicos fuera de las reglas normales. Ese acceso exige motivo, vence y queda auditado.
+
+Historias, adjuntos y odontogramas:
+
+- Heredan el alcance del paciente.
+- El detalle y la edicion de historias usan `limitar_historias_clinicas_por_usuario()`.
+- La descarga de adjuntos se resuelve desde historias visibles y no abre el archivo antes de autorizar.
+- El odontograma permanece detras de `ODONTOGRAMA_FEATURE_ENABLED`; cuando se active, resuelve el paciente visible antes de crear `Odontograma` o `EstadoDental`.
+- Acceder a una URL no crea asociaciones, fichas, odontogramas ni estados dentales.
+
+Respuestas HTTP internas:
+
+- Usuario anonimo: redireccion a login.
+- Usuario autenticado sin permiso general del modulo: `403`.
+- Usuario con permiso general pero objeto fuera de alcance: `404`.
+- Objeto visible pero accion no permitida, por ejemplo editar una historia ajena visible: `403`.
+
+Archivado de pacientes:
+
+- El modelo `Paciente` bloquea el borrado fisico y usa archivado reversible.
+- El archivado conserva historia clinica, adjuntos, fichas, turnos y asociaciones para auditoria.
+- Las consultas operativas usan pacientes activos por defecto.
+- No se crean nuevos turnos, historias, fichas, odontogramas ni asociaciones activas para pacientes archivados.
 
 Interfaz pública:
 

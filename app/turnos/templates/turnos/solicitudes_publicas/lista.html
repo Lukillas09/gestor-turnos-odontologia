@@ -54,8 +54,22 @@
                             <tr>
                                 <td>{{ solicitud.creado_en|date:"d/m/Y H:i" }}</td>
                                 <td>{{ solicitud.paciente }}</td>
-                                <td>{{ solicitud.turno.fecha|date:"d/m/Y" }} {{ solicitud.turno.hora_inicio|time:"H:i" }}</td>
-                                <td>{% if solicitud.paciente_existente %}Paciente existente{% else %}Paciente nuevo{% endif %}</td>
+                                <td>
+                                    {% if solicitud.turno %}
+                                        {{ solicitud.turno.fecha|date:"d/m/Y" }} {{ solicitud.turno.hora_inicio|time:"H:i" }}
+                                    {% else %}
+                                        Revisión sin turno
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not solicitud.paciente.activo %}
+                                        Paciente archivado
+                                    {% elif solicitud.paciente_existente %}
+                                        Paciente existente
+                                    {% else %}
+                                        Paciente nuevo
+                                    {% endif %}
+                                </td>
                                 <td>{{ solicitud.get_estado_revision_display }}</td>
                                 <td><a class="button button-secondary button-small" href="{% url 'turnos:solicitud_publica_revision' solicitud.id %}">Revisar</a></td>
                             </tr>

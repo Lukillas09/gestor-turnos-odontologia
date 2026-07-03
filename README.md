@@ -18,6 +18,7 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 - Gestión visual de pacientes, turnos, agenda diaria/semanal e historia clínica.
 - Roles internos con grupos de Django: `Recepcionista`, `Odontologo` y `Administrador`.
 - Asociación paciente-odontólogo y derivación de pacientes.
+- Autorizacion por objeto para pacientes, historias, adjuntos, odontogramas y turnos internos: conocer un ID no concede acceso.
 - Ficha odontológica combinada con datos personales, administrativos y clínicos.
 - Historia clínica con adjuntos clínicos. El odontograma queda desactivado como implementación futura.
 - Turnos con estados `Pendiente`, `Confirmado` y `Cancelado`.
@@ -155,7 +156,7 @@ Variables principales:
 | Grupo | Variables |
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
-| Feature flags | `ODONTOGRAMA_FEATURE_ENABLED` |
+| Feature flags | `ODONTOGRAMA_FEATURE_ENABLED`, `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS`, `ACCESO_CLINICO_EMERGENCIA_SECONDS` |
 | Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Cifrado OAuth | `OAUTH_TOKEN_ENCRYPTION_KEY` |
 | Seguridad HTTPS | `DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE`, `DJANGO_SECURE_PROXY_SSL_HEADER`, `DJANGO_SECURE_HSTS_SECONDS`, `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SECURE_HSTS_PRELOAD` |
@@ -209,6 +210,16 @@ Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 - La reprogramación valida disponibilidad y superposiciones.
 - La disponibilidad se define por odontólogo y día de semana.
 - No se pueden crear turnos para odontólogos inactivos.
+- No se pueden crear, confirmar ni reprogramar turnos para pacientes archivados.
+
+## Archivado de Pacientes
+
+Los pacientes no se borran fisicamente. La baja operativa se realiza con archivado reversible: conserva datos personales, ficha, historias, adjuntos, turnos y asociaciones para auditoria y continuidad legal.
+
+- Los pacientes archivados no aparecen en listados activos ni selectores de nuevos turnos.
+- No admiten nuevos turnos, historias, fichas, odontogramas ni asociaciones activas.
+- La reactivacion exige motivo y queda auditada.
+- Las solicitudes publicas con DNI de un paciente archivado quedan en revision interna sin crear turno ni revelar ese estado al paciente.
 
 ## Google Calendar
 
@@ -330,6 +341,16 @@ python manage.py collectstatic --noinput
 
 - `.env`, tokens, credenciales OAuth y claves reales no se versionan.
 - La interfaz pública no muestra historia clínica ni datos sensibles.
+- Los IDs internos no son autorizacion. Las vistas protegidas resuelven pacientes, turnos, historias y adjuntos desde querysets ya limitados por el usuario autenticado.
+- Un odontologo normal solo ve pacientes con una asociacion activa en `PacienteOdontologo` (`activo=True`); una asociacion inactiva no concede acceso.
+- Los objetos existentes pero fuera del alcance del usuario devuelven `404`, igual que un ID inexistente, para reducir enumeracion.
+- Recepcion y administracion conservan alcance operativo sobre pacientes/turnos, pero no acceden a historias, adjuntos ni odontogramas clinicos si no tienen perfil odontologico.
+- La lectura clinica se centraliza en `historias/access_policy.py`: odontologos normales solo acceden a pacientes activos asociados.
+- `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS=False` mantiene desactivada la lectura clinica compartida entre odontologos.
+- El superusuario no tiene lectura clinica global silenciosa: debe iniciar un acceso de emergencia por paciente, con motivo, vencimiento y auditoria.
+- Historias, adjuntos clinicos y odontogramas heredan el alcance del paciente. No se crean asociaciones, fichas, odontogramas ni estados dentales como efecto de acceder a una URL.
+- El borrado fisico de pacientes esta bloqueado; se usa archivado/reversion auditada.
+- Ocultar botones en templates acompana la experiencia, pero el control obligatorio esta en vistas, permisos y querysets.
 - La respuesta pública de solicitud de turno es neutral y no revela si el DNI ya existía, si hubo diferencias o a qué contacto se notificó.
 - El email/teléfono enviado en una solicitud pública no reemplaza automáticamente al contacto existente.
 - Las acciones públicas usan sesión temporal verificada por OTP y permisos persistentes de un solo uso por turno.

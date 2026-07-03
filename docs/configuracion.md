@@ -56,6 +56,15 @@ DJANGO_SECURE_PROXY_SSL_HEADER=True
 DJANGO_SECURE_HSTS_SECONDS=0
 ```
 
+## Acceso a Datos Clinicos
+
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS` | `False` | Si queda apagado, un odontologo normal solo lee datos clinicos de pacientes activos asociados. Si se activa, habilita lectura compartida entre odontologos con auditoria y sin permisos de escritura. |
+| `ACCESO_CLINICO_EMERGENCIA_SECONDS` | `900` | Duracion del acceso clinico de emergencia para superusuarios. Es por paciente, exige motivo y queda auditado. |
+
+En produccion se recomienda mantener `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS=False` salvo una decision explicita de politica clinica.
+
 ## Seguridad del Flujo Publico de Turnos
 
 El flujo publico de autogestion usa un desafio OTP por email, sesion temporal verificada, permisos persistentes de un solo uso por turno y rate limiting en cache. En produccion `REDIS_URL` debe apuntar a Redis para que los limites funcionen entre procesos/instancias.

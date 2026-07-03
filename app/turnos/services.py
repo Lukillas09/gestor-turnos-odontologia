@@ -40,6 +40,9 @@ class ResultadoConfirmacionTurno:
 
 
 def crear_turno_desde_formulario(form, usuario=None):
+    if not form.cleaned_data["paciente"].activo:
+        raise ValidationError("No se pueden crear turnos para pacientes archivados.")
+
     form.instance.estado = Turno.Estado.CONFIRMADO
     turno = form.save()
     asegurar_paciente_asociado_a_odontologo(
@@ -53,6 +56,9 @@ def crear_turno_desde_formulario(form, usuario=None):
 
 
 def actualizar_turno_desde_formulario(form, usuario=None):
+    if not form.cleaned_data["paciente"].activo:
+        raise ValidationError("No se pueden actualizar turnos con pacientes archivados.")
+
     turno = form.save()
     asegurar_paciente_asociado_a_odontologo(
         turno.paciente,
@@ -69,6 +75,9 @@ def reintentar_sincronizacion_google_calendar(turno):
 
 
 def reprogramar_turno(turno, datos):
+    if not turno.paciente.activo:
+        raise ValidationError("No se pueden reprogramar turnos de pacientes archivados.")
+
     turno.fecha = datos["fecha"]
     turno.hora_inicio = datos["hora_inicio"]
     turno.duracion_minutos = datos["duracion_minutos"]
@@ -113,6 +122,13 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
                     confirmado=False,
                     turno=turno,
                     mensaje="Solo se pueden confirmar turnos pendientes.",
+                )
+
+            if not turno.paciente.activo:
+                return ResultadoConfirmacionTurno(
+                    confirmado=False,
+                    turno=turno,
+                    mensaje="No se pueden confirmar turnos de pacientes archivados.",
                 )
 
             conflicto = obtener_turno_superpuesto(
@@ -250,6 +266,10 @@ def _normalizar_momento(momento):
 
 def crear_solicitud_turno_publica(datos):
     return crear_solicitud_publica_de_turno(datos).turno
+
+
+def crear_solicitud_turno_publica_resultado(datos):
+    return crear_solicitud_publica_de_turno(datos)
 
 
 def _mensaje_validacion(error):

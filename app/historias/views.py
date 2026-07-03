@@ -21,12 +21,17 @@ from usuarios.mixins import HistoriaClinicaOdontologoRequeridoMixin
 from usuarios.roles import obtener_odontologo_del_usuario
 
 from .forms import HistoriaClinicaFiltroForm, HistoriaClinicaForm
-from .models import HistoriaClinica, HistoriaClinicaAdjunto
+from .access_policy import (
+    limitar_historias_clinicas_para_request,
+    limitar_pacientes_clinicos_para_request,
+    obtener_politica_lectura,
+    obtener_politica_escritura,
+    registrar_evento_acceso_clinico,
+)
+from .models import AccesoClinicoAuditoria, HistoriaClinica, HistoriaClinicaAdjunto
 from .permissions import (
-    limitar_historias_clinicas_por_usuario,
     puede_crear_historia_de_paciente,
     puede_editar_historia_clinica,
-    puede_ver_historia_de_paciente,
 )
 
 
@@ -38,21 +43,13 @@ class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
     requiere_permiso_creacion = False
 
     def dispatch(self, request, *args, **kwargs):
-        self.paciente = get_object_or_404(Paciente, pk=kwargs["paciente_pk"])
+        if not request.user.is_authenticated or not self.test_func():
+            return super().dispatch(request, *args, **kwargs)
 
-        if request.user.is_authenticated and not puede_ver_historia_de_paciente(
-            request.user,
-            self.paciente,
-        ):
-            _registrar_evento_clinico(
-                request,
-                "acceso_denegado_paciente",
-                paciente=self.paciente,
-                detalle="Intento de acceso a historia de paciente no relacionado.",
-            )
-            raise PermissionDenied(
-                "No tenés permiso para ver la historia clínica de este paciente."
-            )
+        self.paciente = get_object_or_404(
+            self.get_paciente_queryset(),
+            pk=kwargs["paciente_pk"],
+        )
 
         if self.requiere_permiso_creacion and not puede_crear_historia_de_paciente(
             request.user,
@@ -70,6 +67,13 @@ class PacienteHistoriaClinicaMixin(HistoriaClinicaOdontologoRequeridoMixin):
 
         return super().dispatch(request, *args, **kwargs)
 
+    def get_paciente_queryset(self):
+        return limitar_pacientes_clinicos_para_request(
+            Paciente.objects.all(),
+            self.request,
+            lectura=not self.requiere_permiso_creacion,
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["paciente"] = self.paciente
@@ -84,9 +88,9 @@ class HistoriaClinicaListView(PacienteHistoriaClinicaMixin, ListView):
 
     def get_queryset(self):
         queryset = (
-            limitar_historias_clinicas_por_usuario(
+            limitar_historias_clinicas_para_request(
                 HistoriaClinica.objects.filter(paciente=self.paciente),
-                self.request.user,
+                self.request,
             )
             .select_related(
                 "paciente",
@@ -222,7 +226,7 @@ class HistoriaClinicaDetailView(HistoriaClinicaOdontologoRequeridoMixin, DetailV
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        queryset = limitar_historias_clinicas_por_usuario(queryset, self.request.user)
+        queryset = limitar_historias_clinicas_para_request(queryset, self.request)
         return queryset.select_related(
             "paciente",
             "odontologo",
@@ -267,7 +271,11 @@ class HistoriaClinicaUpdateView(HistoriaClinicaOdontologoRequeridoMixin, UpdateV
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        queryset = limitar_historias_clinicas_por_usuario(queryset, self.request.user)
+        queryset = limitar_historias_clinicas_para_request(
+            queryset,
+            self.request,
+            lectura=False,
+        )
         return queryset.select_related("paciente", "odontologo", "odontologo__usuario")
 
     def get_object(self, queryset=None):
@@ -327,9 +335,9 @@ class HistoriaClinicaAdjuntoDownloadView(HistoriaClinicaOdontologoRequeridoMixin
 
     @staticmethod
     def _get_queryset(request):
-        historias_visibles = limitar_historias_clinicas_por_usuario(
+        historias_visibles = limitar_historias_clinicas_para_request(
             HistoriaClinica.objects.all(),
-            request.user,
+            request,
         )
         return HistoriaClinicaAdjunto.objects.filter(
             historia__in=historias_visibles,
@@ -343,11 +351,31 @@ class HistoriaClinicaAdjuntoDownloadView(HistoriaClinicaOdontologoRequeridoMixin
 
 
 def _registrar_evento_clinico(request, accion, paciente=None, historia=None, detalle=""):
-    logger.info(
-        "auditoria_clinica accion=%s usuario_id=%s paciente_id=%s historia_id=%s detalle=%s",
-        accion,
-        request.user.pk if request.user.is_authenticated else None,
-        paciente.pk if paciente else None,
-        historia.pk if historia else None,
-        detalle,
+    mapa_acciones = {
+        "creacion_denegada_paciente_no_asociado": AccesoClinicoAuditoria.Accion.CREAR_HISTORIA,
+        "ver_historia_paciente": AccesoClinicoAuditoria.Accion.VER_HISTORIA,
+        "ver_detalle_historia": AccesoClinicoAuditoria.Accion.VER_DETALLE_HISTORIA,
+        "crear_historia": AccesoClinicoAuditoria.Accion.CREAR_HISTORIA,
+        "editar_historia": AccesoClinicoAuditoria.Accion.EDITAR_HISTORIA,
+        "abrir_adjunto": AccesoClinicoAuditoria.Accion.ABRIR_ADJUNTO,
+    }
+    resultado = (
+        AccesoClinicoAuditoria.Resultado.DENEGADO
+        if "denegada" in accion
+        else AccesoClinicoAuditoria.Resultado.PERMITIDO
+    )
+    politica = (
+        obtener_politica_escritura(request.user, paciente)
+        if accion in {"crear_historia", "editar_historia", "creacion_denegada_paciente_no_asociado"}
+        else obtener_politica_lectura(request.user, paciente, request=request)
+    )
+
+    registrar_evento_acceso_clinico(
+        request=request,
+        accion=mapa_acciones.get(accion, AccesoClinicoAuditoria.Accion.VER_HISTORIA),
+        resultado=resultado,
+        politica=politica or AccesoClinicoAuditoria.Politica.SIN_PERMISO,
+        paciente=paciente,
+        historia=historia,
+        motivo=detalle,
     )

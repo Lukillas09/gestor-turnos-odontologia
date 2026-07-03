@@ -27,8 +27,8 @@ class PacienteForm(forms.ModelForm):
         labels = {
             "documento": "DNI",
             "fecha_nacimiento": "Fecha de nacimiento",
-            "genero": "Sexo / género",
-            "numero_afiliado": "Número de afiliado",
+            "genero": "Sexo / genero",
+            "numero_afiliado": "Numero de afiliado",
             "contacto_emergencia": "Contacto de emergencia",
         }
         widgets = {
@@ -46,7 +46,9 @@ class PacienteForm(forms.ModelForm):
             "domicilio": forms.TextInput(attrs={"autocomplete": "street-address"}),
             "localidad": forms.TextInput(attrs={"autocomplete": "address-level2"}),
             "numero_afiliado": forms.TextInput(attrs={"autocomplete": "off"}),
-            "contacto_emergencia": forms.TextInput(attrs={"autocomplete": "tel", "inputmode": "tel"}),
+            "contacto_emergencia": forms.TextInput(
+                attrs={"autocomplete": "tel", "inputmode": "tel"}
+            ),
             "observaciones": forms.Textarea(attrs={"rows": 4}),
         }
 
@@ -66,9 +68,9 @@ class FichaOdontologicaForm(forms.ModelForm):
             "observaciones_generales",
         )
         labels = {
-            "medicacion_actual": "Medicación actual",
-            "hipertension": "Hipertensión",
-            "problemas_cardiacos": "Problemas cardíacos",
+            "medicacion_actual": "Medicacion actual",
+            "hipertension": "Hipertension",
+            "problemas_cardiacos": "Problemas cardiacos",
         }
         widgets = {
             "antecedentes_medicos": forms.Textarea(attrs={"rows": 4}),
@@ -79,76 +81,104 @@ class FichaOdontologicaForm(forms.ModelForm):
         }
 
 
-class PacienteDeleteConfirmationForm(forms.Form):
-    nombre = forms.CharField(max_length=100)
-    apellido = forms.CharField(max_length=100)
+class PacienteArchiveForm(forms.Form):
+    motivo = forms.CharField(
+        min_length=10,
+        max_length=1000,
+        label="Motivo de archivo",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "placeholder": "Motivo administrativo para archivar el paciente",
+            }
+        ),
+    )
+    confirmacion = forms.CharField(
+        label="Confirmacion",
+        help_text="Para confirmar, escribi ARCHIVAR en mayusculas.",
+    )
     documento = forms.CharField(
         max_length=20,
         label="DNI",
         widget=forms.TextInput(attrs={"autocomplete": "off", "inputmode": "numeric"}),
     )
 
-    def __init__(self, *args, paciente, requiere_confirmacion_clinica=False, **kwargs):
+    def __init__(self, *args, paciente, **kwargs):
         super().__init__(*args, **kwargs)
         self.paciente = paciente
-        self.requiere_confirmacion_clinica = requiere_confirmacion_clinica
-
-        if requiere_confirmacion_clinica:
-            self.fields["confirmacion_clinica"] = forms.CharField(
-                label="Confirmación clínica",
-                help_text=(
-                    "Este paciente tiene datos clínicos cargados. "
-                    "Para borrarlos, escribí CONFIRMAR en mayúsculas."
-                ),
-            )
 
     def clean(self):
         datos = super().clean()
 
         if not self.paciente.documento:
             raise forms.ValidationError(
-                "El paciente no tiene DNI cargado. Agregá el DNI antes de borrar."
+                "El paciente no tiene DNI cargado. Agregalo antes de archivarlo."
             )
 
-        if not all(datos.get(campo) for campo in ("nombre", "apellido", "documento")):
+        if not all(datos.get(campo) for campo in ("motivo", "confirmacion", "documento")):
             return datos
 
-        nombre = datos.get("nombre", "").strip().casefold()
-        apellido = datos.get("apellido", "").strip().casefold()
-        documento = datos.get("documento", "").strip()
+        if datos["documento"].strip() != self.paciente.documento:
+            raise forms.ValidationError("El DNI ingresado no coincide con el paciente.")
 
-        coincide = (
-            nombre == self.paciente.nombre.strip().casefold()
-            and apellido == self.paciente.apellido.strip().casefold()
-            and documento == self.paciente.documento
-        )
-
-        if not coincide:
-            raise forms.ValidationError(
-                "Los datos ingresados no coinciden con el paciente."
-            )
-
-        if self.requiere_confirmacion_clinica:
-            confirmacion = datos.get("confirmacion_clinica", "").strip()
-
-            if confirmacion != "CONFIRMAR":
-                self.add_error(
-                    "confirmacion_clinica",
-                    "Para borrar datos clínicos, escribí CONFIRMAR en mayúsculas.",
-                )
+        if datos["confirmacion"].strip() != "ARCHIVAR":
+            self.add_error("confirmacion", "Para archivar, escribi ARCHIVAR en mayusculas.")
 
         return datos
+
+
+class PacienteReactivateForm(forms.Form):
+    motivo = forms.CharField(
+        min_length=10,
+        max_length=1000,
+        label="Motivo de reactivacion",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "placeholder": "Motivo administrativo para reactivar el paciente",
+            }
+        ),
+    )
+    confirmacion = forms.CharField(
+        label="Confirmacion",
+        help_text="Para confirmar, escribi REACTIVAR en mayusculas.",
+    )
+
+    def clean_confirmacion(self):
+        confirmacion = self.cleaned_data["confirmacion"].strip()
+
+        if confirmacion != "REACTIVAR":
+            raise forms.ValidationError("Para reactivar, escribi REACTIVAR en mayusculas.")
+
+        return confirmacion
+
+
+class AccesoClinicoEmergenciaForm(forms.Form):
+    motivo = forms.CharField(
+        min_length=20,
+        max_length=1000,
+        label="Motivo del acceso de emergencia",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "placeholder": "Motivo clinico/operativo que justifica el acceso excepcional",
+            }
+        ),
+    )
+    confirmacion = forms.BooleanField(
+        label="Confirmo que este acceso es excepcional, paciente-especifico y auditado.",
+    )
 
 
 class PacienteDerivacionForm(forms.Form):
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True).select_related("usuario"),
-        empty_label="Seleccionar odontólogo",
-        label="Odontólogo destino",
+        empty_label="Seleccionar odontologo",
+        label="Odontologo destino",
     )
     motivo = forms.CharField(
         required=False,
-        label="Motivo de derivación",
+        label="Motivo de derivacion",
         widget=forms.Textarea(attrs={"rows": 4}),
     )
 
@@ -157,6 +187,9 @@ class PacienteDerivacionForm(forms.Form):
         self.paciente = paciente
 
     def clean_odontologo(self):
+        if not self.paciente.activo:
+            raise forms.ValidationError("No se puede derivar un paciente archivado.")
+
         odontologo = self.cleaned_data["odontologo"]
 
         if PacienteOdontologo.objects.filter(
@@ -165,7 +198,7 @@ class PacienteDerivacionForm(forms.Form):
             activo=True,
         ).exists():
             raise forms.ValidationError(
-                "El paciente ya está asociado a ese odontólogo."
+                "El paciente ya esta asociado a ese odontologo."
             )
 
         return odontologo

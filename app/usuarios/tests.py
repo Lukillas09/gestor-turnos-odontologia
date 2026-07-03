@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from pacientes.models import Paciente
+from pacientes.models import Paciente, PacienteOdontologo
 from turnos.models import (
     DisponibilidadOdontologo,
     Odontologo,
@@ -21,6 +21,7 @@ from .roles import (
     puede_borrar_pacientes,
     puede_configurar_disponibilidad,
     puede_gestionar_consultorio,
+    limitar_pacientes_por_usuario,
     puede_reprogramar_turno,
     puede_reintentar_sincronizacion_google_calendar,
     puede_ver_pacientes,
@@ -60,7 +61,7 @@ class RolesTests(TestCase):
 
         self.assertFalse(puede_gestionar_consultorio(usuario))
         self.assertTrue(puede_ver_pacientes(usuario))
-        self.assertTrue(puede_borrar_pacientes(usuario))
+        self.assertFalse(puede_borrar_pacientes(usuario))
         self.assertTrue(puede_ver_turnos(usuario))
 
     def test_administrador_puede_configurar_disponibilidad(self):
@@ -121,6 +122,30 @@ class RolesTests(TestCase):
         self.assertTrue(puede_reprogramar_turno(usuario, turno_propio))
         self.assertFalse(puede_reprogramar_turno(usuario, turno_ajeno))
         self.assertFalse(puede_reprogramar_turno(usuario, turno_cancelado))
+
+    def test_odontologo_no_ve_pacientes_archivados_aunque_siga_asociado(self):
+        usuario = get_user_model().objects.create_user(username="odontologo.archivado")
+        asignar_rol(usuario, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(usuario=usuario, matricula="MN-ARCH")
+        paciente_activo = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Activo",
+            documento="ARCH-001",
+        )
+        paciente_archivado = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Archivado",
+            documento="ARCH-002",
+        )
+        PacienteOdontologo.objects.create(paciente=paciente_activo, odontologo=odontologo)
+        PacienteOdontologo.objects.create(paciente=paciente_archivado, odontologo=odontologo)
+        paciente_archivado.archivar_en_memoria(usuario, "Archivo administrativo de prueba")
+        paciente_archivado.save()
+
+        visibles = limitar_pacientes_por_usuario(Paciente.objects.all(), usuario)
+
+        self.assertIn(paciente_activo, visibles)
+        self.assertNotIn(paciente_archivado, visibles)
 
 
 class PerfilUsuarioTests(TestCase):

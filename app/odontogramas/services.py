@@ -8,6 +8,9 @@ from .models import EstadoDental, Odontograma
 
 
 def obtener_o_crear_odontograma(paciente):
+    if not paciente.activo:
+        raise ValueError("No se pueden crear odontogramas para pacientes archivados.")
+
     odontograma, _ = Odontograma.objects.get_or_create(paciente=paciente)
     return odontograma
 

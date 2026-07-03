@@ -323,6 +323,7 @@ class Turno(models.Model):
 
         if not errors and self.fecha and self.hora_inicio and self.odontologo_id:
             if self.estado != self.Estado.CANCELADO:
+                self._validar_paciente_activo(errors)
                 self._validar_odontologo_activo(errors)
                 self._validar_disponibilidad(errors)
                 self._validar_solapamiento(errors)
@@ -393,6 +394,9 @@ class Turno(models.Model):
         return claves
 
     def _asegurar_asociacion_paciente_odontologo(self):
+        if self.paciente_id and not self.paciente.activo:
+            return
+
         from pacientes.services import asegurar_paciente_asociado_a_odontologo
 
         asegurar_paciente_asociado_a_odontologo(
@@ -404,6 +408,10 @@ class Turno(models.Model):
     def _validar_odontologo_activo(self, errors):
         if not self.odontologo.activo:
             errors["odontologo"] = "No se pueden cargar turnos para un odontólogo inactivo."
+
+    def _validar_paciente_activo(self, errors):
+        if self.paciente_id and not self.paciente.activo:
+            errors["paciente"] = "No se pueden cargar turnos activos para pacientes archivados."
 
     def _validar_disponibilidad(self, errors):
         if self.fecha_hora_fin.date() != self.fecha:
@@ -555,6 +563,8 @@ class SolicitudTurnoPublica(models.Model):
         Turno,
         on_delete=models.CASCADE,
         related_name="solicitud_publica",
+        null=True,
+        blank=True,
     )
     paciente = models.ForeignKey(
         "pacientes.Paciente",

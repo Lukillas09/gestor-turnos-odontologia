@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 
 from config.form_widgets import HtmlDateInput
+from pacientes.models import Paciente
 from pacientes.normalizacion import normalizar_documento
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
 
@@ -83,6 +84,12 @@ class TurnoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["paciente"].empty_label = "Seleccionar paciente"
+        pacientes = Paciente.objects.activos()
+
+        if self.instance and self.instance.paciente_id:
+            pacientes = Paciente.objects.filter(Q(activo=True) | Q(pk=self.instance.paciente_id))
+
+        self.fields["paciente"].queryset = pacientes
         odontologos = Odontologo.objects.filter(activo=True)
 
         if self.instance and self.instance.odontologo_id:
@@ -590,13 +597,13 @@ class RevisionSolicitudTurnoPublicaForm(forms.Form):
     ACCIONES = (
         ("conservar", "Conservar datos actuales"),
         ("aplicar_campos", "Actualizar campos seleccionados"),
-        ("validar_paciente", "Validar paciente nuevo sin cambiar datos"),
-        ("rechazar", "Descartar datos enviados"),
+        ("mantener_pendiente", "Revisar más tarde"),
+        ("rechazar", "Marcar solicitud como no válida"),
     )
     CAMPOS_ACTUALIZABLES = (
         ("nombre", "Actualizar nombre"),
         ("apellido", "Actualizar apellido"),
-        ("telefono", "Actualizar telefono"),
+        ("telefono", "Actualizar teléfono"),
         ("email", "Actualizar email"),
     )
 
@@ -615,13 +622,23 @@ class RevisionSolicitudTurnoPublicaForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.solicitud = kwargs.pop("solicitud", None)
         super().__init__(*args, **kwargs)
+        self.fields["accion"].initial = "conservar"
 
         if self.solicitud and not self.solicitud.paciente_existente:
             self.fields["accion"].choices = (
-                ("validar_paciente", "Validar paciente nuevo"),
-                ("conservar", "Mantener pendiente sin cambios"),
-                ("rechazar", "Descartar datos enviados"),
+                ("validar_paciente", "Validar paciente"),
+                ("mantener_pendiente", "Revisar más tarde"),
+                ("rechazar", "Marcar solicitud como no válida"),
             )
+            self.fields["accion"].initial = "validar_paciente"
+            self.fields.pop("campos", None)
+        elif self.solicitud and not self.solicitud.paciente.activo:
+            self.fields["accion"].choices = (
+                ("mantener_pendiente", "Mantener pendiente"),
+                ("rechazar", "Marcar solicitud como no valida"),
+            )
+            self.fields["accion"].initial = "mantener_pendiente"
+            self.fields.pop("campos", None)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -629,7 +646,7 @@ class RevisionSolicitudTurnoPublicaForm(forms.Form):
         campos = cleaned_data.get("campos") or []
 
         if accion == "aplicar_campos" and not campos:
-            raise forms.ValidationError("Selecciona al menos un campo para actualizar.")
+            raise forms.ValidationError("Seleccioná al menos un campo para actualizar.")
 
         if (
             self.solicitud

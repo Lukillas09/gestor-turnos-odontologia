@@ -45,7 +45,45 @@ Antes de produccion real:
 - Revisar periodicamente la bandeja `/turnos/solicitudes-publicas/` y aplicar cambios solo campo por campo.
 - No pedir ni aceptar emails nuevos como prueba de identidad dentro del flujo publico.
 
-## 3. Backups
+## 3. Autorizacion interna por objeto
+
+Estado actual:
+
+- El acceso interno a pacientes, turnos, historias, adjuntos y odontogramas no depende solo del ID recibido en la URL.
+- Las vistas resuelven objetos desde querysets limitados por usuario antes de llamar a `get_object_or_404()`.
+- Un odontologo normal ve solo pacientes con asociacion activa en `PacienteOdontologo`.
+- Las asociaciones inactivas (`activo=False`) no conceden acceso.
+- Historias clinicas, adjuntos y odontogramas heredan el alcance del paciente.
+- Un odontologo no asociado recibe `404` al intentar abrir un paciente, historia, adjunto u odontograma fuera de su alcance.
+- Recepcion y administracion conservan alcance operativo sobre pacientes y turnos, pero no ven informacion clinica si no tienen perfil odontologico.
+- La politica clinica se centraliza en `historias/access_policy.py`.
+- `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS=False` deja apagada la lectura compartida entre odontologos.
+- El superusuario no tiene lectura clinica global silenciosa: debe abrir un acceso de emergencia por paciente, con motivo obligatorio, vencimiento y auditoria persistente.
+- El odontograma sigue desactivado por `ODONTOGRAMA_FEATURE_ENABLED=False`; aun asi, el backend ya valida alcance antes de crear objetos cuando se reactive.
+- El acceso a una URL no crea asociaciones, fichas, odontogramas ni estados dentales.
+
+Pacientes archivados:
+
+- El borrado fisico de pacientes esta bloqueado.
+- El archivado conserva ficha, historias, adjuntos, turnos y asociaciones.
+- Los pacientes archivados salen de listados activos y no pueden recibir nuevos turnos, historias, fichas, odontogramas ni asociaciones activas.
+- El flujo publico trata DNIs archivados con respuesta neutral y deriva a revision interna sin crear turno.
+
+Reglas de respuesta:
+
+- Usuario anonimo en rutas internas: redireccion a login.
+- Usuario autenticado sin permiso general: `403`.
+- Objeto existente pero fuera del alcance: `404`, igual que un ID inexistente.
+- Objeto visible con accion especifica no permitida: `403`.
+
+Antes de produccion real:
+
+- Mantener tests de IDOR para pacientes, historias, adjuntos, odontogramas y turnos.
+- Revisar cada nueva vista que reciba `pk`, `paciente_pk`, UUID u otro identificador.
+- No confiar en botones ocultos como control de seguridad.
+- No registrar DNI, telefono, email ni contenido clinico en intentos denegados esperables.
+
+## 4. Backups
 
 Para staging con Supabase:
 
@@ -104,7 +142,7 @@ El backup queda en `backups/storage/` e incluye `manifest.json` con ids internos
 
 La guia completa esta en `docs/backups.md`.
 
-## 4. Logs
+## 5. Logs
 
 El proyecto ya define logging por consola con:
 
@@ -133,7 +171,7 @@ Reglas:
 - No registrar contenido clinico sensible.
 - Revisar logs de errores de Google Calendar y email sin exponer secretos.
 
-## 5. Dominio real
+## 6. Dominio real
 
 Staging puede usar `tu-app.up.railway.app`.
 
@@ -153,7 +191,7 @@ GOOGLE_CALENDAR_REDIRECT_URI=https://turnos.tuconsultorio.com/turnos/google-cale
 
 Tambien agregar ese redirect URI en Google Cloud.
 
-## 6. HTTPS final
+## 7. HTTPS final
 
 Para staging:
 

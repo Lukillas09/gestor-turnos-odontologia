@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Archivar paciente | Gestor de Turnos{% endblock %}
+{% block title %}Acceso clínico de emergencia | Gestor de Turnos{% endblock %}
 
 {% block content %}
     <div class="page-header">
         <div>
-            <h1>Archivar paciente</h1>
-            <p class="subtitle">Baja operativa reversible sin eliminar datos clínicos ni administrativos.</p>
+            <h1>Acceso clínico de emergencia</h1>
+            <p class="subtitle">Acceso excepcional, de solo lectura, limitado a este paciente y auditado.</p>
         </div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Volver</a>
@@ -15,30 +15,17 @@
 
     <section class="detail-panel danger-panel">
         <h2>{{ paciente.nombre }} {{ paciente.apellido }}</h2>
-        <p class="muted">Para confirmar el archivado, completá los datos solicitados.</p>
+        <p>El acceso vence automáticamente en 15 minutos. No habilita creación ni edición de ficha, historia clínica u odontograma.</p>
         <dl class="detail-grid">
-            <div>
-                <dt>Nombre</dt>
-                <dd>{{ paciente.nombre }}</dd>
-            </div>
-            <div>
-                <dt>Apellido</dt>
-                <dd>{{ paciente.apellido }}</dd>
-            </div>
             <div>
                 <dt>DNI</dt>
                 <dd>{{ paciente.documento|default:"-" }}</dd>
             </div>
+            <div>
+                <dt>Estado</dt>
+                <dd>{% if paciente.activo %}Activo{% else %}Archivado{% endif %}</dd>
+            </div>
         </dl>
-    </section>
-
-    <section class="detail-panel">
-        <h2>Datos conservados</h2>
-        <p>
-            El archivado no borra ficha odontológica, historias clínicas, adjuntos,
-            turnos ni asociaciones. El paciente queda fuera de los flujos activos
-            hasta una reactivación auditada.
-        </p>
     </section>
 
     <form class="form-panel" method="post" novalidate>
@@ -50,7 +37,7 @@
 
         <div class="form-grid">
             {% for field in form %}
-                <div class="{% if field.name == 'confirmacion_clinica' %}field-full{% endif %}">
+                <div class="field-full">
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
                     {% if field.help_text %}
@@ -64,7 +51,7 @@
         </div>
 
         <div class="form-actions">
-            <button class="button-danger" type="submit">Archivar paciente</button>
+            <button class="button-danger" type="submit">Iniciar acceso de emergencia</button>
             <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Cancelar</a>
         </div>
     </form>

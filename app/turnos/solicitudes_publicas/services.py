@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from historias.access_policy import registrar_evento_acceso_clinico
+from historias.models import AccesoClinicoAuditoria
 from pacientes.models import Paciente
 from pacientes.normalizacion import normalizar_documento
 from pacientes.services import asegurar_paciente_asociado_a_odontologo
@@ -19,7 +21,7 @@ from .comparaciones import construir_fotografia_solicitud, detectar_diferencias_
 @dataclass(frozen=True)
 class ResultadoSolicitudTurnoPublica:
     solicitud: SolicitudTurnoPublica
-    turno: Turno
+    turno: Turno | None
     paciente: Paciente
     paciente_creado: bool
     requiere_revision: bool
@@ -34,28 +36,48 @@ def crear_solicitud_publica_de_turno(datos):
 
         datos = {**datos, "documento": documento}
         paciente, paciente_creado = _obtener_o_crear_paciente_publico(datos)
-        odontologo = datos["odontologo"]
-        turno = Turno.objects.create(
-            paciente=paciente,
-            odontologo=odontologo,
-            fecha=datos["fecha"],
-            hora_inicio=datos["hora_inicio"],
-            duracion_minutos=30,
-            motivo=datos.get("motivo", ""),
-            estado=Turno.Estado.PENDIENTE,
-        )
-        asegurar_paciente_asociado_a_odontologo(
-            paciente,
-            odontologo,
-            motivo="Solicitud publica de turno",
-        )
-        solicitud = _crear_fotografia_solicitud(
-            paciente=paciente,
-            turno=turno,
-            datos=datos,
-            paciente_existente=not paciente_creado,
-        )
-        transaction.on_commit(lambda solicitud_id=solicitud.id: _notificar_solicitud(solicitud_id))
+
+        if paciente.esta_archivado:
+            turno = None
+            solicitud = _crear_fotografia_solicitud(
+                paciente=paciente,
+                turno=None,
+                datos=datos,
+                paciente_existente=True,
+                paciente_archivado=True,
+            )
+            registrar_evento_acceso_clinico(
+                accion=AccesoClinicoAuditoria.Accion.SOLICITUD_PUBLICA_ARCHIVADO,
+                resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+                politica=AccesoClinicoAuditoria.Politica.PACIENTE_ARCHIVADO,
+                paciente=paciente,
+                motivo="Solicitud publica recibida para paciente archivado.",
+            )
+        else:
+            odontologo = datos["odontologo"]
+            turno = Turno.objects.create(
+                paciente=paciente,
+                odontologo=odontologo,
+                fecha=datos["fecha"],
+                hora_inicio=datos["hora_inicio"],
+                duracion_minutos=30,
+                motivo=datos.get("motivo", ""),
+                estado=Turno.Estado.PENDIENTE,
+            )
+            asegurar_paciente_asociado_a_odontologo(
+                paciente,
+                odontologo,
+                motivo="Solicitud publica de turno",
+            )
+            solicitud = _crear_fotografia_solicitud(
+                paciente=paciente,
+                turno=turno,
+                datos=datos,
+                paciente_existente=not paciente_creado,
+            )
+            transaction.on_commit(
+                lambda solicitud_id=solicitud.id: _notificar_solicitud(solicitud_id)
+            )
 
     return ResultadoSolicitudTurnoPublica(
         solicitud=solicitud,
@@ -92,7 +114,13 @@ def _obtener_o_crear_paciente_publico(datos):
         return paciente, False
 
 
-def _crear_fotografia_solicitud(paciente, turno, datos, paciente_existente):
+def _crear_fotografia_solicitud(
+    paciente,
+    turno,
+    datos,
+    paciente_existente,
+    paciente_archivado=False,
+):
     fotografia = construir_fotografia_solicitud(datos)
     diferencias = (
         detectar_diferencias_datos_paciente(paciente, datos)
@@ -110,6 +138,14 @@ def _crear_fotografia_solicitud(paciente, turno, datos, paciente_existente):
         requiere_revision = True
         estado_revision = SolicitudTurnoPublica.EstadoRevision.PENDIENTE
 
+    if paciente_archivado:
+        requiere_revision = True
+        estado_revision = SolicitudTurnoPublica.EstadoRevision.PENDIENTE
+        diferencias["estado_operativo"] = {
+            "actual": "archivado",
+            "enviado": "solicitud_publica",
+        }
+
     return SolicitudTurnoPublica.objects.create(
         paciente=paciente,
         turno=turno,
@@ -118,7 +154,9 @@ def _crear_fotografia_solicitud(paciente, turno, datos, paciente_existente):
         diferencias_detectadas=diferencias,
         estado_revision=estado_revision,
         notificacion_contacto_existente_error=(
-            "Paciente existente sin email utilizable."
+            "Paciente archivado: requiere revision administrativa."
+            if paciente_archivado
+            else "Paciente existente sin email utilizable."
             if paciente_existente and not paciente.email
             else ""
         ),
@@ -133,6 +171,9 @@ def _notificar_solicitud(solicitud_id):
         "turno__odontologo",
         "turno__odontologo__usuario",
     ).get(pk=solicitud_id)
+
+    if not solicitud.turno_id:
+        return
 
     if solicitud.paciente_existente:
         _notificar_paciente_existente(solicitud)
@@ -182,8 +223,28 @@ def revisar_solicitud_publica(
             raise ValidationError("Esta solicitud ya fue revisada.")
 
         paciente = Paciente.objects.select_for_update().get(pk=solicitud.paciente_id)
+
+        if not paciente.activo and accion not in {"mantener_pendiente", "rechazar"}:
+            raise ValidationError(
+                "El paciente esta archivado. Reactivalo manualmente antes de validar o modificar datos."
+            )
+
         campos_validos = {"nombre", "apellido", "telefono", "email"}
         campos_actualizados = []
+
+        if accion == "mantener_pendiente":
+            solicitud.estado_revision = SolicitudTurnoPublica.EstadoRevision.PENDIENTE
+            solicitud.requiere_revision = True
+            solicitud.observaciones_revision = observaciones.strip()
+            solicitud.save(
+                update_fields=[
+                    "estado_revision",
+                    "requiere_revision",
+                    "observaciones_revision",
+                    "actualizado_en",
+                ]
+            )
+            return solicitud
 
         if accion == "aplicar_campos":
             for campo in campos_validos & campos_a_actualizar:

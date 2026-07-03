@@ -3,6 +3,16 @@ from django.contrib import admin
 from .models import FichaOdontologica, Paciente, PacienteOdontologo
 
 
+class SinBorradoFisicoAdminMixin:
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        actions.pop("delete_selected", None)
+        return actions
+
+
 class PacienteOdontologoInline(admin.TabularInline):
     model = PacienteOdontologo
     extra = 0
@@ -33,7 +43,7 @@ class FichaOdontologicaInline(admin.StackedInline):
 
 
 @admin.register(Paciente)
-class PacienteAdmin(admin.ModelAdmin):
+class PacienteAdmin(SinBorradoFisicoAdminMixin, admin.ModelAdmin):
     inlines = (PacienteOdontologoInline, FichaOdontologicaInline)
     list_display = (
         "nombre",
@@ -43,6 +53,8 @@ class PacienteAdmin(admin.ModelAdmin):
         "email",
         "estado_validacion_datos",
         "origen_alta",
+        "activo",
+        "archivado_en",
         "obra_social",
     )
     search_fields = (
@@ -59,9 +71,18 @@ class PacienteAdmin(admin.ModelAdmin):
         "estado_validacion_datos",
         "origen_alta",
         "obra_social",
+        "activo",
         ("creado_en", admin.DateFieldListFilter),
     )
-    readonly_fields = ("creado_en", "actualizado_en", "email_verificado_en", "telefono_verificado_en")
+    readonly_fields = (
+        "creado_en",
+        "actualizado_en",
+        "email_verificado_en",
+        "telefono_verificado_en",
+        "archivado_en",
+        "archivado_por",
+        "motivo_archivado",
+    )
     autocomplete_fields = ("validado_por",)
     ordering = ("apellido", "nombre")
     list_per_page = 25
@@ -119,6 +140,17 @@ class PacienteAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Estado operativo",
+            {
+                "fields": (
+                    "activo",
+                    "archivado_en",
+                    "archivado_por",
+                    "motivo_archivado",
+                )
+            },
+        ),
+        (
             "Auditoria",
             {
                 "fields": (
@@ -135,7 +167,7 @@ class PacienteAdmin(admin.ModelAdmin):
 
 
 @admin.register(FichaOdontologica)
-class FichaOdontologicaAdmin(admin.ModelAdmin):
+class FichaOdontologicaAdmin(SinBorradoFisicoAdminMixin, admin.ModelAdmin):
     list_display = ("paciente", "alergias_resumen", "actualizado_en")
     search_fields = (
         "paciente__apellido",
@@ -155,7 +187,7 @@ class FichaOdontologicaAdmin(admin.ModelAdmin):
 
 
 @admin.register(PacienteOdontologo)
-class PacienteOdontologoAdmin(admin.ModelAdmin):
+class PacienteOdontologoAdmin(SinBorradoFisicoAdminMixin, admin.ModelAdmin):
     list_display = ("paciente", "odontologo", "activo", "asignado_por", "creado_en")
     search_fields = (
         "paciente__apellido",

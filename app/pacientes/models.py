@@ -1,9 +1,25 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.deletion import ProtectedError
 from django.db.models import Q
+from django.utils import timezone
 
 from .normalizacion import normalizar_documento
+
+
+class PacienteQuerySet(models.QuerySet):
+    def activos(self):
+        return self.filter(activo=True)
+
+    def archivados(self):
+        return self.filter(activo=False)
+
+    def delete(self):
+        raise ProtectedError(
+            "Los pacientes no se borran fisicamente; deben archivarse.",
+            self,
+        )
 
 
 class Paciente(models.Model):
@@ -54,13 +70,47 @@ class Paciente(models.Model):
     numero_afiliado = models.CharField(max_length=50, blank=True)
     contacto_emergencia = models.CharField(max_length=150, blank=True)
     observaciones = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    archivado_en = models.DateTimeField(null=True, blank=True)
+    archivado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pacientes_archivados",
+    )
+    motivo_archivado = models.TextField(blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    objects = PacienteQuerySet.as_manager()
 
     class Meta:
         ordering = ["apellido", "nombre"]
         verbose_name = "Paciente"
         verbose_name_plural = "Pacientes"
+        indexes = [
+            models.Index(fields=["activo", "apellido", "nombre"]),
+            models.Index(fields=["activo", "documento"]),
+            models.Index(fields=["archivado_en"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                name="paciente_archivo_consistente",
+                condition=(
+                    Q(
+                        activo=True,
+                        archivado_en__isnull=True,
+                        archivado_por__isnull=True,
+                        motivo_archivado="",
+                    )
+                    | (
+                        Q(activo=False, archivado_en__isnull=False)
+                        & ~Q(motivo_archivado="")
+                    )
+                ),
+            )
+        ]
 
     @property
     def nombre_completo(self):
@@ -68,10 +118,50 @@ class Paciente(models.Model):
 
     def clean(self):
         self.documento = self._normalizar_documento(self.documento)
+        errors = {}
+
+        if self.activo:
+            if self.archivado_en is not None:
+                errors["archivado_en"] = "Un paciente activo no puede tener fecha de archivo."
+            if self.archivado_por_id is not None:
+                errors["archivado_por"] = "Un paciente activo no puede tener usuario de archivo."
+            if self.motivo_archivado:
+                errors["motivo_archivado"] = "Un paciente activo no puede tener motivo de archivo."
+        else:
+            if self.archivado_en is None:
+                errors["archivado_en"] = "Un paciente archivado debe tener fecha de archivo."
+            if not self.motivo_archivado.strip():
+                errors["motivo_archivado"] = "Ingresá el motivo de archivo del paciente."
+
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.documento = self._normalizar_documento(self.documento)
+        self.full_clean()
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ProtectedError(
+            "Los pacientes no se borran fisicamente; deben archivarse.",
+            self,
+        )
+
+    @property
+    def esta_archivado(self):
+        return not self.activo
+
+    def archivar_en_memoria(self, usuario, motivo):
+        self.activo = False
+        self.archivado_en = timezone.now()
+        self.archivado_por = usuario if usuario and usuario.is_authenticated else None
+        self.motivo_archivado = motivo.strip()
+
+    def reactivar_en_memoria(self):
+        self.activo = True
+        self.archivado_en = None
+        self.archivado_por = None
+        self.motivo_archivado = ""
 
     @staticmethod
     def _normalizar_documento(documento):
@@ -176,6 +266,11 @@ class PacienteOdontologo(models.Model):
         ]
 
     def clean(self):
+        if self.activo and self.paciente_id and self.paciente and not self.paciente.activo:
+            raise ValidationError(
+                "No se pueden crear asociaciones activas para pacientes archivados."
+            )
+
         if not self.activo:
             return
 

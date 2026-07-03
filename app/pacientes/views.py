@@ -5,33 +5,53 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView, View
 
+from historias.access_policy import (
+    finalizar_acceso_clinico_emergencia,
+    iniciar_acceso_clinico_emergencia,
+    limitar_historias_clinicas_para_request,
+    obtener_politica_lectura,
+    puede_editar_ficha_odontologica,
+    registrar_evento_acceso_clinico,
+    usuario_puede_iniciar_acceso_emergencia,
+)
 from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
 from historias.permissions import (
-    limitar_historias_clinicas_por_usuario,
     puede_crear_historia_de_paciente,
     puede_ver_historia_de_paciente,
 )
+from historias.models import AccesoClinicoAuditoria
 from turnos.models import Turno
 
 from usuarios.mixins import (
-    BorrarPacientesRequeridoMixin,
+    ArchivarPacientesRequeridoMixin,
     GestionConsultorioRequeridaMixin,
     VerPacientesRequeridoMixin,
 )
-from usuarios.roles import limitar_pacientes_por_usuario, puede_gestionar_historias_clinicas
+from usuarios.roles import (
+    limitar_pacientes_por_usuario,
+    puede_archivar_pacientes,
+    puede_gestionar_historias_clinicas,
+)
 
 from .forms import (
+    AccesoClinicoEmergenciaForm,
     FichaOdontologicaForm,
-    PacienteDeleteConfirmationForm,
+    PacienteArchiveForm,
     PacienteDerivacionForm,
     PacienteForm,
+    PacienteReactivateForm,
 )
 from .models import FichaOdontologica, Paciente, PacienteOdontologo
-from .services import asignar_paciente_a_odontologo, puede_derivar_paciente
+from .services import (
+    archivar_paciente,
+    asignar_paciente_a_odontologo,
+    puede_derivar_paciente,
+    reactivar_paciente,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -46,6 +66,13 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         queryset = limitar_pacientes_por_usuario(queryset, self.request.user)
+        estado = self.request.GET.get("estado", "activos")
+
+        if estado == "archivados" and self._puede_ver_archivados():
+            queryset = queryset.archivados()
+        else:
+            queryset = queryset.activos()
+
         busqueda = self.request.GET.get("q", "").strip()
         ultimo_turno = Turno.objects.filter(paciente=OuterRef("pk")).order_by(
             "-fecha",
@@ -72,6 +99,8 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 "telefono",
                 "email",
                 "obra_social",
+                "activo",
+                "archivado_en",
             )
             .annotate(
                 ultimo_turno_fecha=Subquery(ultimo_turno.values("fecha")[:1]),
@@ -85,6 +114,12 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["busqueda"] = self.request.GET.get("q", "").strip()
+        context["estado_actual"] = (
+            self.request.GET.get("estado", "activos")
+            if self._puede_ver_archivados()
+            else "activos"
+        )
+        context["puede_ver_archivados"] = self._puede_ver_archivados()
         estados_turno = dict(Turno.Estado.choices)
 
         for paciente in context["pacientes"]:
@@ -100,6 +135,9 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
             )
 
         return context
+
+    def _puede_ver_archivados(self):
+        return puede_archivar_pacientes(self.request.user)
 
 
 class PacienteCreateView(GestionConsultorioRequeridaMixin, CreateView):
@@ -127,10 +165,12 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
     context_object_name = "paciente"
 
     def get_queryset(self):
+        queryset = limitar_pacientes_por_usuario(
+            super().get_queryset(),
+            self.request.user,
+        )
         return (
-            super()
-            .get_queryset()
-            .select_related("ficha_odontologica")
+            queryset
             .prefetch_related(
                 Prefetch(
                     "odontologos_asociados",
@@ -148,17 +188,29 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         paciente = self.object
         hoy = timezone.localdate()
         ahora = timezone.localtime().time()
-        ficha_odontologica = self._obtener_ficha_odontologica(paciente)
         puede_ver_historia = (
             puede_gestionar_historias_clinicas(self.request.user)
-            and puede_ver_historia_de_paciente(self.request.user, paciente)
+            and puede_ver_historia_de_paciente(
+                self.request.user,
+                paciente,
+                request=self.request,
+            )
+        )
+        politica_lectura_clinica = obtener_politica_lectura(
+            self.request.user,
+            paciente,
+            request=self.request,
         )
         puede_crear_historia = puede_crear_historia_de_paciente(
             self.request.user,
             paciente,
         )
         puede_derivar = puede_derivar_paciente(self.request.user, paciente)
-        puede_editar_ficha = puede_derivar
+        puede_editar_ficha = puede_editar_ficha_odontologica(self.request.user, paciente)
+        puede_iniciar_emergencia = (
+            not politica_lectura_clinica
+            and usuario_puede_iniciar_acceso_emergencia(self.request.user)
+        )
 
         turnos = paciente.turnos.select_related("odontologo", "odontologo__usuario")
         turnos_activos = turnos.filter(
@@ -177,11 +229,19 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         ultima_historia = None
         cantidad_historias = 0
         cantidad_adjuntos = 0
+        ficha_odontologica = None
+        alertas_clinicas = []
+        indicadores_ficha = []
+        detalle_ficha = []
 
         if puede_ver_historia:
-            historias_visibles = limitar_historias_clinicas_por_usuario(
+            ficha_odontologica = self._obtener_ficha_odontologica(paciente)
+            alertas_clinicas = self._obtener_alertas_clinicas(ficha_odontologica)
+            indicadores_ficha = self._obtener_indicadores_ficha(ficha_odontologica)
+            detalle_ficha = self._obtener_detalle_ficha(ficha_odontologica)
+            historias_visibles = limitar_historias_clinicas_para_request(
                 HistoriaClinica.objects.filter(paciente=paciente),
-                self.request.user,
+                self.request,
             )
             cantidad_historias = historias_visibles.count()
             cantidad_adjuntos = HistoriaClinicaAdjunto.objects.filter(
@@ -193,16 +253,22 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 .order_by("-fecha", "-creado_en")[:3]
             )
             ultima_historia = historias_recientes[0] if historias_recientes else None
+            registrar_evento_acceso_clinico(
+                request=self.request,
+                accion=AccesoClinicoAuditoria.Accion.VER_PACIENTE,
+                resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+                politica=politica_lectura_clinica,
+                paciente=paciente,
+                motivo="Detalle de paciente con datos clinicos consultado.",
+            )
 
         context.update(
             {
                 "edad_paciente": self._calcular_edad(paciente.fecha_nacimiento, hoy),
                 "ficha_odontologica": ficha_odontologica,
-                "alertas_clinicas": self._obtener_alertas_clinicas(ficha_odontologica),
-                "indicadores_ficha": self._obtener_indicadores_ficha(ficha_odontologica),
-                "detalle_ficha_odontologica": self._obtener_detalle_ficha(
-                    ficha_odontologica,
-                ),
+                "alertas_clinicas": alertas_clinicas,
+                "indicadores_ficha": indicadores_ficha,
+                "detalle_ficha_odontologica": detalle_ficha,
                 "datos_administrativos": self._obtener_datos_administrativos(
                     paciente,
                     hoy,
@@ -215,6 +281,9 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 "puede_crear_historia_clinica": puede_crear_historia,
                 "puede_editar_ficha_odontologica": puede_editar_ficha,
                 "puede_derivar_paciente": puede_derivar,
+                "puede_iniciar_acceso_clinico_emergencia": puede_iniciar_emergencia,
+                "politica_lectura_clinica": politica_lectura_clinica,
+                "paciente_archivado": not paciente.activo,
                 "odontologos_asociados": list(paciente.odontologos_asociados.all()),
                 "historias_recientes": historias_recientes,
                 "ultima_historia_clinica": ultima_historia,
@@ -466,9 +535,23 @@ class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, View):
     template_name = "pacientes/ficha_odontologica_form.html"
 
     def dispatch(self, request, *args, **kwargs):
-        self.paciente = get_object_or_404(Paciente, pk=self.kwargs["pk"])
+        if not request.user.is_authenticated or not self.test_func():
+            return super().dispatch(request, *args, **kwargs)
 
-        if not puede_derivar_paciente(request.user, self.paciente):
+        self.paciente = get_object_or_404(
+            limitar_pacientes_por_usuario(Paciente.objects.all(), request.user),
+            pk=self.kwargs["pk"],
+        )
+
+        if not puede_editar_ficha_odontologica(request.user, self.paciente):
+            registrar_evento_acceso_clinico(
+                request=request,
+                accion=AccesoClinicoAuditoria.Accion.EDITAR_FICHA,
+                resultado=AccesoClinicoAuditoria.Resultado.DENEGADO,
+                politica=AccesoClinicoAuditoria.Politica.SIN_PERMISO,
+                paciente=self.paciente,
+                motivo="Intento de editar ficha odontologica sin permiso.",
+            )
             raise PermissionDenied("No tenés permiso para editar la ficha odontológica.")
 
         return super().dispatch(request, *args, **kwargs)
@@ -492,6 +575,14 @@ class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, View):
                 ficha.actualizado_por = request.user
                 ficha.save()
 
+            registrar_evento_acceso_clinico(
+                request=request,
+                accion=AccesoClinicoAuditoria.Accion.EDITAR_FICHA,
+                resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+                politica=AccesoClinicoAuditoria.Politica.ASOCIACION_ACTIVA,
+                paciente=self.paciente,
+                motivo="Ficha odontologica actualizada.",
+            )
             messages.success(request, "Ficha odontológica actualizada correctamente.")
             return redirect(self.get_success_url())
 
@@ -536,7 +627,13 @@ class PacienteDerivarView(VerPacientesRequeridoMixin, FormView):
     template_name = "pacientes/paciente_derivar_form.html"
 
     def dispatch(self, request, *args, **kwargs):
-        self.paciente = get_object_or_404(Paciente, pk=self.kwargs["pk"])
+        if not request.user.is_authenticated or not self.test_func():
+            return super().dispatch(request, *args, **kwargs)
+
+        self.paciente = get_object_or_404(
+            limitar_pacientes_por_usuario(Paciente.objects.all(), request.user),
+            pk=self.kwargs["pk"],
+        )
 
         if not puede_derivar_paciente(request.user, self.paciente):
             raise PermissionDenied("No tenés permiso para derivar este paciente.")
@@ -578,6 +675,12 @@ class PacienteUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
     form_class = PacienteForm
     template_name = "pacientes/paciente_form.html"
 
+    def get_queryset(self):
+        return limitar_pacientes_por_usuario(
+            super().get_queryset(),
+            self.request.user,
+        )
+
     def get_success_url(self):
         return reverse_lazy("pacientes:detalle", kwargs={"pk": self.object.pk})
 
@@ -594,29 +697,31 @@ class PacienteUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
         return super().form_valid(form)
 
 
-class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
-    form_class = PacienteDeleteConfirmationForm
-    template_name = "pacientes/paciente_confirm_delete.html"
+class PacienteArchiveView(ArchivarPacientesRequeridoMixin, FormView):
+    form_class = PacienteArchiveForm
+    template_name = "pacientes/paciente_archive_form.html"
     success_url = reverse_lazy("pacientes:lista")
-    estados_que_bloquean_borrado = [
+    estados_que_bloquean_archivo = [
         Turno.Estado.PENDIENTE,
         Turno.Estado.CONFIRMADO,
     ]
 
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated or not self.test_func():
             return super().dispatch(request, *args, **kwargs)
 
         self.paciente = self.get_object()
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self):
-        return get_object_or_404(Paciente, pk=self.kwargs["pk"])
+        return get_object_or_404(
+            limitar_pacientes_por_usuario(Paciente.objects.all(), self.request.user),
+            pk=self.kwargs["pk"],
+        )
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["paciente"] = self.paciente
-        kwargs["requiere_confirmacion_clinica"] = self._tiene_datos_clinicos()
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -625,72 +730,49 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
         context["cantidad_historias_clinicas"] = self._cantidad_historias_clinicas()
         context["cantidad_adjuntos_clinicos"] = self._cantidad_adjuntos_clinicos()
         context["tiene_ficha_odontologica"] = self._tiene_ficha_odontologica()
-        context["requiere_confirmacion_clinica"] = self._tiene_datos_clinicos()
+        context["turnos_bloqueantes"] = self._turnos_que_bloquean_archivo()
         return context
 
     def form_valid(self, form):
         nombre_completo = self.paciente.nombre_completo
-        tiene_datos_clinicos = self._tiene_datos_clinicos()
 
-        if self._tiene_turnos_que_bloquean_borrado():
+        if self._turnos_que_bloquean_archivo().exists():
             form.add_error(
                 None,
-                "No se puede borrar el paciente porque tiene turnos pendientes o confirmados.",
+                "No se puede archivar el paciente porque tiene turnos pendientes o confirmados.",
             )
             messages.error(
                 self.request,
-                "No se puede borrar el paciente porque tiene turnos pendientes o confirmados.",
+                "No se puede archivar el paciente porque tiene turnos pendientes o confirmados.",
             )
             return super().form_invalid(form)
 
         try:
-            with transaction.atomic():
-                self._borrar_datos_clinicos()
-                self._borrar_turnos_que_no_bloquean()
-                self.paciente.delete()
-        except Exception:
-            logger.exception("No se pudo borrar el paciente y sus datos asociados.")
+            archivar_paciente(
+                self.paciente,
+                self.request.user,
+                form.cleaned_data["motivo"],
+            )
+        except Exception as error:
+            logger.exception("No se pudo archivar el paciente.")
             form.add_error(
                 None,
-                "No se pudo completar el borrado. Revisá los adjuntos clínicos e intentá nuevamente.",
+                error.messages[0] if hasattr(error, "messages") else "No se pudo archivar el paciente.",
             )
             messages.error(
                 self.request,
-                "No se pudo completar el borrado del paciente.",
+                "No se pudo archivar el paciente.",
             )
             return super().form_invalid(form)
 
-        if tiene_datos_clinicos:
-            messages.success(
-                self.request,
-                f"Paciente {nombre_completo} y sus datos clínicos fueron borrados correctamente.",
-            )
-        else:
-            messages.success(self.request, f"Paciente {nombre_completo} borrado correctamente.")
+        messages.success(self.request, f"Paciente {nombre_completo} archivado correctamente.")
 
         return super().form_valid(form)
 
-    def _tiene_turnos_que_bloquean_borrado(self):
+    def _turnos_que_bloquean_archivo(self):
         return self.paciente.turnos.filter(
-            estado__in=self.estados_que_bloquean_borrado
-        ).exists()
-
-    def _borrar_turnos_que_no_bloquean(self):
-        self.paciente.turnos.exclude(
-            estado__in=self.estados_que_bloquean_borrado
-        ).delete()
-
-    def _borrar_datos_clinicos(self):
-        adjuntos = HistoriaClinicaAdjunto.objects.filter(
-            historia__paciente=self.paciente,
+            estado__in=self.estados_que_bloquean_archivo
         )
-
-        for adjunto in adjuntos:
-            if adjunto.archivo:
-                adjunto.archivo.delete(save=False)
-
-        HistoriaClinica.objects.filter(paciente=self.paciente).delete()
-        FichaOdontologica.objects.filter(paciente=self.paciente).delete()
 
     def _tiene_datos_clinicos(self):
         return self._cantidad_historias_clinicas() > 0 or self._tiene_ficha_odontologica()
@@ -705,3 +787,100 @@ class PacienteDeleteView(BorrarPacientesRequeridoMixin, FormView):
 
     def _tiene_ficha_odontologica(self):
         return FichaOdontologica.objects.filter(paciente=self.paciente).exists()
+
+
+class PacienteReactivateView(ArchivarPacientesRequeridoMixin, FormView):
+    form_class = PacienteReactivateForm
+    template_name = "pacientes/paciente_reactivate_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not self.test_func():
+            return super().dispatch(request, *args, **kwargs)
+
+        self.paciente = get_object_or_404(
+            limitar_pacientes_por_usuario(Paciente.objects.all(), self.request.user),
+            pk=self.kwargs["pk"],
+        )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy("pacientes:detalle", kwargs={"pk": self.paciente.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["paciente"] = self.paciente
+        return context
+
+    def form_valid(self, form):
+        try:
+            reactivar_paciente(
+                self.paciente,
+                self.request.user,
+                form.cleaned_data["motivo"],
+            )
+        except Exception as error:
+            form.add_error(
+                None,
+                error.messages[0] if hasattr(error, "messages") else "No se pudo reactivar el paciente.",
+            )
+            return super().form_invalid(form)
+
+        messages.success(self.request, "Paciente reactivado correctamente.")
+        return super().form_valid(form)
+
+
+class PacienteEmergenciaClinicaStartView(ArchivarPacientesRequeridoMixin, FormView):
+    form_class = AccesoClinicoEmergenciaForm
+    template_name = "pacientes/acceso_clinico_emergencia_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not self.test_func():
+            return super().dispatch(request, *args, **kwargs)
+
+        if not usuario_puede_iniciar_acceso_emergencia(request.user):
+            raise PermissionDenied("Solo un superusuario puede iniciar acceso clinico de emergencia.")
+
+        self.paciente = get_object_or_404(Paciente.objects.all(), pk=self.kwargs["pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["paciente"] = self.paciente
+        return context
+
+    def form_valid(self, form):
+        motivo = form.cleaned_data["motivo"]
+        iniciar_acceso_clinico_emergencia(self.request, self.paciente, motivo)
+        registrar_evento_acceso_clinico(
+            request=self.request,
+            accion=AccesoClinicoAuditoria.Accion.INICIAR_EMERGENCIA,
+            resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            politica=AccesoClinicoAuditoria.Politica.EMERGENCIA,
+            paciente=self.paciente,
+            motivo=motivo,
+        )
+        messages.warning(
+            self.request,
+            "Acceso clinico de emergencia activo durante 15 minutos. Todas las lecturas quedan auditadas.",
+        )
+        return super().form_valid(form)
+
+
+class PacienteEmergenciaClinicaEndView(View):
+    def post(self, request, *args, **kwargs):
+        registrar_evento_acceso_clinico(
+            request=request,
+            accion=AccesoClinicoAuditoria.Accion.FINALIZAR_EMERGENCIA,
+            resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            politica=AccesoClinicoAuditoria.Politica.EMERGENCIA,
+            motivo="Acceso clinico de emergencia finalizado manualmente.",
+        )
+        finalizar_acceso_clinico_emergencia(request)
+        messages.success(request, "Acceso clinico de emergencia finalizado.")
+        return redirect("inicio")
+
+
+PacienteDeleteView = PacienteArchiveView

@@ -188,3 +188,96 @@ class HistoriaClinicaAdjunto(models.Model):
 
         if content_type:
             self.content_type = content_type
+
+
+class AccesoClinicoAuditoria(models.Model):
+    class Accion(models.TextChoices):
+        VER_PACIENTE = "ver_paciente", "Ver paciente"
+        VER_HISTORIA = "ver_historia", "Ver historia clinica"
+        VER_DETALLE_HISTORIA = "ver_detalle_historia", "Ver detalle de historia"
+        CREAR_HISTORIA = "crear_historia", "Crear historia clinica"
+        EDITAR_HISTORIA = "editar_historia", "Editar historia clinica"
+        ABRIR_ADJUNTO = "abrir_adjunto", "Abrir adjunto clinico"
+        VER_FICHA = "ver_ficha", "Ver ficha odontologica"
+        EDITAR_FICHA = "editar_ficha", "Editar ficha odontologica"
+        VER_ODONTOGRAMA = "ver_odontograma", "Ver odontograma"
+        EDITAR_ODONTOGRAMA = "editar_odontograma", "Editar odontograma"
+        INICIAR_EMERGENCIA = "iniciar_emergencia", "Iniciar acceso de emergencia"
+        FINALIZAR_EMERGENCIA = "finalizar_emergencia", "Finalizar acceso de emergencia"
+        ARCHIVAR_PACIENTE = "archivar_paciente", "Archivar paciente"
+        REACTIVAR_PACIENTE = "reactivar_paciente", "Reactivar paciente"
+        SOLICITUD_PUBLICA_ARCHIVADO = (
+            "solicitud_publica_paciente_archivado",
+            "Solicitud publica de paciente archivado",
+        )
+        OTP_ARCHIVADO = "otp_paciente_archivado", "OTP solicitado para paciente archivado"
+
+    class Resultado(models.TextChoices):
+        PERMITIDO = "permitido", "Permitido"
+        DENEGADO = "denegado", "Denegado"
+        ERROR = "error", "Error"
+
+    class Politica(models.TextChoices):
+        ASOCIACION_ACTIVA = "asociacion_activa", "Asociacion activa"
+        COMPARTIDO = "compartido", "Datos compartidos"
+        EMERGENCIA = "emergencia", "Emergencia"
+        ADMINISTRATIVA = "administrativa", "Administrativa"
+        SISTEMA = "sistema", "Sistema"
+        SIN_PERMISO = "sin_permiso", "Sin permiso"
+        PACIENTE_ARCHIVADO = "paciente_archivado", "Paciente archivado"
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias_acceso_clinico",
+    )
+    paciente = models.ForeignKey(
+        "pacientes.Paciente",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias_acceso_clinico",
+    )
+    historia = models.ForeignKey(
+        HistoriaClinica,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias_acceso",
+    )
+    adjunto = models.ForeignKey(
+        HistoriaClinicaAdjunto,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias_acceso",
+    )
+    identificador_solicitado = models.CharField(max_length=120, blank=True)
+    accion = models.CharField(max_length=50, choices=Accion.choices)
+    resultado = models.CharField(max_length=20, choices=Resultado.choices)
+    politica = models.CharField(max_length=40, choices=Politica.choices, blank=True)
+    motivo = models.TextField(blank=True)
+    ruta = models.CharField(max_length=255, blank=True)
+    metodo = models.CharField(max_length=12, blank=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    es_emergencia = models.BooleanField(default=False)
+    es_acceso_compartido = models.BooleanField(default=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-creado_en"]
+        verbose_name = "Auditoria de acceso clinico"
+        verbose_name_plural = "Auditorias de acceso clinico"
+        indexes = [
+            models.Index(fields=["paciente", "-creado_en"]),
+            models.Index(fields=["usuario", "-creado_en"]),
+            models.Index(fields=["accion", "-creado_en"]),
+            models.Index(fields=["resultado", "-creado_en"]),
+            models.Index(fields=["es_emergencia", "-creado_en"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_accion_display()} - {self.get_resultado_display()}"

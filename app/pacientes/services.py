@@ -1,10 +1,13 @@
+from django.core.exceptions import ValidationError
+from django.db import transaction
+
 from usuarios.roles import (
     obtener_odontologo_del_usuario,
     puede_configurar_disponibilidad,
     puede_gestionar_consultorio,
 )
 
-from .models import PacienteOdontologo
+from .models import Paciente, PacienteOdontologo
 
 
 def asegurar_paciente_asociado_a_odontologo(
@@ -15,6 +18,9 @@ def asegurar_paciente_asociado_a_odontologo(
 ):
     if not paciente or not odontologo:
         return None
+
+    if not paciente.activo:
+        raise ValidationError("No se pueden asociar odontologos a pacientes archivados.")
 
     asociacion, creada = PacienteOdontologo.objects.get_or_create(
         paciente=paciente,
@@ -57,6 +63,9 @@ def puede_derivar_paciente(usuario, paciente):
     if not usuario.is_authenticated:
         return False
 
+    if not paciente.activo:
+        return False
+
     if puede_gestionar_consultorio(usuario) or puede_configurar_disponibilidad(usuario):
         return True
 
@@ -72,3 +81,87 @@ def asignar_paciente_a_odontologo(paciente, odontologo, usuario, motivo=""):
         usuario=usuario,
         motivo=motivo,
     )
+
+
+def archivar_paciente(paciente, usuario, motivo):
+    from historias.access_policy import registrar_evento_acceso_clinico
+    from historias.models import AccesoClinicoAuditoria
+    from turnos.models import Turno
+
+    motivo = (motivo or "").strip()
+
+    if not motivo:
+        raise ValidationError("Ingresá un motivo para archivar el paciente.")
+
+    with transaction.atomic():
+        paciente = Paciente.objects.select_for_update().get(pk=paciente.pk)
+
+        if not paciente.activo:
+            raise ValidationError("El paciente ya se encuentra archivado.")
+
+        turnos_bloqueantes = paciente.turnos.filter(
+            estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO]
+        )
+
+        if turnos_bloqueantes.exists():
+            raise ValidationError(
+                "No se puede archivar el paciente porque tiene turnos pendientes o confirmados."
+            )
+
+        paciente.archivar_en_memoria(usuario, motivo)
+        paciente.save(
+            update_fields=[
+                "activo",
+                "archivado_en",
+                "archivado_por",
+                "motivo_archivado",
+                "actualizado_en",
+            ]
+        )
+        registrar_evento_acceso_clinico(
+            usuario=usuario,
+            accion=AccesoClinicoAuditoria.Accion.ARCHIVAR_PACIENTE,
+            resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            politica=AccesoClinicoAuditoria.Politica.ADMINISTRATIVA,
+            paciente=paciente,
+            motivo=motivo,
+        )
+
+    return paciente
+
+
+def reactivar_paciente(paciente, usuario, motivo):
+    from historias.access_policy import registrar_evento_acceso_clinico
+    from historias.models import AccesoClinicoAuditoria
+
+    motivo = (motivo or "").strip()
+
+    if not motivo:
+        raise ValidationError("Ingresá un motivo para reactivar el paciente.")
+
+    with transaction.atomic():
+        paciente = Paciente.objects.select_for_update().get(pk=paciente.pk)
+
+        if paciente.activo:
+            raise ValidationError("El paciente ya se encuentra activo.")
+
+        paciente.reactivar_en_memoria()
+        paciente.save(
+            update_fields=[
+                "activo",
+                "archivado_en",
+                "archivado_por",
+                "motivo_archivado",
+                "actualizado_en",
+            ]
+        )
+        registrar_evento_acceso_clinico(
+            usuario=usuario,
+            accion=AccesoClinicoAuditoria.Accion.REACTIVAR_PACIENTE,
+            resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            politica=AccesoClinicoAuditoria.Politica.ADMINISTRATIVA,
+            paciente=paciente,
+            motivo=motivo,
+        )
+
+    return paciente

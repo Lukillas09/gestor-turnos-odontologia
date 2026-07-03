@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.hashers import check_password
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -50,6 +50,7 @@ from turnos.services import (
     obtener_turnos_para_recordatorio,
     reprogramar_turno,
 )
+from turnos.forms import RevisionSolicitudTurnoPublicaForm
 from turnos.solicitudes_publicas.services import crear_solicitud_publica_de_turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
@@ -1193,6 +1194,44 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, reverse("turnos:solicitud_publica_datos"))
         self.assertNotContains(response, "09:30")
 
+    def test_solicitud_publica_de_paciente_archivado_no_crea_turno(self):
+        paciente = Paciente.objects.create(
+            nombre="Archivado",
+            apellido="Publico",
+            documento="66111222",
+            email="archivado@example.com",
+        )
+        paciente.archivar_en_memoria(None, "Archivo administrativo previo")
+        paciente.save()
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="66.111.222",
+                nombre="Archivado",
+                apellido="Publico",
+                email="nuevo@example.com",
+                hora_inicio="10:00",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("landing_publica"))
+        solicitud = SolicitudTurnoPublica.objects.get(paciente=paciente)
+        self.assertIsNone(solicitud.turno_id)
+        self.assertTrue(solicitud.requiere_revision)
+        self.assertEqual(
+            solicitud.estado_revision,
+            SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
+        )
+        self.assertFalse(Turno.objects.filter(paciente=paciente).exists())
+        self.assertFalse(
+            PacienteOdontologo.objects.filter(
+                paciente=paciente,
+                odontologo=self.odontologo,
+                activo=True,
+            ).exists()
+        )
+
     def test_endpoint_publico_horarios_devuelve_disponibilidad(self):
         paciente = Paciente.objects.create(
             nombre="Rita",
@@ -1730,12 +1769,99 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
     def test_odontologo_no_puede_ver_bandeja_de_solicitudes_publicas(self):
-        self._crear_solicitud_existente_con_diferencias()
+        solicitud, _ = self._crear_solicitud_existente_con_diferencias()
         self.client.force_login(self.odontologo.usuario)
 
         response = self.client.get(reverse("turnos:solicitudes_publicas"))
+        response_revision = self.client.get(
+            reverse("turnos:solicitud_publica_revision", kwargs={"pk": solicitud.id})
+        )
 
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(response_revision.status_code, 403)
+
+    def test_revision_solicitud_publica_requiere_csrf_en_post(self):
+        solicitud, _ = self._crear_solicitud_existente_con_diferencias()
+        usuario = self._crear_usuario_recepcion()
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(usuario)
+
+        response = csrf_client.post(
+            reverse("turnos:solicitud_publica_revision", kwargs={"pk": solicitud.id}),
+            {"accion": "conservar"},
+        )
+
+        solicitud.refresh_from_db()
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            solicitud.estado_revision,
+            SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
+        )
+
+    def test_revision_paciente_nuevo_no_muestra_comparacion_ni_checkboxes(self):
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="53111222",
+                hora_inicio="12:00",
+                motivo="Paciente nuevo UX",
+            ),
+        )
+        solicitud = SolicitudTurnoPublica.objects.get(documento_enviado="53111222")
+        self.client.force_login(self._crear_usuario_recepcion())
+
+        response = self.client.get(
+            reverse("turnos:solicitud_publica_revision", kwargs={"pk": solicitud.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Revisar paciente nuevo")
+        self.assertContains(response, "Pendiente de validación")
+        self.assertContains(response, "Datos del paciente")
+        self.assertContains(response, "Turno solicitado")
+        self.assertNotContains(response, "Diferencias informadas")
+        self.assertNotContains(response, "Actualizar este campo")
+        self.assertNotContains(response, 'name="campos"')
+        self.assertNotIn("campos", response.context["form"].fields)
+
+    def test_formulario_revision_paciente_nuevo_no_contiene_campo_campos(self):
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="54111222",
+                hora_inicio="12:00",
+                motivo="Formulario sin campos",
+            ),
+        )
+        solicitud = SolicitudTurnoPublica.objects.get(documento_enviado="54111222")
+
+        form = RevisionSolicitudTurnoPublicaForm(solicitud=solicitud)
+
+        self.assertNotIn("campos", form.fields)
+        self.assertEqual(
+            [choice[0] for choice in form.fields["accion"].choices],
+            ["validar_paciente", "mantener_pendiente", "rechazar"],
+        )
+
+    def test_revision_paciente_existente_muestra_comparacion_y_seleccion_de_campos(self):
+        solicitud, _ = self._crear_solicitud_existente_con_diferencias()
+        self.client.force_login(self._crear_usuario_recepcion())
+
+        response = self.client.get(
+            reverse("turnos:solicitud_publica_revision", kwargs={"pk": solicitud.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Revisar cambios informados")
+        self.assertContains(response, "Paciente existente")
+        self.assertContains(response, "Diferencias informadas")
+        self.assertContains(response, "Diferente")
+        self.assertContains(response, 'name="campos"')
+        self.assertContains(response, 'value="telefono"')
+        self.assertContains(response, "Actualizar campos seleccionados")
+        self.assertContains(response, 'type="radio"')
+        self.assertNotContains(response, "Campos a actualizar")
 
     def test_recepcion_aplica_unicamente_campos_seleccionados(self):
         solicitud, paciente = self._crear_solicitud_existente_con_diferencias()
@@ -1791,6 +1917,67 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
         self.assertEqual(solicitud.campos_actualizados, [])
         self.assertFalse(solicitud.requiere_revision)
+
+    def test_recepcion_puede_mantener_pendiente_para_revisar_mas_tarde(self):
+        solicitud, paciente = self._crear_solicitud_existente_con_diferencias()
+        usuario = self._crear_usuario_recepcion(username="recepcion.pendiente")
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_revision", kwargs={"pk": solicitud.id}),
+            {
+                "accion": "mantener_pendiente",
+                "observaciones": "Falta llamar al paciente.",
+            },
+            follow=True,
+        )
+
+        paciente.refresh_from_db()
+        solicitud.refresh_from_db()
+
+        self.assertEqual(response.redirect_chain, [(reverse("turnos:solicitudes_publicas"), 302)])
+        self.assertContains(
+            response,
+            "La solicitud permanece pendiente para revisarla más adelante.",
+        )
+        self.assertEqual(paciente.nombre, "Viejo")
+        self.assertEqual(paciente.telefono, "1100000000")
+        self.assertEqual(
+            solicitud.estado_revision,
+            SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
+        )
+        self.assertTrue(solicitud.requiere_revision)
+        self.assertIsNone(solicitud.revisada_por)
+        self.assertIsNone(solicitud.revisada_en)
+        self.assertEqual(solicitud.observaciones_revision, "Falta llamar al paciente.")
+
+    def test_recepcion_rechaza_solicitud_sin_cancelar_turno_ni_eliminar_paciente(self):
+        solicitud, paciente = self._crear_solicitud_existente_con_diferencias()
+        turno = solicitud.turno
+        usuario = self._crear_usuario_recepcion(username="recepcion.rechazar")
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_revision", kwargs={"pk": solicitud.id}),
+            {
+                "accion": "rechazar",
+                "observaciones": "Solicitud no validada por recepción.",
+            },
+        )
+
+        solicitud.refresh_from_db()
+        turno.refresh_from_db()
+
+        self.assertRedirects(response, reverse("turnos:solicitudes_publicas"))
+        self.assertTrue(Paciente.objects.filter(pk=paciente.pk).exists())
+        self.assertTrue(Turno.objects.filter(pk=turno.pk).exists())
+        self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
+        self.assertEqual(
+            solicitud.estado_revision,
+            SolicitudTurnoPublica.EstadoRevision.RECHAZADA,
+        )
+        self.assertFalse(solicitud.requiere_revision)
+        self.assertEqual(solicitud.revisada_por, usuario)
 
     def test_revision_no_puede_procesarse_dos_veces(self):
         solicitud, paciente = self._crear_solicitud_existente_con_diferencias()

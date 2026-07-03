@@ -45,8 +45,12 @@ def puede_ver_pacientes(usuario):
     )
 
 
+def puede_archivar_pacientes(usuario):
+    return puede_gestionar_consultorio(usuario) or puede_configurar_disponibilidad(usuario)
+
+
 def puede_borrar_pacientes(usuario):
-    return puede_ver_pacientes(usuario)
+    return puede_archivar_pacientes(usuario)
 
 
 def puede_ver_turnos(usuario):
@@ -71,7 +75,9 @@ def puede_conectar_google_calendar(usuario):
 
 
 def puede_gestionar_historias_clinicas(usuario):
-    return usuario.is_authenticated and obtener_odontologo_del_usuario(usuario) is not None
+    return usuario.is_authenticated and (
+        usuario.is_superuser or obtener_odontologo_del_usuario(usuario) is not None
+    )
 
 
 def puede_editar_historia_clinica(usuario, historia):
@@ -130,6 +136,7 @@ def limitar_pacientes_por_usuario(queryset, usuario):
 
     if odontologo:
         return queryset.filter(
+            activo=True,
             odontologos_asociados__odontologo=odontologo,
             odontologos_asociados__activo=True,
         ).distinct()

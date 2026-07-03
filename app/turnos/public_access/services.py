@@ -9,6 +9,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from historias.access_policy import registrar_evento_acceso_clinico
+from historias.models import AccesoClinicoAuditoria
 from pacientes.models import Paciente
 from turnos.notifications import notificar_codigo_acceso_publico_turnos
 from turnos.services import cancelar_turno, reprogramar_turno
@@ -85,6 +87,17 @@ def solicitar_acceso_publico_turnos(request, documento):
 def _crear_desafio(documento, ip_hash, dni_hash):
     paciente = Paciente.objects.filter(documento=documento).first() if documento else None
     canal = DesafioAccesoPublicoTurnos.Canal.EMAIL
+
+    if paciente and not paciente.activo:
+        registrar_evento_acceso_clinico(
+            accion=AccesoClinicoAuditoria.Accion.OTP_ARCHIVADO,
+            resultado=AccesoClinicoAuditoria.Resultado.DENEGADO,
+            politica=AccesoClinicoAuditoria.Politica.PACIENTE_ARCHIVADO,
+            paciente=paciente,
+            motivo="Solicitud de OTP publico para paciente archivado.",
+        )
+        paciente = None
+        canal = DesafioAccesoPublicoTurnos.Canal.FICTICIO
 
     if not paciente or not paciente.email:
         paciente = None
@@ -210,7 +223,7 @@ def validar_codigo_acceso_publico(request, codigo):
 
         return ResultadoValidacionOTP(False)
 
-    if not desafio.paciente_id:
+    if not desafio.paciente_id or not desafio.paciente.activo:
         desafio.invalidar()
         desafio.save(update_fields=["invalidado_en"])
         return ResultadoValidacionOTP(False)
@@ -366,6 +379,9 @@ def _accion_publica_valida(accion, token, paciente_id, tipo_accion):
         return False
 
     if accion.paciente_id != paciente_id or accion.tipo_accion != tipo_accion:
+        return False
+
+    if not accion.paciente.activo:
         return False
 
     if accion.turno.paciente_id != paciente_id:

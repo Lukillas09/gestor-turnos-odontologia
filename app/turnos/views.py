@@ -77,7 +77,7 @@ from .services import (
     actualizar_turno_desde_formulario,
     cancelar_turno,
     confirmar_turno_con_duracion,
-    crear_solicitud_turno_publica,
+    crear_solicitud_turno_publica_resultado,
     crear_turno_desde_formulario,
     reprogramar_turno,
     reintentar_sincronizacion_google_calendar,
@@ -637,12 +637,15 @@ class SolicitudTurnoPublicaDatosView(FormView):
 
     def form_valid(self, form):
         try:
-            turno = crear_solicitud_turno_publica(form.cleaned_data)
+            resultado = crear_solicitud_turno_publica_resultado(form.cleaned_data)
         except ValidationError as error:
             form.add_error(None, error)
             return self.form_invalid(form)
 
-        self.request.session["solicitud_turno_publica_id"] = turno.pk
+        self.request.session["solicitud_turno_publica_id"] = (
+            resultado.turno.pk if resultado.turno else None
+        )
+        self.request.session["solicitud_publica_revision_id"] = str(resultado.solicitud.pk)
         self.request.session[SOLICITUD_PUBLICA_CONFIRMADA_SESSION_KEY] = {
             "registrada": True,
         }
@@ -697,6 +700,7 @@ class SolicitudTurnoPublicaOkView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         turno_id = self.request.session.get("solicitud_turno_publica_id")
+        solicitud_id = self.request.session.get("solicitud_publica_revision_id")
         context["turno"] = (
             Turno.objects.select_related(
                 "odontologo",
@@ -704,6 +708,11 @@ class SolicitudTurnoPublicaOkView(TemplateView):
             )
             .filter(pk=turno_id)
             .first()
+        )
+        context["solicitud"] = (
+            SolicitudTurnoPublica.objects.filter(pk=solicitud_id).first()
+            if solicitud_id
+            else None
         )
         return context
 
@@ -743,7 +752,7 @@ class SolicitudTurnoPublicaRevisionView(GestionConsultorioRequeridaMixin, FormVi
 
     def dispatch(self, request, *args, **kwargs):
         if not puede_revisar_solicitudes_publicas(request.user):
-            raise PermissionDenied("No tenes permiso para revisar solicitudes publicas.")
+            raise PermissionDenied("No tenés permiso para revisar solicitudes públicas.")
 
         self.solicitud = get_object_or_404(
             obtener_solicitudes_publicas_para_bandeja(),
@@ -758,16 +767,50 @@ class SolicitudTurnoPublicaRevisionView(GestionConsultorioRequeridaMixin, FormVi
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        form = context["form"]
+        filas_revision = self._construir_filas_revision()
+        es_paciente_nuevo = not self.solicitud.paciente_existente
+        paciente_archivado = not self.solicitud.paciente.activo
         context["solicitud"] = self.solicitud
-        context["filas_revision"] = self._construir_filas_revision()
+        context["es_paciente_nuevo"] = es_paciente_nuevo
+        context["paciente_archivado"] = paciente_archivado
+        context["solicitud_sin_turno"] = self.solicitud.turno_id is None
+        context["titulo_revision"] = (
+            "Revisar paciente nuevo"
+            if es_paciente_nuevo
+            else "Revisar cambios informados"
+        )
+        context["badge_revision"] = (
+            "Pendiente de validación"
+            if es_paciente_nuevo
+            else "Paciente existente"
+        )
+        if paciente_archivado:
+            context["titulo_revision"] = "Revisar paciente archivado"
+            context["badge_revision"] = "Paciente archivado"
+        context["filas_revision"] = filas_revision
+        context["filas_diferentes"] = [fila for fila in filas_revision if fila["diferente"]]
+        context["filas_iguales"] = [fila for fila in filas_revision if not fila["diferente"]]
+        context["campos_seleccionados"] = self._obtener_campos_seleccionados(form)
+        context["accion_actual"] = self._obtener_accion_actual(form)
+        context["acciones_revision"] = self._construir_acciones_revision(
+            es_paciente_nuevo,
+            context["accion_actual"],
+            paciente_archivado,
+        )
+        context["boton_principal_revision"] = self._obtener_texto_boton_principal(
+            context["acciones_revision"],
+            context["accion_actual"],
+        )
         return context
 
     def form_valid(self, form):
+        accion = form.cleaned_data["accion"]
         try:
             revisar_solicitud_publica(
                 solicitud_id=self.solicitud.id,
                 usuario=self.request.user,
-                accion=form.cleaned_data["accion"],
+                accion=accion,
                 campos_a_actualizar=form.cleaned_data.get("campos"),
                 observaciones=form.cleaned_data.get("observaciones", ""),
             )
@@ -775,26 +818,150 @@ class SolicitudTurnoPublicaRevisionView(GestionConsultorioRequeridaMixin, FormVi
             form.add_error(None, error)
             return self.form_invalid(form)
 
-        messages.success(self.request, "Solicitud publica revisada correctamente.")
+        if accion == "mantener_pendiente":
+            messages.success(
+                self.request,
+                "La solicitud permanece pendiente para revisarla más adelante.",
+            )
+        else:
+            messages.success(self.request, "Solicitud pública revisada correctamente.")
         return redirect("turnos:solicitudes_publicas")
 
     def _construir_filas_revision(self):
         paciente = self.solicitud.paciente
-        return [
-            self._fila_revision("nombre", "Nombre", paciente.nombre, self.solicitud.nombre_enviado),
-            self._fila_revision("apellido", "Apellido", paciente.apellido, self.solicitud.apellido_enviado),
-            self._fila_revision("telefono", "Telefono", paciente.telefono, self.solicitud.telefono_enviado),
-            self._fila_revision("email", "Email", paciente.email, self.solicitud.email_enviado),
+        filas = [
+            self._fila_revision("nombre", "Nombre", paciente.nombre, self.solicitud.nombre_enviado, 1),
+            self._fila_revision("apellido", "Apellido", paciente.apellido, self.solicitud.apellido_enviado, 2),
+            self._fila_revision("telefono", "Teléfono", paciente.telefono, self.solicitud.telefono_enviado, 3),
+            self._fila_revision("email", "Email", paciente.email, self.solicitud.email_enviado, 4),
         ]
+        return sorted(filas, key=lambda fila: (not fila["diferente"], fila["orden"]))
 
-    def _fila_revision(self, campo, etiqueta, actual, enviado):
+    def _fila_revision(self, campo, etiqueta, actual, enviado, orden):
         return {
             "campo": campo,
             "etiqueta": etiqueta,
             "actual": actual or "-",
             "enviado": enviado or "-",
             "diferente": campo in (self.solicitud.diferencias_detectadas or {}),
+            "orden": orden,
         }
+
+    @staticmethod
+    def _obtener_campos_seleccionados(form):
+        if "campos" not in form.fields:
+            return set()
+
+        valor = form["campos"].value() or []
+
+        if isinstance(valor, str):
+            return {valor}
+
+        return set(valor)
+
+    @staticmethod
+    def _obtener_accion_actual(form):
+        return form["accion"].value() or form.fields["accion"].initial
+
+    @staticmethod
+    def _construir_acciones_revision(es_paciente_nuevo, accion_actual, paciente_archivado=False):
+        if paciente_archivado:
+            acciones = [
+                {
+                    "valor": "mantener_pendiente",
+                    "titulo": "Mantener pendiente",
+                    "descripcion": "La solicitud queda para revision administrativa antes de reactivar al paciente.",
+                    "boton": "Mantener pendiente",
+                    "variante": "neutral",
+                },
+                {
+                    "valor": "rechazar",
+                    "titulo": "Marcar solicitud como no valida",
+                    "descripcion": "La solicitud se descarta sin crear turno ni modificar el paciente.",
+                    "boton": "Marcar como no valida",
+                    "variante": "danger",
+                },
+            ]
+        elif es_paciente_nuevo:
+            acciones = [
+                {
+                    "valor": "validar_paciente",
+                    "titulo": "Validar paciente",
+                    "descripcion": (
+                        "Los datos quedarán confirmados por recepción y el paciente "
+                        "dejará de estar pendiente."
+                    ),
+                    "boton": "Validar paciente",
+                    "variante": "success",
+                },
+                {
+                    "valor": "mantener_pendiente",
+                    "titulo": "Revisar más tarde",
+                    "descripcion": "La solicitud seguirá apareciendo en la bandeja de pendientes.",
+                    "boton": "Guardar para después",
+                    "variante": "neutral",
+                },
+                {
+                    "valor": "rechazar",
+                    "titulo": "Marcar solicitud como no válida",
+                    "descripcion": (
+                        "La solicitud administrativa se marcará como rechazada. "
+                        "Esta acción no cancela el turno ni elimina el paciente."
+                    ),
+                    "boton": "Marcar como no válida",
+                    "variante": "danger",
+                },
+            ]
+        else:
+            acciones = [
+                {
+                    "valor": "conservar",
+                    "titulo": "Conservar datos actuales",
+                    "descripcion": "No se aplicarán los datos enviados al registro del paciente.",
+                    "boton": "Conservar datos actuales",
+                    "variante": "neutral",
+                },
+                {
+                    "valor": "aplicar_campos",
+                    "titulo": "Actualizar campos seleccionados",
+                    "descripcion": "Solo se actualizarán los campos marcados en las diferencias.",
+                    "boton": "Actualizar campos seleccionados",
+                    "variante": "success",
+                },
+                {
+                    "valor": "mantener_pendiente",
+                    "titulo": "Revisar más tarde",
+                    "descripcion": "La solicitud seguirá apareciendo en la bandeja de pendientes.",
+                    "boton": "Guardar para después",
+                    "variante": "neutral",
+                },
+                {
+                    "valor": "rechazar",
+                    "titulo": "Marcar solicitud como no válida",
+                    "descripcion": (
+                        "La solicitud administrativa se marcará como rechazada. "
+                        "No cancela el turno ni elimina el paciente."
+                    ),
+                    "boton": "Marcar como no válida",
+                    "variante": "danger",
+                },
+            ]
+
+        return [
+            {
+                **accion,
+                "seleccionada": accion["valor"] == accion_actual,
+            }
+            for accion in acciones
+        ]
+
+    @staticmethod
+    def _obtener_texto_boton_principal(acciones, accion_actual):
+        for accion in acciones:
+            if accion["valor"] == accion_actual:
+                return accion["boton"]
+
+        return "Guardar revisión"
 
 
 class GoogleCalendarOdontologoMixin(GoogleCalendarRequeridoMixin):
@@ -996,6 +1163,12 @@ class TurnoUpdateView(GestionConsultorioRequeridaMixin, UpdateView):
     form_class = TurnoForm
     template_name = "turnos/turno_form.html"
 
+    def get_queryset(self):
+        return limitar_turnos_por_usuario(
+            super().get_queryset(),
+            self.request.user,
+        ).select_related("paciente", "odontologo", "odontologo__usuario")
+
     def get_success_url(self):
         return reverse("turnos:detalle", kwargs={"pk": self.object.pk})
 
@@ -1081,7 +1254,10 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
 
 class TurnoCancelView(GestionConsultorioRequeridaMixin, View):
     def post(self, request, pk):
-        turno = get_object_or_404(Turno, pk=pk)
+        turno = get_object_or_404(
+            limitar_turnos_por_usuario(Turno.objects.all(), request.user),
+            pk=pk,
+        )
         cancelar_turno(turno)
         messages.success(request, "Turno cancelado correctamente.")
         return redirect("turnos:detalle", pk=turno.pk)
