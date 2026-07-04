@@ -38,6 +38,12 @@
                 <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
                 {{ filtros_form.odontologo }}
             </div>
+            <div>
+                <label class="consultorio-checkbox">
+                    {{ filtros_form.datos_por_revisar }}
+                    <span>{{ filtros_form.datos_por_revisar.label }}</span>
+                </label>
+            </div>
             <div class="turnos-filter-actions">
                 <button type="submit">Filtrar</button>
                 <a class="button button-secondary" href="{% url 'turnos:lista' %}">Limpiar</a>
@@ -90,6 +96,12 @@
                         <p>{{ turno.motivo|default:"Sin motivo cargado" }}</p>
                         <div class="turno-card-meta">
                             <span>Odontólogo: {{ turno.odontologo }}</span>
+                            {% if turno.tiene_solicitud_publica %}
+                                <span class="status-badge status-sync-ok">Solicitud web</span>
+                            {% endif %}
+                            {% if turno.tiene_datos_publicos_pendientes_revision %}
+                                <span class="status-badge status-pendiente">Datos por revisar</span>
+                            {% endif %}
                             {% if turno.paciente.telefono %}
                                 <span>Teléfono: {{ turno.paciente.telefono }}</span>
                             {% endif %}

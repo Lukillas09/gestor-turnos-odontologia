@@ -11,6 +11,6 @@ Estado: {{ turno.get_estado_display }}
 Motivo: {{ turno.motivo }}
 {% endif %}
 
-El turno quedo pendiente de confirmacion por el consultorio.
+El turno quedo pendiente de confirmacion por {{ configuracion_consultorio.nombre_visible }}.
 
-Gestor de Turnos
+{% include "consultorio/emails/contacto.txt" %}

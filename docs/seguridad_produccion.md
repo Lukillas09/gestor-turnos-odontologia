@@ -31,7 +31,7 @@ Estado actual:
 - Cancelar y reprogramar requieren sesion publica verificada, `POST`, CSRF y permisos de un solo uso.
 - Los permisos quedan invalidos si cambia la version publica del turno.
 - La solicitud publica de turno exige DNI, guarda una fotografia en `SolicitudTurnoPublica` y no sobrescribe datos de un `Paciente` existente.
-- Si el DNI ya existe y el formulario trae telefono/email diferentes, se crea alerta interna para recepcion y se notifica solo al contacto almacenado previamente.
+- Si el DNI ya existe y el formulario trae telefono/email diferentes, el turno queda marcado como `Datos por revisar` y se notifica solo al contacto almacenado previamente.
 - Los pacientes nuevos creados desde la web quedan pendientes de validacion administrativa; esto no verifica automaticamente email ni telefono.
 
 Antes de produccion real:
@@ -42,7 +42,8 @@ Antes de produccion real:
 - Evaluar `TURNSTILE_ENABLED=True` y cargar `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`.
 - Programar `python manage.py limpiar_desafios_acceso_publico` para limpiar OTP vencidos y permisos inactivos.
 - Capacitar a recepcion para actualizar el email del paciente desde el panel interno si no tiene contacto utilizable.
-- Revisar periodicamente la bandeja `/turnos/solicitudes-publicas/` y aplicar cambios solo campo por campo.
+- Revisar periodicamente los turnos filtrados por `Datos por revisar` y aplicar cambios solo campo por campo.
+- Revisar `/turnos/alertas-administrativas/` cuando Inicio avise que hay solicitudes sin turno.
 - No pedir ni aceptar emails nuevos como prueba de identidad dentro del flujo publico.
 
 ## 3. Autorizacion interna por objeto

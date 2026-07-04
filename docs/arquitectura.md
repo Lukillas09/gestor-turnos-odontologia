@@ -85,6 +85,7 @@ Responsabilidades:
 - Odontólogos.
 - Disponibilidad por día de semana.
 - Turnos.
+- Excepciones operativas de agenda.
 - Solicitud pública.
 - Autogestión pública con OTP por email, sesión temporal y permisos de acción de un solo uso.
 - Agenda diaria y semanal.
@@ -96,6 +97,7 @@ Modelos:
 
 - `Odontologo`
 - `DisponibilidadOdontologo`
+- `ExcepcionAgenda`
 - `Turno`
 - `SolicitudTurnoPublica`
 - `DesafioAccesoPublicoTurnos`
@@ -111,12 +113,34 @@ Capas internas:
 - `views.py`: vistas HTTP.
 - `services.py`: casos de uso que modifican datos.
 - `selectors.py`: consultas reutilizables y cálculo de disponibilidad.
+- `excepciones.py`: ventana pública de reserva, bloqueos operativos, detección de turnos afectados y locks técnicos por agenda.
+- `excepcion_permissions.py`: permisos de excepciones por rol y por odontólogo.
 - `notifications.py`: notificaciones de email.
 - `integrations/google_calendar.py`: cliente HTTP de Google Calendar.
 - `google_calendar_oauth.py`: guardado/desconexión OAuth.
 - `google_calendar_sync.py`: coordinación entre turnos y Google Calendar.
 - `solicitudes_publicas/`: caso de uso transaccional de solicitud pública, comparación de datos, selectores y permisos de revisión.
 - `public_access/`: OTP público, sesión temporal, rate limiting y acciones públicas de un solo uso.
+
+### `consultorio`
+
+Responsabilidades:
+
+- Perfil singleton del consultorio para una instalación y una base de datos.
+- Nombre comercial, nombre corto, logo, contacto, textos públicos, política de cancelación y color principal.
+- Ventana de reserva pública, reserva el mismo día y anticipación mínima.
+- Context processor global de solo lectura para templates.
+- Pantalla interna `/configuracion/consultorio/` para usuarios con permiso de gestión del consultorio.
+- Datos explícitos para emails transaccionales, sin cambiar `DEFAULT_FROM_EMAIL`.
+
+Reglas:
+
+- No es multi-tenant y no agrega FK de consultorio a pacientes, turnos, historias ni odontólogos.
+- Usa `pk=1` como identificador estable.
+- El context processor no crea registros en cada request; si falta la fila, usa defaults seguros en memoria.
+- La vista interna puede crear la fila con `get_or_create`.
+- El logo usa el storage default de Django, por lo que funciona con filesystem local o Supabase Storage.
+- No permite SVG, valida tamaño máximo y evita usar valores arbitrarios como CSS.
 
 ### `historias`
 
@@ -184,8 +208,12 @@ URLs internas:
 /turnos/
 /turnos/agenda/dia/
 /turnos/agenda/semana/
-/turnos/solicitudes-publicas/
-/turnos/solicitudes-publicas/<uuid>/
+/turnos/excepciones/
+/turnos/excepciones/nueva/
+/turnos/excepciones/<id>/editar/
+/turnos/alertas-administrativas/
+/turnos/solicitudes-publicas/       # compatibilidad: redirige a Turnos o Alertas
+/turnos/solicitudes-publicas/<uuid>/ # compatibilidad: redirige al turno si existe
 /turnos/google-calendar/
 /historias/pacientes/<paciente_id>/
 /odontogramas/pacientes/<paciente_id>/
@@ -206,15 +234,22 @@ Reglas:
 
 - Turnos internos: se crean como `confirmado`.
 - Turnos públicos: se crean como `pendiente` y `duracion_minutos=30`.
-- Solicitudes públicas: crean un `Turno` y una `SolicitudTurnoPublica`; si el DNI ya existe, no modifican automáticamente el `Paciente`.
+- Solicitudes públicas normales: crean un `Turno` y una `SolicitudTurnoPublica`; el turno aparece directamente en Turnos y Agenda.
+- `SolicitudTurnoPublica` se conserva como auditoría de los datos enviados, diferencias, revisor, fecha de revisión y campos aceptados/descartados.
+- Si el DNI ya existe, los datos enviados no modifican automáticamente el `Paciente`; sólo se aplican campos seleccionados desde la revisión interna.
+- Si el DNI corresponde a un paciente archivado, no se crea turno y la solicitud queda como alerta administrativa sin reactivar ni borrar pacientes.
 - Turnos pendientes y confirmados bloquean disponibilidad.
 - Turnos cancelados no bloquean disponibilidad.
 - No se puede crear turno en odontólogo inactivo.
 - El turno debe estar dentro de una disponibilidad activa.
 - El turno debe terminar el mismo día.
 - No puede superponerse con otro turno activo del mismo odontólogo.
-- La confirmación de un pendiente permite elegir duración real.
+- No puede caer dentro de una `ExcepcionAgenda` activa que afecte al odontólogo o a todo el consultorio.
+- Los turnos públicos solo pueden reservarse o reprogramarse dentro de la ventana pública configurada en `ConfiguracionConsultorio`.
+- La confirmación de un pendiente permite elegir duración real. Si el turno proviene de una solicitud pública pendiente, la revisión de datos y la confirmación se ejecutan juntas en una transacción.
 - Si la duración real genera conflicto, el turno no cambia de estado.
+- Crear o actualizar una excepción que afecta turnos existentes requiere confirmación explícita en dos pasos; esos turnos no se cancelan automáticamente.
+- Las excepciones de agenda no se sincronizan con Google Calendar.
 
 ## Permisos y Alcance de Datos
 
@@ -228,6 +263,7 @@ Recepción y administración:
 
 - Pueden ver y gestionar el consultorio segun permisos operativos.
 - Mantienen alcance administrativo sobre pacientes y turnos.
+- Mantienen alcance administrativo sobre excepciones globales y por odontólogo.
 - Si no tienen perfil `Odontologo`, no acceden a historias clinicas, adjuntos clinicos ni odontogramas.
 
 Odontólogo:
@@ -237,6 +273,7 @@ Odontólogo:
 - Una asociacion con `activo=False` no concede alcance.
 - Puede cargar historia clinica solo si esta asociado a un paciente activo.
 - Puede editar entradas clinicas propias.
+- Puede gestionar excepciones solo de su propia agenda; no puede crear bloqueos globales ni modificar excepciones de otro odontólogo.
 - Puede conectar su propia cuenta de Google Calendar.
 
 Lectura clinica compartida y emergencia:

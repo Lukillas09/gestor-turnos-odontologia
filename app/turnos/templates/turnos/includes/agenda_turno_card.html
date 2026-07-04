@@ -4,6 +4,9 @@
             {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}
         </a>
         <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+        {% if turno.tiene_datos_publicos_pendientes_revision %}
+            <span class="status-badge status-pendiente">Datos por revisar</span>
+        {% endif %}
     </div>
 
     <div class="agenda-turno-body">

@@ -8,8 +8,12 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import FormView, TemplateView
 
-from turnos.models import SolicitudTurnoPublica, Turno
+from turnos.models import Turno
 from turnos.selectors import obtener_inicio_semana
+from turnos.solicitudes_publicas.selectors import (
+    obtener_alertas_administrativas_publicas,
+    obtener_turnos_con_revision_publica_pendiente,
+)
 
 from .forms import PerfilUsuarioForm
 from .roles import (
@@ -76,6 +80,7 @@ class InicioView(TemplateView):
             "paciente",
             "odontologo",
             "odontologo__usuario",
+            "solicitud_publica",
         )
         turnos_hoy_queryset = turnos_visibles_con_relaciones.filter(fecha=hoy)
         turnos_semana_queryset = turnos_visibles_con_relaciones.filter(
@@ -85,11 +90,13 @@ class InicioView(TemplateView):
         pendientes_queryset = turnos_visibles_con_relaciones.filter(
             estado=Turno.Estado.PENDIENTE,
         )
-        solicitudes_publicas_pendientes = (
-            SolicitudTurnoPublica.objects.filter(
-                estado_revision=SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
-            ).count()
-            if puede_revisar_solicitudes_publicas(usuario)
+        turnos_datos_por_revisar_queryset = obtener_turnos_con_revision_publica_pendiente(
+            pendientes_queryset,
+        )
+        puede_revisar_publicas = puede_revisar_solicitudes_publicas(usuario)
+        alertas_administrativas_publicas = (
+            obtener_alertas_administrativas_publicas().count()
+            if puede_revisar_publicas
             else 0
         )
 
@@ -104,7 +111,8 @@ class InicioView(TemplateView):
                 "turnos_hoy": turnos_hoy_queryset.count(),
                 "turnos_semana": turnos_semana_queryset.count(),
                 "turnos_pendientes": pendientes_queryset.count(),
-                "solicitudes_publicas_pendientes_dashboard": solicitudes_publicas_pendientes,
+                "turnos_datos_por_revisar": turnos_datos_por_revisar_queryset.count(),
+                "alertas_administrativas_publicas": alertas_administrativas_publicas,
                 "turnos_hoy_lista": turnos_hoy_queryset.order_by("hora_inicio")[:10],
                 "url_turnos_hoy": self._crear_url_agenda_dia(hoy, odontologo_filtro_url),
                 "url_turnos_semana": self._crear_url_agenda_semana(
@@ -114,6 +122,10 @@ class InicioView(TemplateView):
                 "url_turnos_pendientes": self._crear_url_turnos_pendientes(
                     odontologo_filtro_url,
                 ),
+                "url_turnos_datos_por_revisar": self._crear_url_turnos_datos_por_revisar(
+                    odontologo_filtro_url,
+                ),
+                "url_alertas_administrativas": reverse("turnos:alertas_administrativas"),
             }
         )
         return context
@@ -147,6 +159,18 @@ class InicioView(TemplateView):
     @staticmethod
     def _crear_url_turnos_pendientes(odontologo):
         filtros = {"estado": Turno.Estado.PENDIENTE}
+
+        if odontologo:
+            filtros["odontologo"] = odontologo.pk
+
+        return InicioView._crear_url_con_query(reverse("turnos:lista"), filtros)
+
+    @staticmethod
+    def _crear_url_turnos_datos_por_revisar(odontologo):
+        filtros = {
+            "estado": Turno.Estado.PENDIENTE,
+            "datos_por_revisar": "on",
+        }
 
         if odontologo:
             filtros["odontologo"] = odontologo.pk

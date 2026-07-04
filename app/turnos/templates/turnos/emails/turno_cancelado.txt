@@ -13,4 +13,4 @@ Motivo: {{ turno.motivo }}
 
 Si necesitas un nuevo turno, podes solicitarlo nuevamente.
 
-Gestor de Turnos
+{% include "consultorio/emails/contacto.txt" %}

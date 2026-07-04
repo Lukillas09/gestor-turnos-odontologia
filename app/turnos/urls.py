@@ -3,6 +3,11 @@ from django.urls import path
 from .views import (
     AgendaDiaView,
     AgendaSemanaView,
+    AlertasAdministrativasPublicasView,
+    ExcepcionAgendaCreateView,
+    ExcepcionAgendaDeactivateView,
+    ExcepcionAgendaListView,
+    ExcepcionAgendaUpdateView,
     GoogleCalendarCallbackView,
     GoogleCalendarConectarView,
     GoogleCalendarConexionView,
@@ -21,6 +26,7 @@ from .views import (
     TurnoListView,
     TurnoReprogramView,
     TurnoReintentarSincronizacionGoogleCalendarView,
+    TurnoSolicitudPublicaRechazarView,
     TurnoUpdateView,
 )
 from .public_access.views import (
@@ -65,6 +71,11 @@ urlpatterns = [
         name="solicitudes_publicas",
     ),
     path(
+        "alertas-administrativas/",
+        AlertasAdministrativasPublicasView.as_view(),
+        name="alertas_administrativas",
+    ),
+    path(
         "solicitudes-publicas/<uuid:pk>/",
         SolicitudTurnoPublicaRevisionView.as_view(),
         name="solicitud_publica_revision",
@@ -102,6 +113,18 @@ urlpatterns = [
     ),
     path("agenda/dia/", AgendaDiaView.as_view(), name="agenda_dia"),
     path("agenda/semana/", AgendaSemanaView.as_view(), name="agenda_semana"),
+    path("excepciones/", ExcepcionAgendaListView.as_view(), name="excepciones"),
+    path("excepciones/nueva/", ExcepcionAgendaCreateView.as_view(), name="excepcion_crear"),
+    path(
+        "excepciones/<int:pk>/editar/",
+        ExcepcionAgendaUpdateView.as_view(),
+        name="excepcion_editar",
+    ),
+    path(
+        "excepciones/<int:pk>/desactivar/",
+        ExcepcionAgendaDeactivateView.as_view(),
+        name="excepcion_desactivar",
+    ),
     path(
         "google-calendar/",
         GoogleCalendarConexionView.as_view(),
@@ -126,6 +149,11 @@ urlpatterns = [
     path("<int:pk>/reprogramar/", TurnoReprogramView.as_view(), name="reprogramar"),
     path("<int:pk>/editar/", TurnoUpdateView.as_view(), name="editar"),
     path("<int:pk>/confirmar/", TurnoConfirmView.as_view(), name="confirmar"),
+    path(
+        "<int:pk>/rechazar-solicitud/",
+        TurnoSolicitudPublicaRechazarView.as_view(),
+        name="rechazar_solicitud_publica",
+    ),
     path("<int:pk>/cancelar/", TurnoCancelView.as_view(), name="cancelar"),
     path(
         "<int:pk>/google-calendar/reintentar/",

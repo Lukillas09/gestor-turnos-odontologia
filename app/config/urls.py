@@ -34,6 +34,7 @@ urlpatterns = [
     path('turnos/', include('turnos.urls')),
     path('historias/', include('historias.urls')),
     path('odontogramas/', include('odontogramas.urls')),
+    path('configuracion/', include('consultorio.urls')),
 ]
 
 if settings.DEBUG:

@@ -15,6 +15,12 @@
                 <span>{{ turno.fecha|date:"d/m/Y" }}</span>
                 <span>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</span>
                 <span>{{ turno.odontologo }}</span>
+                {% if solicitud_publica %}
+                    <span>Solicitud web</span>
+                {% endif %}
+                {% if requiere_revision_publica %}
+                    <span class="status-badge status-pendiente">Datos por revisar</span>
+                {% endif %}
             </div>
         </div>
         <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
@@ -83,6 +89,57 @@
 
     </section>
 
+    {% if solicitud_publica %}
+        <section class="review-comparison-card animate-fade-up" aria-labelledby="solicitud-web-title">
+            <div class="review-card-header">
+                <div>
+                    <p class="eyebrow">Solicitud web</p>
+                    <h2 id="solicitud-web-title">Solicitud realizada desde la web</h2>
+                    <p>Recibida el {{ solicitud_publica.creado_en|date:"d/m/Y H:i" }}.</p>
+                </div>
+                <span class="status-badge {% if requiere_revision_publica %}status-pendiente{% else %}status-sync-ok{% endif %}">
+                    {% if requiere_revision_publica %}Datos por revisar{% else %}{{ solicitud_publica.get_estado_revision_display }}{% endif %}
+                </span>
+            </div>
+
+            {% if requiere_revision_publica %}
+                {% if not puede_revisar_solicitud_publica %}
+                    <div class="review-empty-note">
+                        <p>Este turno requiere revisión administrativa antes de confirmarse.</p>
+                    </div>
+                {% endif %}
+
+                {% if filas_revision_publica %}
+                    {% include "turnos/includes/revision_publica_comparacion.html" with filas_revision=filas_revision_publica %}
+                {% endif %}
+            {% else %}
+                <div class="review-empty-note">
+                    {% if filas_diferentes_publicas %}
+                        <p>La solicitud ya fue revisada y las diferencias quedaron registradas internamente.</p>
+                    {% else %}
+                        <p>Los datos enviados coinciden con el paciente registrado.</p>
+                    {% endif %}
+                </div>
+                <dl class="review-data-list">
+                    <div>
+                        <dt>Origen</dt>
+                        <dd>Solicitud web</dd>
+                    </div>
+                    <div>
+                        <dt>Estado de revisión</dt>
+                        <dd>{{ solicitud_publica.get_estado_revision_display }}</dd>
+                    </div>
+                    {% if solicitud_publica.revisada_por %}
+                        <div>
+                            <dt>Revisada por</dt>
+                            <dd>{{ solicitud_publica.revisada_por.get_username }}{% if solicitud_publica.revisada_en %} el {{ solicitud_publica.revisada_en|date:"d/m/Y H:i" }}{% endif %}</dd>
+                        </div>
+                    {% endif %}
+                </dl>
+            {% endif %}
+        </section>
+    {% endif %}
+
     <section class="panel-section turno-notes-panel animate-fade-up">
         <div class="section-header">
             <div>
@@ -102,7 +159,7 @@
         </dl>
     </section>
 
-    {% if puede_confirmar_turno or puede_reprogramar_turno or puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}
+    {% if puede_confirmar_turno or puede_reprogramar_turno or puede_rechazar_solicitud_publica or puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}
         <section class="panel-section turno-actions-panel animate-fade-up">
             <div class="section-header">
                 <div>
@@ -113,11 +170,17 @@
 
             <div class="turno-detail-actions">
                 {% if puede_confirmar_turno %}
-                    <a class="button button-success" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar turno</a>
+                    <a class="button button-success" href="{% url 'turnos:confirmar' turno.pk %}">
+                        {% if confirmacion_requiere_revision_publica %}Revisar y confirmar turno{% else %}Confirmar turno{% endif %}
+                    </a>
                 {% endif %}
 
                 {% if puede_reprogramar_turno %}
                     <a class="button button-soft-primary" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar</a>
+                {% endif %}
+
+                {% if puede_rechazar_solicitud_publica %}
+                    <a class="button button-secondary danger-link" href="{% url 'turnos:rechazar_solicitud_publica' turno.pk %}">Rechazar solicitud</a>
                 {% endif %}
 
                 {% if puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}

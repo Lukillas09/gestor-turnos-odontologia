@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Rechazar solicitud | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="review-shell">
+        <div class="patient-backline animate-fade-up">
+            <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:detalle' turno.pk %}">&larr; Volver al turno</a>
+        </div>
+
+        <section class="review-hero animate-fade-up">
+            <div class="review-hero-copy">
+                <p class="eyebrow">Solicitud web</p>
+                <h1>Rechazar solicitud</h1>
+                <span class="status-badge status-pendiente">Datos por revisar</span>
+                <p>Esta acción marcará la solicitud como rechazada y cancelará el turno pendiente asociado.</p>
+            </div>
+            <div class="review-hero-actions">
+                <a class="button button-secondary" href="{% url 'pacientes:detalle' turno.paciente.pk %}">Ver paciente</a>
+            </div>
+        </section>
+
+        <section class="review-summary-grid animate-fade-up" aria-label="Resumen del rechazo">
+            <article class="review-info-card">
+                <div class="review-card-header">
+                    <h2>Turno</h2>
+                </div>
+                <dl class="review-data-list">
+                    <div>
+                        <dt>Paciente</dt>
+                        <dd>{{ turno.paciente }}</dd>
+                    </div>
+                    <div>
+                        <dt>Fecha</dt>
+                        <dd>{{ turno.fecha|date:"d/m/Y" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Horario</dt>
+                        <dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Odontólogo</dt>
+                        <dd>{{ turno.odontologo }}</dd>
+                    </div>
+                </dl>
+            </article>
+
+            <article class="review-info-card">
+                <div class="review-card-header">
+                    <h2>Datos enviados</h2>
+                </div>
+                <dl class="review-data-list">
+                    <div>
+                        <dt>Nombre y apellido</dt>
+                        <dd>{{ solicitud.apellido_enviado }}, {{ solicitud.nombre_enviado }}</dd>
+                    </div>
+                    <div>
+                        <dt>DNI</dt>
+                        <dd>{{ solicitud.documento_enviado }}</dd>
+                    </div>
+                    <div>
+                        <dt>Teléfono</dt>
+                        <dd>{{ solicitud.telefono_enviado }}</dd>
+                    </div>
+                    <div>
+                        <dt>Email</dt>
+                        <dd>{{ solicitud.email_enviado|default:"-" }}</dd>
+                    </div>
+                </dl>
+            </article>
+        </section>
+
+        <section class="review-comparison-card animate-fade-up" aria-labelledby="comparacion-rechazo-title">
+            <div class="review-card-header">
+                <div>
+                    <h2 id="comparacion-rechazo-title">Comparación de datos</h2>
+                    <p>La solicitud se conserva como registro interno.</p>
+                </div>
+            </div>
+            {% include "turnos/includes/revision_publica_comparacion.html" with filas_revision=filas_revision %}
+        </section>
+
+        <form class="review-form animate-fade-up" method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="field-error review-form-error" aria-live="polite">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="review-observations">
+                <label for="{{ form.motivo.id_for_label }}">{{ form.motivo.label }}</label>
+                {{ form.motivo }}
+                {% if form.motivo.errors %}
+                    <div class="field-error" aria-live="polite">{{ form.motivo.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="review-form-actions">
+                <button class="button-danger" type="submit">Rechazar solicitud y cancelar turno</button>
+                <a class="button button-secondary" href="{% url 'turnos:detalle' turno.pk %}">Volver sin guardar</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}

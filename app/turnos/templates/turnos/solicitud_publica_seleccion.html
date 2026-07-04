@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Solicitar turno | Gestor de Turnos{% endblock %}
+{% block title %}Solicitar turno | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     <section class="public-appointment-hero animate-fade-up">
@@ -37,6 +37,8 @@
             </div>
         </div>
     </section>
+
+    {% include "consultorio/includes/public_contact_card.html" %}
 
     <section
         class="public-appointment-panel"

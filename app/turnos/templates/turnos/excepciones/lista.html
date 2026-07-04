@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Excepciones de agenda | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Agenda</p>
+            <h1>Excepciones de agenda</h1>
+            <p class="subtitle">Bloqueos operativos por feriados, ausencias, capacitaciones o cierres del consultorio.</p>
+        </div>
+        <div class="header-actions">
+            <a class="button" href="{% url 'turnos:excepcion_crear' %}">Nueva excepción</a>
+        </div>
+    </div>
+
+    <form class="filter-panel animate-fade-up" method="get">
+        <div>
+            <label for="id_estado">Estado</label>
+            <select id="id_estado" name="estado">
+                <option value="activas" {% if estado_actual == "activas" %}selected{% endif %}>Activas</option>
+                <option value="todas" {% if estado_actual == "todas" %}selected{% endif %}>Todas</option>
+                <option value="inactivas" {% if estado_actual == "inactivas" %}selected{% endif %}>Inactivas</option>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit">Filtrar</button>
+            <a class="button button-secondary" href="{% url 'turnos:excepciones' %}">Limpiar</a>
+        </div>
+    </form>
+
+    {% if excepciones %}
+        <div class="agenda-professional-list stagger-list">
+            {% for excepcion in excepciones %}
+                <section class="panel-section animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
+                    <div class="section-header">
+                        <div>
+                            <h2>{{ excepcion.get_tipo_display }}</h2>
+                            <p class="subtitle">
+                                {{ excepcion.alcance_display }} · {{ excepcion.fecha_desde|date:"d/m/Y" }}{% if excepcion.fecha_hasta != excepcion.fecha_desde %} al {{ excepcion.fecha_hasta|date:"d/m/Y" }}{% endif %} · {{ excepcion.horario_display }}
+                            </p>
+                        </div>
+                        <span class="status-badge {% if excepcion.activo %}status-confirmado{% else %}status-cancelado{% endif %}">
+                            {% if excepcion.activo %}Activa{% else %}Inactiva{% endif %}
+                        </span>
+                    </div>
+                    <p>{{ excepcion.motivo }}</p>
+                    {% if excepcion.mensaje_publico %}
+                        <p class="muted">Mensaje público: {{ excepcion.mensaje_publico }}</p>
+                    {% endif %}
+                    <div class="form-actions">
+                        {% if excepcion.activo %}
+                            <a class="button button-secondary button-small" href="{% url 'turnos:excepcion_editar' excepcion.pk %}">Editar</a>
+                            <form method="post" action="{% url 'turnos:excepcion_desactivar' excepcion.pk %}">
+                                {% csrf_token %}
+                                <button class="button button-danger button-small" type="submit">Desactivar</button>
+                            </form>
+                        {% else %}
+                            <a class="button button-secondary button-small" href="{% url 'turnos:excepcion_editar' excepcion.pk %}">Ver detalle</a>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state animate-fade-up">
+            <p>No hay excepciones de agenda para el filtro seleccionado.</p>
+        </div>
+    {% endif %}
+{% endblock %}

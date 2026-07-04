@@ -65,9 +65,41 @@ DJANGO_SECURE_HSTS_SECONDS=0
 
 En produccion se recomienda mantener `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS=False` salvo una decision explicita de politica clinica.
 
+## Perfil del Consultorio
+
+La identidad visible del consultorio se configura desde:
+
+```text
+/configuracion/consultorio/
+```
+
+Es una configuración singleton de la app `consultorio`, con `pk=1`. Permite editar nombre comercial, nombre corto, logo, datos de contacto, textos de portada, política de cancelación, color principal y reglas de reserva pública sin modificar código ni redeployar.
+
+Puntos importantes:
+
+- No agrega multi-tenancy.
+- No guarda secretos ni variables de entorno.
+- No modifica `DEFAULT_FROM_EMAIL`; esa dirección sigue dependiendo del dominio verificado del proveedor de email.
+- El logo se guarda con el storage default de Django, local o Supabase Storage según `MEDIA_STORAGE_BACKEND`.
+- El context processor global expone defaults seguros si la fila todavía no existe y no escribe en base durante requests públicos.
+
+### Reservas públicas
+
+La misma pantalla incluye una sección `Reservas públicas` con parámetros persistidos en base:
+
+| Campo | Default | Rango | Uso |
+| --- | --- | --- | --- |
+| `ventana_reserva_publica_dias` | `14` | `1` a `90` | Cantidad de días visibles y reservables desde hoy inclusive. |
+| `permitir_reserva_publica_mismo_dia` | `True` | Booleano | Permite que pacientes tomen turnos para la fecha actual si cumplen la anticipación mínima. |
+| `anticipacion_minima_reserva_publica_minutos` | `120` | `0` a `10080` | Tiempo mínimo entre el momento actual y el inicio del turno público. |
+
+Estas reglas aplican a selección pública, endpoint JSON de horarios, formulario final, URLs directas y reprogramación pública. Los turnos internos no usan esta ventana pública, pero sí respetan disponibilidad, superposición y excepciones de agenda.
+
 ## Seguridad del Flujo Publico de Turnos
 
 El flujo publico de autogestion usa un desafio OTP por email, sesion temporal verificada, permisos persistentes de un solo uso por turno y rate limiting en cache. En produccion `REDIS_URL` debe apuntar a Redis para que los limites funcionen entre procesos/instancias.
+
+La solicitud publica de un turno crea un `Turno` pendiente y conserva una `SolicitudTurnoPublica` asociada como auditoria. La revision de datos se resuelve desde el detalle/confirmacion del turno: los datos enviados no sobrescriben automaticamente al paciente existente, y las diferencias solo se aplican si un usuario autorizado selecciona campos concretos. Las solicitudes que no generan turno, como pacientes archivados, quedan en `/turnos/alertas-administrativas/`.
 
 | Variable | Default | Uso |
 | --- | --- | --- |

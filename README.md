@@ -15,7 +15,9 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 - Autogestión pública de turnos en `/turnos/mis-turnos/` con acceso por código OTP enviado al email registrado.
 - Login interno separado en `/cuentas/login/`.
 - Dashboard interno en `/inicio/`.
+- Perfil del consultorio editable desde `/configuracion/consultorio/` para nombre, logo, contacto, textos públicos, color principal y reglas de reserva pública.
 - Gestión visual de pacientes, turnos, agenda diaria/semanal e historia clínica.
+- Excepciones operativas de agenda en `/turnos/excepciones/` para bloquear feriados, vacaciones, capacitaciones, ausencias y cierres sin borrar turnos existentes.
 - Roles internos con grupos de Django: `Recepcionista`, `Odontologo` y `Administrador`.
 - Asociación paciente-odontólogo y derivación de pacientes.
 - Autorizacion por objeto para pacientes, historias, adjuntos, odontogramas y turnos internos: conocer un ID no concede acceso.
@@ -23,10 +25,11 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 - Historia clínica con adjuntos clínicos. El odontograma queda desactivado como implementación futura.
 - Turnos con estados `Pendiente`, `Confirmado` y `Cancelado`.
 - Turnos internos confirmados automáticamente.
-- Solicitudes públicas guardadas como pendientes con duración inicial de 30 minutos.
-- Las solicitudes públicas guardan una fotografía independiente de los datos enviados y no actualizan automáticamente pacientes existentes.
-- Bandeja interna para que recepción revise diferencias de datos y aplique solo campos seleccionados.
-- Confirmación de turnos pendientes con duración real y validación de superposición.
+- Solicitudes públicas que crean turnos `Pendiente` con duración inicial de 30 minutos y quedan visibles directamente en Turnos y Agenda.
+- Las solicitudes públicas conservan una fotografía independiente de los datos enviados como auditoría y no actualizan automáticamente pacientes existentes.
+- Revisión integrada en el detalle/confirmación del turno para conservar datos, aplicar campos seleccionados, validar pacientes nuevos o rechazar la solicitud.
+- Alertas administrativas separadas para solicitudes públicas excepcionales que no generan turno, por ejemplo pacientes archivados.
+- Confirmación de turnos pendientes con duración real, revisión pública atómica cuando corresponde y validación de superposición.
 - Emails transaccionales para solicitud, confirmación, cancelación, reprogramación y recordatorios.
 - Google Calendar OAuth por odontólogo y sincronización de eventos.
 - Supabase PostgreSQL como base de datos para deploy.
@@ -62,9 +65,10 @@ El proyecto está organizado por apps Django con responsabilidades separadas:
 | App | Responsabilidad |
 | --- | --- |
 | `config` | Settings, URLs globales, base de datos, email, storage y configuración de entorno. |
+| `consultorio` | Perfil singleton del consultorio: identidad visual, logo, contacto, textos públicos, color de marca, datos usados en emails y reglas de reserva pública. |
 | `usuarios` | Login interno, dashboard, perfil de usuario, roles, permisos y mixins. |
 | `pacientes` | Datos personales, ficha odontológica, asociación con odontólogos, derivación y borrado seguro. |
-| `turnos` | Odontólogos, disponibilidad, turnos, agenda, solicitud pública, emails, recordatorios y Google Calendar. |
+| `turnos` | Odontólogos, disponibilidad, turnos, excepciones operativas de agenda, solicitud pública, emails, recordatorios y Google Calendar. |
 | `historias` | Historia clínica, adjuntos clínicos, auditoría básica y permisos clínicos. |
 | `odontogramas` | Implementación experimental del odontograma FDI, conservada detrás del feature flag `ODONTOGRAMA_FEATURE_ENABLED` para retomarla en una etapa futura. |
 
@@ -177,11 +181,12 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 2. Solicita turno desde `/turnos/solicitar/`.
 3. Elige odontólogo, fecha y horario disponible.
 4. Completa nombre, apellido, DNI obligatorio, teléfono, email opcional y motivo opcional.
-5. El sistema normaliza el DNI, crea un turno `Pendiente` con duración inicial de 30 minutos y guarda una `SolicitudTurnoPublica` con la fotografía de lo enviado.
-6. Si el DNI ya pertenecía a un paciente, los datos principales del paciente no se modifican desde la web; recepción revisa diferencias desde la bandeja interna.
-7. Solicita acceso temporal desde `/turnos/mis-turnos/solicitar-acceso/`; si el DNI coincide con un paciente con email registrado, recibe un código OTP en ese contacto.
-8. Puede cancelar turnos pendientes/confirmados.
-9. Puede reprogramar solo turnos pendientes.
+5. El sistema valida ventana pública, anticipación mínima, disponibilidad, excepciones de agenda y superposición.
+6. El sistema normaliza el DNI, crea un turno `Pendiente` con duración inicial de 30 minutos y guarda una `SolicitudTurnoPublica` con la fotografía de lo enviado.
+7. Si el DNI ya pertenecía a un paciente, los datos principales no se modifican desde la web; las diferencias se revisan al abrir/confirmar el turno pendiente.
+8. Solicita acceso temporal desde `/turnos/mis-turnos/solicitar-acceso/`; si el DNI coincide con un paciente con email registrado, recibe un código OTP en ese contacto.
+9. Puede cancelar turnos pendientes/confirmados.
+10. Puede reprogramar solo turnos pendientes dentro de la ventana pública vigente.
 
 ### Equipo Interno
 
@@ -189,10 +194,13 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 2. Ve un dashboard simple en `/inicio/`.
 3. Gestiona pacientes, turnos y agenda según rol.
 4. Confirma turnos pendientes eligiendo duración real.
-5. Reprograma o cancela turnos.
-6. Revisa solicitudes públicas con diferencias, valida pacientes nuevos y aplica cambios campo por campo.
-7. Gestiona ficha odontológica, historia clínica y adjuntos clínicos.
-8. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
+5. Si el turno viene de una solicitud pública pendiente, revisa diferencias, valida pacientes nuevos o aplica campos seleccionados desde la misma pantalla de confirmación.
+6. Reprograma o cancela turnos.
+7. Atiende alertas administrativas sólo cuando una solicitud pública no generó turno.
+8. Gestiona excepciones operativas de agenda según rol.
+9. Configura el perfil del consultorio si tiene permisos de gestión.
+10. Gestiona ficha odontológica, historia clínica y adjuntos clínicos.
+11. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
 
 Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 
@@ -203,11 +211,15 @@ Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 - Los turnos pendientes y confirmados sí bloquean disponibilidad.
 - Los turnos internos se crean confirmados automáticamente.
 - Las solicitudes públicas se crean pendientes y duran 30 minutos inicialmente.
+- Las reservas públicas visibles y reservables se limitan por configuración del consultorio: ventana en días, reserva el mismo día y anticipación mínima.
 - Una solicitud pública nunca reemplaza por sí sola nombre, apellido, teléfono o email de un paciente existente.
 - Los pacientes nuevos creados desde la web quedan con `origen_alta=solicitud_publica` y `estado_validacion_datos=pendiente`.
-- La confirmación interna permite elegir duración real.
+- La confirmación interna permite elegir duración real y, para solicitudes públicas pendientes, resolver la revisión de datos en el mismo flujo.
 - Si la duración elegida se superpone con otro turno activo del mismo odontólogo, no confirma y muestra el conflicto.
 - La reprogramación valida disponibilidad y superposiciones.
+- Las excepciones de agenda activas bloquean creación, confirmación y reprogramación de turnos internos y públicos.
+- Crear o editar una excepción que afecta turnos existentes exige confirmación interna explícita; esos turnos no se cancelan automáticamente.
+- Las excepciones de agenda son operativas internas y no generan eventos en Google Calendar.
 - La disponibilidad se define por odontólogo y día de semana.
 - No se pueden crear turnos para odontólogos inactivos.
 - No se pueden crear, confirmar ni reprogramar turnos para pacientes archivados.
@@ -219,7 +231,7 @@ Los pacientes no se borran fisicamente. La baja operativa se realiza con archiva
 - Los pacientes archivados no aparecen en listados activos ni selectores de nuevos turnos.
 - No admiten nuevos turnos, historias, fichas, odontogramas ni asociaciones activas.
 - La reactivacion exige motivo y queda auditada.
-- Las solicitudes publicas con DNI de un paciente archivado quedan en revision interna sin crear turno ni revelar ese estado al paciente.
+- Las solicitudes publicas con DNI de un paciente archivado quedan como alertas administrativas sin crear turno ni revelar ese estado al paciente.
 
 ## Google Calendar
 

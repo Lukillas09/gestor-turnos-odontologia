@@ -5,6 +5,8 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
+from consultorio.services import obtener_configuracion_consultorio
+
 logger = logging.getLogger(__name__)
 
 
@@ -75,6 +77,8 @@ def notificar_codigo_acceso_publico_turnos(paciente, codigo, expira_en, fail_sil
             motivo="El paciente no tiene email cargado.",
         )
 
+    configuracion = obtener_configuracion_consultorio()
+
     try:
         enviados = send_mail(
             subject="Código de acceso a tus turnos",
@@ -83,7 +87,8 @@ def notificar_codigo_acceso_publico_turnos(paciente, codigo, expira_en, fail_sil
                 {
                     "codigo": codigo,
                     "expira_en": expira_en,
-                    "consultorio": getattr(settings, "CONSULTORIO_NOMBRE", "Consultorio odontológico"),
+                    "configuracion_consultorio": configuracion,
+                    "consultorio": configuracion.nombre_visible,
                 },
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
@@ -133,11 +138,15 @@ def _enviar_email_turno(turno, asunto, template_name, fail_silently=True):
 
 
 def _renderizar_email_turno(turno, template_name):
+    configuracion = obtener_configuracion_consultorio()
+
     return render_to_string(
         template_name,
         {
             "turno": turno,
             "paciente": turno.paciente,
             "odontologo": turno.odontologo,
+            "configuracion_consultorio": configuracion,
+            "consultorio": configuracion.nombre_visible,
         },
     )

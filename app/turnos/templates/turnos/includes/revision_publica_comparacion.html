@@ -1,0 +1,22 @@
+<div class="review-equal-grid">
+    {% for fila in filas_revision %}
+        <article class="review-field-card{% if fila.diferente %} is-different{% endif %}">
+            <div class="review-card-header">
+                <strong>{{ fila.etiqueta }}</strong>
+                {% if fila.diferente %}
+                    <span class="status-badge review-difference-badge">Diferente</span>
+                {% endif %}
+            </div>
+            <div class="review-field-values">
+                <div>
+                    <span class="agenda-field-label">Datos registrados</span>
+                    <span>{{ fila.actual }}</span>
+                </div>
+                <div>
+                    <span class="agenda-field-label">Datos enviados</span>
+                    <span>{{ fila.enviado }}</span>
+                </div>
+            </div>
+        </article>
+    {% endfor %}
+</div>

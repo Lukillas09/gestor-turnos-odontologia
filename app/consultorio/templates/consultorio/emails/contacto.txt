@@ -1,0 +1,14 @@
+{{ configuracion_consultorio.nombre_visible }}
+{% if configuracion_consultorio.telefono %}
+Teléfono: {{ configuracion_consultorio.telefono }}
+{% endif %}{% if configuracion_consultorio.whatsapp_url %}
+WhatsApp: {{ configuracion_consultorio.whatsapp_url }}
+{% endif %}{% if configuracion_consultorio.email %}
+Email: {{ configuracion_consultorio.email }}
+{% endif %}{% if configuracion_consultorio.direccion_completa %}
+Dirección: {{ configuracion_consultorio.direccion_completa }}
+{% endif %}{% if configuracion_consultorio.politica_cancelacion %}
+
+Política de cancelación:
+{{ configuracion_consultorio.politica_cancelacion }}
+{% endif %}

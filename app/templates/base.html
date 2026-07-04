@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Gestor de Turnos{% endblock %}</title>
+    <title>{% block title %}{{ configuracion_consultorio.nombre_visible|default:"Gestor de Turnos" }}{% endblock %}</title>
     <style>
         :root {
             --bg: #f6f7f9;
@@ -12,8 +12,10 @@
             --text: #20242a;
             --muted: #667085;
             --line: #d9dee7;
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
+            --primary: {{ configuracion_consultorio.color_principal|default:"#2563EB" }};
+            --primary-dark: {{ configuracion_consultorio.color_principal_oscuro|default:"#1D4ED8" }};
+            --primary-soft: {{ configuracion_consultorio.color_principal_suave|default:"#EFF6FF" }};
+            --primary-contrast: {{ configuracion_consultorio.color_texto_sobre_principal|default:"#FFFFFF" }};
             --danger: #b42318;
             --danger-bg: #fef3f2;
             --warning-bg: #fff7ed;
@@ -98,10 +100,46 @@
         }
 
         .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
             font-size: 18px;
             font-weight: 700;
             text-decoration: none;
             white-space: nowrap;
+        }
+
+        .brand-logo,
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            flex: 0 0 auto;
+            place-items: center;
+            overflow: hidden;
+            border-radius: 8px;
+            background: var(--primary);
+            color: var(--primary-contrast);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .brand-logo {
+            background: #ffffff;
+            border: 1px solid var(--line);
+        }
+
+        .brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .brand-text {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .app-shell-body {
@@ -290,8 +328,8 @@
 
         .app-sidebar-link:hover,
         .app-sidebar-link.is-active {
-            background: #eef2ff;
-            color: #1d4ed8;
+            background: var(--primary-soft);
+            color: var(--primary-dark);
         }
 
         .app-sidebar-link-icon {
@@ -479,7 +517,7 @@
             border-radius: 6px;
             padding: 8px 14px;
             background: var(--primary);
-            color: #ffffff;
+            color: var(--primary-contrast);
             font: inherit;
             font-weight: 700;
             text-decoration: none;
@@ -513,13 +551,14 @@
         }
 
         .button-soft-primary {
-            border-color: #bfdbfe;
-            background: #eff6ff;
-            color: #1d4ed8;
+            border-color: var(--primary);
+            background: var(--primary-soft);
+            color: var(--primary-dark);
         }
 
         .button-soft-primary:hover {
-            background: #dbeafe;
+            background: var(--primary);
+            color: var(--primary-contrast);
         }
 
         .button-clinical-primary {
@@ -1208,7 +1247,7 @@
 
         .turnos-filter-form {
             display: grid;
-            grid-template-columns: minmax(170px, 0.7fr) minmax(180px, 0.7fr) minmax(240px, 1fr) auto;
+            grid-template-columns: minmax(150px, 0.7fr) minmax(160px, 0.7fr) minmax(220px, 1fr) minmax(150px, 0.55fr) auto;
             gap: 14px;
             align-items: end;
         }
@@ -2427,16 +2466,17 @@
 
         .public-primary-action {
             min-height: 52px;
-            border-color: #16a34a;
+            border-color: var(--primary);
             border-radius: 10px;
             padding: 12px 24px;
-            background: #16a34a;
+            background: var(--primary);
+            color: var(--primary-contrast);
             font-size: 18px;
         }
 
         .public-primary-action:hover {
-            border-color: #15803d;
-            background: #15803d;
+            border-color: var(--primary-dark);
+            background: var(--primary-dark);
         }
 
         .public-home-card,
@@ -2935,6 +2975,173 @@
             margin: 0;
         }
 
+        .consultorio-editor {
+            display: grid;
+            gap: 18px;
+        }
+
+        .consultorio-editor-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .consultorio-form-stack {
+            display: grid;
+            gap: 18px;
+        }
+
+        .consultorio-section {
+            display: grid;
+            gap: 16px;
+        }
+
+        .consultorio-checkbox {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .consultorio-checkbox input {
+            width: 18px;
+            height: 18px;
+        }
+
+        .consultorio-visibility-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 10px;
+            border-top: 1px solid var(--line);
+            padding-top: 14px;
+        }
+
+        .consultorio-color-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .consultorio-color-row input[type="color"] {
+            width: 64px;
+            min-height: 44px;
+            padding: 4px;
+        }
+
+        .consultorio-preview-panel {
+            position: sticky;
+            top: calc(var(--topbar-height) + 20px);
+        }
+
+        .consultorio-preview-card {
+            display: grid;
+            gap: 18px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 22px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .consultorio-preview-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .consultorio-preview-brand strong,
+        .consultorio-preview-brand small {
+            display: block;
+            overflow-wrap: anywhere;
+        }
+
+        .consultorio-preview-brand small {
+            color: var(--muted);
+        }
+
+        .consultorio-preview-logo {
+            width: 56px;
+            height: 56px;
+            display: grid;
+            flex: 0 0 auto;
+            place-items: center;
+            overflow: hidden;
+            border-radius: 8px;
+            background: var(--preview-color, var(--primary));
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .consultorio-preview-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #ffffff;
+        }
+
+        .consultorio-preview-hero {
+            display: grid;
+            gap: 10px;
+            border-left: 4px solid var(--preview-color, var(--primary));
+            padding-left: 14px;
+        }
+
+        .consultorio-preview-hero h2,
+        .consultorio-preview-hero p {
+            margin: 0;
+        }
+
+        .consultorio-preview-hero .button {
+            justify-self: start;
+            background: var(--preview-color, var(--primary));
+        }
+
+        .consultorio-preview-meta,
+        .consultorio-public-contact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .consultorio-preview-meta span,
+        .consultorio-public-contact span,
+        .consultorio-public-contact a {
+            display: inline-flex;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: #ffffff;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .consultorio-public-card {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .consultorio-policy {
+            margin-top: 18px;
+            border-left: 4px solid var(--line);
+            padding: 14px 16px;
+            background: #ffffff;
+            color: var(--muted);
+            white-space: pre-line;
+        }
+
         .sr-only {
             position: absolute;
             width: 1px;
@@ -3227,6 +3434,7 @@
             .public-home-secondary,
             .public-dni-form,
             .public-turno-card,
+            .consultorio-editor-grid,
             .review-hero,
             .review-summary-grid,
             .review-field-card,
@@ -3248,6 +3456,7 @@
             .public-reservation-details,
             .public-confirmation-actions,
             .public-form-actions,
+            .consultorio-preview-meta,
             .review-hero-actions,
             .review-card-header,
             .review-form-actions {
@@ -3298,6 +3507,7 @@
             .public-search-panel,
             .public-home-card,
             .public-turno-card,
+            .consultorio-preview-card,
             .review-hero,
             .review-info-card,
             .review-comparison-card,
@@ -3312,6 +3522,10 @@
 
             .review-field-checkbox {
                 width: 100%;
+            }
+
+            .consultorio-preview-panel {
+                position: static;
             }
 
             input,
@@ -3498,8 +3712,8 @@
     {% if request.user.is_authenticated %}
         <header class="app-topbar">
             <div class="app-topbar-title">
-                <strong>Panel interno</strong>
-                <span>Gestor de turnos odontológicos</span>
+                <strong>{{ configuracion_consultorio.nombre_visible }}</strong>
+                <span>Panel interno</span>
             </div>
             <div class="app-user-menu">
                 <a class="app-user-profile-link" href="{% url 'perfil' %}">
@@ -3524,7 +3738,16 @@
 
         <aside class="app-sidebar" aria-label="Principal">
             <div class="app-sidebar-header">
-                <a class="brand" href="{% url 'inicio' %}">Gestor de Turnos</a>
+                <a class="brand" href="{% url 'inicio' %}">
+                    {% if configuracion_consultorio.logo_url %}
+                        <span class="brand-logo">
+                            <img src="{{ configuracion_consultorio.logo_url }}" alt="">
+                        </span>
+                    {% else %}
+                        <span class="brand-mark">{{ configuracion_consultorio.iniciales }}</span>
+                    {% endif %}
+                    <span class="brand-text">{{ configuracion_consultorio.nombre_visible }}</span>
+                </a>
             </div>
             <nav class="app-sidebar-nav">
                 <span class="app-sidebar-label">Consultorio</span>
@@ -3544,12 +3767,6 @@
                         Turnos
                     </a>
 
-                    {% if puede_revisar_solicitudes_publicas %}
-                        <a class="app-sidebar-link {% if request.resolver_match.url_name == 'solicitudes_publicas' or request.resolver_match.url_name == 'solicitud_publica_revision' %}is-active{% endif %}" href="{% url 'turnos:solicitudes_publicas' %}">
-                            <span class="app-sidebar-link-icon">!</span>
-                            Solicitudes{% if solicitudes_publicas_pendientes %} ({{ solicitudes_publicas_pendientes }}){% endif %}
-                        </a>
-                    {% endif %}
                     <span class="app-sidebar-label">Agenda</span>
                     <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_dia' %}is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}">
                         <span class="app-sidebar-link-icon">□</span>
@@ -3559,9 +3776,21 @@
                         <span class="app-sidebar-link-icon">▦</span>
                         Agenda semana
                     </a>
+                    {% if puede_ver_excepciones_agenda %}
+                        <a class="app-sidebar-link {% if request.resolver_match.url_name == 'excepciones' or request.resolver_match.url_name == 'excepcion_crear' or request.resolver_match.url_name == 'excepcion_editar' %}is-active{% endif %}" href="{% url 'turnos:excepciones' %}">
+                            <span class="app-sidebar-link-icon">■</span>
+                            Bloqueos y excepciones
+                        </a>
+                    {% endif %}
                 {% endif %}
-                {% if puede_conectar_google_calendar or request.user.is_staff %}
+                {% if puede_conectar_google_calendar or request.user.is_staff or puede_configurar_consultorio %}
                     <span class="app-sidebar-label">Configuración</span>
+                {% endif %}
+                {% if puede_configurar_consultorio %}
+                    <a class="app-sidebar-link {% if request.resolver_match.namespace == 'consultorio' %}is-active{% endif %}" href="{% url 'consultorio:configuracion' %}">
+                        <span class="app-sidebar-link-icon">◈</span>
+                        Perfil del consultorio
+                    </a>
                 {% endif %}
                 {% if puede_conectar_google_calendar %}
                     <a class="app-sidebar-link {% if request.resolver_match.url_name == 'google_calendar' %}is-active{% endif %}" href="{% url 'turnos:google_calendar' %}">
@@ -3580,7 +3809,16 @@
     {% else %}
         <header class="topbar">
             <div class="topbar-inner">
-                <a class="brand" href="{% url 'landing_publica' %}">Gestor de Turnos</a>
+                <a class="brand" href="{% url 'landing_publica' %}">
+                    {% if configuracion_consultorio.logo_url %}
+                        <span class="brand-logo">
+                            <img src="{{ configuracion_consultorio.logo_url }}" alt="">
+                        </span>
+                    {% else %}
+                        <span class="brand-mark">{{ configuracion_consultorio.iniciales }}</span>
+                    {% endif %}
+                    <span class="brand-text">{{ configuracion_consultorio.nombre_visible }}</span>
+                </a>
                 <nav class="nav" aria-label="Principal">
                     <a class="nav-link nav-link-public-primary" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
                     <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar turnos</a>

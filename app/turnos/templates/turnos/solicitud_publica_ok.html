@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Solicitud recibida | Gestor de Turnos{% endblock %}
+{% block title %}Solicitud recibida | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     <div class="page-header animate-fade-up">
@@ -12,6 +12,8 @@
             <a class="button" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
         </div>
     </div>
+
+    {% include "consultorio/includes/public_contact_card.html" %}
 
     {% if turno %}
         <section class="detail-panel animate-fade-up card-hover">

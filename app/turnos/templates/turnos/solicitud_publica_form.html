@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Completar datos | Gestor de Turnos{% endblock %}
+{% block title %}Completar datos | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     <div class="page-header public-data-header animate-fade-up">
@@ -9,6 +9,8 @@
             <p class="subtitle">Completá tus datos de contacto para confirmar la solicitud. El consultorio te avisará cuando el turno quede confirmado.</p>
         </div>
     </div>
+
+    {% include "consultorio/includes/public_contact_card.html" %}
 
     {% if odontologo and fecha and hora_inicio %}
         <section class="public-reservation-summary public-reservation-summary-actionable animate-fade-up card-hover">

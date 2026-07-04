@@ -38,7 +38,10 @@ from .forms import (
     AgendaFiltroForm,
     ConfirmacionTurnoForm,
     DURACION_SOLICITUD_PUBLICA_MINUTOS,
+    ExcepcionAgendaForm,
+    RechazoSolicitudTurnoPublicaForm,
     RevisionSolicitudTurnoPublicaForm,
+    RevisionYConfirmacionTurnoPublicoForm,
     SolicitudTurnoBusquedaPublicaForm,
     SolicitudTurnoPublicaForm,
     TurnoCreateForm,
@@ -57,6 +60,7 @@ from .integrations.google_calendar import (
     intercambiar_codigo_por_tokens,
 )
 from .models import (
+    ExcepcionAgenda,
     GoogleCalendarConexion,
     Odontologo,
     SolicitudTurnoPublica,
@@ -82,13 +86,63 @@ from .services import (
     reprogramar_turno,
     reintentar_sincronizacion_google_calendar,
 )
+from .excepcion_permissions import (
+    limitar_excepciones_por_usuario,
+    puede_modificar_excepcion_agenda,
+    puede_ver_excepciones_agenda,
+)
+from .excepciones import (
+    TurnosAfectadosPorExcepcionError,
+    actualizar_excepcion_agenda,
+    crear_excepcion_agenda,
+    desactivar_excepcion_agenda,
+    obtener_excepciones_activas,
+    obtener_horarios_publicos_disponibles,
+    obtener_rango_reserva_publica,
+    obtener_turnos_afectados_por_excepcion,
+    validar_fecha_reserva_publica,
+)
 from .solicitudes_publicas.permissions import puede_revisar_solicitudes_publicas
 from .solicitudes_publicas.selectors import obtener_solicitudes_publicas_para_bandeja
-from .solicitudes_publicas.services import revisar_solicitud_publica
+from .solicitudes_publicas.selectors import (
+    obtener_alertas_administrativas_publicas,
+    obtener_turnos_con_revision_publica_pendiente,
+)
+from .solicitudes_publicas.services import (
+    rechazar_solicitud_publica_y_cancelar_turno,
+    revisar_solicitud_publica,
+    revisar_y_confirmar_solicitud_publica,
+)
 
 
 GOOGLE_CALENDAR_OAUTH_STATE_SESSION_KEY = "google_calendar_oauth_state"
 SOLICITUD_PUBLICA_CONFIRMADA_SESSION_KEY = "solicitud_turno_publica_confirmada"
+CAMPO_REVISION_PUBLICA_LABELS = (
+    ("nombre", "Nombre"),
+    ("apellido", "Apellido"),
+    ("telefono", "Teléfono"),
+    ("email", "Email"),
+)
+
+
+def construir_filas_revision_solicitud_publica(solicitud):
+    paciente = solicitud.paciente
+    diferencias = set((solicitud.diferencias_detectadas or {}).keys())
+    filas = []
+
+    for orden, (campo, etiqueta) in enumerate(CAMPO_REVISION_PUBLICA_LABELS, start=1):
+        filas.append(
+            {
+                "campo": campo,
+                "etiqueta": etiqueta,
+                "actual": getattr(paciente, campo) or "-",
+                "enviado": getattr(solicitud, f"{campo}_enviado") or "-",
+                "diferente": campo in diferencias,
+                "orden": orden,
+            }
+        )
+
+    return sorted(filas, key=lambda fila: (not fila["diferente"], fila["orden"]))
 
 
 class LandingPublicaPacientesView(TemplateView):
@@ -209,6 +263,8 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
                 "paciente",
                 "odontologo",
                 "odontologo__usuario",
+                "solicitud_publica",
+                "solicitud_publica__revisada_por",
             )
         )
         queryset = limitar_turnos_por_usuario(queryset, self.request.user)
@@ -226,10 +282,13 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
             if filtros["odontologo"]:
                 queryset = queryset.filter(odontologo=filtros["odontologo"])
 
+            if filtros["datos_por_revisar"]:
+                queryset = obtener_turnos_con_revision_publica_pendiente(queryset)
+
         self.turnos_filtrados = queryset
         self.hay_filtros_activos = any(
             self.request.GET.get(campo)
-            for campo in ("fecha", "estado", "odontologo")
+            for campo in ("fecha", "estado", "odontologo", "datos_por_revisar")
         )
         return queryset
 
@@ -286,6 +345,11 @@ class TurnoListView(VerTurnosRequeridoMixin, ListView):
                 "activo": False,
             },
             {
+                "label": "Datos por revisar",
+                "url": f"{reverse('turnos:lista')}?datos_por_revisar=on",
+                "activo": bool(self.request.GET.get("datos_por_revisar")),
+            },
+            {
                 "label": "Todos",
                 "url": reverse("turnos:lista"),
                 "activo": not self.hay_filtros_activos,
@@ -335,10 +399,8 @@ class TurnoCreateView(GestionConsultorioRequeridaMixin, CreateView):
 
 
 class SolicitudTurnoPublicaDisponibilidadMixin:
-    dias_sugeridos = 7
-
     def _crear_disponibilidad_publica(self, odontologo, fecha):
-        horarios = obtener_horarios_disponibles(
+        horarios = obtener_horarios_publicos_disponibles(
             odontologo=odontologo,
             fecha=fecha,
             duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
@@ -378,11 +440,14 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
             return []
 
         dias = []
-        inicio = timezone.localdate()
+        rango = obtener_rango_reserva_publica()
 
-        for offset in range(self.dias_sugeridos):
-            dia = inicio + timedelta(days=offset)
-            horarios = obtener_horarios_disponibles(
+        for offset in range((rango.fecha_maxima - rango.fecha_minima).days + 1):
+            dia = rango.fecha_minima + timedelta(days=offset)
+            if dia > rango.fecha_maxima:
+                break
+
+            horarios = obtener_horarios_publicos_disponibles(
                 odontologo=odontologo,
                 fecha=dia,
                 duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
@@ -456,7 +521,7 @@ class SolicitudTurnoPublicaView(SolicitudTurnoPublicaDisponibilidadMixin, Templa
         data = self.request.GET if self.request.GET else None
         return SolicitudTurnoBusquedaPublicaForm(
             data,
-            initial={"fecha": timezone.localdate()},
+            initial={"fecha": obtener_rango_reserva_publica().fecha_minima},
             auto_id="id_busqueda_%s",
         )
 
@@ -504,12 +569,14 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
                 }
             )
 
-        if fecha < timezone.localdate():
+        try:
+            validar_fecha_reserva_publica(fecha)
+        except ValidationError as error:
             return JsonResponse(
                 {
                     "ok": False,
-                    "codigo": "fecha_pasada",
-                    "mensaje": "La fecha no puede ser anterior a hoy.",
+                    "codigo": "fecha_fuera_de_ventana",
+                    "mensaje": error.messages[0],
                     "odontologo": self._serializar_odontologo(odontologo),
                 }
             )
@@ -666,7 +733,12 @@ class SolicitudTurnoPublicaDatosView(FormView):
         if not odontologo_id or not fecha or not hora_inicio:
             return None
 
-        if fecha < timezone.localdate():
+        if not fecha:
+            return None
+
+        try:
+            validar_fecha_reserva_publica(fecha)
+        except ValidationError:
             return None
 
         try:
@@ -678,7 +750,7 @@ class SolicitudTurnoPublicaDatosView(FormView):
             return None
 
         if validar_disponibilidad:
-            horarios = obtener_horarios_disponibles(
+            horarios = obtener_horarios_publicos_disponibles(
                 odontologo=odontologo,
                 fecha=fecha,
                 duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
@@ -723,6 +795,18 @@ class SolicitudTurnoPublicaListView(GestionConsultorioRequeridaMixin, ListView):
     context_object_name = "solicitudes"
     paginate_by = 20
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        if not puede_revisar_solicitudes_publicas(request.user):
+            raise PermissionDenied("No tenés permiso para revisar solicitudes públicas.")
+
+        if obtener_alertas_administrativas_publicas().exists():
+            return redirect("turnos:alertas_administrativas")
+
+        return redirect(f"{reverse('turnos:lista')}?datos_por_revisar=on")
+
     def get_queryset(self):
         queryset = obtener_solicitudes_publicas_para_bandeja().order_by("-creado_en")
         estado = self.request.GET.get("estado", SolicitudTurnoPublica.EstadoRevision.PENDIENTE)
@@ -745,12 +829,39 @@ class SolicitudTurnoPublicaListView(GestionConsultorioRequeridaMixin, ListView):
         return context
 
 
+class AlertasAdministrativasPublicasView(GestionConsultorioRequeridaMixin, ListView):
+    model = SolicitudTurnoPublica
+    template_name = "turnos/solicitudes_publicas/alertas_administrativas.html"
+    context_object_name = "solicitudes"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        if not puede_revisar_solicitudes_publicas(request.user):
+            raise PermissionDenied("No tenés permiso para revisar alertas administrativas.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return obtener_alertas_administrativas_publicas().order_by("-creado_en")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["total_alertas"] = self.get_queryset().count()
+        return context
+
+
 class SolicitudTurnoPublicaRevisionView(GestionConsultorioRequeridaMixin, FormView):
     form_class = RevisionSolicitudTurnoPublicaForm
     template_name = "turnos/solicitudes_publicas/revision.html"
     solicitud = None
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         if not puede_revisar_solicitudes_publicas(request.user):
             raise PermissionDenied("No tenés permiso para revisar solicitudes públicas.")
 
@@ -758,6 +869,13 @@ class SolicitudTurnoPublicaRevisionView(GestionConsultorioRequeridaMixin, FormVi
             obtener_solicitudes_publicas_para_bandeja(),
             pk=kwargs["pk"],
         )
+
+        if self.solicitud.turno_id:
+            if self.solicitud.esta_pendiente_revision:
+                return redirect("turnos:confirmar", pk=self.solicitud.turno_id)
+
+            return redirect("turnos:detalle", pk=self.solicitud.turno_id)
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
@@ -825,27 +943,10 @@ class SolicitudTurnoPublicaRevisionView(GestionConsultorioRequeridaMixin, FormVi
             )
         else:
             messages.success(self.request, "Solicitud pública revisada correctamente.")
-        return redirect("turnos:solicitudes_publicas")
+        return redirect("turnos:alertas_administrativas")
 
     def _construir_filas_revision(self):
-        paciente = self.solicitud.paciente
-        filas = [
-            self._fila_revision("nombre", "Nombre", paciente.nombre, self.solicitud.nombre_enviado, 1),
-            self._fila_revision("apellido", "Apellido", paciente.apellido, self.solicitud.apellido_enviado, 2),
-            self._fila_revision("telefono", "Teléfono", paciente.telefono, self.solicitud.telefono_enviado, 3),
-            self._fila_revision("email", "Email", paciente.email, self.solicitud.email_enviado, 4),
-        ]
-        return sorted(filas, key=lambda fila: (not fila["diferente"], fila["orden"]))
-
-    def _fila_revision(self, campo, etiqueta, actual, enviado, orden):
-        return {
-            "campo": campo,
-            "etiqueta": etiqueta,
-            "actual": actual or "-",
-            "enviado": enviado or "-",
-            "diferente": campo in (self.solicitud.diferencias_detectadas or {}),
-            "orden": orden,
-        }
+        return construir_filas_revision_solicitud_publica(self.solicitud)
 
     @staticmethod
     def _obtener_campos_seleccionados(form):
@@ -1056,6 +1157,8 @@ class TurnoDetailView(VerTurnosRequeridoMixin, DetailView):
                 "odontologo",
                 "odontologo__usuario",
                 "odontologo__google_calendar_conexion",
+                "solicitud_publica",
+                "solicitud_publica__revisada_por",
             )
         )
         return limitar_turnos_por_usuario(queryset, self.request.user)
@@ -1072,9 +1175,33 @@ class TurnoDetailView(VerTurnosRequeridoMixin, DetailView):
             self.request.user,
             self.object,
         )
+        solicitud_publica = getattr(self.object, "solicitud_publica", None)
+        solicitud_pendiente = (
+            solicitud_publica is not None
+            and solicitud_publica.estado_revision == SolicitudTurnoPublica.EstadoRevision.PENDIENTE
+        )
+        puede_revisar_publica = puede_revisar_solicitudes_publicas(self.request.user)
+        context["solicitud_publica"] = solicitud_publica
+        context["filas_revision_publica"] = (
+            construir_filas_revision_solicitud_publica(solicitud_publica)
+            if solicitud_publica
+            else []
+        )
+        context["filas_diferentes_publicas"] = [
+            fila for fila in context["filas_revision_publica"] if fila["diferente"]
+        ]
+        context["puede_revisar_solicitud_publica"] = puede_revisar_publica
+        context["requiere_revision_publica"] = solicitud_pendiente
         context["puede_confirmar_turno"] = (
             self.object.estado == Turno.Estado.PENDIENTE
             and context["puede_reprogramar_turno"]
+            and (not solicitud_pendiente or puede_revisar_publica)
+        )
+        context["confirmacion_requiere_revision_publica"] = (
+            context["puede_confirmar_turno"] and solicitud_pendiente
+        )
+        context["puede_rechazar_solicitud_publica"] = (
+            solicitud_pendiente and puede_revisar_publica and self.object.estado == Turno.Estado.PENDIENTE
         )
         context["google_calendar_ultimo_error"] = self._obtener_ultimo_error_google_calendar()
         return context
@@ -1196,6 +1323,7 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
     template_name = "turnos/turno_confirm.html"
     turno = None
     resultado = None
+    solicitud_publica = None
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated or not self.test_func():
@@ -1207,6 +1335,8 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
                     "paciente",
                     "odontologo",
                     "odontologo__usuario",
+                    "solicitud_publica",
+                    "solicitud_publica__revisada_por",
                 ),
                 request.user,
             ),
@@ -1216,7 +1346,37 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
         if not puede_reprogramar_turno(request.user, self.turno):
             raise PermissionDenied("No tenÃ©s permiso para confirmar este turno.")
 
+        self.solicitud_publica = getattr(self.turno, "solicitud_publica", None)
+
+        if self._requiere_revision_publica() and not puede_revisar_solicitudes_publicas(request.user):
+            messages.warning(
+                request,
+                "Este turno requiere revisión administrativa antes de confirmarse.",
+            )
+            return redirect("turnos:detalle", pk=self.turno.pk)
+
         return super().dispatch(request, *args, **kwargs)
+
+    def get_form_class(self):
+        if self._requiere_revision_publica():
+            return RevisionYConfirmacionTurnoPublicoForm
+
+        return ConfirmacionTurnoForm
+
+    def get_template_names(self):
+        if self._requiere_revision_publica():
+            return ["turnos/turno_revision_confirm.html"]
+
+        return [self.template_name]
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+
+        if self._requiere_revision_publica():
+            kwargs["solicitud"] = self.solicitud_publica
+            kwargs["usuario"] = self.request.user
+
+        return kwargs
 
     def get_initial(self):
         initial = super().get_initial()
@@ -1234,11 +1394,43 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["turno"] = self.turno
+        context["solicitud"] = self.solicitud_publica
+        context["filas_revision"] = (
+            construir_filas_revision_solicitud_publica(self.solicitud_publica)
+            if self.solicitud_publica
+            else []
+        )
+        context["filas_diferentes"] = [
+            fila for fila in context["filas_revision"] if fila["diferente"]
+        ]
+        context["campos_seleccionados"] = self._obtener_campos_seleccionados(
+            context["form"]
+        )
         context["conflicto"] = self.resultado.conflicto if self.resultado else None
         context["mensaje_conflicto"] = self.resultado.mensaje if self.resultado else ""
         return context
 
     def form_valid(self, form):
+        if self._requiere_revision_publica():
+            try:
+                self.turno, self.solicitud_publica = revisar_y_confirmar_solicitud_publica(
+                    solicitud_id=self.solicitud_publica.id,
+                    usuario=self.request.user,
+                    accion=form.cleaned_data["accion_revision"],
+                    campos_a_actualizar=form.cleaned_data.get("campos"),
+                    observaciones=form.cleaned_data.get("observaciones", ""),
+                    duracion_minutos=form.cleaned_data["duracion_minutos"],
+                )
+            except ValidationError as error:
+                form.add_error(None, error)
+                return self.form_invalid(form)
+
+            messages.success(
+                self.request,
+                "Solicitud revisada y turno confirmado correctamente.",
+            )
+            return redirect(self.get_success_url())
+
         self.resultado = confirmar_turno_con_duracion(
             self.turno,
             form.cleaned_data["duracion_minutos"],
@@ -1251,16 +1443,273 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
         form.add_error(None, self.resultado.mensaje)
         return self.form_invalid(form)
 
+    def _requiere_revision_publica(self):
+        return (
+            self.solicitud_publica is not None
+            and self.solicitud_publica.estado_revision
+            == SolicitudTurnoPublica.EstadoRevision.PENDIENTE
+        )
+
+    @staticmethod
+    def _obtener_campos_seleccionados(form):
+        if "campos" not in form.fields:
+            return set()
+
+        valor = form["campos"].value() or []
+
+        if isinstance(valor, str):
+            return {valor}
+
+        return set(valor)
+
+
+class TurnoSolicitudPublicaRechazarView(VerTurnosRequeridoMixin, FormView):
+    form_class = RechazoSolicitudTurnoPublicaForm
+    template_name = "turnos/turno_solicitud_rechazar.html"
+    turno = None
+    solicitud = None
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not self.test_func():
+            return self.handle_no_permission()
+
+        self.turno = get_object_or_404(
+            limitar_turnos_por_usuario(
+                Turno.objects.select_related(
+                    "paciente",
+                    "odontologo",
+                    "odontologo__usuario",
+                    "solicitud_publica",
+                ),
+                request.user,
+            ),
+            pk=kwargs["pk"],
+        )
+        self.solicitud = getattr(self.turno, "solicitud_publica", None)
+
+        if (
+            self.solicitud is None
+            or self.solicitud.estado_revision
+            != SolicitudTurnoPublica.EstadoRevision.PENDIENTE
+        ):
+            messages.warning(request, "Este turno no tiene una solicitud pendiente para rechazar.")
+            return redirect("turnos:detalle", pk=self.turno.pk)
+
+        if not puede_revisar_solicitudes_publicas(request.user):
+            raise PermissionDenied("No tenés permiso para rechazar esta solicitud.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse("turnos:detalle", kwargs={"pk": self.turno.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["turno"] = self.turno
+        context["solicitud"] = self.solicitud
+        context["filas_revision"] = construir_filas_revision_solicitud_publica(self.solicitud)
+        return context
+
+    def form_valid(self, form):
+        try:
+            rechazar_solicitud_publica_y_cancelar_turno(
+                solicitud_id=self.solicitud.id,
+                usuario=self.request.user,
+                motivo=form.cleaned_data["motivo"],
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+
+        messages.success(self.request, "Solicitud rechazada y turno cancelado correctamente.")
+        return redirect(self.get_success_url())
+
 
 class TurnoCancelView(GestionConsultorioRequeridaMixin, View):
     def post(self, request, pk):
         turno = get_object_or_404(
-            limitar_turnos_por_usuario(Turno.objects.all(), request.user),
+            limitar_turnos_por_usuario(
+                Turno.objects.select_related("solicitud_publica"),
+                request.user,
+            ),
             pk=pk,
         )
-        cancelar_turno(turno)
+        cancelar_turno(
+            turno,
+            motivo_cancelacion_paciente="Turno cancelado desde el panel interno.",
+            usuario=request.user,
+        )
         messages.success(request, "Turno cancelado correctamente.")
         return redirect("turnos:detalle", pk=turno.pk)
+
+
+class ExcepcionAgendaPermisoMixin(VerTurnosRequeridoMixin):
+    def test_func(self):
+        return puede_ver_excepciones_agenda(self.request.user)
+
+
+class ExcepcionAgendaListView(ExcepcionAgendaPermisoMixin, ListView):
+    model = ExcepcionAgenda
+    template_name = "turnos/excepciones/lista.html"
+    context_object_name = "excepciones"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = limitar_excepciones_por_usuario(
+            ExcepcionAgenda.objects.select_related(
+                "odontologo",
+                "odontologo__usuario",
+                "creada_por",
+                "actualizada_por",
+            ),
+            self.request.user,
+        )
+        estado = self.request.GET.get("estado", "activas")
+
+        if estado == "inactivas":
+            queryset = queryset.filter(activo=False)
+        elif estado != "todas":
+            queryset = queryset.filter(activo=True)
+
+        return queryset.order_by("-activo", "fecha_desde", "hora_inicio")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["estado_actual"] = self.request.GET.get("estado", "activas")
+        context["puede_crear_excepcion"] = True
+        return context
+
+
+class ExcepcionAgendaFormMixin(ExcepcionAgendaPermisoMixin, FormView):
+    form_class = ExcepcionAgendaForm
+    template_name = "turnos/excepciones/form.html"
+    success_url = reverse_lazy("turnos:excepciones")
+    object = None
+    titulo = "Nueva excepción de agenda"
+    texto_boton = "Guardar excepción"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["usuario"] = self.request.user
+
+        if self.object is not None:
+            kwargs["instance"] = self.object
+
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["titulo"] = self.titulo
+        context["texto_boton"] = self.texto_boton
+        context["url_cancelar"] = reverse("turnos:excepciones")
+        context["turnos_afectados"] = getattr(self, "turnos_afectados", [])
+        context["requiere_confirmacion_afectados"] = getattr(
+            self,
+            "requiere_confirmacion_afectados",
+            False,
+        )
+        context["object"] = self.object
+        return context
+
+    def _datos_excepcion(self, form):
+        return {
+            campo: form.cleaned_data[campo]
+            for campo in ExcepcionAgendaForm.Meta.fields
+        }
+
+
+class ExcepcionAgendaCreateView(ExcepcionAgendaFormMixin):
+    def form_valid(self, form):
+        try:
+            self.object = crear_excepcion_agenda(
+                self._datos_excepcion(form),
+                usuario=self.request.user,
+                confirmar_afectados=form.cleaned_data.get("confirmar_afectados", False),
+            )
+        except TurnosAfectadosPorExcepcionError as error:
+            self.turnos_afectados = error.turnos
+            self.requiere_confirmacion_afectados = True
+            return self.form_invalid(form)
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+
+        messages.success(self.request, "Excepción de agenda creada correctamente.")
+        return redirect(self.get_success_url())
+
+
+class ExcepcionAgendaUpdateView(ExcepcionAgendaFormMixin):
+    titulo = "Editar excepción de agenda"
+    texto_boton = "Guardar cambios"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = get_object_or_404(
+            limitar_excepciones_por_usuario(ExcepcionAgenda.objects.all(), request.user),
+            pk=kwargs["pk"],
+        )
+
+        if not puede_modificar_excepcion_agenda(request.user, self.object):
+            raise PermissionDenied("No tenés permiso para modificar esta excepción.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        try:
+            self.object = actualizar_excepcion_agenda(
+                self.object,
+                self._datos_excepcion(form),
+                usuario=self.request.user,
+                confirmar_afectados=form.cleaned_data.get("confirmar_afectados", False),
+            )
+        except TurnosAfectadosPorExcepcionError as error:
+            self.turnos_afectados = error.turnos
+            self.requiere_confirmacion_afectados = True
+            return self.form_invalid(form)
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+
+        messages.success(self.request, "Excepción de agenda actualizada correctamente.")
+        return redirect(self.get_success_url())
+
+
+class ExcepcionAgendaDeactivateView(ExcepcionAgendaPermisoMixin, View):
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        excepcion = get_object_or_404(
+            limitar_excepciones_por_usuario(ExcepcionAgenda.objects.all(), request.user),
+            pk=pk,
+        )
+
+        if not puede_modificar_excepcion_agenda(request.user, excepcion):
+            raise PermissionDenied("No tenés permiso para desactivar esta excepción.")
+
+        desactivar_excepcion_agenda(excepcion, usuario=request.user)
+        messages.success(request, "Excepción de agenda desactivada correctamente.")
+        return redirect("turnos:excepciones")
+
+
+def construir_excepciones_agenda_contexto(fecha_desde, fecha_hasta, odontologo, usuario):
+    excepciones = list(obtener_excepciones_activas(odontologo, fecha_desde, fecha_hasta))
+    items = []
+
+    for excepcion in excepciones:
+        turnos_afectados = obtener_turnos_afectados_por_excepcion(excepcion)
+
+        if odontologo:
+            turnos_afectados = [
+                turno for turno in turnos_afectados if turno.odontologo_id == odontologo.pk
+            ]
+
+        items.append(
+            {
+                "excepcion": excepcion,
+                "turnos_afectados": turnos_afectados,
+            }
+        )
+
+    return items
 
 
 class AgendaDiaView(VerTurnosRequeridoMixin, TemplateView):
@@ -1296,6 +1745,12 @@ class AgendaDiaView(VerTurnosRequeridoMixin, TemplateView):
             fecha,
             odontologo,
             busqueda,
+        )
+        context["excepciones_agenda"] = construir_excepciones_agenda_contexto(
+            fecha,
+            fecha,
+            odontologo,
+            self.request.user,
         )
         context["resumen_estados"] = obtener_resumen_estados(context["turnos"])
         return context
@@ -1340,6 +1795,12 @@ class AgendaSemanaView(VerTurnosRequeridoMixin, TemplateView):
             fecha_referencia,
             odontologo,
             busqueda,
+        )
+        context["excepciones_agenda"] = construir_excepciones_agenda_contexto(
+            inicio_semana,
+            context["fin_semana"],
+            odontologo,
+            self.request.user,
         )
         context["resumen_estados"] = obtener_resumen_estados(turnos_semana)
         return context

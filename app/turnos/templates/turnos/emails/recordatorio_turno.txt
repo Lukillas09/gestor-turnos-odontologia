@@ -11,6 +11,6 @@ Estado: {{ turno.get_estado_display }}
 Motivo: {{ turno.motivo }}
 {% endif %}
 
-Te esperamos en el consultorio.
+Te esperamos en {{ configuracion_consultorio.nombre_visible }}.
 
-Gestor de Turnos
+{% include "consultorio/emails/contacto.txt" %}

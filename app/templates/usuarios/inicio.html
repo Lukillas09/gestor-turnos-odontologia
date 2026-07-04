@@ -46,14 +46,24 @@
             <strong>{{ turnos_pendientes }}</strong>
             <span class="dashboard-card-action">Gestionar pendientes</span>
         </a>
-        {% if puede_revisar_solicitudes_publicas %}
-            <a class="metric-card dashboard-card animate-fade-up card-hover" style="--stagger-index: 3;" href="{% url 'turnos:solicitudes_publicas' %}">
+
+        <a class="metric-card dashboard-card dashboard-card-pending animate-fade-up card-hover" style="--stagger-index: 3;" href="{{ url_turnos_datos_por_revisar }}">
+            <span class="dashboard-card-header">
+                <span class="dashboard-card-title">Datos por revisar</span>
+                <span class="dashboard-card-icon" aria-hidden="true"></span>
+            </span>
+            <strong>{{ turnos_datos_por_revisar }}</strong>
+            <span class="dashboard-card-action">Ver turnos por revisar</span>
+        </a>
+
+        {% if alertas_administrativas_publicas %}
+            <a class="metric-card dashboard-card animate-fade-up card-hover" style="--stagger-index: 4;" href="{{ url_alertas_administrativas }}">
                 <span class="dashboard-card-header">
-                    <span class="dashboard-card-title">Solicitudes por revisar</span>
+                    <span class="dashboard-card-title">Alertas administrativas</span>
                     <span class="dashboard-card-icon" aria-hidden="true"></span>
                 </span>
-                <strong>{{ solicitudes_publicas_pendientes_dashboard }}</strong>
-                <span class="dashboard-card-action">Abrir bandeja</span>
+                <strong>{{ alertas_administrativas_publicas }}</strong>
+                <span class="dashboard-card-action">Revisar alerta</span>
             </a>
         {% endif %}
     </section>
@@ -85,6 +95,9 @@
                             </span>
                         </span>
                         <span class="dashboard-actions">
+                            {% if turno.tiene_datos_publicos_pendientes_revision %}
+                                <span class="status-badge status-pendiente">Datos por revisar</span>
+                            {% endif %}
                             <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
                             <span class="button button-secondary button-small">Ver</span>
                         </span>

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Consultar mis turnos | Gestor de Turnos{% endblock %}
+{% block title %}Consultar mis turnos | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     <div class="page-header public-data-header animate-fade-up">
@@ -10,6 +10,8 @@
             <p class="subtitle">Ingresá tu DNI. Si coincide con un paciente registrado, te enviaremos un código de acceso al medio de contacto asociado.</p>
         </div>
     </div>
+
+    {% include "consultorio/includes/public_contact_card.html" %}
 
     <section class="public-query-panel animate-fade-up">
         <form class="public-dni-form" method="post" novalidate>

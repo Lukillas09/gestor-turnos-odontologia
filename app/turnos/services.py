@@ -169,7 +169,7 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
     )
 
 
-def cancelar_turno(turno, motivo_cancelacion_paciente=""):
+def cancelar_turno(turno, motivo_cancelacion_paciente="", usuario=None):
     if turno.estado == Turno.Estado.CANCELADO:
         return turno
 
@@ -182,6 +182,13 @@ def cancelar_turno(turno, motivo_cancelacion_paciente=""):
         update_fields.append("motivo_cancelacion_paciente")
 
     turno.save(update_fields=update_fields)
+    from .solicitudes_publicas.services import cerrar_revision_por_cancelacion_de_turno
+
+    cerrar_revision_por_cancelacion_de_turno(
+        turno,
+        usuario=usuario,
+        motivo=motivo_cancelacion_paciente or "Turno cancelado antes de revisar la solicitud.",
+    )
     sincronizar_turno_cancelado(turno)
     notificar_turno_cancelado(turno)
     return turno

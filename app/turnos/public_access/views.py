@@ -16,7 +16,10 @@ from turnos.forms import (
 )
 from turnos.integrations.turnstile import validar_turnstile
 from turnos.models import AccionPublicaTurno
-from turnos.selectors import obtener_horarios_disponibles
+from turnos.excepciones import (
+    obtener_horarios_publicos_disponibles,
+    validar_fecha_reserva_publica,
+)
 
 from .permissions import AccesoPublicoTurnosRequeridoMixin
 from .rate_limit import incrementar_limite, leer_contador
@@ -233,7 +236,12 @@ class HorariosReprogramacionPublicaJsonView(AccesoPublicoTurnosRequeridoMixin, V
                 }
             )
 
-        horarios = obtener_horarios_disponibles(
+        try:
+            validar_fecha_reserva_publica(fecha)
+        except ValidationError as error:
+            return JsonResponse({"horarios": [], "mensaje": error.messages[0]})
+
+        horarios = obtener_horarios_publicos_disponibles(
             odontologo=accion.turno.odontologo,
             fecha=fecha,
             duracion_minutos=accion.turno.duracion_minutos,

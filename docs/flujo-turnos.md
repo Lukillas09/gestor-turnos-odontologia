@@ -29,12 +29,14 @@ La disponibilidad se calcula con:
 - disponibilidades activas del odontólogo;
 - fecha y día de semana;
 - duración;
-- turnos ocupados del mismo odontólogo.
+- turnos ocupados del mismo odontólogo;
+- excepciones de agenda activas del odontólogo o globales del consultorio.
 
 Funciones relevantes:
 
 - `turnos.selectors.obtener_horarios_disponibles`
 - `turnos.selectors.obtener_turno_superpuesto`
+- `turnos.excepciones.obtener_excepcion_que_bloquea_intervalo`
 
 ## Solicitud Pública
 
@@ -59,10 +61,11 @@ Flujo:
 5. El DNI se normaliza con una función centralizada para evitar duplicados por formato.
 6. Si el DNI no existe, se crea un paciente nuevo con `origen_alta=solicitud_publica` y `estado_validacion_datos=pendiente`.
 7. Si el DNI ya existe, el paciente se reutiliza sin modificar nombre, apellido, teléfono ni email.
-8. Se crea un turno pendiente con duración inicial de 30 minutos.
-9. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados.
-10. Si hay diferencias contra el paciente existente, la solicitud queda pendiente de revisión para recepción.
-11. La respuesta pública es neutral y no revela si el paciente existía, si se creó o si hubo diferencias.
+8. Se valida ventana pública de reserva, anticipación mínima, disponibilidad, excepciones y superposición.
+9. Se crea un turno pendiente con duración inicial de 30 minutos.
+10. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados.
+11. Si hay diferencias contra el paciente existente, la solicitud queda pendiente de revisión para recepción.
+12. La respuesta pública es neutral y no revela si el paciente existía, si se creó o si hubo diferencias.
 
 Servicio principal:
 
@@ -74,8 +77,10 @@ Internamente delega en el caso de uso transaccional `crear_solicitud_publica_de_
 
 Reglas:
 
-- No permite fechas pasadas.
+- No permite fechas fuera de la ventana pública configurada en el perfil del consultorio.
+- Respeta la anticipación mínima configurada.
 - No permite horarios ocupados.
+- No permite horarios dentro de excepciones de agenda.
 - No pide datos clínicos ni administrativos extensos.
 - Crea asociación paciente-odontólogo.
 - No usa el email enviado para notificar a un paciente ya registrado.
@@ -83,24 +88,63 @@ Reglas:
 - Para pacientes nuevos, se puede enviar confirmación al email enviado, pero ese contacto no queda verificado automáticamente.
 - Las diferencias se guardan en `diferencias_detectadas` y solo se muestran a usuarios internos autorizados.
 
-## Revisión Interna de Solicitudes Públicas
+## Revisión Integrada de Solicitudes Públicas
 
-Ruta:
+Las solicitudes públicas normales crean dos registros:
 
-```text
-/turnos/solicitudes-publicas/
-```
+- un `Turno` en estado `pendiente`;
+- una `SolicitudTurnoPublica` asociada al turno como fotografía auditable de los datos enviados.
 
-Recepción puede revisar solicitudes con estado `pendiente` desde una bandeja interna. La pantalla muestra datos actuales del paciente y datos enviados desde la web lado a lado, resaltando solo los campos diferentes.
+El trabajo diario ya no requiere entrar a una bandeja separada. El turno aparece directamente en:
+
+- listado de Turnos;
+- Agenda diaria;
+- Agenda semanal.
+
+Si la solicitud necesita revisión se muestra la etiqueta `Datos por revisar`. Al abrir el turno se muestra la sección `Solicitud realizada desde la web`, con datos registrados y datos enviados lado a lado. Sólo se resaltan diferencias.
+
+Para confirmar un turno con revisión pendiente se usa la pantalla `Revisar y confirmar turno`. En un solo POST se decide la revisión y se confirma el turno con duración real.
 
 Acciones permitidas:
 
 - conservar los datos actuales;
 - aplicar únicamente campos seleccionados;
 - validar administrativamente un paciente nuevo;
-- descartar los datos enviados.
+- rechazar la solicitud y cancelar el turno pendiente.
 
-Cada revisión requiere `POST`, CSRF y permisos internos de gestión del consultorio. El servicio bloquea la solicitud y el paciente con `select_for_update()`, registra usuario, fecha, observaciones, campos aceptados y campos descartados, e impide procesar dos veces la misma solicitud.
+Reglas de seguridad:
+
+- Los datos enviados desde la web no sobrescriben automáticamente pacientes existentes.
+- Teléfono y email enviados se tratan como datos no verificados.
+- Si se conservan datos actuales, la confirmación usa el contacto persistido.
+- Si se aplican campos seleccionados, sólo esos campos cambian.
+- Pacientes nuevos se validan administrativamente al confirmar.
+- La operación integrada usa una transacción: si falla la confirmación, no quedan cambios parciales en paciente ni solicitud.
+- Emails y Google Calendar se ejecutan después de guardar correctamente.
+- Un segundo POST no vuelve a aplicar cambios porque la solicitud deja de estar pendiente.
+
+## Alertas Administrativas
+
+Las solicitudes que no pueden convertirse en turno permanecen separadas como alertas administrativas. El caso principal es un DNI asociado a un paciente archivado.
+
+Ruta:
+
+```text
+/turnos/alertas-administrativas/
+```
+
+Estas alertas:
+
+- no se muestran en la agenda;
+- aparecen en Inicio sólo cuando hay pendientes;
+- se revisan desde una pantalla secundaria;
+- mantienen `SolicitudTurnoPublica` como historial;
+- no reactivan pacientes archivados automáticamente.
+
+Las rutas antiguas se conservan por compatibilidad:
+
+- `/turnos/solicitudes-publicas/` redirige a Turnos con filtro `Datos por revisar` si no hay alertas, o a Alertas administrativas si existen.
+- `/turnos/solicitudes-publicas/<uuid>/` redirige al flujo de confirmar si la solicitud tiene turno, o permite revisar la alerta si no lo tiene.
 
 ## Autogestion Publica de Turnos
 
@@ -145,7 +189,8 @@ La reprogramacion publica:
 - requiere sesion OTP verificada;
 - requiere permiso de reprogramacion activo y token correcto;
 - solo se permite para turnos pendientes;
-- valida fecha futura y disponibilidad del nuevo horario;
+- valida ventana pública, anticipación mínima y disponibilidad del nuevo horario;
+- rechaza horarios dentro de excepciones de agenda;
 - conserva el turno en estado `pendiente`.
 
 El flujo aplica rate limiting por IP y DNI hasheados. En produccion debe usar Redis mediante `REDIS_URL`; Turnstile puede activarse como desafio adicional despues de varios intentos.
@@ -228,6 +273,25 @@ Efectos:
 - valida reglas del modelo;
 - sincroniza Google Calendar;
 - envía email de reprogramación.
+
+## Excepciones de Agenda
+
+Ruta:
+
+```text
+/turnos/excepciones/
+```
+
+`ExcepcionAgenda` representa bloqueos operativos visibles: vacaciones, feriados, capacitaciones, ausencias, cierres del consultorio o bloqueos parciales. Puede ser global para todo el consultorio o específica de un odontólogo.
+
+Reglas:
+
+- Recepción, administración y superusuarios pueden gestionar excepciones globales y por odontólogo.
+- Un odontólogo normal solo puede gestionar excepciones de su propia agenda.
+- Las excepciones activas bloquean creación, confirmación y reprogramación de turnos.
+- Si una excepción afecta turnos pendientes o confirmados existentes, el formulario exige una confirmación explícita en dos pasos.
+- Los turnos afectados no se cancelan, no se reprograman y no se sincronizan automáticamente por crear la excepción.
+- Las excepciones no generan eventos de Google Calendar.
 
 ## Cancelación Interna
 

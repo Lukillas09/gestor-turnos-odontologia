@@ -9,6 +9,6 @@ Odontologo: {{ odontologo }}
 
 Si fuiste vos, no necesitas hacer nada. El consultorio revisara la informacion y te avisara cuando el turno sea confirmado.
 
-Si no reconoces esta solicitud, comunicate con el consultorio.
+Si no reconoces esta solicitud, comunicate con {{ configuracion_consultorio.nombre_visible }}.
 
-Gestor de Turnos
+{% include "consultorio/emails/contacto.txt" %}

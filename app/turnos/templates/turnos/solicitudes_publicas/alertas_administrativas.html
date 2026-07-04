@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas administrativas | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="page-header animate-fade-up">
+        <div>
+            <p class="eyebrow">Solicitud web</p>
+            <h1>Alertas administrativas</h1>
+            <p class="subtitle">Solicitudes públicas que no pudieron integrarse a un turno y requieren revisión manual.</p>
+        </div>
+        <a class="button button-secondary" href="{% url 'inicio' %}">Volver al inicio</a>
+    </div>
+
+    {% if solicitudes %}
+        <section class="turno-card-list stagger-list" aria-label="Alertas administrativas">
+            {% for solicitud in solicitudes %}
+                <article class="turno-list-card animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
+                    <div class="turno-card-time">
+                        <span>Recibida</span>
+                        <strong>{{ solicitud.creado_en|date:"d/m/Y H:i" }}</strong>
+                    </div>
+
+                    <div class="turno-card-main">
+                        <h2>{{ solicitud.apellido_enviado }}, {{ solicitud.nombre_enviado }}</h2>
+                        <p>DNI {{ solicitud.documento_enviado }} · {{ solicitud.motivo_enviado|default:"Sin motivo cargado" }}</p>
+                        <div class="turno-card-meta">
+                            <span>Solicitud web</span>
+                            <span>Sin turno asociado</span>
+                            {% if solicitud.paciente and not solicitud.paciente.activo %}
+                                <span>Paciente archivado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="turno-card-status">
+                        <span class="status-badge status-pendiente">Requiere revisión</span>
+                        <a class="button button-secondary button-small" href="{% url 'turnos:solicitud_publica_revision' solicitud.pk %}">Revisar alerta</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </section>
+
+        {% if is_paginated %}
+            <div class="pagination-actions turno-detail-actions">
+                {% if page_obj.has_previous %}
+                    <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                {% endif %}
+                <span class="muted">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <section class="empty-state animate-fade-up">
+            <h2>No hay alertas administrativas pendientes</h2>
+            <p class="subtitle">Las solicitudes públicas normales se gestionan desde el detalle del turno.</p>
+            <a class="button" href="{% url 'turnos:lista' %}">Ver turnos</a>
+        </section>
+    {% endif %}
+{% endblock %}

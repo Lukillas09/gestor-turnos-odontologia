@@ -4,4 +4,4 @@ Este código vence el {{ expira_en|date:"d/m/Y H:i" }}.
 
 No lo compartas con otras personas. Si no solicitaste acceso a tus turnos, podés ignorar este mensaje.
 
-{{ consultorio }}
+{% include "consultorio/emails/contacto.txt" %}

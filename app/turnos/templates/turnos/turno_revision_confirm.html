@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar y confirmar turno | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="review-shell">
+        <div class="patient-backline animate-fade-up">
+            <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:detalle' turno.pk %}">&larr; Volver al turno</a>
+        </div>
+
+        <section class="review-hero animate-fade-up">
+            <div class="review-hero-copy">
+                <p class="eyebrow">Solicitud web</p>
+                <h1>Revisar y confirmar turno</h1>
+                <span class="status-badge status-pendiente">Datos por revisar</span>
+                <p>Resolvé la revisión administrativa y confirmá el turno desde la misma pantalla.</p>
+            </div>
+            <div class="review-hero-actions">
+                <a class="button button-secondary" href="{% url 'pacientes:detalle' turno.paciente.pk %}">Ver paciente</a>
+            </div>
+        </section>
+
+        <section class="review-summary-grid animate-fade-up" aria-label="Resumen del turno">
+            <article class="review-info-card">
+                <div class="review-card-header">
+                    <h2>Paciente</h2>
+                </div>
+                <dl class="review-data-list">
+                    <div>
+                        <dt>Nombre y apellido</dt>
+                        <dd>{{ turno.paciente }}</dd>
+                    </div>
+                    <div>
+                        <dt>DNI</dt>
+                        <dd>{{ turno.paciente.documento|default:"-" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Teléfono</dt>
+                        <dd>{{ turno.paciente.telefono|default:"-" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Email</dt>
+                        <dd>{{ turno.paciente.email|default:"-" }}</dd>
+                    </div>
+                </dl>
+            </article>
+
+            <article class="review-info-card">
+                <div class="review-card-header">
+                    <h2>Turno solicitado</h2>
+                </div>
+                <dl class="review-data-list">
+                    <div>
+                        <dt>Fecha</dt>
+                        <dd>{{ turno.fecha|date:"d/m/Y" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Horario</dt>
+                        <dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Odontólogo</dt>
+                        <dd>{{ turno.odontologo }}</dd>
+                    </div>
+                    <div>
+                        <dt>Motivo</dt>
+                        <dd>{{ turno.motivo|linebreaksbr|default:"Sin motivo cargado." }}</dd>
+                    </div>
+                </dl>
+            </article>
+        </section>
+
+        <form class="review-form animate-fade-up" method="post" novalidate data-review-confirm-form>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="field-error review-form-error" aria-live="polite">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <section aria-labelledby="duracion-title">
+                <div class="review-card-header">
+                    <div>
+                        <h2 id="duracion-title">Duración real del turno</h2>
+                        <p>Elegí una duración rápida o cargá una personalizada.</p>
+                    </div>
+                </div>
+
+                <div class="confirm-duration-layout">
+                    <div class="confirm-duration-card">
+                        <label for="{{ form.duracion_rapida.id_for_label }}">{{ form.duracion_rapida.label }}</label>
+                        {{ form.duracion_rapida }}
+                        {% if form.duracion_rapida.errors %}
+                            <div class="field-error" aria-live="polite">{{ form.duracion_rapida.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="confirm-duration-card">
+                        <label for="{{ form.duracion_personalizada.id_for_label }}">{{ form.duracion_personalizada.label }}</label>
+                        {{ form.duracion_personalizada }}
+                        <p class="muted">Si completás este campo, se usa esta duración en lugar de la opción rápida.</p>
+                        {% if form.duracion_personalizada.errors %}
+                            <div class="field-error" aria-live="polite">{{ form.duracion_personalizada.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section aria-labelledby="comparacion-title">
+                <div class="review-card-header">
+                    <div>
+                        <h2 id="comparacion-title">Datos enviados desde la web</h2>
+                        {% if solicitud.paciente_existente %}
+                            {% if filas_diferentes %}
+                                <p>Seleccioná manualmente cualquier dato que quieras aplicar al paciente.</p>
+                            {% else %}
+                                <p>Los datos coinciden con el registro actual.</p>
+                            {% endif %}
+                        {% else %}
+                            <p>El paciente nuevo se validará al confirmar el turno.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% include "turnos/includes/revision_publica_comparacion.html" with filas_revision=filas_revision %}
+            </section>
+
+            <fieldset class="review-action-fieldset">
+                <legend>Acción de revisión</legend>
+                <div class="review-action-grid">
+                    {% for opcion in form.accion_revision %}
+                        <div class="review-action-option">
+                            {{ opcion.tag }}
+                            <label class="review-action-card" for="{{ opcion.id_for_label }}">
+                                <span class="review-radio-visual" aria-hidden="true"></span>
+                                <span class="review-action-content">
+                                    <strong>{{ opcion.choice_label }}</strong>
+                                    {% if opcion.data.value == "validar_paciente" %}
+                                        <span>Marca al paciente como validado y confirma el turno.</span>
+                                    {% elif opcion.data.value == "aplicar_campos" %}
+                                        <span>Actualiza solo los campos seleccionados abajo.</span>
+                                    {% else %}
+                                        <span>No modifica los datos actuales del paciente.</span>
+                                    {% endif %}
+                                </span>
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if form.accion_revision.errors %}
+                    <div class="field-error" aria-live="polite">{{ form.accion_revision.errors }}</div>
+                {% endif %}
+            </fieldset>
+
+            {% if form.campos %}
+                <section aria-labelledby="campos-title" data-review-field-group>
+                    <div class="review-card-header">
+                        <div>
+                            <h2 id="campos-title">Campos a actualizar</h2>
+                            <p>Esta selección solo se usa si elegís actualizar campos seleccionados.</p>
+                        </div>
+                    </div>
+
+                    <div class="review-field-list">
+                        {% for fila in filas_diferentes %}
+                            <article class="review-field-card is-different">
+                                <div class="review-field-main">
+                                    <div class="review-field-title">
+                                        <h3>{{ fila.etiqueta }}</h3>
+                                        <span class="status-badge review-difference-badge">Diferente</span>
+                                    </div>
+                                    <div class="review-field-values">
+                                        <div>
+                                            <span>Datos registrados</span>
+                                            <strong>{{ fila.actual }}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Datos enviados</span>
+                                            <strong>{{ fila.enviado }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="review-field-action">
+                                    <input
+                                        class="sr-only review-field-input"
+                                        type="checkbox"
+                                        name="campos"
+                                        value="{{ fila.campo }}"
+                                        id="campo-{{ fila.campo }}"
+                                        data-review-field-checkbox
+                                        {% if fila.campo in campos_seleccionados %}checked{% endif %}
+                                    >
+                                    <label class="review-field-checkbox" for="campo-{{ fila.campo }}">
+                                        <span class="review-checkbox-visual" aria-hidden="true"></span>
+                                        <span>Actualizar este campo</span>
+                                    </label>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                    {% if form.campos.errors %}
+                        <div class="field-error" aria-live="polite">{{ form.campos.errors }}</div>
+                    {% endif %}
+                </section>
+            {% endif %}
+
+            <div class="review-observations">
+                <label for="{{ form.observaciones.id_for_label }}">{{ form.observaciones.label }}</label>
+                {{ form.observaciones }}
+                {% if form.observaciones.errors %}
+                    <div class="field-error" aria-live="polite">{{ form.observaciones.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="review-form-actions">
+                <button class="review-primary-button" type="submit">Revisar y confirmar turno</button>
+                <a class="button button-secondary" href="{% url 'turnos:detalle' turno.pk %}">Volver sin guardar</a>
+            </div>
+        </form>
+
+        {% if conflicto %}
+            <section class="panel-section turno-conflict-panel animate-fade-up">
+                <div class="section-header">
+                    <div>
+                        <h2>Turno conflictivo</h2>
+                        <p class="subtitle">{{ mensaje_conflicto }}</p>
+                    </div>
+                </div>
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script>
+        (() => {
+            const form = document.querySelector("[data-review-confirm-form]");
+
+            if (!form) {
+                return;
+            }
+
+            const actionInputs = Array.from(form.querySelectorAll("input[name='accion_revision']"));
+            const fieldGroup = form.querySelector("[data-review-field-group]");
+            const fieldCheckboxes = Array.from(form.querySelectorAll("[data-review-field-checkbox]"));
+
+            function syncFieldState() {
+                const selected = actionInputs.find((input) => input.checked);
+                const canSelectFields = selected && selected.value === "aplicar_campos";
+
+                if (fieldGroup) {
+                    fieldGroup.classList.toggle("is-disabled", !canSelectFields);
+                }
+
+                fieldCheckboxes.forEach((checkbox) => {
+                    checkbox.disabled = !canSelectFields;
+                });
+            }
+
+            actionInputs.forEach((input) => {
+                input.addEventListener("change", syncFieldState);
+                input.classList.add("sr-only", "review-action-input");
+            });
+
+            syncFieldState();
+        })();
+    </script>
+{% endblock %}

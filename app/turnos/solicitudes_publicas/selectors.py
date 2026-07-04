@@ -7,6 +7,19 @@ def obtener_solicitudes_publicas_pendientes():
     )
 
 
+def obtener_alertas_administrativas_publicas():
+    return obtener_solicitudes_publicas_para_bandeja().filter(
+        estado_revision=SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
+        turno__isnull=True,
+    )
+
+
+def obtener_turnos_con_revision_publica_pendiente(queryset):
+    return queryset.filter(
+        solicitud_publica__estado_revision=SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
+    )
+
+
 def obtener_solicitudes_publicas_para_bandeja():
     return SolicitudTurnoPublica.objects.select_related(
         "paciente",

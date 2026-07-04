@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from django.db.models import Q
 
 from .models import DisponibilidadOdontologo, Odontologo, Turno
+from .excepciones import obtener_excepciones_activas, obtener_excepcion_que_bloquea_intervalo
 
 
 def obtener_turnos_del_dia(fecha, odontologo=None, busqueda=""):
@@ -219,6 +220,8 @@ def _turnos_con_relaciones():
         "paciente",
         "odontologo",
         "odontologo__usuario",
+        "solicitud_publica",
+        "solicitud_publica__revisada_por",
     )
 
 
@@ -326,6 +329,7 @@ def obtener_horarios_disponibles(
         fecha=fecha,
         estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
     )
+    excepciones = list(obtener_excepciones_activas(odontologo, fecha, fecha))
 
     if turno_excluido and turno_excluido.pk:
         turnos_ocupados = turnos_ocupados.exclude(pk=turno_excluido.pk)
@@ -341,6 +345,7 @@ def obtener_horarios_disponibles(
                 duracion_minutos=duracion,
                 intervalo_minutos=intervalo,
                 turnos_ocupados=turnos_ocupados,
+                excepciones=excepciones,
             )
         )
 
@@ -354,6 +359,7 @@ def _obtener_horarios_del_bloque(
     duracion_minutos,
     intervalo_minutos,
     turnos_ocupados,
+    excepciones,
 ):
     horarios = []
     inicio_bloque = datetime.combine(fecha, hora_inicio)
@@ -363,7 +369,12 @@ def _obtener_horarios_del_bloque(
     while inicio + timedelta(minutes=duracion_minutos) <= fin_bloque:
         fin = inicio + timedelta(minutes=duracion_minutos)
 
-        if not _se_solapa_con_turnos(inicio, fin, turnos_ocupados):
+        if not _se_solapa_con_turnos(inicio, fin, turnos_ocupados) and not _se_solapa_con_excepciones(
+            fecha,
+            inicio.time(),
+            fin.time(),
+            excepciones,
+        ):
             horarios.append(inicio.time())
 
         inicio += timedelta(minutes=intervalo_minutos)
@@ -377,3 +388,13 @@ def _se_solapa_con_turnos(inicio, fin, turnos):
             return True
 
     return False
+
+
+def _se_solapa_con_excepciones(fecha, hora_inicio, hora_fin, excepciones):
+    return obtener_excepcion_que_bloquea_intervalo(
+        odontologo=None,
+        fecha=fecha,
+        hora_inicio=hora_inicio,
+        hora_fin=hora_fin,
+        excepciones=excepciones,
+    ) is not None

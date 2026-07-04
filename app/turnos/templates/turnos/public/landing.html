@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Turnos online | Gestor de Turnos{% endblock %}
+{% block title %}Turnos online | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     {% if solicitud_turno_confirmada %}
@@ -20,11 +20,50 @@
     <section class="public-home-hero animate-fade-up">
         <div class="public-home-copy">
             <span class="public-pill public-pill-light">Autogestión para pacientes</span>
-            <h1>Reservá tu turno odontológico de forma simple</h1>
-            <p>Elegí un odontólogo, seleccioná un horario disponible y enviá tu solicitud. El consultorio te avisará cuando el turno quede confirmado.</p>
+            <div class="consultorio-preview-brand">
+                <div class="consultorio-preview-logo">
+                    {% if configuracion_consultorio.logo_url %}
+                        <img src="{{ configuracion_consultorio.logo_url }}" alt="{{ configuracion_consultorio.nombre_visible }}">
+                    {% else %}
+                        <span>{{ configuracion_consultorio.iniciales }}</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <strong>{{ configuracion_consultorio.nombre_comercial }}</strong>
+                    {% if configuracion_consultorio.direccion_completa and configuracion_consultorio.mostrar_direccion %}
+                        <small>{{ configuracion_consultorio.direccion_completa }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            <h1>{{ configuracion_consultorio.titulo_portada }}</h1>
+            <p>{{ configuracion_consultorio.texto_bienvenida }}</p>
             <div class="public-home-actions">
                 <a class="button public-primary-action" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
+                {% if configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp %}
+                    <a class="button button-secondary" href="{{ configuracion_consultorio.whatsapp_url }}" rel="noopener noreferrer" target="_blank">WhatsApp</a>
+                {% endif %}
             </div>
+            {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono or configuracion_consultorio.email and configuracion_consultorio.mostrar_email or configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion %}
+                <div class="consultorio-public-card">
+                    <div class="consultorio-public-contact">
+                        {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono %}
+                            <span>Tel. {{ configuracion_consultorio.telefono }}</span>
+                        {% endif %}
+                        {% if configuracion_consultorio.email and configuracion_consultorio.mostrar_email %}
+                            <a href="mailto:{{ configuracion_consultorio.email }}">{{ configuracion_consultorio.email }}</a>
+                        {% endif %}
+                    </div>
+                    {% if configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion %}
+                        <p class="muted">{{ configuracion_consultorio.horario_atencion|linebreaksbr }}</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+            {% if configuracion_consultorio.politica_cancelacion %}
+                <div class="consultorio-policy">
+                    <strong>Política de cancelación</strong><br>
+                    {{ configuracion_consultorio.politica_cancelacion|linebreaksbr }}
+                </div>
+            {% endif %}
         </div>
         <div class="public-home-card card-hover">
             <h2>Gestión rápida</h2>

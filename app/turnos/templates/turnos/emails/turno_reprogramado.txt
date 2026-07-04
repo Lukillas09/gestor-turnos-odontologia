@@ -13,4 +13,4 @@ Motivo: {{ turno.motivo }}
 
 Te esperamos en el nuevo dia y horario indicado.
 
-Gestor de Turnos
+{% include "consultorio/emails/contacto.txt" %}

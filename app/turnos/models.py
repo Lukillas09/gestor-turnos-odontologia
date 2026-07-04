@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.text import get_valid_filename
 
@@ -244,6 +245,182 @@ def bloquear_agendas_de_turnos(claves_agenda):
     )
 
 
+class ExcepcionAgenda(models.Model):
+    class Tipo(models.TextChoices):
+        VACACIONES = "vacaciones", "Vacaciones"
+        FERIADO = "feriado", "Feriado"
+        CAPACITACION = "capacitacion", "Capacitación"
+        AUSENCIA_PERSONAL = "ausencia_personal", "Ausencia personal"
+        CIERRE_CONSULTORIO = "cierre_consultorio", "Cierre del consultorio"
+        BLOQUEO_PARCIAL = "bloqueo_parcial", "Bloqueo parcial"
+        OTRO = "otro", "Otro"
+
+    tipo = models.CharField(max_length=30, choices=Tipo.choices)
+    odontologo = models.ForeignKey(
+        Odontologo,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="excepciones_agenda",
+        help_text="Dejar vacío para bloquear todo el consultorio.",
+    )
+    fecha_desde = models.DateField()
+    fecha_hasta = models.DateField()
+    todo_el_dia = models.BooleanField(default=True)
+    hora_inicio = models.TimeField(null=True, blank=True)
+    hora_fin = models.TimeField(null=True, blank=True)
+    motivo = models.CharField(max_length=200)
+    mensaje_publico = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Mensaje opcional para indicar el motivo operativo sin exponer detalles internos.",
+    )
+    activo = models.BooleanField(default=True)
+    creada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="excepciones_agenda_creadas",
+    )
+    actualizada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="excepciones_agenda_actualizadas",
+    )
+    desactivada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="excepciones_agenda_desactivadas",
+    )
+    desactivada_en = models.DateTimeField(null=True, blank=True, editable=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-activo", "fecha_desde", "hora_inicio", "odontologo"]
+        verbose_name = "Excepción de agenda"
+        verbose_name_plural = "Excepciones de agenda"
+        indexes = [
+            models.Index(fields=["activo", "fecha_desde", "fecha_hasta"]),
+            models.Index(fields=["odontologo", "activo", "fecha_desde", "fecha_hasta"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(fecha_hasta__gte=models.F("fecha_desde")),
+                name="excepcion_agenda_fecha_hasta_gte_desde",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(todo_el_dia=True, hora_inicio__isnull=True, hora_fin__isnull=True)
+                    | Q(
+                        todo_el_dia=False,
+                        hora_inicio__isnull=False,
+                        hora_fin__isnull=False,
+                        hora_fin__gt=models.F("hora_inicio"),
+                    )
+                ),
+                name="excepcion_agenda_horario_consistente",
+            ),
+        ]
+
+    @property
+    def es_global(self):
+        return self.odontologo_id is None
+
+    @property
+    def alcance_display(self):
+        return "Todo el consultorio" if self.es_global else str(self.odontologo)
+
+    @property
+    def horario_display(self):
+        if self.todo_el_dia:
+            return "Todo el día"
+
+        return f"{self.hora_inicio:%H:%M} a {self.hora_fin:%H:%M}"
+
+    def clean(self):
+        errors = {}
+
+        if self.fecha_desde and self.fecha_hasta:
+            if self.fecha_hasta < self.fecha_desde:
+                errors["fecha_hasta"] = "La fecha hasta debe ser posterior o igual a la fecha desde."
+
+            if (self.fecha_hasta - self.fecha_desde).days > 365:
+                errors["fecha_hasta"] = "El rango no puede superar 366 días corridos."
+
+            if self.activo and self.fecha_hasta < timezone.localdate():
+                errors["fecha_hasta"] = "No se pueden crear excepciones activas totalmente vencidas."
+
+        if self.todo_el_dia:
+            self.hora_inicio = None
+            self.hora_fin = None
+        elif not self.hora_inicio or not self.hora_fin:
+            errors["hora_inicio"] = "Indicá hora de inicio y fin para un bloqueo parcial."
+        elif self.hora_inicio >= self.hora_fin:
+            errors["hora_fin"] = "La hora de fin debe ser posterior al inicio."
+
+        if self.odontologo_id and self.odontologo and not self.odontologo.activo:
+            errors["odontologo"] = "No se pueden cargar excepciones para odontólogos inactivos."
+
+        if not errors and self.activo:
+            self._validar_duplicado_activo(errors)
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ProtectedError(
+            "Las excepciones de agenda no se borran; se desactivan para conservar auditoría.",
+            self,
+        )
+
+    def bloquea_intervalo(self, fecha, hora_inicio, hora_fin):
+        if not self.activo or fecha < self.fecha_desde or fecha > self.fecha_hasta:
+            return False
+
+        if self.todo_el_dia:
+            return True
+
+        inicio = datetime.combine(fecha, hora_inicio)
+        fin = datetime.combine(fecha, hora_fin)
+        inicio_bloqueo = datetime.combine(fecha, self.hora_inicio)
+        fin_bloqueo = datetime.combine(fecha, self.hora_fin)
+        return inicio < fin_bloqueo and fin > inicio_bloqueo
+
+    def _validar_duplicado_activo(self, errors):
+        duplicadas = ExcepcionAgenda.objects.filter(
+            activo=True,
+            tipo=self.tipo,
+            odontologo_id=self.odontologo_id,
+            fecha_desde=self.fecha_desde,
+            fecha_hasta=self.fecha_hasta,
+            todo_el_dia=self.todo_el_dia,
+            hora_inicio=self.hora_inicio,
+            hora_fin=self.hora_fin,
+        )
+
+        if self.pk:
+            duplicadas = duplicadas.exclude(pk=self.pk)
+
+        if duplicadas.exists():
+            errors["fecha_desde"] = "Ya existe una excepción activa equivalente."
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.alcance_display} ({self.fecha_desde:%d/%m/%Y})"
+
+
 class Turno(models.Model):
     class Estado(models.TextChoices):
         PENDIENTE = "pendiente", "Pendiente"
@@ -315,6 +492,24 @@ class Turno(models.Model):
     def recordatorio_email_enviado(self):
         return self.recordatorio_email_enviado_en is not None
 
+    @property
+    def tiene_solicitud_publica(self):
+        return hasattr(self, "solicitud_publica")
+
+    @property
+    def solicitud_publica_revisada(self):
+        if not self.tiene_solicitud_publica:
+            return False
+
+        return not self.solicitud_publica.esta_pendiente_revision
+
+    @property
+    def tiene_datos_publicos_pendientes_revision(self):
+        if not self.tiene_solicitud_publica:
+            return False
+
+        return self.solicitud_publica.esta_pendiente_revision
+
     def clean(self):
         errors = {}
 
@@ -326,6 +521,7 @@ class Turno(models.Model):
                 self._validar_paciente_activo(errors)
                 self._validar_odontologo_activo(errors)
                 self._validar_disponibilidad(errors)
+                self._validar_excepciones_agenda(errors)
                 self._validar_solapamiento(errors)
 
         if errors:
@@ -428,6 +624,43 @@ class Turno(models.Model):
 
         if not disponibilidad:
             errors["hora_inicio"] = "El odontólogo no atiende en ese día y horario."
+
+    def _validar_excepciones_agenda(self, errors):
+        if not self._requiere_validacion_excepciones_agenda():
+            return
+
+        try:
+            from .excepciones import validar_intervalo_sin_excepcion
+
+            validar_intervalo_sin_excepcion(
+                self.odontologo,
+                self.fecha,
+                self.hora_inicio,
+                self.hora_fin,
+            )
+        except ValidationError as error:
+            if hasattr(error, "message_dict"):
+                errors.update(error.message_dict)
+            else:
+                errors["hora_inicio"] = error.messages
+
+    def _requiere_validacion_excepciones_agenda(self):
+        if not self.pk:
+            return True
+
+        campos_agenda = (
+            "odontologo_id",
+            "fecha",
+            "hora_inicio",
+            "duracion_minutos",
+            "estado",
+        )
+        original = Turno.objects.filter(pk=self.pk).values(*campos_agenda).first()
+
+        if not original:
+            return True
+
+        return any(getattr(self, campo) != original[campo] for campo in campos_agenda)
 
     def _validar_solapamiento(self, errors):
         if self.estado == self.Estado.CANCELADO:
@@ -615,6 +848,14 @@ class SolicitudTurnoPublica(models.Model):
     @property
     def esta_pendiente_revision(self):
         return self.estado_revision == self.EstadoRevision.PENDIENTE
+
+    @property
+    def tiene_turno(self):
+        return self.turno_id is not None
+
+    @property
+    def es_alerta_administrativa(self):
+        return self.esta_pendiente_revision and self.turno_id is None
 
     def __str__(self):
         return f"Solicitud publica {self.creado_en:%Y-%m-%d} - {self.paciente}"

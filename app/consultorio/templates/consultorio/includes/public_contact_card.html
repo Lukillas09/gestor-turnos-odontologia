@@ -1,0 +1,26 @@
+{% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono or configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp or configuracion_consultorio.email and configuracion_consultorio.mostrar_email or configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion or configuracion_consultorio.politica_cancelacion %}
+    <section class="consultorio-public-card animate-fade-up">
+        {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono or configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp or configuracion_consultorio.email and configuracion_consultorio.mostrar_email %}
+            <div class="consultorio-public-contact">
+                {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono %}
+                    <span>Tel. {{ configuracion_consultorio.telefono }}</span>
+                {% endif %}
+                {% if configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp %}
+                    <a href="{{ configuracion_consultorio.whatsapp_url }}" rel="noopener noreferrer" target="_blank">WhatsApp</a>
+                {% endif %}
+                {% if configuracion_consultorio.email and configuracion_consultorio.mostrar_email %}
+                    <a href="mailto:{{ configuracion_consultorio.email }}">{{ configuracion_consultorio.email }}</a>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion %}
+            <p class="muted">{{ configuracion_consultorio.horario_atencion|linebreaksbr }}</p>
+        {% endif %}
+        {% if configuracion_consultorio.politica_cancelacion %}
+            <div class="consultorio-policy">
+                <strong>Política de cancelación</strong><br>
+                {{ configuracion_consultorio.politica_cancelacion|linebreaksbr }}
+            </div>
+        {% endif %}
+    </section>
+{% endif %}

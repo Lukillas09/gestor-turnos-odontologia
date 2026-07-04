@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'turnos',
     'historias',
     'odontogramas',
+    'consultorio.apps.ConsultorioConfig',
     'usuarios.apps.UsuariosConfig',
 ]
 
@@ -91,6 +92,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'usuarios.context_processors.permisos_usuario',
+                'consultorio.context_processors.perfil_consultorio',
             ],
         },
     },

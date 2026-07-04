@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Mis turnos | Gestor de Turnos{% endblock %}
+{% block title %}Mis turnos | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     <div class="page-header public-data-header animate-fade-up">
@@ -14,6 +14,8 @@
             <button class="button button-secondary" type="submit">Cerrar acceso</button>
         </form>
     </div>
+
+    {% include "consultorio/includes/public_contact_card.html" %}
 
     <section class="public-query-panel animate-fade-up">
         {% if items_turnos %}

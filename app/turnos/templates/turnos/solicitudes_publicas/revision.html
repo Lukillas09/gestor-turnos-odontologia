@@ -5,7 +5,7 @@
 {% block content %}
     <div class="review-shell">
         <div class="patient-backline animate-fade-up">
-            <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:solicitudes_publicas' %}">&larr; Volver a solicitudes</a>
+            <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:alertas_administrativas' %}">&larr; Volver a alertas</a>
         </div>
 
         <div class="review-hero animate-fade-up">
@@ -207,7 +207,7 @@
 
             <div class="review-form-actions">
                 <button class="review-primary-button" type="submit" data-review-submit>{{ boton_principal_revision }}</button>
-                <a class="button button-secondary" href="{% url 'turnos:solicitudes_publicas' %}">Volver sin guardar</a>
+                <a class="button button-secondary" href="{% url 'turnos:alertas_administrativas' %}">Volver sin guardar</a>
             </div>
         </form>
     </div>

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Verificar acceso | Gestor de Turnos{% endblock %}
+{% block title %}Verificar acceso | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     <div class="page-header public-data-header animate-fade-up">
@@ -10,6 +10,8 @@
             <p class="subtitle">Revisá tu medio de contacto. Si los datos ingresados coinciden con un paciente registrado, recibirás un código para continuar.</p>
         </div>
     </div>
+
+    {% include "consultorio/includes/public_contact_card.html" %}
 
     <section class="public-query-panel animate-fade-up">
         <form class="public-dni-form" method="post" novalidate>

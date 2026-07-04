@@ -66,6 +66,8 @@
         {% endif %}
     </div>
 
+    {% include "turnos/includes/excepciones_agenda_panel.html" %}
+
     {% if agenda_odontologos %}
         <div class="agenda-professional-list stagger-list">
             {% for agenda in agenda_odontologos %}

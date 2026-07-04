@@ -14,6 +14,10 @@ from historias.models import AccesoClinicoAuditoria
 from pacientes.models import Paciente
 from turnos.notifications import notificar_codigo_acceso_publico_turnos
 from turnos.services import cancelar_turno, reprogramar_turno
+from turnos.excepciones import (
+    obtener_horarios_publicos_disponibles,
+    validar_intervalo_reserva_publica,
+)
 
 from .rate_limit import incrementar_limite
 from .tokens import (
@@ -357,6 +361,21 @@ def reprogramar_turno_publico_seguro(accion_id, token, paciente_id, datos):
 
         if turno.estado != Turno.Estado.PENDIENTE:
             return False, None
+
+        validar_intervalo_reserva_publica(
+            datos["fecha"],
+            datos["hora_inicio"],
+            datos["duracion_minutos"],
+        )
+        horarios = obtener_horarios_publicos_disponibles(
+            odontologo=turno.odontologo,
+            fecha=datos["fecha"],
+            duracion_minutos=datos["duracion_minutos"],
+            turno_excluido=turno,
+        )
+
+        if datos["hora_inicio"] not in horarios:
+            raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
 
         turno = reprogramar_turno(turno, datos)
         _consumir_accion(accion)

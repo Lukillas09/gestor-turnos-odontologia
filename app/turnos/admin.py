@@ -1,7 +1,10 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .models import (
     DisponibilidadOdontologo,
+    ExcepcionAgenda,
     GoogleCalendarConexion,
     Odontologo,
     SolicitudTurnoPublica,
@@ -130,6 +133,37 @@ class DisponibilidadOdontologoAdmin(admin.ModelAdmin):
     autocomplete_fields = ("odontologo",)
     ordering = ("odontologo", "dia_semana", "hora_inicio")
     readonly_fields = ("creado_en", "actualizado_en")
+
+
+@admin.register(ExcepcionAgenda)
+class ExcepcionAgendaAdmin(admin.ModelAdmin):
+    list_display = (
+        "tipo",
+        "alcance_display",
+        "fecha_desde",
+        "fecha_hasta",
+        "horario_display",
+        "activo",
+    )
+    list_filter = ("activo", "tipo", "todo_el_dia", "odontologo")
+    search_fields = (
+        "motivo",
+        "mensaje_publico",
+        "odontologo__usuario__first_name",
+        "odontologo__usuario__last_name",
+        "odontologo__matricula",
+    )
+    autocomplete_fields = ("odontologo", "creada_por", "actualizada_por", "desactivada_por")
+    readonly_fields = (
+        "creada_por",
+        "actualizada_por",
+        "desactivada_por",
+        "desactivada_en",
+        "creado_en",
+        "actualizado_en",
+    )
+    date_hierarchy = "fecha_desde"
+    ordering = ("-activo", "fecha_desde", "hora_inicio")
 
 
 @admin.register(GoogleCalendarConexion)
@@ -332,16 +366,18 @@ class TurnoAdmin(admin.ModelAdmin):
 class SolicitudTurnoPublicaAdmin(admin.ModelAdmin):
     list_display = (
         "creado_en",
-        "paciente",
-        "turno",
+        "paciente_link",
+        "turno_link",
         "paciente_existente",
         "requiere_revision",
         "estado_revision",
+        "revisada_por",
     )
     list_filter = (
         "paciente_existente",
         "requiere_revision",
         "estado_revision",
+        "turno",
         ("creado_en", admin.DateFieldListFilter),
     )
     search_fields = (
@@ -374,5 +410,25 @@ class SolicitudTurnoPublicaAdmin(admin.ModelAdmin):
         "creado_en",
         "actualizado_en",
     )
+    list_select_related = (
+        "paciente",
+        "turno",
+        "turno__odontologo",
+        "turno__odontologo__usuario",
+        "revisada_por",
+    )
     ordering = ("-creado_en",)
     list_per_page = 25
+
+    @admin.display(description="Paciente", ordering="paciente__apellido")
+    def paciente_link(self, obj):
+        url = reverse("admin:pacientes_paciente_change", args=[obj.paciente_id])
+        return format_html('<a href="{}">{}</a>', url, obj.paciente)
+
+    @admin.display(description="Turno", ordering="turno__fecha")
+    def turno_link(self, obj):
+        if not obj.turno_id:
+            return "Sin turno"
+
+        url = reverse("admin:turnos_turno_change", args=[obj.turno_id])
+        return format_html('<a href="{}">{}</a>', url, obj.turno)

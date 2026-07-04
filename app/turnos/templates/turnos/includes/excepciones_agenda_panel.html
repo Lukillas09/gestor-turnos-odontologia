@@ -1,0 +1,28 @@
+{% if excepciones_agenda %}
+    <section class="panel-section animate-fade-up">
+        <div class="section-header">
+            <div>
+                <h2>Bloqueos de agenda</h2>
+                <p class="subtitle">Excepciones activas que afectan el período seleccionado.</p>
+            </div>
+            <a class="button button-secondary button-small" href="{% url 'turnos:excepciones' %}">Gestionar</a>
+        </div>
+        <div class="agenda-items">
+            {% for item in excepciones_agenda %}
+                {% with excepcion=item.excepcion %}
+                    <div class="agenda-card">
+                        <strong>{{ excepcion.get_tipo_display }} · {{ excepcion.alcance_display }}</strong>
+                        <span>
+                            {{ excepcion.fecha_desde|date:"d/m/Y" }}{% if excepcion.fecha_hasta != excepcion.fecha_desde %} al {{ excepcion.fecha_hasta|date:"d/m/Y" }}{% endif %}
+                            · {{ excepcion.horario_display }}
+                        </span>
+                        <span>{{ excepcion.motivo }}</span>
+                        {% if item.turnos_afectados %}
+                            <span class="muted">{{ item.turnos_afectados|length }} turno{% if item.turnos_afectados|length != 1 %}s{% endif %} existente{% if item.turnos_afectados|length != 1 %}s{% endif %} en el bloqueo.</span>
+                        {% endif %}
+                    </div>
+                {% endwith %}
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}

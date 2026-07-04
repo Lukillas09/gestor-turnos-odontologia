@@ -1,6 +1,6 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 
 from config.form_widgets import HtmlDateInput
@@ -8,7 +8,14 @@ from pacientes.models import Paciente
 from pacientes.normalizacion import normalizar_documento
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
 
-from .models import Odontologo, SolicitudTurnoPublica, Turno
+from .excepcion_permissions import puede_gestionar_excepciones_globales
+from .excepciones import (
+    obtener_horarios_publicos_disponibles,
+    obtener_rango_reserva_publica,
+    validar_fecha_reserva_publica,
+    validar_intervalo_reserva_publica,
+)
+from .models import ExcepcionAgenda, Odontologo, SolicitudTurnoPublica, Turno
 from .selectors import obtener_horarios_disponibles
 
 
@@ -114,7 +121,7 @@ class HorariosDisponiblesFormMixin:
             return
 
         duracion = self._obtener_duracion_minutos(odontologo)
-        horarios = obtener_horarios_disponibles(
+        horarios = self._obtener_horarios_disponibles(
             odontologo=odontologo,
             fecha=fecha,
             duracion_minutos=duracion,
@@ -178,6 +185,9 @@ class HorariosDisponiblesFormMixin:
 
     def _obtener_turno_excluido(self):
         return None
+
+    def _obtener_horarios_disponibles(self, **kwargs):
+        return obtener_horarios_disponibles(**kwargs)
 
     @staticmethod
     def _formatear_horario(horario):
@@ -257,11 +267,22 @@ class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
         widget=HtmlDateInput(),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        rango = obtener_rango_reserva_publica()
+        self.fields["fecha"].widget.attrs.update(
+            {
+                "min": rango.fecha_minima.isoformat(),
+                "max": rango.fecha_maxima.isoformat(),
+            }
+        )
+
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
-
-        if fecha < timezone.localdate():
-            raise forms.ValidationError("La fecha no puede ser anterior a hoy.")
+        try:
+            validar_fecha_reserva_publica(fecha)
+        except ValidationError as error:
+            raise forms.ValidationError(error.messages)
 
         return fecha
 
@@ -356,10 +377,20 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        rango = obtener_rango_reserva_publica()
+        self.fields["fecha"].widget.attrs.update(
+            {
+                "min": rango.fecha_minima.isoformat(),
+                "max": rango.fecha_maxima.isoformat(),
+            }
+        )
         self._configurar_horarios_disponibles()
 
     def _obtener_duracion_minutos(self, odontologo):
         return DURACION_SOLICITUD_PUBLICA_MINUTOS
+
+    def _obtener_horarios_disponibles(self, **kwargs):
+        return obtener_horarios_publicos_disponibles(**kwargs)
 
     def clean_documento(self):
         documento = normalizar_documento(self.cleaned_data["documento"])
@@ -371,11 +402,30 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
-
-        if fecha < timezone.localdate():
-            raise forms.ValidationError("La fecha no puede ser anterior a hoy.")
+        try:
+            validar_fecha_reserva_publica(fecha)
+        except ValidationError as error:
+            raise forms.ValidationError(error.messages)
 
         return fecha
+
+    def clean(self):
+        cleaned_data = super().clean()
+        odontologo = cleaned_data.get("odontologo")
+        fecha = cleaned_data.get("fecha")
+        hora_inicio = cleaned_data.get("hora_inicio")
+
+        if odontologo and fecha and hora_inicio:
+            try:
+                validar_intervalo_reserva_publica(
+                    fecha,
+                    hora_inicio,
+                    DURACION_SOLICITUD_PUBLICA_MINUTOS,
+                )
+            except ValidationError as error:
+                raise forms.ValidationError(error.messages)
+
+        return cleaned_data
 
 
 class SolicitudAccesoPublicoTurnosForm(forms.Form):
@@ -465,6 +515,13 @@ class TurnoReprogramacionAccesoPublicoForm(HorariosDisponiblesFormMixin, forms.M
         self.fields["accion_token"].initial = accion_token
         self.initial.setdefault("fecha", self.instance.fecha)
         self.initial.setdefault("hora_inicio", self._formatear_horario(self.instance.hora_inicio))
+        rango = obtener_rango_reserva_publica()
+        self.fields["fecha"].widget.attrs.update(
+            {
+                "min": rango.fecha_minima.isoformat(),
+                "max": rango.fecha_maxima.isoformat(),
+            }
+        )
         self._configurar_horarios_disponibles()
 
     def _obtener_odontologo_seleccionado(self):
@@ -479,16 +536,37 @@ class TurnoReprogramacionAccesoPublicoForm(HorariosDisponiblesFormMixin, forms.M
     def _obtener_turno_excluido(self):
         return self.instance
 
+    def _obtener_horarios_disponibles(self, **kwargs):
+        return obtener_horarios_publicos_disponibles(**kwargs)
+
     def clean_accion_token(self):
         return self.cleaned_data["accion_token"].strip()
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
-
-        if fecha < timezone.localdate():
-            raise forms.ValidationError("La fecha no puede ser anterior a hoy.")
+        try:
+            validar_fecha_reserva_publica(fecha)
+        except ValidationError as error:
+            raise forms.ValidationError(error.messages)
 
         return fecha
+
+    def clean(self):
+        cleaned_data = super().clean()
+        fecha = cleaned_data.get("fecha")
+        hora_inicio = cleaned_data.get("hora_inicio")
+
+        if fecha and hora_inicio:
+            try:
+                validar_intervalo_reserva_publica(
+                    fecha,
+                    hora_inicio,
+                    self.instance.duracion_minutos or DURACION_SOLICITUD_PUBLICA_MINUTOS,
+                )
+            except ValidationError as error:
+                raise forms.ValidationError(error.messages)
+
+        return cleaned_data
 
     def save(self, commit=True):
         turno = super().save(commit=False)
@@ -561,6 +639,10 @@ class TurnoFiltroForm(forms.Form):
         queryset=Odontologo.objects.filter(activo=True),
         empty_label="Todos los odontólogos",
     )
+    datos_por_revisar = forms.BooleanField(
+        required=False,
+        label="Datos por revisar",
+    )
 
     def __init__(self, *args, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -591,6 +673,74 @@ class AgendaFiltroForm(forms.Form):
     def __init__(self, *args, usuario=None, **kwargs):
         super().__init__(*args, **kwargs)
         limitar_odontologos_por_usuario(self.fields["odontologo"], usuario)
+
+
+class ExcepcionAgendaForm(forms.ModelForm):
+    confirmar_afectados = forms.BooleanField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = ExcepcionAgenda
+        fields = (
+            "tipo",
+            "odontologo",
+            "fecha_desde",
+            "fecha_hasta",
+            "todo_el_dia",
+            "hora_inicio",
+            "hora_fin",
+            "motivo",
+            "mensaje_publico",
+        )
+        widgets = {
+            "fecha_desde": HtmlDateInput(),
+            "fecha_hasta": HtmlDateInput(),
+            "hora_inicio": forms.TimeInput(attrs={"type": "time", "inputmode": "numeric"}),
+            "hora_fin": forms.TimeInput(attrs={"type": "time", "inputmode": "numeric"}),
+            "motivo": forms.TextInput(attrs={"placeholder": "Vacaciones, feriado, capacitación"}),
+            "mensaje_publico": forms.TextInput(
+                attrs={"placeholder": "Agenda no disponible para reservas públicas"}
+            ),
+        }
+        help_texts = {
+            "odontologo": "Dejalo vacío solo si querés bloquear todo el consultorio.",
+            "todo_el_dia": "Si está activo, no hace falta cargar horario.",
+            "mensaje_publico": "Opcional. Evitá datos sensibles o personales.",
+        }
+
+    def __init__(self, *args, usuario=None, **kwargs):
+        self.usuario = usuario
+        super().__init__(*args, **kwargs)
+        self.fields["odontologo"].queryset = Odontologo.objects.filter(activo=True)
+        self.fields["odontologo"].empty_label = "Todo el consultorio"
+
+        if not puede_gestionar_excepciones_globales(usuario):
+            odontologo = obtener_odontologo_del_usuario(usuario)
+            self.fields["odontologo"].queryset = (
+                Odontologo.objects.filter(pk=odontologo.pk, activo=True)
+                if odontologo
+                else Odontologo.objects.none()
+            )
+            self.fields["odontologo"].empty_label = None
+            self.fields["odontologo"].initial = odontologo
+            self.fields["odontologo"].disabled = True
+
+        for campo in self.fields.values():
+            if isinstance(campo.widget, forms.CheckboxInput) or isinstance(campo.widget, forms.HiddenInput):
+                continue
+            campo.widget.attrs.setdefault("class", "form-control")
+
+    def clean_odontologo(self):
+        odontologo = self.cleaned_data.get("odontologo")
+
+        if puede_gestionar_excepciones_globales(self.usuario):
+            return odontologo
+
+        odontologo_usuario = obtener_odontologo_del_usuario(self.usuario)
+
+        if odontologo_usuario is None:
+            raise forms.ValidationError("No tenés un odontólogo asociado para gestionar agenda.")
+
+        return odontologo_usuario
 
 
 class RevisionSolicitudTurnoPublicaForm(forms.Form):
@@ -656,6 +806,110 @@ class RevisionSolicitudTurnoPublicaForm(forms.Form):
             raise forms.ValidationError("Esta solicitud ya fue revisada.")
 
         return cleaned_data
+
+
+class RevisionYConfirmacionTurnoPublicoForm(ConfirmacionTurnoForm):
+    ACCIONES_EXISTENTE = (
+        ("conservar", "Conservar datos actuales"),
+        ("aplicar_campos", "Actualizar campos seleccionados"),
+    )
+    ACCIONES_NUEVO = (
+        ("validar_paciente", "Validar paciente y confirmar turno"),
+    )
+    CAMPOS_ACTUALIZABLES = RevisionSolicitudTurnoPublicaForm.CAMPOS_ACTUALIZABLES
+
+    accion_revision = forms.ChoiceField(
+        choices=ACCIONES_EXISTENTE,
+        widget=forms.RadioSelect,
+        label="Acción de revisión",
+    )
+    campos = forms.MultipleChoiceField(
+        choices=CAMPOS_ACTUALIZABLES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Campos a actualizar",
+    )
+    observaciones = forms.CharField(
+        required=False,
+        max_length=1000,
+        label="Observaciones",
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Observaciones internas"}),
+    )
+
+    def __init__(self, *args, solicitud=None, usuario=None, **kwargs):
+        self.solicitud = solicitud
+        self.usuario = usuario
+        super().__init__(*args, **kwargs)
+        self.fields["accion_revision"].widget.attrs.setdefault(
+            "class",
+            "sr-only review-action-input",
+        )
+
+        if solicitud and not solicitud.paciente_existente:
+            self.fields["accion_revision"].choices = self.ACCIONES_NUEVO
+            self.fields["accion_revision"].initial = "validar_paciente"
+            self.fields.pop("campos", None)
+        else:
+            self.fields["accion_revision"].initial = "conservar"
+            diferencias = set((getattr(solicitud, "diferencias_detectadas", None) or {}).keys())
+            opciones = [
+                opcion
+                for opcion in self.CAMPOS_ACTUALIZABLES
+                if opcion[0] in diferencias
+            ]
+
+            if opciones:
+                self.fields["campos"].choices = opciones
+            else:
+                self.fields["accion_revision"].choices = (("conservar", "Conservar datos actuales"),)
+                self.fields.pop("campos", None)
+
+        for campo in self.fields.values():
+            if isinstance(campo.widget, forms.RadioSelect) or isinstance(campo.widget, forms.CheckboxSelectMultiple):
+                continue
+            campo.widget.attrs.setdefault("class", "form-control")
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if self.errors:
+            return cleaned_data
+
+        if not self.solicitud:
+            raise forms.ValidationError("No se encontró la solicitud pública asociada.")
+
+        if self.solicitud.estado_revision != SolicitudTurnoPublica.EstadoRevision.PENDIENTE:
+            raise forms.ValidationError("Esta solicitud ya fue revisada.")
+
+        accion = cleaned_data.get("accion_revision")
+        campos = set(cleaned_data.get("campos") or [])
+        diferencias = set((self.solicitud.diferencias_detectadas or {}).keys())
+
+        if accion == "aplicar_campos":
+            if not campos:
+                raise forms.ValidationError("Seleccioná al menos un campo para actualizar.")
+
+            if campos - diferencias:
+                raise forms.ValidationError("Solo se pueden aplicar campos con diferencias detectadas.")
+
+        if not self.solicitud.paciente_existente and accion != "validar_paciente":
+            raise forms.ValidationError("Para confirmar este turno primero hay que validar el paciente.")
+
+        return cleaned_data
+
+
+class RechazoSolicitudTurnoPublicaForm(forms.Form):
+    motivo = forms.CharField(
+        max_length=1000,
+        label="Motivo",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "placeholder": "Motivo administrativo del rechazo",
+            }
+        ),
+        error_messages={"required": "Indicá un motivo para rechazar la solicitud."},
+    )
 
 
 def limitar_odontologos_por_usuario(campo_odontologo, usuario):
