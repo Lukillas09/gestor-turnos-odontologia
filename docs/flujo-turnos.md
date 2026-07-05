@@ -56,16 +56,20 @@ Flujo:
    - apellido;
    - teléfono;
    - DNI obligatorio;
-   - email opcional;
+   - email condicional: obligatorio para pacientes nuevos y para pacientes existentes activos sin email registrado;
    - motivo breve opcional.
-5. El DNI se normaliza con una función centralizada para evitar duplicados por formato.
-6. Si el DNI no existe, se crea un paciente nuevo con `origen_alta=solicitud_publica` y `estado_validacion_datos=pendiente`.
-7. Si el DNI ya existe, el paciente se reutiliza sin modificar nombre, apellido, teléfono ni email.
-8. Se valida ventana pública de reserva, anticipación mínima, disponibilidad, excepciones y superposición.
-9. Se crea un turno pendiente con duración inicial de 30 minutos.
-10. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados.
-11. Si hay diferencias contra el paciente existente, la solicitud queda pendiente de revisión para recepción.
-12. La respuesta pública es neutral y no revela si el paciente existía, si se creó o si hubo diferencias.
+5. El POST final se cuenta una sola vez para rate limit por IP y DNI hasheados.
+6. Si corresponde por umbral, se exige Turnstile antes de procesar la solicitud.
+7. Se valida el token de idempotencia del formulario para evitar doble clic, recarga o reenvío del POST.
+8. El DNI se normaliza con una función centralizada para evitar duplicados por formato.
+9. Si el DNI no existe, el email es obligatorio y se crea un paciente nuevo con `origen_alta=solicitud_publica`, `estado_validacion_datos=pendiente` y `email_verificado_en=None`.
+10. Si el DNI ya existe, el paciente se reutiliza sin modificar nombre, apellido, teléfono ni email. Si el paciente activo no tiene email registrado, debe enviar uno como propuesta para revisión.
+11. Se valida ventana pública de reserva, anticipación mínima, disponibilidad, excepciones y superposición.
+12. Dentro de la transacción se detectan duplicados exactos y se aplica el máximo de pendientes por DNI.
+13. Se crea un turno pendiente con duración inicial de 30 minutos.
+14. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados.
+15. Si hay diferencias contra el paciente existente, la solicitud queda pendiente de revisión para recepción.
+16. La respuesta pública es neutral y no revela si el paciente existía, si se creó, si hubo diferencias ni si se reutilizó una solicitud previa.
 
 Servicio principal:
 
@@ -73,7 +77,7 @@ Servicio principal:
 crear_solicitud_turno_publica(datos)
 ```
 
-Internamente delega en el caso de uso transaccional `crear_solicitud_publica_de_turno(datos)`, que crea el paciente nuevo cuando corresponde, bloquea pacientes existentes con `select_for_update()`, maneja carreras por DNI duplicado y agenda notificaciones con `transaction.on_commit()`.
+Internamente delega en el caso de uso transaccional `crear_solicitud_publica_de_turno(datos)`, que crea el paciente nuevo cuando corresponde, bloquea pacientes existentes con `select_for_update()`, maneja carreras por DNI duplicado, recalcula pendientes dentro de la transacción, bloquea la agenda técnica del odontólogo y agenda notificaciones con `transaction.on_commit()`.
 
 Reglas:
 
@@ -82,10 +86,16 @@ Reglas:
 - No permite horarios ocupados.
 - No permite horarios dentro de excepciones de agenda.
 - No pide datos clínicos ni administrativos extensos.
+- No crea registros si se supera el rate limit por IP/DNI o si la protección de cache no está disponible.
+- El máximo de pendientes cuenta solo solicitudes públicas futuras con turno pendiente, no turnos internos, confirmados, cancelados, pasados ni solicitudes rechazadas.
+- Un duplicado exacto activo del mismo DNI, odontólogo, fecha y hora se trata como operación ya registrada y redirige a la confirmación genérica sin reenviar emails.
+- Las alertas administrativas sin turno para pacientes archivados se reutilizan dentro de la ventana configurada para no generar pendientes ilimitados.
 - Crea asociación paciente-odontólogo.
-- No usa el email enviado para notificar a un paciente ya registrado.
-- Para pacientes existentes, el aviso se envía al email almacenado previamente, si existe.
+- No usa el email enviado para notificar a un paciente ya registrado si difiere del email persistido.
+- Para pacientes existentes, el aviso y cualquier OTP se envían únicamente al email almacenado previamente, si existe.
+- Para pacientes existentes sin email, el email enviado queda guardado como propuesta en `SolicitudTurnoPublica.email_enviado` y no se usa para OTP hasta que recepción lo aplique explícitamente.
 - Para pacientes nuevos, se puede enviar confirmación al email enviado, pero ese contacto no queda verificado automáticamente.
+- El primer OTP validado correctamente marca `Paciente.email_verificado_en`; crear la solicitud, enviar emails o confirmar el turno no verifican el correo.
 - Las diferencias se guardan en `diferencias_detectadas` y solo se muestran a usuarios internos autorizados.
 
 ## Revisión Integrada de Solicitudes Públicas
@@ -118,6 +128,8 @@ Reglas de seguridad:
 - Teléfono y email enviados se tratan como datos no verificados.
 - Si se conservan datos actuales, la confirmación usa el contacto persistido.
 - Si se aplican campos seleccionados, sólo esos campos cambian.
+- Si se aplica un email propuesto distinto, el paciente queda con `email_verificado_en=None` hasta que complete un OTP exitoso.
+- Si el email propuesto coincide con el actual después de normalizar espacios y mayúsculas, no se reescribe ni se borra una verificación existente.
 - Pacientes nuevos se validan administrativamente al confirmar.
 - La operación integrada usa una transacción: si falla la confirmación, no quedan cambios parciales en paciente ni solicitud.
 - Emails y Google Calendar se ejecutan después de guardar correctamente.
@@ -158,7 +170,7 @@ Rutas:
 /turnos/mis-turnos/<uuid>/reprogramar/
 ```
 
-El paciente ingresa su DNI para iniciar un desafio de acceso. La respuesta siempre es generica: si el DNI corresponde a un paciente registrado con email, se envia un codigo OTP de 6 digitos; si no corresponde, se crea un desafio ficticio y no se revela si el paciente existe.
+El paciente ingresa su DNI para iniciar un desafio de acceso. La respuesta siempre es generica: si el DNI corresponde a un paciente activo con email persistido, se envia un codigo OTP de 6 digitos; si no corresponde, si esta archivado o si solo existe un email propuesto en una solicitud publica, se crea un desafio ficticio y no se revela si el paciente existe.
 
 Luego de validar el codigo, se crea una sesion publica temporal. Desde esa sesion se muestran solo turnos activos del paciente:
 

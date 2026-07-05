@@ -82,10 +82,10 @@ La URL debe venir de Supabase y debe incluir `sslmode=require`.
 
 ### Redis para rate limiting publico
 
-Agregar un servicio Redis al proyecto de Railway o usar un proveedor Redis externo compatible. Cargar la URL en:
+Agregar un servicio Redis al proyecto de Railway o usar un proveedor Redis externo compatible. Si Redis está dentro del mismo proyecto, en el servicio web de Django puede referenciarse así:
 
 ```env
-REDIS_URL=redis://usuario:password@host:puerto/0
+REDIS_URL=${{Redis.REDIS_URL}}
 TURNOS_PUBLIC_REDIS_REQUIRED=True
 TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT=5
 TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS=900
@@ -98,9 +98,17 @@ TURNOS_PUBLIC_RESEND_WINDOW_SECONDS=3600
 TURNOS_PUBLIC_ACTION_TOKEN_SECONDS=900
 TURNOS_PUBLIC_ACTION_LIMIT=20
 TURNOS_PUBLIC_ACTION_WINDOW_SECONDS=900
+TURNOS_PUBLIC_BOOKING_IP_LIMIT=10
+TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS=900
+TURNOS_PUBLIC_BOOKING_DNI_LIMIT=5
+TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS=3600
+TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=3
+TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI=2
+TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS=3600
+TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS=86400
 ```
 
-Sin `REDIS_URL`, la app debe fallar en deploy con `TURNOS_PUBLIC_REDIS_REQUIRED=True`. Esto evita rate limits locales por proceso en produccion.
+Sin `REDIS_URL`, la app debe fallar en deploy con `TURNOS_PUBLIC_REDIS_REQUIRED=True`. Esto evita rate limits locales por proceso en producción. `LocMemCache` sirve solo para desarrollo y tests porque no comparte contadores entre workers o instancias.
 
 ### Turnstile opcional
 
@@ -112,10 +120,11 @@ TURNSTILE_SITE_KEY=site-key
 TURNSTILE_SECRET_KEY=secret-key
 TURNSTILE_VERIFY_URL=https://challenges.cloudflare.com/turnstile/v0/siteverify
 TURNSTILE_REQUIRED_AFTER_ATTEMPTS=3
+TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=3
 TURNSTILE_TIMEOUT_SECONDS=5
 ```
 
-Puede mantenerse apagado en staging inicial con `TURNSTILE_ENABLED=False`, pero Redis debe quedar activo para los limites.
+Puede mantenerse apagado en staging inicial con `TURNSTILE_ENABLED=False`, pero Redis debe quedar activo para los límites. Turnstile es complementario: un token válido no reinicia contadores ni permite superar el límite duro por IP, DNI o máximo de pendientes.
 
 ### Deploy
 

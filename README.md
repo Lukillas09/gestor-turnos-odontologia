@@ -1,5 +1,7 @@
 # Gestor de Turnos Odontológico
 
+[![CI Django](https://github.com/Lukillas09/gestor-turnos-odontologia/actions/workflows/ci.yml/badge.svg)](https://github.com/Lukillas09/gestor-turnos-odontologia/actions/workflows/ci.yml)
+
 Aplicación web en Django para gestionar la agenda de un consultorio odontológico, con panel interno para el equipo del consultorio e interfaz pública para pacientes.
 
 El proyecto busca resolver un flujo real de trabajo: cargar pacientes, administrar turnos, validar disponibilidad, confirmar solicitudes públicas, mantener historia clínica, adjuntar archivos clínicos, sincronizar con Google Calendar y enviar notificaciones por email.
@@ -161,7 +163,7 @@ Variables principales:
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
 | Feature flags | `ODONTOGRAMA_FEATURE_ENABLED`, `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS`, `ACCESO_CLINICO_EMERGENCIA_SECONDS` |
-| Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
+| Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_IP_LIMIT`, `TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_DNI_LIMIT`, `TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS`, `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI`, `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS`, `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Cifrado OAuth | `OAUTH_TOKEN_ENCRYPTION_KEY` |
 | Seguridad HTTPS | `DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE`, `DJANGO_SECURE_PROXY_SSL_HEADER`, `DJANGO_SECURE_HSTS_SECONDS`, `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SECURE_HSTS_PRELOAD` |
 | Base de datos | `DATABASE_URL` |
@@ -180,13 +182,14 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 1. Ingresa a `/`.
 2. Solicita turno desde `/turnos/solicitar/`.
 3. Elige odontólogo, fecha y horario disponible.
-4. Completa nombre, apellido, DNI obligatorio, teléfono, email opcional y motivo opcional.
-5. El sistema valida ventana pública, anticipación mínima, disponibilidad, excepciones de agenda y superposición.
-6. El sistema normaliza el DNI, crea un turno `Pendiente` con duración inicial de 30 minutos y guarda una `SolicitudTurnoPublica` con la fotografía de lo enviado.
-7. Si el DNI ya pertenecía a un paciente, los datos principales no se modifican desde la web; las diferencias se revisan al abrir/confirmar el turno pendiente.
-8. Solicita acceso temporal desde `/turnos/mis-turnos/solicitar-acceso/`; si el DNI coincide con un paciente con email registrado, recibe un código OTP en ese contacto.
-9. Puede cancelar turnos pendientes/confirmados.
-10. Puede reprogramar solo turnos pendientes dentro de la ventana pública vigente.
+4. Completa nombre, apellido, DNI obligatorio, teléfono, email y motivo opcional. El email es obligatorio para pacientes nuevos y para pacientes existentes que todavía no tienen email registrado.
+5. El sistema aplica protecciones de creación: rate limit por IP y DNI hasheados, token de idempotencia, deduplicación exacta, máximo de pendientes por DNI y Turnstile progresivo si está habilitado.
+6. El sistema valida ventana pública, anticipación mínima, disponibilidad, excepciones de agenda y superposición.
+7. El sistema normaliza el DNI, crea un turno `Pendiente` con duración inicial de 30 minutos y guarda una `SolicitudTurnoPublica` con la fotografía de lo enviado.
+8. Si el DNI ya pertenecía a un paciente, los datos principales no se modifican desde la web; el email propuesto queda en la solicitud pública y las diferencias se revisan al abrir/confirmar el turno pendiente.
+9. Solicita acceso temporal desde `/turnos/mis-turnos/solicitar-acceso/`; si el DNI coincide con un paciente activo con email persistido, recibe un código OTP en ese contacto. Los emails propuestos desde la web no se usan para OTP hasta que un usuario interno los aplique explícitamente.
+10. Puede cancelar turnos pendientes/confirmados.
+11. Puede reprogramar solo turnos pendientes dentro de la ventana pública vigente.
 
 ### Equipo Interno
 
@@ -213,6 +216,8 @@ Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 - Las solicitudes públicas se crean pendientes y duran 30 minutos inicialmente.
 - Las reservas públicas visibles y reservables se limitan por configuración del consultorio: ventana en días, reserva el mismo día y anticipación mínima.
 - Una solicitud pública nunca reemplaza por sí sola nombre, apellido, teléfono o email de un paciente existente.
+- El POST final de solicitud pública está protegido contra automatización y duplicados con Redis/cache, idempotencia por formulario, límite por IP, límite por DNI y máximo de pendientes por DNI.
+- Turnstile es progresivo y complementario; si está desactivado, los límites duros siguen aplicando.
 - Los pacientes nuevos creados desde la web quedan con `origen_alta=solicitud_publica` y `estado_validacion_datos=pendiente`.
 - La confirmación interna permite elegir duración real y, para solicitudes públicas pendientes, resolver la revisión de datos en el mismo flujo.
 - Si la duración elegida se superpone con otro turno activo del mismo odontólogo, no confirma y muestra el conflicto.
@@ -349,6 +354,14 @@ python manage.py test
 python manage.py collectstatic --noinput
 ```
 
+## Integración Continua
+
+El repositorio incluye el workflow `CI Django` en `.github/workflows/ci.yml`.
+
+Se ejecuta en `push`, `pull_request` y `workflow_dispatch`, sin tareas programadas. La CI usa Python 3.13, instala `requirements.txt`, ejecuta `pip check`, valida la configuración de Django, comprueba migraciones pendientes con `makemigrations --check --dry-run`, corre la suite completa con `python manage.py test --verbosity 2` y genera archivos estáticos con `collectstatic --noinput`.
+
+La ejecución de CI usa SQLite, email en memoria, filesystem storage y flags seguros para pruebas. No requiere Redis, Turnstile, Google Calendar, Supabase ni secretos reales.
+
 ## Seguridad y Privacidad
 
 - `.env`, tokens, credenciales OAuth y claves reales no se versionan.
@@ -365,6 +378,7 @@ python manage.py collectstatic --noinput
 - Ocultar botones en templates acompana la experiencia, pero el control obligatorio esta en vistas, permisos y querysets.
 - La respuesta pública de solicitud de turno es neutral y no revela si el DNI ya existía, si hubo diferencias o a qué contacto se notificó.
 - El email/teléfono enviado en una solicitud pública no reemplaza automáticamente al contacto existente.
+- Los códigos OTP públicos se envían únicamente al email persistido del paciente; un email propuesto desde la web no se usa para autogestión hasta ser aplicado explícitamente en revisión interna.
 - Las acciones públicas usan sesión temporal verificada por OTP y permisos persistentes de un solo uso por turno.
 - Las vistas internas requieren login.
 - La historia clínica tiene permisos clínicos propios.

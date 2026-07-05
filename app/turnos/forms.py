@@ -20,6 +20,9 @@ from .selectors import obtener_horarios_disponibles
 
 
 DURACION_SOLICITUD_PUBLICA_MINUTOS = 30
+MENSAJE_EMAIL_PUBLICO_REQUERIDO = (
+    "Ingresá un email para poder consultar y administrar tu turno."
+)
 DURACIONES_CONFIRMACION_TURNO = (
     (30, "30 minutos"),
     (45, "45 minutos"),
@@ -325,7 +328,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     documento = forms.CharField(
         max_length=20,
         label="DNI",
-        error_messages={"required": "IngresÃ¡ tu DNI."},
+        error_messages={"required": "Ingresá tu DNI."},
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "off",
@@ -337,14 +340,19 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     email = forms.EmailField(
         required=False,
         label="Email",
+        help_text=(
+            "Lo usamos para enviarte códigos de acceso con los que podés consultar, "
+            "cancelar o reprogramar tus turnos. Si ya sos paciente, tus datos "
+            "registrados no se modifican automáticamente."
+        ),
         widget=forms.EmailInput(
             attrs={
                 "autocomplete": "email",
                 "inputmode": "email",
-                "placeholder": "Email de contacto",
+                "placeholder": "tuemail@ejemplo.com",
             }
         ),
-        error_messages={"invalid": "Ingresá un email válido o dejá el campo vacío."},
+        error_messages={"invalid": "Ingresá un email válido."},
     )
     odontologo = forms.ModelChoiceField(
         queryset=Odontologo.objects.filter(activo=True),
@@ -374,9 +382,13 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         label="Motivo breve",
         widget=forms.TextInput(attrs={"placeholder": "Control, limpieza o urgencia"}),
     )
+    idempotency_token = forms.CharField(required=False, widget=forms.HiddenInput())
+    turnstile_token = forms.CharField(required=False, widget=forms.HiddenInput())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._paciente_por_documento = None
+        self._paciente_por_documento_consultado = False
         rango = obtener_rango_reserva_publica()
         self.fields["fecha"].widget.attrs.update(
             {
@@ -396,9 +408,20 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         documento = normalizar_documento(self.cleaned_data["documento"])
 
         if not documento:
-            raise forms.ValidationError("IngresÃ¡ tu DNI.")
+            raise forms.ValidationError("Ingresá tu DNI.")
 
         return documento
+
+    def _obtener_paciente_por_documento(self, documento):
+        if not self._paciente_por_documento_consultado:
+            self._paciente_por_documento = (
+                Paciente.objects.filter(documento=documento).first()
+                if documento
+                else None
+            )
+            self._paciente_por_documento_consultado = True
+
+        return self._paciente_por_documento
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
@@ -411,9 +434,22 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
+        documento = cleaned_data.get("documento")
+        email = (cleaned_data.get("email") or "").strip()
         odontologo = cleaned_data.get("odontologo")
         fecha = cleaned_data.get("fecha")
         hora_inicio = cleaned_data.get("hora_inicio")
+
+        if "email" not in self.errors and documento:
+            paciente = self._obtener_paciente_por_documento(documento)
+            paciente_activo_sin_email = (
+                paciente is not None
+                and paciente.activo
+                and not paciente.email
+            )
+
+            if (paciente is None or paciente_activo_sin_email) and not email:
+                self.add_error("email", MENSAJE_EMAIL_PUBLICO_REQUERIDO)
 
         if odontologo and fecha and hora_inicio:
             try:

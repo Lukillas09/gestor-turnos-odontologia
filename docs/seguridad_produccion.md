@@ -31,14 +31,20 @@ Estado actual:
 - Cancelar y reprogramar requieren sesion publica verificada, `POST`, CSRF y permisos de un solo uso.
 - Los permisos quedan invalidos si cambia la version publica del turno.
 - La solicitud publica de turno exige DNI, guarda una fotografia en `SolicitudTurnoPublica` y no sobrescribe datos de un `Paciente` existente.
+- La creación pública de turnos aplica rate limit separado por IP y DNI hasheados, idempotencia por formulario, deduplicación exacta y máximo configurable de pendientes por DNI.
+- Turnstile puede exigirse de forma progresiva después de varios intentos, pero no reemplaza los límites duros ni los reinicia.
+- Si Redis/cache no está disponible cuando es obligatorio, la creación pública falla cerrada con HTTP 503 y mensaje genérico.
+- El email es obligatorio para pacientes nuevos y para pacientes existentes activos sin email registrado, pero un email propuesto publicamente nunca se considera identidad verificada.
 - Si el DNI ya existe y el formulario trae telefono/email diferentes, el turno queda marcado como `Datos por revisar` y se notifica solo al contacto almacenado previamente.
+- Los codigos OTP se envian exclusivamente a `Paciente.email`; `SolicitudTurnoPublica.email_enviado` no se usa como fallback antes de una revision interna explicita.
+- Aplicar un email nuevo desde revision deja `email_verificado_en=None`; el primer OTP correcto verifica la posesion del correo.
 - Los pacientes nuevos creados desde la web quedan pendientes de validacion administrativa; esto no verifica automaticamente email ni telefono.
 
 Antes de produccion real:
 
 - Configurar `REDIS_URL` para rate limiting distribuido.
 - Mantener `TURNOS_PUBLIC_REDIS_REQUIRED=True` fuera de desarrollo.
-- Verificar limites de solicitud, OTP, reenvio y acciones publicas segun el trafico real.
+- Verificar límites de solicitud, OTP, reenvío, acciones públicas, creación pública por IP/DNI y máximo de pendientes según el tráfico real.
 - Evaluar `TURNSTILE_ENABLED=True` y cargar `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`.
 - Programar `python manage.py limpiar_desafios_acceso_publico` para limpiar OTP vencidos y permisos inactivos.
 - Capacitar a recepcion para actualizar el email del paciente desde el panel interno si no tiene contacto utilizable.
@@ -233,6 +239,7 @@ No activar `DJANGO_SECURE_HSTS_PRELOAD=True` hasta estar seguro de que todos los
 - `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` sin comodines inseguros.
 - Tokens OAuth no visibles en admin ni templates.
 - `REDIS_URL` configurado y `TURNOS_PUBLIC_REDIS_REQUIRED=True`.
-- Turnstile configurado o decision documentada para mantenerlo apagado.
+- Variables `TURNOS_PUBLIC_BOOKING_*` revisadas para el tráfico esperado.
+- Turnstile configurado o decisión documentada para mantenerlo apagado; Redis igualmente activo.
 - Limpieza de desafios OTP y acciones publicas agendada.
 - Logs sin secretos ni datos clinicos sensibles.

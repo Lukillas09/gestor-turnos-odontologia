@@ -1,6 +1,7 @@
 from pacientes.normalizacion import (
     normalizar_documento,
     normalizar_email,
+    normalizar_email_para_comparacion,
     normalizar_telefono,
     normalizar_texto_persona,
 )
@@ -34,6 +35,22 @@ def detectar_diferencias_datos_paciente(paciente, datos_enviados):
         actual = getattr(paciente, campo) or ""
         enviado = datos_enviados.get(campo) or ""
         normalizador = comparadores[campo]
+
+        if campo == "email":
+            actual_normalizado = normalizar_email_para_comparacion(actual)
+            enviado_normalizado = normalizar_email_para_comparacion(enviado)
+
+            if actual_normalizado and not enviado_normalizado:
+                continue
+
+            if actual_normalizado == enviado_normalizado:
+                continue
+
+            diferencias[campo] = {
+                "actual": actual,
+                "enviado": enviado,
+            }
+            continue
 
         if (normalizador(actual) or "") == (normalizador(enviado) or ""):
             continue

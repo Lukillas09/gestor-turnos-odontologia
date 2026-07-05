@@ -1,0 +1,107 @@
+name: CI Django
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  DJANGO_SECRET_KEY: "ci-only-secret-key-not-for-production"
+  DJANGO_DEBUG: "True"
+  DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+  DJANGO_CSRF_TRUSTED_ORIGINS: ""
+  DJANGO_SECURE_SSL_REDIRECT: "False"
+  DJANGO_SESSION_COOKIE_SECURE: "False"
+  DJANGO_CSRF_COOKIE_SECURE: "False"
+  DJANGO_SECURE_HSTS_SECONDS: "0"
+  DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: "False"
+  DJANGO_SECURE_HSTS_PRELOAD: "False"
+  DJANGO_SECURE_PROXY_SSL_HEADER: "False"
+  DJANGO_LOG_LEVEL: "INFO"
+  DATABASE_URL: ""
+  EMAIL_BACKEND: "django.core.mail.backends.locmem.EmailBackend"
+  DEFAULT_FROM_EMAIL: "ci@example.test"
+  EMAIL_API_PROVIDER: "resend"
+  EMAIL_API_KEY: ""
+  EMAIL_API_URL: ""
+  MEDIA_STORAGE_BACKEND: "django.core.files.storage.FileSystemStorage"
+  SUPABASE_STORAGE_URL: ""
+  SUPABASE_STORAGE_BUCKET: "historias-clinicas"
+  SUPABASE_STORAGE_SERVICE_ROLE_KEY: ""
+  REDIS_URL: ""
+  TURNOS_PUBLIC_REDIS_REQUIRED: "False"
+  TURNOS_PUBLIC_BOOKING_IP_LIMIT: "10"
+  TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS: "900"
+  TURNOS_PUBLIC_BOOKING_DNI_LIMIT: "5"
+  TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS: "3600"
+  TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS: "3"
+  TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI: "2"
+  TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS: "3600"
+  TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS: "86400"
+  TURNSTILE_ENABLED: "False"
+  TURNSTILE_SITE_KEY: ""
+  TURNSTILE_SECRET_KEY: ""
+  GOOGLE_CALENDAR_CLIENT_ID: ""
+  GOOGLE_CALENDAR_CLIENT_SECRET: ""
+  GOOGLE_CALENDAR_CLIENT_SECRETS_FILE: ""
+  GOOGLE_CALENDAR_REDIRECT_URI: "http://localhost/turnos/google-calendar/callback/"
+  GOOGLE_CALENDAR_SCOPES: "https://www.googleapis.com/auth/calendar.events"
+  OAUTH_TOKEN_ENCRYPTION_KEY: ""
+  ODONTOGRAMA_FEATURE_ENABLED: "False"
+  DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS: "False"
+  ACCESO_CLINICO_EMERGENCIA_SECONDS: "900"
+
+jobs:
+  django-ci:
+    name: Django checks and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Actualizar pip
+        run: python -m pip install --upgrade pip
+
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements.txt
+
+      - name: Verificar dependencias
+        run: python -m pip check
+
+      - name: Validar codificacion de textos
+        if: ${{ hashFiles('scripts/check_text_encoding.py') != '' }}
+        run: python scripts/check_text_encoding.py
+
+      - name: Validar configuracion de Django
+        working-directory: app
+        run: python manage.py check
+
+      - name: Comprobar migraciones
+        working-directory: app
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Ejecutar tests
+        working-directory: app
+        run: python manage.py test --verbosity 2
+
+      - name: Generar archivos estaticos
+        working-directory: app
+        run: python manage.py collectstatic --noinput

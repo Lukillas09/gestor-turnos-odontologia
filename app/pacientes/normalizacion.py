@@ -14,8 +14,12 @@ def normalizar_texto_persona(valor):
     return valor.casefold()
 
 
+def normalizar_email_para_comparacion(valor):
+    return str(valor or "").strip().lower()
+
+
 def normalizar_email(valor):
-    return str(valor or "").strip().casefold()
+    return normalizar_email_para_comparacion(valor)
 
 
 def normalizar_telefono(valor):

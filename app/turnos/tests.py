@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from io import StringIO
+from secrets import token_urlsafe
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -40,6 +41,7 @@ from turnos.public_access.tokens import (
     PUBLIC_ACTION_TOKENS_SESSION_KEY,
     hash_valor_publico,
 )
+from turnos.solicitudes_publicas.proteccion import SESSION_IDEMPOTENCY_KEY
 from turnos.selectors import (
     obtener_bloques_agenda_del_dia,
     obtener_horarios_disponibles,
@@ -58,8 +60,11 @@ from turnos.excepciones import (
     obtener_horarios_publicos_disponibles,
     validar_intervalo_reserva_publica,
 )
-from turnos.forms import RevisionYConfirmacionTurnoPublicoForm
-from turnos.solicitudes_publicas.services import crear_solicitud_publica_de_turno
+from turnos.forms import RevisionYConfirmacionTurnoPublicoForm, SolicitudTurnoPublicaForm
+from turnos.solicitudes_publicas.services import (
+    crear_solicitud_publica_de_turno,
+    revisar_solicitud_publica,
+)
 from consultorio.models import ConfiguracionConsultorio
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
@@ -92,6 +97,16 @@ def obtener_fecha_laboral_futura():
         fecha += timedelta(days=1)
 
     return fecha
+
+
+def crear_idempotency_token_para_cliente(client):
+    token = token_urlsafe(32)
+    session = client.session
+    tokens = session.get(SESSION_IDEMPOTENCY_KEY, {})
+    tokens[token] = int(timezone.now().timestamp())
+    session[SESSION_IDEMPOTENCY_KEY] = tokens
+    session.save()
+    return token
 
 
 class TurnoModelTests(TestCase):
@@ -1105,9 +1120,13 @@ class SolicitudTurnoPublicaTests(TestCase):
             "fecha": self.fecha_turno.isoformat(),
             "hora_inicio": "10:00",
             "motivo": "Consulta inicial",
+            "idempotency_token": self._crear_idempotency_token(),
         }
         datos.update(overrides)
         return datos
+
+    def _crear_idempotency_token(self):
+        return crear_idempotency_token_para_cliente(self.client)
 
     def _crear_turno_existente(self, estado, hora_inicio=time(10, 0)):
         paciente = Paciente.objects.create(
@@ -1154,10 +1173,497 @@ class SolicitudTurnoPublicaTests(TestCase):
                 "fecha": self.fecha_turno.isoformat(),
                 "hora_inicio": hora_inicio,
                 "motivo": "Control",
+                "idempotency_token": self._crear_idempotency_token(),
             },
         )
 
         return SolicitudTurnoPublica.objects.get(paciente=paciente), paciente
+
+    def test_formulario_publico_exige_email_para_paciente_nuevo(self):
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="80111222",
+                email="",
+                motivo="Sin email nuevo",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("email", response.context["form"].errors)
+        self.assertContains(
+            response,
+            "Ingresá un email para poder consultar y administrar tu turno.",
+        )
+        self.assertFalse(Paciente.objects.filter(documento="80111222").exists())
+        self.assertFalse(Turno.objects.filter(motivo="Sin email nuevo").exists())
+        self.assertFalse(SolicitudTurnoPublica.objects.filter(documento_enviado="80111222").exists())
+
+    def test_formulario_publico_permite_paciente_nuevo_con_email_valido(self):
+        form = SolicitudTurnoPublicaForm(
+            data=self._datos_solicitud_publica(documento="80111223")
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_formulario_publico_permite_paciente_existente_con_email_y_campo_vacio(self):
+        Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="80111224",
+            telefono="1155667788",
+            email="registrado@example.com",
+        )
+
+        form = SolicitudTurnoPublicaForm(
+            data=self._datos_solicitud_publica(
+                documento="80.111.224",
+                email="",
+                hora_inicio="11:00",
+            )
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_formulario_publico_exige_email_para_paciente_existente_activo_sin_email(self):
+        Paciente.objects.create(
+            nombre="Sin",
+            apellido="Email",
+            documento="80111225",
+            telefono="1155667788",
+            email="",
+        )
+
+        form = SolicitudTurnoPublicaForm(
+            data=self._datos_solicitud_publica(
+                documento="80.111.225",
+                email="",
+                hora_inicio="11:30",
+            )
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+        self.assertIn(
+            "Ingresá un email para poder consultar y administrar tu turno.",
+            form.errors["email"],
+        )
+
+    def test_formulario_publico_rechaza_email_invalido(self):
+        form = SolicitudTurnoPublicaForm(
+            data=self._datos_solicitud_publica(
+                documento="80111226",
+                email="email-invalido",
+                hora_inicio="12:00",
+            )
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("Ingresá un email válido.", form.errors["email"])
+
+    @override_settings(
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=1,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=0,
+        TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=1,
+    )
+    def test_rate_limit_por_ip_bloquea_sin_crear_registros(self):
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(documento="84111222", hora_inicio="10:00"),
+            REMOTE_ADDR="203.0.113.10",
+        )
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84111223",
+                hora_inicio="10:30",
+                motivo="Bloqueado por IP",
+            ),
+            REMOTE_ADDR="203.0.113.10",
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Retry-After", response.headers)
+        self.assertFalse(Turno.objects.filter(motivo="Bloqueado por IP").exists())
+        self.assertFalse(SolicitudTurnoPublica.objects.filter(documento_enviado="84111223").exists())
+        self.assertFalse(Paciente.objects.filter(documento="84111223").exists())
+        self.assertContains(
+            response,
+            "No pudimos registrar otra solicitud en este momento",
+            status_code=429,
+        )
+
+    @override_settings(
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=1,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=0,
+        TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=1,
+    )
+    def test_rate_limit_por_ip_separa_direcciones(self):
+        response_1 = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(documento="84111224", hora_inicio="10:00"),
+            REMOTE_ADDR="203.0.113.11",
+        )
+        response_2 = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(documento="84111225", hora_inicio="10:30"),
+            REMOTE_ADDR="203.0.113.12",
+        )
+
+        self.assertRedirects(response_1, reverse("landing_publica"))
+        self.assertRedirects(response_2, reverse("landing_publica"))
+        self.assertEqual(Turno.objects.count(), 2)
+
+    @override_settings(
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=0,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=1,
+        TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=1,
+    )
+    def test_rate_limit_por_dni_normalizado_funciona_aunque_cambie_ip(self):
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(documento="84.111.226", hora_inicio="10:00"),
+            REMOTE_ADDR="203.0.113.13",
+        )
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84 111 226",
+                hora_inicio="10:30",
+                motivo="Bloqueado por DNI",
+            ),
+            REMOTE_ADDR="203.0.113.14",
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(Turno.objects.filter(motivo="Bloqueado por DNI").exists())
+        self.assertNotContains(response, "límite por DNI", status_code=429)
+
+    @override_settings(
+        TURNSTILE_ENABLED=True,
+        TURNSTILE_SITE_KEY="site-key",
+        TURNSTILE_SECRET_KEY="secret-key",
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=5,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=5,
+        TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=1,
+    )
+    def test_turnstile_aparece_despues_del_umbral_y_falla_cerrado(self):
+        response_inicial = self.client.get(
+            reverse("turnos:solicitud_publica_datos"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": self.fecha_turno.isoformat(),
+                "hora_inicio": "10:00",
+            },
+        )
+        self.assertFalse(response_inicial.context["turnstile_requerido"])
+        self.assertNotContains(response_inicial, "TURNSTILE_SECRET_KEY")
+
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(documento="84111227", hora_inicio="10:00"),
+        )
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84111228",
+                hora_inicio="10:30",
+                motivo="Sin Turnstile",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "cf-turnstile", status_code=400)
+        self.assertContains(
+            response,
+            "Completá la verificación de seguridad para continuar.",
+            status_code=400,
+        )
+        self.assertFalse(Turno.objects.filter(motivo="Sin Turnstile").exists())
+
+    @override_settings(
+        TURNSTILE_ENABLED=True,
+        TURNSTILE_SITE_KEY="site-key",
+        TURNSTILE_SECRET_KEY="secret-key",
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=5,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=5,
+        TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=1,
+    )
+    def test_turnstile_valido_permite_continuar_sin_saltar_limites_duros(self):
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(documento="84111229", hora_inicio="10:00"),
+        )
+
+        with patch("turnos.solicitudes_publicas.proteccion.validar_turnstile") as validar:
+            validar.return_value = SimpleNamespace(valido=True, requerido=True, error="")
+            response = self.client.post(
+                reverse("turnos:solicitud_publica_datos"),
+                {
+                    **self._datos_solicitud_publica(
+                        documento="84111230",
+                        hora_inicio="10:30",
+                        motivo="Turnstile valido",
+                    ),
+                    "cf-turnstile-response": "token",
+                },
+            )
+
+        self.assertRedirects(response, reverse("landing_publica"))
+        self.assertTrue(Turno.objects.filter(motivo="Turnstile valido").exists())
+        validar.assert_called()
+
+    @override_settings(
+        TURNSTILE_ENABLED=True,
+        TURNSTILE_SITE_KEY="site-key",
+        TURNSTILE_SECRET_KEY="secret-key",
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=1,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=0,
+        TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=0,
+    )
+    def test_turnstile_valido_no_evade_limite_duro(self):
+        with patch("turnos.solicitudes_publicas.proteccion.validar_turnstile") as validar:
+            validar.return_value = SimpleNamespace(valido=True, requerido=True, error="")
+            self.client.post(
+                reverse("turnos:solicitud_publica_datos"),
+                {
+                    **self._datos_solicitud_publica(documento="84111231", hora_inicio="10:00"),
+                    "cf-turnstile-response": "token-1",
+                },
+            )
+            response = self.client.post(
+                reverse("turnos:solicitud_publica_datos"),
+                {
+                    **self._datos_solicitud_publica(
+                        documento="84111232",
+                        hora_inicio="10:30",
+                        motivo="Turnstile no evita limite",
+                    ),
+                    "cf-turnstile-response": "token-2",
+                },
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(Turno.objects.filter(motivo="Turnstile no evita limite").exists())
+
+    def test_doble_post_con_mismo_token_no_crea_duplicado_ni_reenvia_email(self):
+        token = self._crear_idempotency_token()
+        datos = self._datos_solicitud_publica(
+            documento="84111233",
+            idempotency_token=token,
+            motivo="Doble click",
+        )
+
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            response_1 = self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+            response_2 = self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+
+        self.assertRedirects(response_1, reverse("landing_publica"))
+        self.assertRedirects(response_2, reverse("landing_publica"))
+        self.assertEqual(Turno.objects.filter(motivo="Doble click").count(), 1)
+        self.assertEqual(SolicitudTurnoPublica.objects.filter(documento_enviado="84111233").count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_token_de_otra_sesion_es_rechazado(self):
+        otro_cliente = Client()
+        token = self._crear_idempotency_token()
+        datos = self._datos_solicitud_publica(
+            documento="84111234",
+            idempotency_token=token,
+            motivo="Token otra sesion",
+        )
+
+        response = otro_cliente.post(reverse("turnos:solicitud_publica_datos"), datos)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Turno.objects.filter(motivo="Token otra sesion").exists())
+
+    def test_duplicado_exacto_desde_otra_sesion_no_crea_otra_solicitud(self):
+        datos = self._datos_solicitud_publica(
+            documento="84111235",
+            motivo="Duplicado exacto",
+        )
+        self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+
+        otro_cliente = Client()
+        datos_duplicados = {
+            **datos,
+            "idempotency_token": crear_idempotency_token_para_cliente(otro_cliente),
+        }
+        response = otro_cliente.post(reverse("turnos:solicitud_publica_datos"), datos_duplicados)
+
+        self.assertRedirects(response, reverse("landing_publica"))
+        self.assertEqual(Turno.objects.filter(motivo="Duplicado exacto").count(), 1)
+        self.assertEqual(SolicitudTurnoPublica.objects.filter(documento_enviado="84111235").count(), 1)
+
+    def test_turno_cancelado_permite_solicitar_nuevamente_mismo_horario(self):
+        datos = self._datos_solicitud_publica(
+            documento="84111236",
+            motivo="Reintento cancelado",
+        )
+        self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+        turno = Turno.objects.get(motivo="Reintento cancelado")
+        turno.estado = Turno.Estado.CANCELADO
+        turno.save(update_fields=["estado", "actualizado_en"])
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84111236",
+                motivo="Reintento cancelado",
+                hora_inicio="10:00",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("landing_publica"))
+        self.assertEqual(Turno.objects.filter(motivo="Reintento cancelado").count(), 2)
+
+    def test_paciente_archivado_repetido_no_crea_alertas_ilimitadas(self):
+        paciente = Paciente.objects.create(
+            nombre="Archivado",
+            apellido="Duplicado",
+            documento="84111237",
+            email="archivado-duplicado@example.com",
+        )
+        paciente.archivar_en_memoria(None, "Archivo previo")
+        paciente.save()
+
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84.111.237",
+                email="nuevo@example.com",
+                motivo="Alerta duplicada",
+            ),
+        )
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84.111.237",
+                email="nuevo@example.com",
+                motivo="Alerta duplicada",
+            ),
+        )
+
+        self.assertEqual(SolicitudTurnoPublica.objects.filter(paciente=paciente, turno__isnull=True).count(), 1)
+        self.assertFalse(Turno.objects.filter(paciente=paciente).exists())
+
+    @override_settings(
+        TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI=2,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=0,
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=0,
+    )
+    def test_maximo_de_pendientes_por_dni_bloquea_tercera_solicitud(self):
+        for hora in ("10:00", "10:30"):
+            response = self.client.post(
+                reverse("turnos:solicitud_publica_datos"),
+                self._datos_solicitud_publica(
+                    documento="84.111.238",
+                    hora_inicio=hora,
+                    motivo=f"Pendiente {hora}",
+                ),
+            )
+            self.assertRedirects(response, reverse("landing_publica"))
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84 111 238",
+                hora_inicio="11:00",
+                motivo="Pendiente bloqueada",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(Turno.objects.filter(motivo="Pendiente bloqueada").exists())
+        self.assertContains(
+            response,
+            "No pudimos registrar otra solicitud en este momento",
+            status_code=429,
+        )
+
+    @override_settings(
+        TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI=1,
+        TURNOS_PUBLIC_BOOKING_DNI_LIMIT=0,
+        TURNOS_PUBLIC_BOOKING_IP_LIMIT=0,
+    )
+    def test_maximo_no_cuenta_turnos_confirmados_cancelados_pasados_ni_internos(self):
+        paciente = Paciente.objects.create(
+            nombre="Limite",
+            apellido="No Cuenta",
+            documento="84111239",
+            email="limite@example.com",
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(11, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Interno pendiente",
+        )
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84.111.239",
+                hora_inicio="10:00",
+                motivo="Pendiente publica permitida",
+            ),
+        )
+        self.assertRedirects(response, reverse("landing_publica"))
+
+        turno = Turno.objects.get(motivo="Pendiente publica permitida")
+        turno.estado = Turno.Estado.CONFIRMADO
+        turno.save(update_fields=["estado", "actualizado_en"])
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="84.111.239",
+                hora_inicio="10:30",
+                motivo="Pendiente publica tras confirmado",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("landing_publica"))
+
+    def test_fallo_de_cache_devuelve_503_sin_crear_registros(self):
+        with patch(
+            "turnos.solicitudes_publicas.proteccion.incrementar_limite",
+            side_effect=RuntimeError("cache caido"),
+        ):
+            response = self.client.post(
+                reverse("turnos:solicitud_publica_datos"),
+                self._datos_solicitud_publica(
+                    documento="84111240",
+                    motivo="Cache caido",
+                ),
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(Turno.objects.filter(motivo="Cache caido").exists())
+        self.assertContains(
+            response,
+            "No pudimos registrar la solicitud en este momento",
+            status_code=503,
+        )
+
+    def test_claves_de_rate_limit_no_guardan_ip_ni_dni_en_texto_plano(self):
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(documento="84.111.241"),
+            REMOTE_ADDR="203.0.113.15",
+        )
+        claves = " ".join(str(clave) for clave in getattr(cache, "_cache", {}).keys())
+
+        self.assertNotIn("84111241", claves)
+        self.assertNotIn("203.0.113.15", claves)
 
     def test_formulario_publico_inicia_sin_odontologo_seleccionado(self):
         response = self.client.get(reverse("turnos:solicitud_publica"))
@@ -1225,13 +1731,17 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("landing_publica"))
+        paciente.refresh_from_db()
         solicitud = SolicitudTurnoPublica.objects.get(paciente=paciente)
         self.assertIsNone(solicitud.turno_id)
+        self.assertEqual(paciente.email, "archivado@example.com")
+        self.assertEqual(solicitud.email_enviado, "nuevo@example.com")
         self.assertTrue(solicitud.requiere_revision)
         self.assertEqual(
             solicitud.estado_revision,
             SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
         )
+        self.assertEqual(len(mail.outbox), 0)
         self.assertFalse(Turno.objects.filter(paciente=paciente).exists())
         self.assertFalse(
             PacienteOdontologo.objects.filter(
@@ -1334,14 +1844,24 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "10:00 a 10:30")
         self.assertContains(response, "Enviar solicitud")
         self.assertContains(response, "Tus datos de contacto")
+        self.assertContains(
+            response,
+            "Usaremos este correo para enviarte códigos de acceso",
+        )
+        self.assertContains(
+            response,
+            "Si ya sos paciente, cualquier cambio en tus datos será revisado",
+        )
+        self.assertContains(response, "Necesario si es tu primera solicitud")
+        self.assertNotContains(response, "o dejá el campo vacío")
         self.assertContains(response, 'name="hora_inicio" value="10:00"')
         self.assertNotContains(response, 'name="hora_inicio" value="10:00:00"')
         self.assertNotContains(response, "Fecha de nacimiento")
-        self.assertNotContains(response, "Sexo / gÃ©nero")
+        self.assertNotContains(response, "Sexo / género")
         self.assertNotContains(response, "Domicilio")
         self.assertNotContains(response, "Localidad")
         self.assertNotContains(response, "Obra social")
-        self.assertNotContains(response, "NÃºmero de afiliado")
+        self.assertNotContains(response, "Número de afiliado")
         self.assertNotContains(response, "Contacto de emergencia")
 
     def test_formulario_publico_no_permite_buscar_fecha_pasada(self):
@@ -1461,6 +1981,10 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, self.fecha_turno.strftime("%d/%m/%Y"))
         self.assertContains(response, "10:00 a 10:30")
         self.assertContains(response, "Pendiente")
+        self.assertContains(
+            response,
+            "Guardá el email que ingresaste. Cuando el contacto quede habilitado",
+        )
         self.assertNotContains(response, "Paz, Lucia")
         self.assertNotContains(response, "Consulta inicial")
 
@@ -1491,6 +2015,7 @@ class SolicitudTurnoPublicaTests(TestCase):
                     "fecha": self.fecha_turno.isoformat(),
                     "hora_inicio": "11:00",
                     "motivo": "Control",
+                    "idempotency_token": self._crear_idempotency_token(),
                 },
             )
 
@@ -1530,6 +2055,40 @@ class SolicitudTurnoPublicaTests(TestCase):
         solicitud.refresh_from_db()
         self.assertIsNotNone(solicitud.notificacion_contacto_existente_en)
 
+    def test_solicitud_publica_existente_con_email_vacio_conserva_email_y_no_marca_diferencia(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Paz",
+            documento="39111223",
+            telefono="1155667788",
+            email="registrado@example.com",
+        )
+
+        response = self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="39.111.223",
+                email="",
+                hora_inicio="11:30",
+                motivo="Email persistido",
+            ),
+        )
+
+        paciente.refresh_from_db()
+        turno = Turno.objects.get(motivo="Email persistido")
+        solicitud = turno.solicitud_publica
+
+        self.assertRedirects(response, reverse("landing_publica"))
+        self.assertEqual(turno.paciente, paciente)
+        self.assertEqual(paciente.email, "registrado@example.com")
+        self.assertEqual(solicitud.email_enviado, "")
+        self.assertNotIn("email", solicitud.diferencias_detectadas)
+        self.assertFalse(solicitud.requiere_revision)
+        self.assertEqual(
+            solicitud.estado_revision,
+            SolicitudTurnoPublica.EstadoRevision.SIN_DIFERENCIAS,
+        )
+
     def test_solicitud_publica_no_alerta_por_diferencias_solo_de_formato(self):
         paciente = Paciente.objects.create(
             nombre="Juan Carlos",
@@ -1566,6 +2125,7 @@ class SolicitudTurnoPublicaTests(TestCase):
             solicitud.estado_revision,
             SolicitudTurnoPublica.EstadoRevision.SIN_DIFERENCIAS,
         )
+        self.assertNotIn("email", solicitud.diferencias_detectadas)
         self.assertEqual(solicitud.nombre_enviado, "JUAN   CARLOS")
         self.assertEqual(solicitud.documento_enviado, "30123456")
 
@@ -1597,6 +2157,10 @@ class SolicitudTurnoPublicaTests(TestCase):
 
         self.assertRedirects(response, reverse("landing_publica"))
         self.assertEqual(turno.paciente, paciente)
+        paciente.refresh_from_db()
+        self.assertEqual(paciente.email, "")
+        self.assertEqual(solicitud.email_enviado, "externo@example.com")
+        self.assertIn("email", solicitud.diferencias_detectadas)
         self.assertEqual(len(mail.outbox), 0)
         self.assertTrue(solicitud.requiere_revision)
         self.assertEqual(
@@ -1604,6 +2168,82 @@ class SolicitudTurnoPublicaTests(TestCase):
             SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
         )
         self.assertIn("sin email", solicitud.notificacion_contacto_existente_error.lower())
+
+    def test_servicio_rechaza_paciente_nuevo_sin_email_sin_crear_registros(self):
+        datos = self._datos_solicitud_publica(
+            documento="81111222",
+            email="",
+            motivo="Servicio sin email",
+        )
+        datos.update(
+            {
+                "odontologo": self.odontologo,
+                "fecha": self.fecha_turno,
+                "hora_inicio": time(13, 0),
+            }
+        )
+
+        with self.assertRaises(ValidationError) as contexto:
+            crear_solicitud_publica_de_turno(datos)
+
+        self.assertIn("email", contexto.exception.message_dict)
+        self.assertFalse(Paciente.objects.filter(documento="81111222").exists())
+        self.assertFalse(Turno.objects.filter(motivo="Servicio sin email").exists())
+        self.assertFalse(SolicitudTurnoPublica.objects.filter(documento_enviado="81111222").exists())
+
+    def test_servicio_crea_paciente_nuevo_con_email_sin_verificar(self):
+        datos = self._datos_solicitud_publica(
+            documento="81111223",
+            email="servicio@example.com",
+            motivo="Servicio con email",
+        )
+        datos.update(
+            {
+                "odontologo": self.odontologo,
+                "fecha": self.fecha_turno,
+                "hora_inicio": time(13, 30),
+            }
+        )
+
+        resultado = crear_solicitud_publica_de_turno(datos)
+        paciente = resultado.paciente
+
+        self.assertTrue(resultado.paciente_creado)
+        self.assertEqual(paciente.email, "servicio@example.com")
+        self.assertIsNone(paciente.email_verificado_en)
+        self.assertEqual(paciente.origen_alta, Paciente.OrigenAlta.SOLICITUD_PUBLICA)
+        self.assertEqual(
+            paciente.estado_validacion_datos,
+            Paciente.EstadoValidacionDatos.PENDIENTE,
+        )
+        self.assertIsNotNone(resultado.turno)
+        self.assertEqual(resultado.solicitud.email_enviado, "servicio@example.com")
+
+    def test_servicio_rechaza_paciente_existente_activo_sin_email_y_email_vacio(self):
+        Paciente.objects.create(
+            nombre="Sin",
+            apellido="Email",
+            documento="81111224",
+            email="",
+        )
+        datos = self._datos_solicitud_publica(
+            documento="81.111.224",
+            email="",
+            motivo="Existente sin email",
+        )
+        datos.update(
+            {
+                "odontologo": self.odontologo,
+                "fecha": self.fecha_turno,
+                "hora_inicio": time(14, 0),
+            }
+        )
+
+        with self.assertRaises(ValidationError) as contexto:
+            crear_solicitud_publica_de_turno(datos)
+
+        self.assertIn("email", contexto.exception.message_dict)
+        self.assertFalse(Turno.objects.filter(motivo="Existente sin email").exists())
 
     def test_solicitud_publica_normaliza_dni_y_no_duplica_paciente(self):
         self.client.post(
@@ -1934,8 +2574,37 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertIsNotNone(solicitud.revisada_en)
         self.assertEqual(solicitud.observaciones_revision, "Validado por llamada.")
 
+    def test_recepcion_aplica_email_propuesto_y_lo_deja_sin_verificar(self):
+        solicitud, paciente = self._crear_solicitud_existente_con_diferencias(hora_inicio="11:30")
+        paciente.email_verificado_en = timezone.now()
+        paciente.save(update_fields=["email_verificado_en", "actualizado_en"])
+        usuario = self._crear_usuario_recepcion(username="recepcion.email")
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("turnos:confirmar", kwargs={"pk": solicitud.turno_id}),
+            {
+                "duracion_rapida": "30",
+                "accion_revision": "aplicar_campos",
+                "campos": ["email"],
+                "observaciones": "Email aplicado por recepcion.",
+            },
+        )
+
+        paciente.refresh_from_db()
+        solicitud.refresh_from_db()
+
+        self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": solicitud.turno_id}))
+        self.assertEqual(paciente.email, "nadia@example.com")
+        self.assertIsNone(paciente.email_verificado_en)
+        self.assertEqual(solicitud.campos_actualizados, ["email"])
+        self.assertEqual(solicitud.revisada_por, usuario)
+
     def test_recepcion_puede_conservar_datos_actuales(self):
         solicitud, paciente = self._crear_solicitud_existente_con_diferencias()
+        verificado_en = timezone.now()
+        paciente.email_verificado_en = verificado_en
+        paciente.save(update_fields=["email_verificado_en", "actualizado_en"])
         usuario = self._crear_usuario_recepcion(username="recepcion.conservar")
         self.client.force_login(usuario)
 
@@ -1955,13 +2624,70 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": solicitud.turno_id}))
         self.assertEqual(paciente.telefono, "1100000000")
         self.assertEqual(paciente.email, "contacto-original@example.com")
+        self.assertEqual(paciente.email_verificado_en, verificado_en)
         self.assertEqual(solicitud.turno.estado, Turno.Estado.CONFIRMADO)
         self.assertEqual(
             solicitud.estado_revision,
             SolicitudTurnoPublica.EstadoRevision.REVISADA_SIN_CAMBIOS,
         )
         self.assertEqual(solicitud.campos_actualizados, [])
+        self.assertIn("email", solicitud.campos_descartados)
         self.assertFalse(solicitud.requiere_revision)
+
+    def test_recepcion_no_borra_verificacion_si_email_aplicado_coincide_normalizado(self):
+        verificado_en = timezone.now()
+        paciente = Paciente.objects.create(
+            nombre="Igual",
+            apellido="Email",
+            documento="82111222",
+            telefono="1155667788",
+            email="paciente@example.com",
+            email_verificado_en=verificado_en,
+        )
+        turno = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha_turno,
+            hora_inicio=time(14, 30),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+        solicitud = SolicitudTurnoPublica.objects.create(
+            paciente=paciente,
+            turno=turno,
+            paciente_existente=True,
+            requiere_revision=True,
+            documento_enviado=paciente.documento,
+            nombre_enviado=paciente.nombre,
+            apellido_enviado=paciente.apellido,
+            telefono_enviado=paciente.telefono,
+            email_enviado=" PACIENTE@example.com ",
+            diferencias_detectadas={
+                "email": {
+                    "actual": "paciente@example.com",
+                    "enviado": " PACIENTE@example.com ",
+                }
+            },
+            estado_revision=SolicitudTurnoPublica.EstadoRevision.PENDIENTE,
+        )
+        actualizado_en_original = paciente.actualizado_en
+        usuario = self._crear_usuario_recepcion(username="recepcion.email.igual")
+
+        revisar_solicitud_publica(
+            solicitud_id=solicitud.id,
+            usuario=usuario,
+            accion="aplicar_campos",
+            campos_a_actualizar={"email"},
+        )
+
+        paciente.refresh_from_db()
+        solicitud.refresh_from_db()
+
+        self.assertEqual(paciente.email, "paciente@example.com")
+        self.assertEqual(paciente.email_verificado_en, verificado_en)
+        self.assertEqual(paciente.actualizado_en, actualizado_en_original)
+        self.assertEqual(solicitud.campos_actualizados, [])
+        self.assertEqual(solicitud.campos_descartados, ["email"])
 
     def test_recepcion_puede_mantener_pendiente_para_revisar_mas_tarde(self):
         paciente = Paciente.objects.create(
@@ -2424,6 +3150,107 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertIsNotNone(desafio.invalidado_en)
         self.assertNotIn(PUBLIC_ACCESS_SESSION_KEY, self.client.session)
 
+    def test_paciente_sin_email_persistido_genera_desafio_ficticio_y_no_envia_otp(self):
+        paciente = self._crear_paciente_publico(documento="83111222", email="")
+
+        with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
+            response = self.client.post(
+                reverse("turnos:acceso_publico_solicitar"),
+                {"documento": paciente.documento},
+                follow=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertFalse(DesafioAccesoPublicoTurnos.objects.filter(paciente=paciente).exists())
+        self.assertTrue(
+            DesafioAccesoPublicoTurnos.objects.filter(
+                paciente__isnull=True,
+                canal=DesafioAccesoPublicoTurnos.Canal.FICTICIO,
+            ).exists()
+        )
+
+    def test_email_solo_propuesto_en_solicitud_no_habilita_otp(self):
+        paciente = self._crear_paciente_publico(documento="83111223", email="")
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="83.111.223",
+                email="propuesto@example.com",
+                hora_inicio="15:00",
+                motivo="Email propuesto",
+            ),
+        )
+        paciente.refresh_from_db()
+        mail.outbox.clear()
+
+        with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
+            self.client.post(
+                reverse("turnos:acceso_publico_solicitar"),
+                {"documento": paciente.documento},
+            )
+
+        self.assertEqual(paciente.email, "")
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertTrue(DesafioAccesoPublicoTurnos.objects.filter(paciente__isnull=True).exists())
+
+    def test_otp_usa_email_persistido_despues_de_aplicar_email_propuesto(self):
+        paciente = self._crear_paciente_publico(documento="83111224", email="")
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="83.111.224",
+                email="aplicado@example.com",
+                hora_inicio="15:30",
+                motivo="Email aplicado",
+            ),
+        )
+        solicitud = SolicitudTurnoPublica.objects.get(paciente=paciente)
+        usuario = self._crear_usuario_recepcion(username="recepcion.otp")
+
+        revisar_solicitud_publica(
+            solicitud_id=solicitud.id,
+            usuario=usuario,
+            accion="aplicar_campos",
+            campos_a_actualizar={"email"},
+        )
+        paciente.refresh_from_db()
+
+        self.assertEqual(paciente.email, "aplicado@example.com")
+        self.assertIsNone(paciente.email_verificado_en)
+
+        self._solicitar_y_validar_acceso_publico(paciente, codigo="654321")
+        paciente.refresh_from_db()
+
+        self.assertEqual(mail.outbox[0].to, ["aplicado@example.com"])
+        self.assertIsNotNone(paciente.email_verificado_en)
+
+    def test_otp_de_paciente_existente_ignora_email_publico_diferente(self):
+        paciente = self._crear_paciente_publico(
+            documento="83111225",
+            email="persistido@example.com",
+        )
+        self.client.post(
+            reverse("turnos:solicitud_publica_datos"),
+            self._datos_solicitud_publica(
+                documento="83.111.225",
+                email="propuesto-distinto@example.com",
+                hora_inicio="16:00",
+                motivo="Email distinto OTP",
+            ),
+        )
+        mail.outbox.clear()
+
+        with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
+            self.client.post(
+                reverse("turnos:acceso_publico_solicitar"),
+                {"documento": paciente.documento},
+            )
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["persistido@example.com"])
+        self.assertNotEqual(mail.outbox[0].to, ["propuesto-distinto@example.com"])
+
     def test_codigo_vencido_no_valida(self):
         paciente = self._crear_paciente_publico()
 
@@ -2843,6 +3670,7 @@ class TurnoEmailNotificationTests(TestCase):
                     "fecha": self.fecha_turno.isoformat(),
                     "hora_inicio": "10:00",
                     "motivo": "Consulta inicial",
+                    "idempotency_token": crear_idempotency_token_para_cliente(self.client),
                 },
             )
 

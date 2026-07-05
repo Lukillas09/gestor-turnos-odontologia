@@ -99,7 +99,11 @@ Estas reglas aplican a selección pública, endpoint JSON de horarios, formulari
 
 El flujo publico de autogestion usa un desafio OTP por email, sesion temporal verificada, permisos persistentes de un solo uso por turno y rate limiting en cache. En produccion `REDIS_URL` debe apuntar a Redis para que los limites funcionen entre procesos/instancias.
 
-La solicitud publica de un turno crea un `Turno` pendiente y conserva una `SolicitudTurnoPublica` asociada como auditoria. La revision de datos se resuelve desde el detalle/confirmacion del turno: los datos enviados no sobrescriben automaticamente al paciente existente, y las diferencias solo se aplican si un usuario autorizado selecciona campos concretos. Las solicitudes que no generan turno, como pacientes archivados, quedan en `/turnos/alertas-administrativas/`.
+La solicitud publica de un turno crea un `Turno` pendiente y conserva una `SolicitudTurnoPublica` asociada como auditoria. El email es obligatorio para pacientes nuevos y para pacientes existentes activos sin email registrado. En pacientes existentes, el email enviado desde la web no sobrescribe automaticamente `Paciente.email`: queda como propuesta en `SolicitudTurnoPublica.email_enviado` y se aplica solo si un usuario autorizado selecciona ese campo durante la revision.
+
+El POST final de creación de solicitud pública agrega defensa contra abuso: rate limit por IP y DNI hasheados, token de idempotencia por formulario, deduplicación exacta, máximo configurable de solicitudes pendientes por DNI y Turnstile progresivo. Los mensajes públicos son neutrales y no indican si el DNI existe, si el paciente está archivado, qué límite se alcanzó ni cuántos turnos pendientes tiene.
+
+El OTP publico consulta exclusivamente el email persistido en `Paciente.email`. Un email propuesto no se usa para codigos de acceso ni para notificaciones sensibles antes de la revision interna. Cuando se aplica un email nuevo, `email_verificado_en` queda en `None` hasta que el paciente complete correctamente el OTP. Las solicitudes que no generan turno, como pacientes archivados, quedan en `/turnos/alertas-administrativas/`.
 
 | Variable | Default | Uso |
 | --- | --- | --- |
@@ -116,11 +120,22 @@ La solicitud publica de un turno crea un `Turno` pendiente y conserva una `Solic
 | `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS` | `900` | Tiempo de vida de permisos de cancelar/reprogramar generados para la sesion. |
 | `TURNOS_PUBLIC_ACTION_LIMIT` | `20` | Cantidad maxima de acciones publicas verificadas por IP dentro de la ventana. |
 | `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS` | `900` | Ventana de rate limit para cancelar/reprogramar desde la sesion publica. |
-| `TURNSTILE_ENABLED` | `False` | Activa Cloudflare Turnstile despues de superar el umbral configurado. |
+| `TURNOS_PUBLIC_BOOKING_IP_LIMIT` | `10` | Intentos máximos de creación de solicitud pública por IP hasheada dentro de la ventana. `0` deshabilita este límite. |
+| `TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS` | `900` | Ventana del rate limit de creación por IP. |
+| `TURNOS_PUBLIC_BOOKING_DNI_LIMIT` | `5` | Intentos máximos de creación de solicitud pública por DNI normalizado y hasheado dentro de la ventana. `0` deshabilita este límite. |
+| `TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS` | `3600` | Ventana del rate limit de creación por DNI. |
+| `TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS` | `3` | Intentos previos desde los que se exige Turnstile en la creación pública cuando `TURNSTILE_ENABLED=True`. `0` lo exige desde el primer POST. |
+| `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI` | `2` | Máximo de solicitudes públicas futuras con turno pendiente para el mismo DNI. `0` lo deshabilita y no se recomienda en producción. |
+| `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS` | `3600` | Vigencia del token de idempotencia usado para evitar doble click, recarga o reenvío del POST. |
+| `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS` | `86400` | Ventana para reutilizar alertas administrativas sin turno y evitar duplicados repetidos. Los turnos activos exactos se deduplican mientras sigan pendientes o confirmados. |
+| `TURNSTILE_ENABLED` | `False` | Activa Cloudflare Turnstile como desafío complementario; no reemplaza rate limiting ni máximos duros. |
 | `TURNSTILE_SITE_KEY` | vacio | Site key publica de Turnstile. |
 | `TURNSTILE_SECRET_KEY` | vacio | Secret key privada de Turnstile. |
-| `TURNSTILE_REQUIRED_AFTER_ATTEMPTS` | `3` | Umbral de intentos desde el cual se exige Turnstile. |
+| `TURNSTILE_REQUIRED_AFTER_ATTEMPTS` | `3` | Umbral de intentos desde el cual se exige Turnstile en el flujo OTP de autogestion. |
 | `TURNSTILE_TIMEOUT_SECONDS` | `5` | Timeout para verificar Turnstile. |
+
+En desarrollo y tests puede usarse `LocMemCache`; en producción debe usarse Redis compartido y `TURNOS_PUBLIC_REDIS_REQUIRED=True`. Si Redis falla con esa configuración, la creación pública responde 503 con un mensaje genérico para evitar solicitudes ilimitadas por proceso. Si Turnstile está apagado, siguen activos los límites por IP/DNI, idempotencia, deduplicación y máximo de pendientes.
+
 ## Cifrado de Tokens OAuth
 
 | Variable | Obligatoria | Uso |

@@ -47,10 +47,14 @@
         {{ form.odontologo.as_hidden }}
         {{ form.fecha.as_hidden }}
         {{ form.hora_inicio.as_hidden }}
+        {{ form.idempotency_token }}
+        {{ form.turnstile_token }}
 
         <div class="public-form-intro">
             <h2>Tus datos de contacto</h2>
             <p>Solo pedimos lo necesario para identificarte y poder avisarte el estado del turno.</p>
+            <p class="muted">Usaremos este correo para enviarte códigos de acceso y permitirte consultar, cancelar o reprogramar tus turnos.</p>
+            <p class="muted">Si ya sos paciente, cualquier cambio en tus datos será revisado por el consultorio antes de aplicarse.</p>
         </div>
 
         {% if form.non_field_errors %}
@@ -97,6 +101,10 @@
             <div>
                 <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
                 {{ form.email }}
+                <p class="muted">Necesario si es tu primera solicitud.</p>
+                {% if form.email.help_text %}
+                    <p class="muted">{{ form.email.help_text }}</p>
+                {% endif %}
                 {% if form.email.errors %}
                     <div class="field-error">{{ form.email.errors }}</div>
                 {% endif %}
@@ -109,6 +117,13 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if turnstile_requerido and turnstile_site_key %}
+            <div class="field-full">
+                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+            </div>
+        {% endif %}
 
         <div class="form-actions public-form-actions">
             <button type="submit">Enviar solicitud</button>

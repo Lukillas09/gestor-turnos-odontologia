@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count
@@ -21,6 +22,7 @@ from django.views.generic import (
     UpdateView,
 )
 
+from pacientes.normalizacion import normalizar_documento
 from usuarios.mixins import (
     GestionConsultorioRequeridaMixin,
     GoogleCalendarRequeridoMixin,
@@ -103,12 +105,24 @@ from .excepciones import (
     validar_fecha_reserva_publica,
 )
 from .solicitudes_publicas.permissions import puede_revisar_solicitudes_publicas
+from .solicitudes_publicas.proteccion import (
+    IdempotenciaSolicitudPublicaInvalida,
+    ProteccionSolicitudPublicaError,
+    TurnstileSolicitudPublicaInvalido,
+    completar_idempotencia,
+    adquirir_idempotencia,
+    generar_idempotency_token,
+    liberar_idempotencia,
+    registrar_intento_creacion_publica,
+    turnstile_requerido_para_request,
+)
 from .solicitudes_publicas.selectors import obtener_solicitudes_publicas_para_bandeja
 from .solicitudes_publicas.selectors import (
     obtener_alertas_administrativas_publicas,
     obtener_turnos_con_revision_publica_pendiente,
 )
 from .solicitudes_publicas.services import (
+    MaximoSolicitudesPendientesError,
     rechazar_solicitud_publica_y_cancelar_turno,
     revisar_solicitud_publica,
     revisar_y_confirmar_solicitud_publica,
@@ -669,6 +683,7 @@ class SolicitudTurnoPublicaDatosView(FormView):
     form_class = SolicitudTurnoPublicaForm
     template_name = "turnos/solicitud_publica_form.html"
     success_url = reverse_lazy("landing_publica")
+    turnstile_requerido = False
 
     def get_initial(self):
         initial = super().get_initial()
@@ -676,6 +691,9 @@ class SolicitudTurnoPublicaDatosView(FormView):
 
         if reserva:
             initial.update(reserva)
+
+        if self.request.method == "GET":
+            initial["idempotency_token"] = generar_idempotency_token(self.request)
 
         return initial
 
@@ -693,6 +711,13 @@ class SolicitudTurnoPublicaDatosView(FormView):
         context = super().get_context_data(**kwargs)
         reserva = self._obtener_reserva_desde_get() or self._obtener_reserva_desde_post()
         context.update(reserva or {})
+        documento = self.request.POST.get("documento") if self.request.method == "POST" else ""
+        context["turnstile_requerido"] = (
+            self.turnstile_requerido
+            if self.request.method == "POST"
+            else turnstile_requerido_para_request(self.request, documento)
+        )
+        context["turnstile_site_key"] = settings.TURNSTILE_SITE_KEY
 
         if reserva:
             context["hora_fin"] = (
@@ -702,21 +727,120 @@ class SolicitudTurnoPublicaDatosView(FormView):
 
         return context
 
-    def form_valid(self, form):
+    def post(self, request, *args, **kwargs):
         try:
-            resultado = crear_solicitud_turno_publica_resultado(form.cleaned_data)
-        except ValidationError as error:
-            form.add_error(None, error)
-            return self.form_invalid(form)
+            intento = registrar_intento_creacion_publica(request)
+            self.turnstile_requerido = intento.requiere_turnstile
+        except ProteccionSolicitudPublicaError as error:
+            self.turnstile_requerido = isinstance(error, TurnstileSolicitudPublicaInvalido)
+            form = self.get_form()
+            form.add_error(None, error.mensaje)
+            return self._form_invalid_con_estado(form, error.status_code, error.retry_after)
 
+        if self._existe_duplicado_exacto_desde_post():
+            try:
+                resultado_idempotencia = adquirir_idempotencia(
+                    request,
+                    request.POST.get("idempotency_token"),
+                )
+                if resultado_idempotencia.debe_procesar:
+                    completar_idempotencia(resultado_idempotencia.token_hash)
+            except ProteccionSolicitudPublicaError as error:
+                form = self.get_form()
+                form.add_error(None, error.mensaje)
+                return self._form_invalid_con_estado(form, error.status_code, error.retry_after)
+
+            return self._redirigir_confirmacion_generica()
+
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        resultado_idempotencia = None
+
+        try:
+            resultado_idempotencia = adquirir_idempotencia(
+                self.request,
+                form.cleaned_data.get("idempotency_token"),
+            )
+
+            if resultado_idempotencia.es_repetido:
+                return self._redirigir_confirmacion_generica()
+
+            resultado = crear_solicitud_turno_publica_resultado(form.cleaned_data)
+            completar_idempotencia(resultado_idempotencia.token_hash)
+        except ValidationError as error:
+            if resultado_idempotencia and resultado_idempotencia.debe_procesar:
+                liberar_idempotencia(resultado_idempotencia.token_hash)
+
+            if hasattr(error, "message_dict"):
+                for field, messages in error.message_dict.items():
+                    form.add_error(field if field in form.fields else None, messages)
+            else:
+                form.add_error(None, error)
+            return self.form_invalid(form)
+        except MaximoSolicitudesPendientesError as error:
+            if resultado_idempotencia and resultado_idempotencia.debe_procesar:
+                liberar_idempotencia(resultado_idempotencia.token_hash)
+
+            form.add_error(None, error.mensaje)
+            return self._form_invalid_con_estado(
+                form,
+                429,
+                settings.TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS,
+            )
+        except IdempotenciaSolicitudPublicaInvalida as error:
+            form.add_error(None, error.mensaje)
+            return self._form_invalid_con_estado(form, error.status_code, error.retry_after)
+        except ProteccionSolicitudPublicaError as error:
+            form.add_error(None, error.mensaje)
+            return self._form_invalid_con_estado(form, error.status_code, error.retry_after)
+
+        return self._redirigir_confirmacion_generica(resultado)
+
+    def _redirigir_confirmacion_generica(self, resultado=None):
         self.request.session["solicitud_turno_publica_id"] = (
-            resultado.turno.pk if resultado.turno else None
+            resultado.turno.pk if resultado and resultado.turno else None
         )
-        self.request.session["solicitud_publica_revision_id"] = str(resultado.solicitud.pk)
+        self.request.session["solicitud_publica_revision_id"] = (
+            str(resultado.solicitud.pk) if resultado else None
+        )
         self.request.session[SOLICITUD_PUBLICA_CONFIRMADA_SESSION_KEY] = {
             "registrada": True,
         }
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
+
+    def _form_invalid_con_estado(self, form, status_code, retry_after=None):
+        response = self.form_invalid(form)
+        response.status_code = status_code
+
+        if retry_after:
+            response["Retry-After"] = str(retry_after)
+
+        return response
+
+    def _existe_duplicado_exacto_desde_post(self):
+        documento = normalizar_documento(self.request.POST.get("documento"))
+        fecha = parse_date(self.request.POST.get("fecha") or "")
+        hora_inicio = parse_time(self.request.POST.get("hora_inicio") or "")
+        odontologo_id = self.request.POST.get("odontologo")
+
+        if not documento or not fecha or not hora_inicio or not odontologo_id:
+            return False
+
+        try:
+            odontologo_id = int(odontologo_id)
+        except (TypeError, ValueError):
+            return False
+
+        return SolicitudTurnoPublica.objects.filter(
+            paciente__documento=documento,
+            turno__odontologo_id=odontologo_id,
+            turno__fecha=fecha,
+            turno__hora_inicio=hora_inicio,
+            turno__estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
+        ).exclude(
+            estado_revision=SolicitudTurnoPublica.EstadoRevision.RECHAZADA,
+        ).exists()
 
     def _obtener_reserva_desde_get(self):
         return self._obtener_reserva(self.request.GET, validar_disponibilidad=True)
@@ -1344,7 +1468,7 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
         )
 
         if not puede_reprogramar_turno(request.user, self.turno):
-            raise PermissionDenied("No tenÃ©s permiso para confirmar este turno.")
+            raise PermissionDenied("No tenés permiso para confirmar este turno.")
 
         self.solicitud_publica = getattr(self.turno, "solicitud_publica", None)
 
