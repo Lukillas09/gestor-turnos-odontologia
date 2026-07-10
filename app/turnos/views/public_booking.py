@@ -1,12 +1,16 @@
+import logging
 from datetime import datetime, timedelta
+from time import perf_counter
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.utils.formats import date_format
 from django.views import View
@@ -15,6 +19,7 @@ from django.views.generic import FormView, TemplateView
 from pacientes.normalizacion import normalizar_documento
 
 from ..excepciones import (
+    obtener_excepciones_activas,
     obtener_horarios_publicos_disponibles,
     obtener_rango_reserva_publica,
     validar_fecha_reserva_publica,
@@ -24,7 +29,7 @@ from ..forms import (
     SolicitudTurnoBusquedaPublicaForm,
     SolicitudTurnoPublicaForm,
 )
-from ..models import Odontologo, SolicitudTurnoPublica, Turno
+from ..models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
 from ..services import crear_solicitud_turno_publica_resultado
 from ..solicitudes_publicas.proteccion import (
     IdempotenciaSolicitudPublicaInvalida,
@@ -40,6 +45,85 @@ from ..solicitudes_publicas.proteccion import (
 from ..solicitudes_publicas.services import MaximoSolicitudesPendientesError
 
 SOLICITUD_PUBLICA_CONFIRMADA_SESSION_KEY = "solicitud_turno_publica_confirmada"
+PUBLIC_BOOKING_NEARBY_DAYS_LIMIT_DEFAULT = 14
+PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS_DEFAULT = 60
+
+logger = logging.getLogger(__name__)
+
+
+def obtener_horarios_publicos_disponibles_cacheados(
+    *,
+    odontologo,
+    fecha,
+    duracion_minutos,
+    intervalo_minutos=None,
+    ahora=None,
+):
+    ttl = _obtener_entero_configurado(
+        "TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS",
+        PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS_DEFAULT,
+    )
+
+    if ttl <= 0:
+        return (
+            obtener_horarios_publicos_disponibles(
+                odontologo=odontologo,
+                fecha=fecha,
+                duracion_minutos=duracion_minutos,
+                intervalo_minutos=intervalo_minutos,
+                ahora=ahora,
+            ),
+            False,
+        )
+
+    momento = timezone.localtime(ahora or timezone.now())
+    bucket = int(momento.timestamp() // ttl)
+    cache_key = (
+        "turnos:public_booking:horarios:v1:"
+        f"{odontologo.pk}:{fecha.isoformat()}:{duracion_minutos}:{intervalo_minutos or ''}:{bucket}"
+    )
+
+    try:
+        cached = cache.get(cache_key)
+    except Exception as error:
+        _registrar_warning_cache("get", error)
+        cached = None
+
+    if cached is not None:
+        return [parse_time(valor) for valor in cached if parse_time(valor)], True
+
+    horarios = obtener_horarios_publicos_disponibles(
+        odontologo=odontologo,
+        fecha=fecha,
+        duracion_minutos=duracion_minutos,
+        intervalo_minutos=intervalo_minutos,
+        ahora=ahora,
+    )
+
+    try:
+        cache.set(cache_key, [horario.strftime("%H:%M:%S") for horario in horarios], ttl)
+    except Exception as error:
+        _registrar_warning_cache("set", error)
+
+    return horarios, False
+
+
+def _registrar_warning_cache(etapa, error):
+    logger.warning(
+        "No se pudo usar cache de horarios publicos. etapa=%s cache=%s error_type=%s",
+        etapa,
+        cache.__class__.__name__,
+        error.__class__.__name__,
+    )
+
+
+def _obtener_entero_configurado(nombre, default):
+    valor = getattr(settings, nombre, default)
+
+    try:
+        return max(0, int(valor))
+    except (TypeError, ValueError):
+        return default
 
 
 class LandingPublicaPacientesView(TemplateView):
@@ -58,7 +142,7 @@ class LandingPublicaPacientesView(TemplateView):
 
 class SolicitudTurnoPublicaDisponibilidadMixin:
     def _crear_disponibilidad_publica(self, odontologo, fecha):
-        horarios = obtener_horarios_publicos_disponibles(
+        horarios, cache_hit = obtener_horarios_publicos_disponibles_cacheados(
             odontologo=odontologo,
             fecha=fecha,
             duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
@@ -78,6 +162,7 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
                 [horario for horario in horarios if horario.hour >= 13],
             ),
             "dias_cercanos": self._obtener_dias_cercanos(odontologo, fecha),
+            "cache_hit": cache_hit,
         }
 
     def _crear_opciones_horarias(self, odontologo, fecha, horarios):
@@ -97,33 +182,71 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
         if not odontologo or not fecha:
             return []
 
-        dias = []
         rango = obtener_rango_reserva_publica()
+        limite = _obtener_entero_configurado(
+            "TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT",
+            PUBLIC_BOOKING_NEARBY_DAYS_LIMIT_DEFAULT,
+        )
+        limite = max(1, limite)
+        candidatos = self._obtener_fechas_candidatas_dias_cercanos(rango, fecha, limite)
 
-        for offset in range((rango.fecha_maxima - rango.fecha_minima).days + 1):
-            dia = rango.fecha_minima + timedelta(days=offset)
-            if dia > rango.fecha_maxima:
-                break
+        if not candidatos:
+            return []
 
-            horarios = obtener_horarios_publicos_disponibles(
+        dias_semana_con_disponibilidad = set(
+            DisponibilidadOdontologo.objects.filter(
                 odontologo=odontologo,
-                fecha=dia,
-                duracion_minutos=DURACION_SOLICITUD_PUBLICA_MINUTOS,
-            )
+                activo=True,
+                dia_semana__in={dia.weekday() for dia in candidatos},
+            ).values_list("dia_semana", flat=True)
+        )
+        excepciones_todo_el_dia = list(
+            obtener_excepciones_activas(
+                odontologo,
+                min(candidatos),
+                max(candidatos),
+            ).filter(todo_el_dia=True)
+        )
+        dias = []
 
-            if not horarios:
+        for dia in candidatos:
+            if dia.weekday() not in dias_semana_con_disponibilidad:
+                continue
+
+            if self._dia_bloqueado_por_excepcion_todo_el_dia(dia, excepciones_todo_el_dia):
                 continue
 
             dias.append(
                 {
                     "fecha": dia,
-                    "cantidad": len(horarios),
+                    "cantidad": None,
                     "seleccionado": dia == fecha,
                     "url": self._crear_url_seleccion(odontologo, dia),
                 }
             )
 
         return dias
+
+    @staticmethod
+    def _obtener_fechas_candidatas_dias_cercanos(rango, fecha_seleccionada, limite):
+        candidatos = [
+            rango.fecha_minima + timedelta(days=offset)
+            for offset in range(min(limite, (rango.fecha_maxima - rango.fecha_minima).days + 1))
+        ]
+
+        if (
+            rango.fecha_minima <= fecha_seleccionada <= rango.fecha_maxima
+            and fecha_seleccionada not in candidatos
+        ):
+            candidatos.append(fecha_seleccionada)
+
+        return sorted(candidatos)
+
+    @staticmethod
+    def _dia_bloqueado_por_excepcion_todo_el_dia(dia, excepciones):
+        return any(
+            excepcion.fecha_desde <= dia <= excepcion.fecha_hasta for excepcion in excepciones
+        )
 
     @staticmethod
     def _crear_url_seleccion(odontologo, fecha):
@@ -186,6 +309,7 @@ class SolicitudTurnoPublicaView(SolicitudTurnoPublicaDisponibilidadMixin, Templa
 
 class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin, View):
     def get(self, request):
+        inicio = perf_counter()
         odontologo = self._obtener_odontologo(request.GET.get("odontologo"))
         fecha = self._obtener_fecha(request.GET.get("fecha"))
 
@@ -239,9 +363,42 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
                 }
             )
 
-        disponibilidad = self._crear_disponibilidad_publica(odontologo, fecha)
+        try:
+            disponibilidad = self._crear_disponibilidad_publica(odontologo, fecha)
+        except Exception:
+            duracion_ms = round((perf_counter() - inicio) * 1000)
+            logger.exception(
+                "Error al cargar horarios publicos. odontologo_id=%s fecha=%s duracion_ms=%s",
+                odontologo.pk,
+                fecha.isoformat(),
+                duracion_ms,
+            )
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "codigo": "error_horarios",
+                    "mensaje": "No se pudieron cargar los horarios. Intenta nuevamente.",
+                },
+                status=500,
+            )
+
         horarios_manana = disponibilidad["horarios_manana"]
         horarios_tarde = disponibilidad["horarios_tarde"]
+        duracion_ms = round((perf_counter() - inicio) * 1000)
+
+        logger.info(
+            (
+                "Horarios publicos cargados. odontologo_id=%s fecha=%s duracion_ms=%s "
+                "horarios_manana=%s horarios_tarde=%s dias_cercanos=%s cache_hit=%s"
+            ),
+            odontologo.pk,
+            fecha.isoformat(),
+            duracion_ms,
+            len(horarios_manana),
+            len(horarios_tarde),
+            len(disponibilidad["dias_cercanos"]),
+            disponibilidad.get("cache_hit", False),
+        )
 
         return JsonResponse(
             {

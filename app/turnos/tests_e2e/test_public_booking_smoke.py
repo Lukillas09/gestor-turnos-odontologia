@@ -81,6 +81,15 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.fill("input[name='fecha']", self.fecha.isoformat())
         self.page.dispatch_event("input[name='fecha']", "change")
         self.page.locator(".public-slot-button").first.wait_for()
+
+        fecha_chip = self.fecha + timedelta(days=1)
+        while fecha_chip.weekday() >= 5:
+            fecha_chip += timedelta(days=1)
+
+        self.page.locator(f"[data-public-date='{fecha_chip.isoformat()}']").wait_for()
+        self.page.locator(f"[data-public-date='{fecha_chip.isoformat()}']").click()
+        self.assertEqual(self.page.input_value("input[name='fecha']"), fecha_chip.isoformat())
+        self.page.locator(".public-slot-button").first.wait_for()
         self.page.locator(".public-slot-button").first.click()
 
         self.page.get_by_role("heading", name="Completar datos").wait_for()

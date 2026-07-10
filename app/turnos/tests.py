@@ -1739,6 +1739,8 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "09:00")
         self.assertContains(response, "10:00")
         self.assertContains(response, reverse("turnos:solicitud_publica_datos"))
+        self.assertContains(response, "Ver horarios")
+        self.assertNotContains(response, "None horario")
         self.assertNotContains(response, "09:30")
 
     def test_solicitud_publica_de_paciente_archivado_no_crea_turno(self):
@@ -1818,6 +1820,11 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(data["odontologo"]["nombre"], "Paula Publica")
         self.assertEqual(data["odontologo"]["duracion"], 30)
         self.assertEqual(data["fecha"]["iso"], self.fecha_turno.isoformat())
+        self.assertTrue(data["dias_cercanos"])
+        self.assertTrue(all(dia["cantidad"] is None for dia in data["dias_cercanos"]))
+        self.assertTrue(
+            any(dia["fecha"] == self.fecha_turno.isoformat() for dia in data["dias_cercanos"])
+        )
         self.assertIn("09:00", horarios)
         self.assertIn("10:00", horarios)
         self.assertNotIn("09:30", horarios)
@@ -1829,6 +1836,115 @@ class SolicitudTurnoPublicaTests(TestCase):
                 for horario in data[bloque]
             )
         )
+
+    @override_settings(
+        TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS=0,
+        TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT=14,
+    )
+    def test_endpoint_publico_horarios_no_calcula_horarios_exactos_para_dias_cercanos(self):
+        ConfiguracionConsultorio.objects.update_or_create(
+            pk=1,
+            defaults={
+                "ventana_reserva_publica_dias": 90,
+                "permitir_reserva_publica_mismo_dia": True,
+                "anticipacion_minima_reserva_publica_minutos": 0,
+            },
+        )
+
+        with patch(
+            "turnos.views.public_booking.obtener_horarios_publicos_disponibles",
+            wraps=obtener_horarios_publicos_disponibles,
+        ) as calcular_horarios:
+            response = self.client.get(
+                reverse("turnos:solicitud_publica_horarios"),
+                {
+                    "odontologo": self.odontologo.pk,
+                    "fecha": self.fecha_turno.isoformat(),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(calcular_horarios.call_count, 1)
+
+    @override_settings(
+        TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS=0,
+        TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT=7,
+    )
+    def test_endpoint_publico_horarios_respeta_limite_de_dias_cercanos_con_ventana_amplia(
+        self,
+    ):
+        ConfiguracionConsultorio.objects.update_or_create(
+            pk=1,
+            defaults={
+                "ventana_reserva_publica_dias": 90,
+                "permitir_reserva_publica_mismo_dia": True,
+                "anticipacion_minima_reserva_publica_minutos": 0,
+            },
+        )
+
+        for dia_semana in (5, 6):
+            DisponibilidadOdontologo.objects.create(
+                odontologo=self.odontologo,
+                dia_semana=dia_semana,
+                hora_inicio=time(9, 0),
+                hora_fin=time(18, 0),
+            )
+
+        response = self.client.get(
+            reverse("turnos:solicitud_publica_horarios"),
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": self.fecha_turno.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["ok"])
+        self.assertLessEqual(len(data["dias_cercanos"]), 7)
+        self.assertTrue(all(dia["cantidad"] is None for dia in data["dias_cercanos"]))
+
+    @override_settings(TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS=60)
+    def test_endpoint_publico_horarios_usa_cache_corto_por_odontologo_y_fecha(self):
+        with patch(
+            "turnos.views.public_booking.obtener_horarios_publicos_disponibles",
+            wraps=obtener_horarios_publicos_disponibles,
+        ) as calcular_horarios:
+            for _ in range(2):
+                response = self.client.get(
+                    reverse("turnos:solicitud_publica_horarios"),
+                    {
+                        "odontologo": self.odontologo.pk,
+                        "fecha": self.fecha_turno.isoformat(),
+                    },
+                )
+                self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(calcular_horarios.call_count, 1)
+
+    def test_endpoint_publico_horarios_devuelve_json_controlado_si_falla_calculo(self):
+        with patch(
+            (
+                "turnos.views.public_booking."
+                "SolicitudTurnoPublicaDisponibilidadMixin._crear_disponibilidad_publica"
+            ),
+            side_effect=RuntimeError("fallo simulado"),
+        ):
+            response = self.client.get(
+                reverse("turnos:solicitud_publica_horarios"),
+                {
+                    "odontologo": self.odontologo.pk,
+                    "fecha": self.fecha_turno.isoformat(),
+                },
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response["Content-Type"], "application/json")
+        data = response.json()
+        self.assertFalse(data["ok"])
+        self.assertEqual(data["codigo"], "error_horarios")
+        self.assertNotIn("<html", response.content.decode().lower())
 
     def test_endpoint_publico_horarios_maneja_odontologo_faltante(self):
         response = self.client.get(

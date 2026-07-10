@@ -130,6 +130,8 @@ El OTP publico consulta exclusivamente el email persistido en `Paciente.email`. 
 | `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI` | `2` | Máximo de solicitudes públicas futuras con turno pendiente para el mismo DNI. `0` lo deshabilita y no se recomienda en producción. |
 | `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS` | `3600` | Vigencia del token de idempotencia usado para evitar doble click, recarga o reenvío del POST. |
 | `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS` | `86400` | Ventana para reutilizar alertas administrativas sin turno y evitar duplicados repetidos. Los turnos activos exactos se deduplican mientras sigan pendientes o confirmados. |
+| `TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT` | `14` | Cantidad maxima de chips de dias cercanos calculados de forma liviana en el selector publico. No cambia la ventana real de reserva. |
+| `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS` | `60` | TTL del cache corto para horarios publicos exactos por odontologo, fecha y duracion. `0` deshabilita el cache. |
 | `TURNSTILE_ENABLED` | `False` | Activa Cloudflare Turnstile como desafío complementario; no reemplaza rate limiting ni máximos duros. |
 | `TURNSTILE_SITE_KEY` | vacio | Site key publica de Turnstile. |
 | `TURNSTILE_SECRET_KEY` | vacio | Secret key privada de Turnstile. |
