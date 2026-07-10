@@ -1,5 +1,5 @@
+from typing import Any
 from urllib.parse import parse_qsl, unquote, urlparse
-
 
 POSTGRES_SCHEMES = {"postgres", "postgresql"}
 SQLITE_SCHEMES = {"sqlite", "sqlite3"}
@@ -51,7 +51,7 @@ def configurar_postgres_desde_url(url):
     if not nombre_base:
         raise RuntimeError("DATABASE_URL debe incluir el nombre de la base PostgreSQL.")
 
-    config = {
+    config: dict[str, Any] = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": nombre_base,
     }

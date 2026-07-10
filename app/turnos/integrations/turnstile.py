@@ -1,12 +1,11 @@
+import json
+import logging
 from dataclasses import dataclass
 from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-import json
-import logging
 
 from django.conf import settings
-
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,8 @@ def validar_turnstile(token, remoteip=""):
     )
 
     try:
-        with urlopen(request, timeout=settings.TURNSTILE_TIMEOUT_SECONDS) as response:
+        # URL fija del endpoint oficial de Cloudflare Turnstile.
+        with urlopen(request, timeout=settings.TURNSTILE_TIMEOUT_SECONDS) as response:  # nosec B310
             data = json.loads(response.read().decode("utf-8"))
     except (OSError, URLError, TimeoutError, json.JSONDecodeError) as error:
         logger.warning("No se pudo validar Turnstile para acceso público.")

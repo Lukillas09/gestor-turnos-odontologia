@@ -14,9 +14,7 @@ class Command(BaseCommand):
             expira_en__lt=ahora,
         ).delete()
         acciones_eliminadas, _ = AccionPublicaTurno.objects.filter(
-            Q(expira_en__lt=ahora)
-            | Q(utilizado_en__isnull=False)
-            | Q(revocado_en__isnull=False)
+            Q(expira_en__lt=ahora) | Q(utilizado_en__isnull=False) | Q(revocado_en__isnull=False)
         ).delete()
 
         self.stdout.write(

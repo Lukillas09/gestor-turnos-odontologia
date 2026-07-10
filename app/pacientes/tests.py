@@ -3,8 +3,9 @@ from datetime import date, time
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.urls import reverse
 from django.test import TestCase, override_settings
+from django.urls import reverse
+
 from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
@@ -101,7 +102,7 @@ class PacienteAccessTests(TestCase):
             apellido="Asociado",
             documento="20111222",
         )
-        paciente_no_asociado = Paciente.objects.create(
+        Paciente.objects.create(
             nombre="Paciente",
             apellido="Externo",
             documento="20111223",

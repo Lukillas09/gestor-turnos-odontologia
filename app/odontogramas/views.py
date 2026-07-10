@@ -18,7 +18,7 @@ from pacientes.models import Paciente
 from usuarios.mixins import VerPacientesRequeridoMixin
 
 from .forms import EstadoDentalForm
-from .models import EstadoDental, Odontograma
+from .models import Odontograma
 from .permissions import puede_editar_odontograma, puede_ver_odontograma
 from .selectors import construir_filas_odontograma, construir_leyenda_colores, construir_tooltip
 from .services import obtener_o_crear_odontograma, registrar_estado_dental
@@ -68,14 +68,11 @@ class OdontogramaDetailView(PacienteOdontogramaMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         puede_editar = puede_editar_odontograma(self.request.user, self.paciente)
-        historial = (
-            self.odontograma.estados_dentales.select_related(
-                "odontologo",
-                "odontologo__usuario",
-                "registrado_por",
-            )
-            .order_by("-creado_en")[:30]
-        )
+        historial = self.odontograma.estados_dentales.select_related(
+            "odontologo",
+            "odontologo__usuario",
+            "registrado_por",
+        ).order_by("-creado_en")[:30]
         context.update(
             {
                 "paciente": self.paciente,

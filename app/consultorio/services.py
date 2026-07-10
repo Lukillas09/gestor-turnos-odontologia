@@ -1,6 +1,10 @@
+import logging
+
 from django.core.exceptions import ValidationError
 from django.db import OperationalError, ProgrammingError, transaction
 from django.db.models.deletion import ProtectedError
+
+from config.storage_backends import SupabaseStorageError
 
 from .models import (
     ANTICIPACION_MINIMA_RESERVA_PUBLICA_MINUTOS_DEFAULT,
@@ -11,6 +15,16 @@ from .models import (
     TITULO_PORTADA_DEFAULT,
     VENTANA_RESERVA_PUBLICA_DIAS_DEFAULT,
     ConfiguracionConsultorio,
+)
+
+logger = logging.getLogger(__name__)
+
+ERRORES_LIMPIEZA_LOGO = (
+    SupabaseStorageError,
+    OSError,
+    ValueError,
+    ProtectedError,
+    ValidationError,
 )
 
 
@@ -48,10 +62,8 @@ def guardar_configuracion_consultorio(configuracion, form, usuario):
         configuracion.save()
         form.save_m2m()
 
-    logo_nuevo = _nombre_logo(configuracion)
-
-    if logo_anterior and logo_anterior != logo_nuevo:
-        _borrar_logo_seguro(logo_anterior)
+        logo_nuevo = _nombre_logo(configuracion)
+        _programar_borrado_logo_anterior(logo_anterior, logo_nuevo)
 
     return configuracion
 
@@ -87,8 +99,7 @@ def restaurar_configuracion_consultorio(usuario):
         configuracion.actualizado_por = usuario if usuario.is_authenticated else None
         configuracion.save()
 
-    if logo_anterior:
-        _borrar_logo_seguro(logo_anterior)
+        _programar_borrado_logo_anterior(logo_anterior, "")
 
     return configuracion
 
@@ -98,14 +109,52 @@ def _nombre_logo(configuracion):
     return logo.name if logo else ""
 
 
+def _programar_borrado_logo_anterior(logo_anterior, logo_nuevo):
+    if not logo_anterior or logo_anterior == logo_nuevo:
+        return
+
+    def borrar_logo_anterior(nombre=logo_anterior):
+        _borrar_logo_seguro(nombre)
+
+    transaction.on_commit(borrar_logo_anterior)
+
+
 def _borrar_logo_seguro(nombre):
     if not nombre:
-        return
+        return True
 
     storage = ConfiguracionConsultorio._meta.get_field("logo").storage
 
     try:
-        if storage.exists(nombre):
-            storage.delete(nombre)
-    except (OSError, ValueError, ProtectedError, ValidationError):
-        return
+        existe = storage.exists(nombre)
+    except ERRORES_LIMPIEZA_LOGO as error:
+        _registrar_warning_limpieza_logo("exists", storage, error)
+        return False
+    except Exception as error:
+        # La limpieza del archivo anterior no debe invalidar una configuracion ya confirmada.
+        _registrar_warning_limpieza_logo("exists", storage, error)
+        return False
+
+    if not existe:
+        return True
+
+    try:
+        storage.delete(nombre)
+    except ERRORES_LIMPIEZA_LOGO as error:
+        _registrar_warning_limpieza_logo("delete", storage, error)
+        return False
+    except Exception as error:
+        # La limpieza del archivo anterior no debe invalidar una configuracion ya confirmada.
+        _registrar_warning_limpieza_logo("delete", storage, error)
+        return False
+
+    return True
+
+
+def _registrar_warning_limpieza_logo(etapa, storage, error):
+    logger.warning(
+        "No se pudo eliminar el logo anterior. etapa=%s storage=%s error_type=%s",
+        etapa,
+        storage.__class__.__name__,
+        error.__class__.__name__,
+    )

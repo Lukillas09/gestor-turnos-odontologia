@@ -71,7 +71,9 @@ class DatabaseConfigTests(SimpleTestCase):
 
     def test_rechaza_postgres_sin_nombre_de_base(self):
         with self.assertRaises(RuntimeError):
-            configurar_base_de_datos("postgres://usuario:clave@localhost:5432", Path("/proyecto/app"))
+            configurar_base_de_datos(
+                "postgres://usuario:clave@localhost:5432", Path("/proyecto/app")
+            )
 
     def test_rechaza_esquemas_no_soportados(self):
         with self.assertRaises(RuntimeError):

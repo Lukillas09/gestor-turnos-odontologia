@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 from django.core.cache import cache
 
-
 CACHE_PREFIX = "turnos:public_access"
 
 

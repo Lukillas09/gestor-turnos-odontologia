@@ -251,9 +251,7 @@ def obtener_turnos_para_recordatorio(horas_anticipacion=None, ahora=None):
     )
 
     return [
-        turno
-        for turno in turnos_candidatos
-        if ahora <= turno.fecha_hora_inicio_local <= limite
+        turno for turno in turnos_candidatos if ahora <= turno.fecha_hora_inicio_local <= limite
     ]
 
 

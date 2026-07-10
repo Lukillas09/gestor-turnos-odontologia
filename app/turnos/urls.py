@@ -1,5 +1,14 @@
 from django.urls import path
 
+from .public_access.views import (
+    CancelarTurnoPublicoSeguroView,
+    CerrarAccesoPublicoTurnosView,
+    HorariosReprogramacionPublicaJsonView,
+    MisTurnosPublicoView,
+    ReprogramarTurnoPublicoSeguroView,
+    SolicitarAccesoPublicoTurnosView,
+    VerificarAccesoPublicoTurnosView,
+)
 from .views import (
     AgendaDiaView,
     AgendaSemanaView,
@@ -15,8 +24,8 @@ from .views import (
     HorariosDisponiblesJsonView,
     SolicitudTurnoPublicaDatosView,
     SolicitudTurnoPublicaHorariosView,
-    SolicitudTurnoPublicaOkView,
     SolicitudTurnoPublicaListView,
+    SolicitudTurnoPublicaOkView,
     SolicitudTurnoPublicaRevisionView,
     SolicitudTurnoPublicaView,
     TurnoCancelView,
@@ -24,19 +33,10 @@ from .views import (
     TurnoCreateView,
     TurnoDetailView,
     TurnoListView,
-    TurnoReprogramView,
     TurnoReintentarSincronizacionGoogleCalendarView,
+    TurnoReprogramView,
     TurnoSolicitudPublicaRechazarView,
     TurnoUpdateView,
-)
-from .public_access.views import (
-    CancelarTurnoPublicoSeguroView,
-    CerrarAccesoPublicoTurnosView,
-    HorariosReprogramacionPublicaJsonView,
-    MisTurnosPublicoView,
-    ReprogramarTurnoPublicoSeguroView,
-    SolicitarAccesoPublicoTurnosView,
-    VerificarAccesoPublicoTurnosView,
 )
 
 app_name = "turnos"

@@ -197,8 +197,6 @@ class PacienteDerivacionForm(forms.Form):
             odontologo=odontologo,
             activo=True,
         ).exists():
-            raise forms.ValidationError(
-                "El paciente ya esta asociado a ese odontologo."
-            )
+            raise forms.ValidationError("El paciente ya esta asociado a ese odontologo.")
 
         return odontologo

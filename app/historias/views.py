@@ -1,7 +1,7 @@
 import logging
 
-from django.contrib import messages
 from django.conf import settings
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
@@ -20,20 +20,19 @@ from pacientes.models import Paciente
 from usuarios.mixins import HistoriaClinicaOdontologoRequeridoMixin
 from usuarios.roles import obtener_odontologo_del_usuario
 
-from .forms import HistoriaClinicaFiltroForm, HistoriaClinicaForm
 from .access_policy import (
     limitar_historias_clinicas_para_request,
     limitar_pacientes_clinicos_para_request,
-    obtener_politica_lectura,
     obtener_politica_escritura,
+    obtener_politica_lectura,
     registrar_evento_acceso_clinico,
 )
+from .forms import HistoriaClinicaFiltroForm, HistoriaClinicaForm
 from .models import AccesoClinicoAuditoria, HistoriaClinica, HistoriaClinicaAdjunto
 from .permissions import (
     puede_crear_historia_de_paciente,
     puede_editar_historia_clinica,
 )
-
 
 logger = logging.getLogger(__name__)
 

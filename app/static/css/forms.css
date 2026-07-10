@@ -1,0 +1,230 @@
+.button,
+button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 8px 14px;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.button-small {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 13px;
+}
+
+.button:hover,
+button:hover {
+    background: var(--primary-dark);
+}
+
+.button-secondary {
+    background: var(--surface);
+    border-color: var(--line);
+    color: var(--text);
+}
+
+.button-secondary:hover {
+    background: #eef2f7;
+}
+
+.button-subtle {
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.button-soft-primary {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+}
+
+.button-soft-primary:hover {
+    background: var(--primary);
+    color: var(--primary-contrast);
+}
+
+.button-clinical-primary {
+    border-color: #0f766e;
+    background: #0f766e;
+    color: #ffffff;
+}
+
+.button-clinical-primary:hover {
+    border-color: #0d9488;
+    background: #0d9488;
+}
+
+.button-clinical-secondary {
+    border-color: #99f6e4;
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.button-clinical-secondary:hover {
+    border-color: #5eead4;
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.button-clinical-tertiary {
+    border-color: #67e8f9;
+    background: #ecfeff;
+    color: #0e7490;
+}
+
+.button-clinical-tertiary:hover {
+    border-color: #22d3ee;
+    background: #cffafe;
+    color: #155e75;
+}
+
+.button-danger {
+    background: var(--danger);
+    color: #ffffff;
+}
+
+.button-danger:hover {
+    background: #912018;
+}
+
+.danger-link {
+    color: var(--danger);
+}
+
+.button-success {
+    border-color: #067647;
+    background: #067647;
+    color: #ffffff;
+}
+
+.button-success:hover {
+    border-color: #05603a;
+    background: #05603a;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.search-form {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 16px;
+}
+
+textarea {
+    resize: vertical;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.table-wrap,
+.detail-panel,
+.filter-panel,
+.form-panel,
+.empty-state,
+.panel-section,
+.metric-card,
+.quick-action,
+.timeline-item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+tr:last-child td {
+    border-bottom: 0;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.form-panel,
+.detail-panel,
+.filter-panel,
+.empty-state,
+.panel-section {
+    padding: 24px;
+}
+
+.ficha-combined-form {
+    display: grid;
+    gap: 18px;
+}
+
+.ficha-form-section {
+    border-color: #d7e8ee;
+}
+
+.form-error-panel {
+    border-color: #fecdca;
+    background: var(--danger-bg);
+}
+
+.ficha-form-actions {
+    margin-top: 0;
+}
+
+.section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+}

@@ -1,5 +1,5 @@
-from .tokens import PUBLIC_ACCESS_SESSION_KEY
 from ..models import Turno
+from .tokens import PUBLIC_ACCESS_SESSION_KEY
 
 
 def obtener_paciente_id_verificado_desde_session(request):

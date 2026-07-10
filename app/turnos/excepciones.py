@@ -10,7 +10,6 @@ from consultorio.services import obtener_configuracion_consultorio
 
 from .models import ExcepcionAgenda, Odontologo, Turno, bloquear_agendas_de_turnos
 
-
 ESTADOS_TURNO_ACTIVOS = [Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO]
 
 
@@ -72,10 +71,8 @@ def validar_fecha_reserva_publica(fecha, ahora=None):
     if not fecha_en_rango_reserva_publica(fecha, ahora):
         rango = obtener_rango_reserva_publica(ahora)
         raise ValidationError(
-            (
-                "La fecha debe estar dentro de la ventana pública de reserva "
-                f"({rango.fecha_minima:%d/%m/%Y} a {rango.fecha_maxima:%d/%m/%Y})."
-            )
+            "La fecha debe estar dentro de la ventana pública de reserva "
+            f"({rango.fecha_minima:%d/%m/%Y} a {rango.fecha_maxima:%d/%m/%Y})."
         )
 
 
@@ -248,9 +245,7 @@ def desactivar_excepcion_agenda(excepcion, usuario=None):
         _bloquear_agendas_para_excepcion(excepcion)
         excepcion.activo = False
         excepcion.desactivada_en = timezone.now()
-        excepcion.desactivada_por = (
-            usuario if getattr(usuario, "is_authenticated", False) else None
-        )
+        excepcion.desactivada_por = usuario if getattr(usuario, "is_authenticated", False) else None
         excepcion.actualizada_por = excepcion.desactivada_por
         excepcion.save(
             update_fields=[

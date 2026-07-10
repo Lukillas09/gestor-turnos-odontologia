@@ -6,7 +6,6 @@ from pacientes.normalizacion import (
     normalizar_texto_persona,
 )
 
-
 CAMPOS_COMPARABLES = ("documento", "nombre", "apellido", "telefono", "email")
 
 

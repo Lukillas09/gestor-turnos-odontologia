@@ -109,8 +109,21 @@ Modelos:
 Capas internas:
 
 - `models.py`: estructura y validaciones esenciales.
-- `forms.py`: formularios internos y públicos.
-- `views.py`: vistas HTTP.
+- `forms/`: paquete de formularios por dominio. `__init__.py` reexporta los nombres públicos históricos para conservar `from turnos.forms import TurnoForm`.
+  - `fields.py`: campos y conversiones reutilizables.
+  - `turnos.py`: formularios internos de turno, confirmación, filtros y búsqueda de horarios.
+  - `solicitudes_publicas.py`: solicitud pública inicial y revisión interna de datos enviados.
+  - `public_access.py`: formularios OTP, cancelación y reprogramación pública segura.
+  - `agenda.py`: filtros de agenda.
+  - `excepciones.py`: formulario de bloqueos/excepciones de agenda.
+- `views/`: paquete de vistas por dominio. `__init__.py` reexporta las clases usadas por URLs y tests para mantener compatibilidad.
+  - `turnos.py`: listado, detalle, alta, edición, confirmación, cancelación, reprogramación y horarios internos.
+  - `public_booking.py`: landing/selección/formulario/confirmación del flujo público de solicitud.
+  - `solicitudes_publicas.py`: bandeja, alertas administrativas y revisión de solicitudes.
+  - `agenda.py`: agenda diaria y semanal.
+  - `excepciones.py`: ABM operativo de excepciones.
+  - `google_calendar.py`: OAuth y conexión de Google Calendar.
+  - `helpers.py`: helpers de presentación compartidos.
 - `services.py`: casos de uso que modifican datos.
 - `selectors.py`: consultas reutilizables y cálculo de disponibilidad.
 - `excepciones.py`: ventana pública de reserva, bloqueos operativos, detección de turnos afectados y locks técnicos por agenda.
@@ -121,6 +134,8 @@ Capas internas:
 - `google_calendar_sync.py`: coordinación entre turnos y Google Calendar.
 - `solicitudes_publicas/`: caso de uso transaccional de solicitud pública, comparación de datos, selectores y permisos de revisión.
 - `public_access/`: OTP público, sesión temporal, rate limiting y acciones públicas de un solo uso.
+
+`turnos/models.py` no se divide todavía para evitar riesgos de imports circulares y cambios accidentales en migraciones. El plan técnico está documentado en `docs/refactor_modelos_turnos.md`.
 
 ### `consultorio`
 
@@ -140,6 +155,7 @@ Reglas:
 - El context processor no crea registros en cada request; si falta la fila, usa defaults seguros en memoria.
 - La vista interna puede crear la fila con `get_or_create`.
 - El logo usa el storage default de Django, por lo que funciona con filesystem local o Supabase Storage.
+- La limpieza del logo anterior se ejecuta después del commit; si falla el borrado remoto, se registra un warning seguro y no se revierte la configuración ya guardada.
 - No permite SVG, valida tamaño máximo y evita usar valores arbitrarios como CSS.
 
 ### `historias`
@@ -363,6 +379,16 @@ Supabase mantiene:
 
 - PostgreSQL.
 - Storage privado para adjuntos clínicos.
+
+## Frontend base
+
+`base.html` mantiene solo la estructura HTML general, los bloques Django y las variables CSS dinámicas del color del consultorio. El CSS estático vive en `app/static/css/` con `app.css` como punto de entrada y se divide en tokens, base, formularios, vistas internas, vistas públicas y responsive.
+
+La navegación interna, la navegación pública, mensajes y banner de emergencia clínica viven en includes reutilizables bajo `app/templates/includes/`.
+
+## Calidad automatizada
+
+La configuración de Black, Ruff, Coverage, Mypy y Bandit vive en `pyproject.toml`. `requirements-dev.txt` contiene herramientas de desarrollo y no se usa en runtime de Railway.
 
 ## Criterios de Código Limpio
 

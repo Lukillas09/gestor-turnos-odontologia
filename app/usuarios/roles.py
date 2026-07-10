@@ -1,7 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 
-
 ROL_RECEPCIONISTA = "Recepcionista"
 ROL_ODONTOLOGO = "Odontologo"
 ROL_ADMINISTRADOR = "Administrador"

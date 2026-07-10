@@ -1,12 +1,11 @@
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 
 from .integrations.google_calendar import (
     GoogleCalendarError,
     crear_cliente_desde_conexion,
 )
 from .models import GoogleCalendarConexion, Turno
-
 
 ACCION_CREAR = "crear"
 ACCION_ACTUALIZAR = "actualizar"

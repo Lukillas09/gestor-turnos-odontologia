@@ -8,9 +8,8 @@ class Command(BaseCommand):
     help = "Reconstruye asociaciones paciente-odontólogo a partir de turnos existentes."
 
     def handle(self, *args, **options):
-        turnos = (
-            Turno.objects.select_related("paciente", "odontologo")
-            .order_by("paciente_id", "odontologo_id")
+        turnos = Turno.objects.select_related("paciente", "odontologo").order_by(
+            "paciente_id", "odontologo_id"
         )
         asociaciones = 0
         pares_procesados = set()
@@ -32,7 +31,5 @@ class Command(BaseCommand):
                 asociaciones += 1
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Asociaciones reconstruidas o verificadas: {asociaciones}"
-            )
+            self.style.SUCCESS(f"Asociaciones reconstruidas o verificadas: {asociaciones}")
         )

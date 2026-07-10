@@ -13,6 +13,19 @@ Se agregaron clases CSS reutilizables:
 
 Las animaciones respetan `prefers-reduced-motion`, por lo que se desactivan si el usuario prefiere menos movimiento.
 
+## CSS base
+
+El CSS global ya no vive inline en `base.html`. El punto de entrada es `app/static/css/app.css`, que carga:
+
+- `tokens.css`: variables estáticas y defaults.
+- `base.css`: layout general, topbars, sidebar y tipografía base.
+- `forms.css`: botones, formularios, tablas y paneles comunes.
+- `internal.css`: pacientes, turnos, agenda, historias y pantallas internas.
+- `public.css`: landing pública, solicitud pública, autogestión y revisión visual.
+- `responsive.css`: breakpoints, tactilidad y `prefers-reduced-motion`.
+
+`base.html` conserva solo las variables dinámicas del color principal configurado en el perfil del consultorio.
+
 ## Vistas alcanzadas
 
 - Listado de pacientes.

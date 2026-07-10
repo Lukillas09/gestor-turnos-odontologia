@@ -95,9 +95,7 @@ class InicioView(TemplateView):
         )
         puede_revisar_publicas = puede_revisar_solicitudes_publicas(usuario)
         alertas_administrativas_publicas = (
-            obtener_alertas_administrativas_publicas().count()
-            if puede_revisar_publicas
-            else 0
+            obtener_alertas_administrativas_publicas().count() if puede_revisar_publicas else 0
         )
 
         context.update(

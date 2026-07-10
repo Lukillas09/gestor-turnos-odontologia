@@ -61,10 +61,10 @@ env:
   ACCESO_CLINICO_EMERGENCIA_SECONDS: "900"
 
 jobs:
-  django-ci:
-    name: Django checks and tests
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
 
     steps:
       - name: Descargar codigo
@@ -75,20 +75,62 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Actualizar pip
+        run: python -m pip install --upgrade pip
+
+      - name: Instalar dependencias de desarrollo
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validar codificacion de textos
+        if: ${{ hashFiles('scripts/check_text_encoding.py') != '' }}
+        run: python scripts/check_text_encoding.py
+
+      - name: Verificar formato con Black
+        run: python -m black --check app scripts --exclude migrations
+
+      - name: Ejecutar Ruff
+        run: python -m ruff check app scripts
+
+      - name: Ejecutar Mypy incremental
+        run: >
+          python -m mypy
+          app/config
+          app/consultorio
+          app/turnos/public_access
+          app/turnos/solicitudes_publicas
+          app/turnos/forms
+          app/turnos/views
+
+  django-tests:
+    name: Django checks and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Actualizar pip
         run: python -m pip install --upgrade pip
 
       - name: Instalar dependencias
-        run: python -m pip install -r requirements.txt
+        run: python -m pip install -r requirements-dev.txt
 
       - name: Verificar dependencias
         run: python -m pip check
-
-      - name: Validar codificacion de textos
-        if: ${{ hashFiles('scripts/check_text_encoding.py') != '' }}
-        run: python scripts/check_text_encoding.py
 
       - name: Validar configuracion de Django
         working-directory: app
@@ -98,10 +140,100 @@ jobs:
         working-directory: app
         run: python manage.py makemigrations --check --dry-run
 
-      - name: Ejecutar tests
+      - name: Ejecutar tests con cobertura
         working-directory: app
-        run: python manage.py test --verbosity 2
+        run: >
+          python -m coverage run --rcfile=../pyproject.toml manage.py test
+          config
+          consultorio
+          historias
+          odontogramas
+          pacientes
+          usuarios
+          turnos.tests
+          turnos.tests_email_api
+          turnos.tests_google_calendar
+          --verbosity 2
+
+      - name: Reportar cobertura
+        working-directory: app
+        run: python -m coverage report --rcfile=../pyproject.toml -m
+
+      - name: Exportar cobertura XML
+        working-directory: app
+        run: python -m coverage xml --rcfile=../pyproject.toml
+
+      - name: Subir cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: app/coverage.xml
 
       - name: Generar archivos estaticos
         working-directory: app
         run: python manage.py collectstatic --noinput
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Actualizar pip
+        run: python -m pip install --upgrade pip
+
+      - name: Instalar dependencias de seguridad
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Ejecutar Bandit
+        run: >
+          python -m bandit -c pyproject.toml -r app
+          -x "*/migrations/*,*/tests.py,*/tests_*.py,*/tests_e2e/*"
+          -ll
+
+      - name: Auditar dependencias de produccion
+        run: python -m pip_audit -r requirements.txt
+
+  e2e:
+    name: E2E browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: django-tests
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Actualizar pip
+        run: python -m pip install --upgrade pip
+
+      - name: Instalar dependencias de desarrollo
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Instalar Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Ejecutar E2E
+        working-directory: app
+        run: python manage.py test turnos.tests_e2e --verbosity 2

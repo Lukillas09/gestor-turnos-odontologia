@@ -1,6 +1,6 @@
+import logging
 from dataclasses import dataclass
 from secrets import token_urlsafe
-import logging
 
 from django.conf import settings
 from django.core.cache import cache
@@ -10,7 +10,6 @@ from pacientes.normalizacion import normalizar_documento
 from turnos.integrations.turnstile import validar_turnstile
 from turnos.public_access.rate_limit import incrementar_limite, leer_contador
 from turnos.public_access.tokens import hash_valor_publico, obtener_ip_cliente
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +23,7 @@ MENSAJE_LIMITE_SOLICITUD_PUBLICA = (
     "No pudimos registrar otra solicitud en este momento. Esperá unos minutos, "
     "consultá tus turnos o contactá al consultorio."
 )
-MENSAJE_TURNSTILE_SOLICITUD_PUBLICA = (
-    "Completá la verificación de seguridad para continuar."
-)
+MENSAJE_TURNSTILE_SOLICITUD_PUBLICA = "Completá la verificación de seguridad para continuar."
 MENSAJE_PROTECCION_NO_DISPONIBLE = (
     "No pudimos registrar la solicitud en este momento. Intentá nuevamente en unos minutos."
 )
@@ -102,11 +99,7 @@ def turnstile_requerido_para_request(request, documento=None):
 
     try:
         intentos_ip = leer_contador(RATE_LIMIT_IP_NAME, ip_hash)
-        intentos_dni = (
-            leer_contador(RATE_LIMIT_DNI_NAME, _hash_dni(documento))
-            if documento
-            else 0
-        )
+        intentos_dni = leer_contador(RATE_LIMIT_DNI_NAME, _hash_dni(documento)) if documento else 0
     except Exception as error:
         _registrar_fallo_cache("turnstile_read", error, ip_hash=ip_hash)
         return False
@@ -130,7 +123,8 @@ def registrar_intento_creacion_publica(request):
         if not resultado_turnstile.valido:
             _incrementar_contadores(ip_hash, dni_hash)
             logger.warning(
-                "Turnstile invalido en solicitud publica. reason=turnstile_invalid ip_hash=%s dni_hash=%s error=%s",
+                "Turnstile invalido en solicitud publica. "
+                "reason=turnstile_invalid ip_hash=%s dni_hash=%s error=%s",
                 ip_hash,
                 dni_hash,
                 resultado_turnstile.error,
@@ -143,7 +137,8 @@ def registrar_intento_creacion_publica(request):
     if limite_ip and not limite_ip.permitido:
         retry_after = max(retry_after or 0, settings.TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS)
         logger.warning(
-            "Rate limit de solicitud publica alcanzado. reason=rate_limit_ip ip_hash=%s dni_hash=%s",
+            "Rate limit de solicitud publica alcanzado. "
+            "reason=rate_limit_ip ip_hash=%s dni_hash=%s",
             ip_hash,
             dni_hash,
         )
@@ -151,7 +146,8 @@ def registrar_intento_creacion_publica(request):
     if limite_dni and not limite_dni.permitido:
         retry_after = max(retry_after or 0, settings.TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS)
         logger.warning(
-            "Rate limit de solicitud publica alcanzado. reason=rate_limit_dni ip_hash=%s dni_hash=%s",
+            "Rate limit de solicitud publica alcanzado. "
+            "reason=rate_limit_dni ip_hash=%s dni_hash=%s",
             ip_hash,
             dni_hash,
         )
@@ -201,7 +197,7 @@ def adquirir_idempotencia(request, token):
         estado = cache.get(cache_key)
     except Exception as error:
         _registrar_fallo_cache("idempotency", error)
-        raise ProteccionSolicitudPublicaNoDisponible()
+        raise ProteccionSolicitudPublicaNoDisponible() from error
 
     if estado == "completed":
         return ResultadoIdempotencia("completed", token_hash)
@@ -222,7 +218,7 @@ def completar_idempotencia(token_hash):
         )
     except Exception as error:
         _registrar_fallo_cache("idempotency_complete", error)
-        raise ProteccionSolicitudPublicaNoDisponible()
+        raise ProteccionSolicitudPublicaNoDisponible() from error
 
 
 def liberar_idempotencia(token_hash):
@@ -230,7 +226,7 @@ def liberar_idempotencia(token_hash):
         cache.delete(_idempotency_cache_key(token_hash))
     except Exception as error:
         _registrar_fallo_cache("idempotency_release", error)
-        raise ProteccionSolicitudPublicaNoDisponible()
+        raise ProteccionSolicitudPublicaNoDisponible() from error
 
 
 def _incrementar_contadores(ip_hash, dni_hash):
@@ -253,7 +249,7 @@ def _incrementar_contadores(ip_hash, dni_hash):
         )
     except Exception as error:
         _registrar_fallo_cache("rate_limit", error, ip_hash=ip_hash, dni_hash=dni_hash)
-        raise ProteccionSolicitudPublicaNoDisponible()
+        raise ProteccionSolicitudPublicaNoDisponible() from error
 
     return limite_ip, limite_dni
 

@@ -6,7 +6,6 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 
-
 ENCRYPTED_TEXT_PREFIX = "enc:v1:"
 _fernet = None
 _fernet_key = None

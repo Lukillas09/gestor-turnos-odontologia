@@ -38,7 +38,9 @@ class ConfiguracionConsultorioView(LoginRequiredMixin, UserPassesTestMixin, Temp
     def post(self, request, *args, **kwargs):
         if request.POST.get("accion") == "restaurar_defaults":
             restaurar_configuracion_consultorio(request.user)
-            messages.success(request, "Perfil del consultorio restaurado a los valores predeterminados.")
+            messages.success(
+                request, "Perfil del consultorio restaurado a los valores predeterminados."
+            )
             return redirect(reverse("consultorio:configuracion"))
 
         configuracion = obtener_o_crear_configuracion_consultorio()

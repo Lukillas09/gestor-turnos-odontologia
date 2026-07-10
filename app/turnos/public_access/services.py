@@ -1,7 +1,7 @@
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from uuid import UUID
-import logging
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
@@ -12,13 +12,14 @@ from django.utils import timezone
 from historias.access_policy import registrar_evento_acceso_clinico
 from historias.models import AccesoClinicoAuditoria
 from pacientes.models import Paciente
-from turnos.notifications import notificar_codigo_acceso_publico_turnos
-from turnos.services import cancelar_turno, reprogramar_turno
 from turnos.excepciones import (
     obtener_horarios_publicos_disponibles,
     validar_intervalo_reserva_publica,
 )
+from turnos.notifications import notificar_codigo_acceso_publico_turnos
+from turnos.services import cancelar_turno, reprogramar_turno
 
+from ..models import AccionPublicaTurno, DesafioAccesoPublicoTurnos, Turno
 from .rate_limit import incrementar_limite
 from .tokens import (
     PUBLIC_ACCESS_PENDING_CHALLENGE_KEY,
@@ -30,8 +31,6 @@ from .tokens import (
     normalizar_documento,
     obtener_ip_cliente,
 )
-from ..models import AccionPublicaTurno, DesafioAccesoPublicoTurnos, Turno
-
 
 logger = logging.getLogger(__name__)
 
@@ -180,10 +179,8 @@ def reenviar_codigo_acceso_publico(request):
     )
 
     ahora = timezone.now()
-    en_cooldown = (
-        desafio.ultimo_envio_en
-        and ahora - desafio.ultimo_envio_en
-        < timedelta(seconds=settings.TURNOS_PUBLIC_RESEND_SECONDS)
+    en_cooldown = desafio.ultimo_envio_en and ahora - desafio.ultimo_envio_en < timedelta(
+        seconds=settings.TURNOS_PUBLIC_RESEND_SECONDS
     )
 
     if not limite_ip.permitido or not limite_dni.permitido or en_cooldown:
@@ -265,7 +262,7 @@ def cerrar_acceso_publico(request):
 
 def generar_permisos_para_turnos(request, paciente_id, turnos):
     ahora = timezone.now()
-    acciones_por_turno = {}
+    acciones_por_turno: dict[int, dict[str, AccionPublicaTurno]] = {}
     tokens_session = {}
 
     for turno in turnos:
@@ -385,7 +382,9 @@ def reprogramar_turno_publico_seguro(accion_id, token, paciente_id, datos):
 
 def _obtener_accion_bloqueada(accion_id):
     try:
-        return AccionPublicaTurno.objects.select_for_update().select_related("turno").get(pk=accion_id)
+        return (
+            AccionPublicaTurno.objects.select_for_update().select_related("turno").get(pk=accion_id)
+        )
     except (AccionPublicaTurno.DoesNotExist, ValueError, TypeError):
         return None
 

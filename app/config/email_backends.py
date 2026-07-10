@@ -61,14 +61,10 @@ class EmailApiBackend(BaseEmailBackend):
         proveedor = self.proveedores.get(self.provider)
 
         if not proveedor:
-            raise ImproperlyConfigured(
-                "EMAIL_API_PROVIDER debe ser 'resend' o 'brevo'."
-            )
+            raise ImproperlyConfigured("EMAIL_API_PROVIDER debe ser 'resend' o 'brevo'.")
 
         if not self.api_key:
-            raise ImproperlyConfigured(
-                "EMAIL_API_KEY debe configurarse para usar EmailApiBackend."
-            )
+            raise ImproperlyConfigured("EMAIL_API_KEY debe configurarse para usar EmailApiBackend.")
 
         if proveedor == "resend":
             return ResendEmailApiClient(
@@ -100,6 +96,12 @@ class BaseEmailApiClient:
         headers = self.construir_headers()
         self._post_json(payload=payload, headers=headers)
 
+    def construir_payload(self, email_message):
+        raise NotImplementedError
+
+    def construir_headers(self):
+        raise NotImplementedError
+
     def _post_json(self, payload, headers):
         request = Request(
             self.api_url,
@@ -113,11 +115,10 @@ class BaseEmailApiClient:
         )
 
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            # URL de proveedor validada por configuración EMAIL_API_URL.
+            with urlopen(request, timeout=self.timeout) as response:  # nosec B310
                 if response.status >= 400:
-                    raise EmailApiError(
-                        f"El proveedor de email respondio HTTP {response.status}."
-                    )
+                    raise EmailApiError(f"El proveedor de email respondio HTTP {response.status}.")
         except HTTPError as error:
             detalle = error.read().decode("utf-8", errors="replace")[:500]
             raise EmailApiError(
@@ -174,17 +175,13 @@ class BrevoEmailApiClient(BaseEmailApiClient):
     def construir_payload(self, email_message):
         text_content, html_content = obtener_contenido(email_message)
         payload = {
-            "sender": construir_contacto(
-                email_message.from_email or settings.DEFAULT_FROM_EMAIL
-            ),
+            "sender": construir_contacto(email_message.from_email or settings.DEFAULT_FROM_EMAIL),
             "to": [construir_contacto(destinatario) for destinatario in email_message.to],
             "subject": email_message.subject,
         }
 
         if email_message.cc:
-            payload["cc"] = [
-                construir_contacto(destinatario) for destinatario in email_message.cc
-            ]
+            payload["cc"] = [construir_contacto(destinatario) for destinatario in email_message.cc]
 
         if email_message.bcc:
             payload["bcc"] = [

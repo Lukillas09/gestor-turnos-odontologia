@@ -29,9 +29,7 @@ class SupabaseStorage(Storage):
         self.service_role_key = service_role_key or settings.SUPABASE_STORAGE_SERVICE_ROLE_KEY
         self.timeout = timeout or settings.SUPABASE_STORAGE_TIMEOUT
         self.cache_control = cache_control or settings.SUPABASE_STORAGE_CACHE_CONTROL
-        self.signed_url_seconds = (
-            signed_url_seconds or settings.SUPABASE_STORAGE_SIGNED_URL_SECONDS
-        )
+        self.signed_url_seconds = signed_url_seconds or settings.SUPABASE_STORAGE_SIGNED_URL_SECONDS
 
         if not self.project_url:
             raise ImproperlyConfigured("SUPABASE_STORAGE_URL debe estar configurado.")
@@ -40,9 +38,7 @@ class SupabaseStorage(Storage):
             raise ImproperlyConfigured("SUPABASE_STORAGE_BUCKET debe estar configurado.")
 
         if not self.service_role_key:
-            raise ImproperlyConfigured(
-                "SUPABASE_STORAGE_SERVICE_ROLE_KEY debe estar configurado."
-            )
+            raise ImproperlyConfigured("SUPABASE_STORAGE_SERVICE_ROLE_KEY debe estar configurado.")
 
         self.storage_url = self._normalizar_storage_url(self.project_url)
 
@@ -122,7 +118,8 @@ class SupabaseStorage(Storage):
         )
 
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            # URL construida desde SUPABASE_STORAGE_URL configurada.
+            with urlopen(request, timeout=self.timeout) as response:  # nosec B310
                 status = response.status
 
                 if status not in expected_statuses:
@@ -135,15 +132,14 @@ class SupabaseStorage(Storage):
                 f"Supabase Storage devolvio HTTP {error.code}: {detalle}"
             ) from error
         except URLError as error:
-            raise SupabaseStorageError(
-                "No se pudo conectar con Supabase Storage."
-            ) from error
+            raise SupabaseStorageError("No se pudo conectar con Supabase Storage.") from error
 
     def _request_headers(self, method, url):
         request = Request(url, headers=self._headers(), method=method)
 
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            # URL construida desde SUPABASE_STORAGE_URL configurada.
+            with urlopen(request, timeout=self.timeout) as response:  # nosec B310
                 return response.headers
         except HTTPError as error:
             detalle = error.read().decode("utf-8", errors="replace")
@@ -151,9 +147,7 @@ class SupabaseStorage(Storage):
                 f"Supabase Storage devolvio HTTP {error.code}: {detalle}"
             ) from error
         except URLError as error:
-            raise SupabaseStorageError(
-                "No se pudo conectar con Supabase Storage."
-            ) from error
+            raise SupabaseStorageError("No se pudo conectar con Supabase Storage.") from error
 
     def _headers(self, extra_headers=None):
         headers = {

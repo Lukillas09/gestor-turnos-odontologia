@@ -56,9 +56,7 @@ class Command(BaseCommand):
 
         try:
             for adjunto in adjuntos:
-                manifest["archivos"].append(
-                    self._respaldar_adjunto(adjunto, archivos_dir)
-                )
+                manifest["archivos"].append(self._respaldar_adjunto(adjunto, archivos_dir))
         except Exception as error:
             raise CommandError(f"No se pudo crear el backup de Storage: {error}") from error
 

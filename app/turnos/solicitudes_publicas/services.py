@@ -1,6 +1,6 @@
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
-import logging
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -26,12 +26,9 @@ from turnos.public_access.tokens import hash_valor_publico
 
 from .comparaciones import construir_fotografia_solicitud, detectar_diferencias_datos_paciente
 
-
 logger = logging.getLogger(__name__)
 
-MENSAJE_EMAIL_PUBLICO_REQUERIDO = (
-    "Ingresá un email para poder consultar y administrar tu turno."
-)
+MENSAJE_EMAIL_PUBLICO_REQUERIDO = "Ingresá un email para poder consultar y administrar tu turno."
 MENSAJE_EMAIL_PUBLICO_INVALIDO = "Ingresá un email válido."
 MENSAJE_MAXIMO_SOLICITUDES_PENDIENTES = (
     "No pudimos registrar otra solicitud en este momento. Consultá tus turnos "
@@ -191,8 +188,8 @@ def _validar_email_publico_para_paciente(email, paciente):
     if email:
         try:
             validate_email(email)
-        except ValidationError:
-            raise ValidationError({"email": MENSAJE_EMAIL_PUBLICO_INVALIDO})
+        except ValidationError as error:
+            raise ValidationError({"email": MENSAJE_EMAIL_PUBLICO_INVALIDO}) from error
 
     if paciente and paciente.esta_archivado:
         return
@@ -273,11 +270,7 @@ def _crear_fotografia_solicitud(
     paciente_archivado=False,
 ):
     fotografia = construir_fotografia_solicitud(datos)
-    diferencias = (
-        detectar_diferencias_datos_paciente(paciente, datos)
-        if paciente_existente
-        else {}
-    )
+    diferencias = detectar_diferencias_datos_paciente(paciente, datos) if paciente_existente else {}
     requiere_revision = bool(diferencias) or not paciente_existente
     estado_revision = (
         SolicitudTurnoPublica.EstadoRevision.PENDIENTE
@@ -307,9 +300,11 @@ def _crear_fotografia_solicitud(
         notificacion_contacto_existente_error=(
             "Paciente archivado: requiere revision administrativa."
             if paciente_archivado
-            else "Paciente existente sin email utilizable."
-            if paciente_existente and not paciente.email
-            else ""
+            else (
+                "Paciente existente sin email utilizable."
+                if paciente_existente and not paciente.email
+                else ""
+            )
         ),
         **fotografia,
     )
@@ -395,8 +390,8 @@ def revisar_y_confirmar_solicitud_publica(
 
     try:
         duracion = int(duracion_minutos)
-    except (TypeError, ValueError):
-        raise ValidationError("La duración seleccionada no es válida.")
+    except (TypeError, ValueError) as error:
+        raise ValidationError("La duración seleccionada no es válida.") from error
 
     if duracion <= 0:
         raise ValidationError("La duración debe ser mayor a cero.")
@@ -469,8 +464,7 @@ def rechazar_solicitud_publica_y_cancelar_turno(solicitud_id, usuario, motivo):
         solicitud.observaciones_revision = motivo
         solicitud.campos_actualizados = []
         solicitud.campos_descartados = sorted(
-            set((solicitud.diferencias_detectadas or {}).keys())
-            & _campos_actualizables_revision()
+            set((solicitud.diferencias_detectadas or {}).keys()) & _campos_actualizables_revision()
         )
         solicitud.save(
             update_fields=[
@@ -493,7 +487,9 @@ def rechazar_solicitud_publica_y_cancelar_turno(solicitud_id, usuario, motivo):
             if turno.estado != Turno.Estado.CANCELADO:
                 turno.estado = Turno.Estado.CANCELADO
                 turno.motivo_cancelacion_paciente = motivo
-                turno.save(update_fields=["estado", "motivo_cancelacion_paciente", "actualizado_en"])
+                turno.save(
+                    update_fields=["estado", "motivo_cancelacion_paciente", "actualizado_en"]
+                )
 
     if turno:
         from turnos.google_calendar_sync import sincronizar_turno_cancelado
@@ -520,11 +516,12 @@ def cerrar_revision_por_cancelacion_de_turno(turno, usuario=None, motivo=""):
     solicitud.requiere_revision = False
     solicitud.revisada_por = usuario if getattr(usuario, "is_authenticated", False) else None
     solicitud.revisada_en = timezone.now()
-    solicitud.observaciones_revision = (motivo or "Turno cancelado antes de revisar la solicitud.").strip()
+    solicitud.observaciones_revision = (
+        motivo or "Turno cancelado antes de revisar la solicitud."
+    ).strip()
     solicitud.campos_actualizados = []
     solicitud.campos_descartados = sorted(
-        set((solicitud.diferencias_detectadas or {}).keys())
-        & _campos_actualizables_revision()
+        set((solicitud.diferencias_detectadas or {}).keys()) & _campos_actualizables_revision()
     )
     solicitud.save(
         update_fields=[

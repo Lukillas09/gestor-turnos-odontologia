@@ -1,0 +1,70 @@
+        <aside class="app-sidebar" aria-label="Principal">
+            <div class="app-sidebar-header">
+                <a class="brand" href="{% url 'inicio' %}">
+                    {% if configuracion_consultorio.logo_url %}
+                        <span class="brand-logo">
+                            <img src="{{ configuracion_consultorio.logo_url }}" alt="">
+                        </span>
+                    {% else %}
+                        <span class="brand-mark">{{ configuracion_consultorio.iniciales }}</span>
+                    {% endif %}
+                    <span class="brand-text">{{ configuracion_consultorio.nombre_visible }}</span>
+                </a>
+            </div>
+            <nav class="app-sidebar-nav">
+                <span class="app-sidebar-label">Consultorio</span>
+                <a class="app-sidebar-link {% if request.resolver_match.url_name == 'inicio' %}is-active{% endif %}" href="{% url 'inicio' %}">
+                    <span class="app-sidebar-link-icon">⌂</span>
+                    Inicio
+                </a>
+                {% if puede_ver_pacientes %}
+                    <a class="app-sidebar-link {% if request.resolver_match.namespace == 'pacientes' %}is-active{% endif %}" href="{% url 'pacientes:lista' %}">
+                        <span class="app-sidebar-link-icon">▣</span>
+                        Pacientes
+                    </a>
+                {% endif %}
+                {% if puede_ver_turnos %}
+                    <a class="app-sidebar-link {% if request.resolver_match.namespace == 'turnos' and request.resolver_match.url_name == 'lista' %}is-active{% endif %}" href="{% url 'turnos:lista' %}">
+                        <span class="app-sidebar-link-icon">◷</span>
+                        Turnos
+                    </a>
+
+                    <span class="app-sidebar-label">Agenda</span>
+                    <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_dia' %}is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}">
+                        <span class="app-sidebar-link-icon">□</span>
+                        Agenda día
+                    </a>
+                    <a class="app-sidebar-link {% if request.resolver_match.url_name == 'agenda_semana' %}is-active{% endif %}" href="{% url 'turnos:agenda_semana' %}">
+                        <span class="app-sidebar-link-icon">▦</span>
+                        Agenda semana
+                    </a>
+                    {% if puede_ver_excepciones_agenda %}
+                        <a class="app-sidebar-link {% if request.resolver_match.url_name == 'excepciones' or request.resolver_match.url_name == 'excepcion_crear' or request.resolver_match.url_name == 'excepcion_editar' %}is-active{% endif %}" href="{% url 'turnos:excepciones' %}">
+                            <span class="app-sidebar-link-icon">■</span>
+                            Bloqueos y excepciones
+                        </a>
+                    {% endif %}
+                {% endif %}
+                {% if puede_conectar_google_calendar or request.user.is_staff or puede_configurar_consultorio %}
+                    <span class="app-sidebar-label">Configuración</span>
+                {% endif %}
+                {% if puede_configurar_consultorio %}
+                    <a class="app-sidebar-link {% if request.resolver_match.namespace == 'consultorio' %}is-active{% endif %}" href="{% url 'consultorio:configuracion' %}">
+                        <span class="app-sidebar-link-icon">◈</span>
+                        Perfil del consultorio
+                    </a>
+                {% endif %}
+                {% if puede_conectar_google_calendar %}
+                    <a class="app-sidebar-link {% if request.resolver_match.url_name == 'google_calendar' %}is-active{% endif %}" href="{% url 'turnos:google_calendar' %}">
+                        <span class="app-sidebar-link-icon">◎</span>
+                        Google Calendar
+                    </a>
+                {% endif %}
+                {% if request.user.is_staff and puede_configurar_disponibilidad %}
+                    <a class="app-sidebar-link" href="{% url 'admin:index' %}">
+                        <span class="app-sidebar-link-icon">⚙</span>
+                        Admin
+                    </a>
+                {% endif %}
+            </nav>
+        </aside>

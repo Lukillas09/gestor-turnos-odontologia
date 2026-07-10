@@ -4,9 +4,8 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.text import get_valid_filename
 from django.utils import timezone
-
+from django.utils.text import get_valid_filename
 
 MAX_ADJUNTO_HISTORIA_BYTES = 10 * 1024 * 1024
 EXTENSIONES_ADJUNTOS_PERMITIDAS = {

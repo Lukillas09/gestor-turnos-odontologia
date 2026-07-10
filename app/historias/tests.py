@@ -1,19 +1,19 @@
+import json
 import tempfile
 from datetime import date, time, timedelta
 from io import StringIO
-import json
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.urls import reverse
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
-from pacientes.models import Paciente, PacienteOdontologo
 from odontogramas.models import EstadoDental, Odontograma
+from pacientes.models import Paciente, PacienteOdontologo
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
@@ -150,9 +150,7 @@ class HistoriaClinicaAccessTests(TestCase):
         crear_turno_de_atencion(self.paciente, self.odontologo)
         self.client.force_login(self.usuario_odontologo)
 
-        response = self.client.get(
-            reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk})
-        )
+        response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk}))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Historia clínica")
@@ -160,9 +158,7 @@ class HistoriaClinicaAccessTests(TestCase):
     def test_odontologo_no_asociado_no_resuelve_paciente_por_id(self):
         self.client.force_login(self.usuario_odontologo)
 
-        response = self.client.get(
-            reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk})
-        )
+        response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk}))
 
         self.assertEqual(response.status_code, 404)
         self.assertNotContains(response, "Ana", status_code=404)
@@ -216,9 +212,7 @@ class HistoriaClinicaAccessTests(TestCase):
         response_lista = self.client.get(
             reverse("historias:lista_paciente", kwargs={"paciente_pk": self.paciente.pk})
         )
-        response_detalle = self.client.get(
-            reverse("historias:detalle", kwargs={"pk": historia.pk})
-        )
+        response_detalle = self.client.get(reverse("historias:detalle", kwargs={"pk": historia.pk}))
 
         self.assertEqual(response_lista.status_code, 404)
         self.assertEqual(response_detalle.status_code, 404)
@@ -256,9 +250,7 @@ class HistoriaClinicaAccessTests(TestCase):
         asignar_rol(usuario, ROL_RECEPCIONISTA)
         self.client.force_login(usuario)
 
-        response = self.client.get(
-            reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk})
-        )
+        response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": self.paciente.pk}))
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Historia clínica")
@@ -755,7 +747,9 @@ class HistoriaClinicaViewsTests(TestCase):
         )
         adjunto = HistoriaClinicaAdjunto.objects.create(
             historia=historia,
-            archivo=SimpleUploadedFile("radiografia.pdf", b"contenido", content_type="application/pdf"),
+            archivo=SimpleUploadedFile(
+                "radiografia.pdf", b"contenido", content_type="application/pdf"
+            ),
             subido_por=self.usuario_odontologo,
         )
         url = reverse("historias:descargar_adjunto", kwargs={"pk": adjunto.pk})
@@ -765,9 +759,7 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(b"".join(response_odontologo.streaming_content), b"contenido")
         response_odontologo.close()
 
-        usuario_recepcionista = get_user_model().objects.create_user(
-            username="recepcion.adjunto"
-        )
+        usuario_recepcionista = get_user_model().objects.create_user(username="recepcion.adjunto")
         asignar_rol(usuario_recepcionista, ROL_RECEPCIONISTA)
         self.client.force_login(usuario_recepcionista)
 

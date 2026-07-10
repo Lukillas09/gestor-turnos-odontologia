@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 
 from django.db.models import Q
 
+from .excepciones import obtener_excepcion_que_bloquea_intervalo, obtener_excepciones_activas
 from .models import DisponibilidadOdontologo, Odontologo, Turno
-from .excepciones import obtener_excepciones_activas, obtener_excepcion_que_bloquea_intervalo
 
 
 def obtener_turnos_del_dia(fecha, odontologo=None, busqueda=""):
@@ -56,9 +56,7 @@ def _construir_bloques_agenda_del_dia(
                 "hora_inicio": inicio.time(),
                 "hora_fin": fin_bloque.time(),
                 "turnos": [
-                    turno
-                    for turno in turnos
-                    if inicio <= turno.fecha_hora_inicio < fin_bloque
+                    turno for turno in turnos if inicio <= turno.fecha_hora_inicio < fin_bloque
                 ],
             }
         )
@@ -369,7 +367,9 @@ def _obtener_horarios_del_bloque(
     while inicio + timedelta(minutes=duracion_minutos) <= fin_bloque:
         fin = inicio + timedelta(minutes=duracion_minutos)
 
-        if not _se_solapa_con_turnos(inicio, fin, turnos_ocupados) and not _se_solapa_con_excepciones(
+        if not _se_solapa_con_turnos(
+            inicio, fin, turnos_ocupados
+        ) and not _se_solapa_con_excepciones(
             fecha,
             inicio.time(),
             fin.time(),
@@ -391,10 +391,13 @@ def _se_solapa_con_turnos(inicio, fin, turnos):
 
 
 def _se_solapa_con_excepciones(fecha, hora_inicio, hora_fin, excepciones):
-    return obtener_excepcion_que_bloquea_intervalo(
-        odontologo=None,
-        fecha=fecha,
-        hora_inicio=hora_inicio,
-        hora_fin=hora_fin,
-        excepciones=excepciones,
-    ) is not None
+    return (
+        obtener_excepcion_que_bloquea_intervalo(
+            odontologo=None,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_fin=hora_fin,
+            excepciones=excepciones,
+        )
+        is not None
+    )

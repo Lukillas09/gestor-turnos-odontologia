@@ -11,7 +11,6 @@ from usuarios.roles import obtener_odontologo_del_usuario
 
 from .models import AccesoClinicoAuditoria
 
-
 EMERGENCY_SESSION_KEY = "acceso_clinico_emergencia"
 
 
@@ -103,9 +102,8 @@ def puede_editar_historia_clinica(usuario, historia):
     if not historia.paciente.activo:
         return False
 
-    return (
-        historia.odontologo_id == odontologo.pk
-        and _paciente_asociado_a_odontologo(historia.paciente_id, odontologo.pk)
+    return historia.odontologo_id == odontologo.pk and _paciente_asociado_a_odontologo(
+        historia.paciente_id, odontologo.pk
     )
 
 
@@ -213,9 +211,7 @@ def limitar_historias_clinicas_para_request(queryset, request, lectura=True):
     if not emergencia:
         return base
 
-    return queryset.filter(
-        Q(pk__in=base.values("pk")) | Q(paciente_id=emergencia["paciente_id"])
-    )
+    return queryset.filter(Q(pk__in=base.values("pk")) | Q(paciente_id=emergencia["paciente_id"]))
 
 
 def registrar_evento_acceso_clinico(
@@ -234,7 +230,7 @@ def registrar_evento_acceso_clinico(
     usuario = usuario or (request.user if request and request.user.is_authenticated else None)
     request_path = request.path[:255] if request else ""
     request_method = request.method[:12] if request else ""
-    user_agent = (request.META.get("HTTP_USER_AGENT", "")[:255] if request else "")
+    user_agent = request.META.get("HTTP_USER_AGENT", "")[:255] if request else ""
     ip_hash = _hash_ip_cliente(request) if request else ""
 
     es_emergencia = politica == AccesoClinicoAuditoria.Politica.EMERGENCIA
@@ -276,9 +272,8 @@ def _paciente_asociado_a_odontologo(paciente_id, odontologo_id):
 
 
 def _hash_ip_cliente(request):
-    ip = (
-        request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-        or request.META.get("REMOTE_ADDR", "")
+    ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get(
+        "REMOTE_ADDR", ""
     )
 
     if not ip:

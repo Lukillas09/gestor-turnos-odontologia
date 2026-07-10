@@ -1,0 +1,12 @@
+        {% if acceso_clinico_emergencia %}
+            <section class="clinical-emergency-banner" role="status">
+                <div>
+                    <strong>Acceso clínico de emergencia activo</strong>
+                    <span>Paciente #{{ acceso_clinico_emergencia.paciente_id }} · vence {{ acceso_clinico_emergencia.expira_en|date:"H:i" }}</span>
+                </div>
+                <form method="post" action="{% url 'pacientes:emergencia_clinica_finalizar' %}">
+                    {% csrf_token %}
+                    <button class="button button-secondary button-small" type="submit">Finalizar</button>
+                </form>
+            </section>
+        {% endif %}

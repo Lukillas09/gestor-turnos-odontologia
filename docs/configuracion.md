@@ -81,6 +81,8 @@ Puntos importantes:
 - No guarda secretos ni variables de entorno.
 - No modifica `DEFAULT_FROM_EMAIL`; esa dirección sigue dependiendo del dominio verificado del proveedor de email.
 - El logo se guarda con el storage default de Django, local o Supabase Storage según `MEDIA_STORAGE_BACKEND`.
+- Cuando se reemplaza, quita o restaura el logo, el archivo anterior se elimina como limpieza no crítica después del commit de base de datos. Si esa limpieza falla en el storage, la configuración nueva queda guardada y se registra un warning seguro.
+- Los errores al subir el logo nuevo siguen siendo errores reales: no se silencian y no disparan el borrado del logo anterior.
 - El context processor global expone defaults seguros si la fila todavía no existe y no escribe en base durante requests públicos.
 
 ### Reservas públicas
@@ -285,3 +287,35 @@ python manage.py probar_storage_historias
 ```
 
 No todos los comandos son obligatorios en local: `probar_storage_historias` requiere variables de Supabase si se usa ese backend.
+
+## Herramientas de Desarrollo
+
+Las dependencias de calidad están separadas en `requirements-dev.txt` para no aumentar el entorno de producción de Railway.
+
+Desde la raíz del repo:
+
+```powershell
+pip install -r requirements-dev.txt
+python -m black --check app scripts --exclude migrations
+python -m ruff check app scripts
+python -m mypy app/config app/consultorio app/turnos/public_access app/turnos/solicitudes_publicas app/turnos/forms app/turnos/views
+python -m bandit -r app -x "*/migrations/*,*/tests/*" -ll
+python -m pip_audit -r requirements.txt
+```
+
+Coverage se mide desde `app/` y genera `coverage.xml`:
+
+```powershell
+python -m coverage erase
+python -m coverage run manage.py test --verbosity 2
+python -m coverage report -m
+python -m coverage xml
+```
+
+Playwright se usa solo para smoke tests E2E:
+
+```powershell
+python -m playwright install chromium
+cd app
+python manage.py test turnos.tests_e2e --verbosity 2
+```

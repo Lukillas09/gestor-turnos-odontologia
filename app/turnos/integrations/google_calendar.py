@@ -11,7 +11,6 @@ from django.utils import timezone
 
 from turnos.models import Turno
 
-
 CALENDARIO_PRINCIPAL = "primary"
 GOOGLE_CALENDAR_API_BASE_URL = "https://www.googleapis.com/calendar/v3"
 GOOGLE_OAUTH_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -109,11 +108,7 @@ class GoogleCalendarClient:
         payload = construir_evento_desde_turno(turno).como_payload()
 
         if self.servicio is not None:
-            respuesta = (
-                self._eventos()
-                .insert(calendarId=self.calendar_id, body=payload)
-                .execute()
-            )
+            respuesta = self._eventos().insert(calendarId=self.calendar_id, body=payload).execute()
             return respuesta.get("id", "")
 
         respuesta = self._enviar_request("POST", self._eventos_url(), payload)
@@ -358,9 +353,7 @@ def _construir_metadata_privada(turno):
     }
 
     return {
-        clave: str(valor)
-        for clave, valor in metadata.items()
-        if valor is not None and valor != ""
+        clave: str(valor) for clave, valor in metadata.items() if valor is not None and valor != ""
     }
 
 
@@ -387,9 +380,7 @@ def _construir_tokens_desde_respuesta(respuesta):
     access_token = respuesta.get("access_token")
 
     if not access_token:
-        raise GoogleCalendarHTTPError(
-            "Google no devolvio un access token en la respuesta OAuth."
-        )
+        raise GoogleCalendarHTTPError("Google no devolvio un access token en la respuesta OAuth.")
 
     expires_in = respuesta.get("expires_in")
     token_expira_en = None
@@ -414,12 +405,15 @@ def _construir_tokens_desde_respuesta(respuesta):
 
 def _ejecutar_request_json(request):
     try:
-        with urlopen(request, timeout=HTTP_TIMEOUT_SEGUNDOS) as response:
+        # URL fija del endpoint oficial de Google Calendar/OAuth.
+        with urlopen(request, timeout=HTTP_TIMEOUT_SEGUNDOS) as response:  # nosec B310
             contenido = response.read().decode("utf-8")
     except HTTPError as error:
         raise GoogleCalendarHTTPError(_obtener_mensaje_http_error(error)) from error
     except URLError as error:
-        raise GoogleCalendarHTTPError(f"No se pudo conectar con Google Calendar: {error}") from error
+        raise GoogleCalendarHTTPError(
+            f"No se pudo conectar con Google Calendar: {error}"
+        ) from error
 
     if not contenido:
         return {}

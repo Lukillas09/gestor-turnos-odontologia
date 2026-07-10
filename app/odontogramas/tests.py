@@ -222,7 +222,8 @@ class OdontogramaTests(TestCase):
             reverse("odontogramas:detalle_paciente", kwargs={"paciente_pk": self.paciente.pk})
         )
 
-        self.assertRedirects(
-            response,
-            f"{reverse('login')}?next={reverse('odontogramas:detalle_paciente', kwargs={'paciente_pk': self.paciente.pk})}",
+        detalle_url = reverse(
+            "odontogramas:detalle_paciente",
+            kwargs={"paciente_pk": self.paciente.pk},
         )
+        self.assertRedirects(response, f"{reverse('login')}?next={detalle_url}")

@@ -18,12 +18,12 @@ from .roles import (
     ROL_ADMINISTRADOR,
     ROL_ODONTOLOGO,
     ROL_RECEPCIONISTA,
+    limitar_pacientes_por_usuario,
     puede_borrar_pacientes,
     puede_configurar_disponibilidad,
     puede_gestionar_consultorio,
-    limitar_pacientes_por_usuario,
-    puede_reprogramar_turno,
     puede_reintentar_sincronizacion_google_calendar,
+    puede_reprogramar_turno,
     puede_ver_pacientes,
     puede_ver_turnos,
 )
@@ -101,12 +101,8 @@ class RolesTests(TestCase):
         turno_propio = crear_turno_para_permiso(odontologo=odontologo)
         turno_ajeno = crear_turno_para_permiso(matricula="MN-SYNC-AJENO")
 
-        self.assertTrue(
-            puede_reintentar_sincronizacion_google_calendar(usuario, turno_propio)
-        )
-        self.assertFalse(
-            puede_reintentar_sincronizacion_google_calendar(usuario, turno_ajeno)
-        )
+        self.assertTrue(puede_reintentar_sincronizacion_google_calendar(usuario, turno_propio))
+        self.assertFalse(puede_reintentar_sincronizacion_google_calendar(usuario, turno_ajeno))
 
     def test_odontologo_puede_reprogramar_solo_sus_turnos_activos(self):
         usuario = get_user_model().objects.create_user(username="odontologo.reprograma")

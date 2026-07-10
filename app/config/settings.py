@@ -54,59 +54,57 @@ if env_bool("DJANGO_SECURE_PROXY_SSL_HEADER", False):
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'pacientes',
-    'turnos',
-    'historias',
-    'odontogramas',
-    'consultorio.apps.ConsultorioConfig',
-    'usuarios.apps.UsuariosConfig',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "pacientes",
+    "turnos",
+    "historias",
+    "odontogramas",
+    "consultorio.apps.ConsultorioConfig",
+    "usuarios.apps.UsuariosConfig",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'usuarios.context_processors.permisos_usuario',
-                'consultorio.context_processors.perfil_consultorio',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "usuarios.context_processors.permisos_usuario",
+                "consultorio.context_processors.perfil_consultorio",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    "default": configurar_base_de_datos(env("DATABASE_URL"), BASE_DIR)
-}
+DATABASES = {"default": configurar_base_de_datos(env("DATABASE_URL"), BASE_DIR)}
 
 
 # Password validation
@@ -114,16 +112,16 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -131,9 +129,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'es-ar'
+LANGUAGE_CODE = "es-ar"
 
-TIME_ZONE = 'America/Argentina/Buenos_Aires'
+TIME_ZONE = "America/Argentina/Buenos_Aires"
 
 USE_I18N = True
 
@@ -143,8 +141,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_STORAGE_BACKEND = env(
@@ -156,9 +155,7 @@ SUPABASE_STORAGE_BUCKET = env("SUPABASE_STORAGE_BUCKET", "historias-clinicas")
 SUPABASE_STORAGE_SERVICE_ROLE_KEY = env("SUPABASE_STORAGE_SERVICE_ROLE_KEY")
 SUPABASE_STORAGE_TIMEOUT = int(env("SUPABASE_STORAGE_TIMEOUT", "30"))
 SUPABASE_STORAGE_CACHE_CONTROL = env("SUPABASE_STORAGE_CACHE_CONTROL", "3600")
-SUPABASE_STORAGE_SIGNED_URL_SECONDS = int(
-    env("SUPABASE_STORAGE_SIGNED_URL_SECONDS", "300")
-)
+SUPABASE_STORAGE_SIGNED_URL_SECONDS = int(env("SUPABASE_STORAGE_SIGNED_URL_SECONDS", "300"))
 STORAGES = {
     "default": {
         "BACKEND": MEDIA_STORAGE_BACKEND,
@@ -216,10 +213,14 @@ TURNOS_PUBLIC_OTP_SECONDS = env_nonnegative_int("TURNOS_PUBLIC_OTP_SECONDS", 600
 TURNOS_PUBLIC_SESSION_SECONDS = env_nonnegative_int("TURNOS_PUBLIC_SESSION_SECONDS", 900)
 TURNOS_PUBLIC_RESEND_SECONDS = env_nonnegative_int("TURNOS_PUBLIC_RESEND_SECONDS", 60)
 TURNOS_PUBLIC_RESEND_LIMIT = env_nonnegative_int("TURNOS_PUBLIC_RESEND_LIMIT", 3)
-TURNOS_PUBLIC_RESEND_WINDOW_SECONDS = env_nonnegative_int("TURNOS_PUBLIC_RESEND_WINDOW_SECONDS", 3600)
+TURNOS_PUBLIC_RESEND_WINDOW_SECONDS = env_nonnegative_int(
+    "TURNOS_PUBLIC_RESEND_WINDOW_SECONDS", 3600
+)
 TURNOS_PUBLIC_ACTION_TOKEN_SECONDS = env_nonnegative_int("TURNOS_PUBLIC_ACTION_TOKEN_SECONDS", 900)
 TURNOS_PUBLIC_ACTION_LIMIT = env_nonnegative_int("TURNOS_PUBLIC_ACTION_LIMIT", 20)
-TURNOS_PUBLIC_ACTION_WINDOW_SECONDS = env_nonnegative_int("TURNOS_PUBLIC_ACTION_WINDOW_SECONDS", 900)
+TURNOS_PUBLIC_ACTION_WINDOW_SECONDS = env_nonnegative_int(
+    "TURNOS_PUBLIC_ACTION_WINDOW_SECONDS", 900
+)
 TURNOS_PUBLIC_BOOKING_IP_LIMIT = env_nonnegative_int("TURNOS_PUBLIC_BOOKING_IP_LIMIT", 10)
 TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS = env_nonnegative_int(
     "TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS",
@@ -265,9 +266,8 @@ _booking_hard_limits = [
     if limite > 0
 ]
 
-if (
+if _booking_hard_limits and TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS > min(
     _booking_hard_limits
-    and TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS > min(_booking_hard_limits)
 ):
     raise RuntimeError(
         "TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS debe ser menor o igual "
@@ -275,7 +275,9 @@ if (
     )
 
 if TURNSTILE_ENABLED and (not TURNSTILE_SITE_KEY or not TURNSTILE_SECRET_KEY):
-    raise RuntimeError("TURNSTILE_SITE_KEY y TURNSTILE_SECRET_KEY deben configurarse si TURNSTILE_ENABLED=True.")
+    raise RuntimeError(
+        "TURNSTILE_SITE_KEY y TURNSTILE_SECRET_KEY deben configurarse si TURNSTILE_ENABLED=True."
+    )
 
 OAUTH_TOKEN_ENCRYPTION_KEY = env("OAUTH_TOKEN_ENCRYPTION_KEY")
 OAUTH_TOKEN_ENCRYPTION_KEY_REQUIRED = not DEBUG
@@ -283,11 +285,11 @@ OAUTH_TOKEN_ENCRYPTION_KEY_REQUIRED = not DEBUG
 if OAUTH_TOKEN_ENCRYPTION_KEY_REQUIRED and not OAUTH_TOKEN_ENCRYPTION_KEY:
     raise RuntimeError("OAUTH_TOKEN_ENCRYPTION_KEY debe configurarse cuando DJANGO_DEBUG=False.")
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'inicio'
-LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "inicio"
+LOGOUT_REDIRECT_URL = "login"
 
 DJANGO_LOG_LEVEL = env("DJANGO_LOG_LEVEL", "INFO").upper()
 LOGGING = {
@@ -331,6 +333,11 @@ LOGGING = {
             "propagate": False,
         },
         "odontogramas": {
+            "handlers": ["console"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+        "consultorio": {
             "handlers": ["console"],
             "level": DJANGO_LOG_LEVEL,
             "propagate": False,

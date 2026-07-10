@@ -1,0 +1,459 @@
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .page-transition,
+    .animate-fade-up {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    .card-hover:hover,
+    .card-hover:focus-within {
+        transform: none;
+    }
+}
+
+@media (max-width: 860px) {
+    .topbar-inner,
+    .page,
+    .app-page {
+        width: min(100% - 20px, 1120px);
+    }
+
+    .app-topbar,
+    .app-page {
+        margin-left: 0;
+    }
+
+    .app-topbar {
+        min-height: auto;
+        align-items: stretch;
+        flex-direction: column;
+        padding: 14px 10px;
+    }
+
+    .app-user-menu,
+    .app-user-profile-link {
+        justify-content: space-between;
+    }
+
+    .app-user-text {
+        justify-items: start;
+    }
+
+    .app-sidebar {
+        position: static;
+        width: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .app-sidebar-header {
+        display: none;
+    }
+
+    .app-sidebar-nav {
+        display: flex;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+        gap: 6px;
+        padding: 10px;
+    }
+
+    .app-sidebar-label {
+        display: none;
+    }
+
+    .app-sidebar-link {
+        min-height: 44px;
+        scroll-snap-align: start;
+        white-space: nowrap;
+    }
+
+    .app-page {
+        padding: 24px 0;
+    }
+
+    .topbar-inner,
+    .page-header,
+    .header-actions,
+    .toolbar,
+    .search-form,
+    .filter-actions,
+    .form-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .topbar-inner {
+        width: 100%;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+    }
+
+    .topbar .brand {
+        width: auto;
+        min-width: 0;
+        font-size: 16px;
+        text-align: left;
+    }
+
+    .topbar .nav {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        width: 100%;
+        max-width: 100%;
+        gap: 6px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2px;
+    }
+
+    .topbar .nav-link {
+        min-height: 36px;
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: #f8fafc;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .topbar .nav-link-public-primary {
+        border-color: #a7f3d0;
+        background: #ecfdf3;
+        color: #047857;
+    }
+
+    .topbar .nav-link-internal {
+        border-color: transparent;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 600;
+    }
+
+    .filter-panel,
+    .agenda-filter,
+    .public-search-panel,
+    .public-search-panel.is-enhanced,
+    .form-grid,
+    .detail-grid,
+    .agenda-turno-body,
+    .dashboard-grid,
+    .patient-layout,
+    .profile-layout,
+    .clinical-profile-card,
+    .clinical-layout,
+    .clinical-timeline-item,
+    .clinical-summary-grid,
+    .clinical-alert-grid,
+    .clinical-indicator-grid,
+    .admin-data-grid,
+    .patient-search-form,
+    .patient-list-card,
+    .patient-card-info,
+    .turnos-filter-form,
+    .turno-list-card,
+    .turno-detail-grid,
+    .turno-notes-grid,
+    .confirm-duration-layout,
+    .public-reservation-details,
+    .public-profile,
+    .public-slot-grid,
+    .public-reservation-summary,
+    .public-confirmation-banner,
+    .public-home-hero,
+    .public-home-secondary,
+    .public-dni-form,
+    .public-turno-card,
+    .consultorio-editor-grid,
+    .review-hero,
+    .review-summary-grid,
+    .review-field-card,
+    .review-field-values,
+    .review-equal-grid,
+    .schedule-row,
+    .week-day {
+        grid-template-columns: 1fr;
+    }
+
+    .clinical-actions,
+    .clinical-action-group,
+    .patient-search-actions,
+    .patient-card-actions,
+    .turnos-filter-actions,
+    .turno-detail-hero,
+    .turno-detail-actions,
+    .pagination-actions,
+    .public-reservation-details,
+    .public-confirmation-actions,
+    .public-form-actions,
+    .consultorio-preview-meta,
+    .review-hero-actions,
+    .review-card-header,
+    .review-form-actions {
+        align-items: stretch;
+        justify-content: flex-start;
+        flex-direction: column;
+    }
+
+    .header-actions .button,
+    .header-actions button,
+    .form-actions .button,
+    .form-actions button,
+    .filter-actions .button,
+    .filter-actions button,
+    .patient-search-actions .button,
+    .patient-search-actions button,
+    .patient-card-actions .button,
+    .patient-card-actions button,
+    .turnos-filter-actions .button,
+    .turnos-filter-actions button,
+    .turno-detail-actions .button,
+    .turno-detail-actions button,
+    .agenda-turno-actions .button,
+    .agenda-turno-actions button,
+    .public-confirmation-actions .button,
+    .public-home-actions .button,
+    .public-turno-actions .button,
+    .public-turno-actions button,
+    .public-form-actions .button,
+    .public-form-actions button,
+    .review-hero-actions .button,
+    .review-card-header .button,
+    .review-form-actions .button,
+    .review-form-actions button {
+        width: 100%;
+    }
+
+    .button-small {
+        min-height: 44px;
+    }
+
+    .form-panel,
+    .detail-panel,
+    .filter-panel,
+    .empty-state,
+    .panel-section,
+    .public-query-panel,
+    .public-search-panel,
+    .public-home-card,
+    .public-turno-card,
+    .consultorio-preview-card,
+    .review-hero,
+    .review-info-card,
+    .review-comparison-card,
+    .review-form {
+        border-radius: 10px;
+        padding: 18px;
+    }
+
+    .review-field-action {
+        min-width: 0;
+    }
+
+    .review-field-checkbox {
+        width: 100%;
+    }
+
+    .consultorio-preview-panel {
+        position: static;
+    }
+
+    input,
+    select,
+    textarea {
+        min-height: 46px;
+    }
+
+    textarea {
+        min-height: 92px;
+    }
+
+    .turno-card-status {
+        justify-items: stretch;
+    }
+
+    .clinical-profile-main h1 {
+        font-size: 28px;
+    }
+
+    .turno-detail-hero h1 {
+        font-size: 28px;
+    }
+
+    .public-appointment-hero {
+        margin-top: 0;
+        border-radius: 12px;
+        padding: 24px 18px;
+    }
+
+    .public-profile {
+        justify-items: center;
+        text-align: center;
+    }
+
+    .public-avatar {
+        width: 96px;
+        height: 96px;
+        font-size: 36px;
+    }
+
+    .public-avatar-small {
+        width: 76px;
+        height: 76px;
+        font-size: 28px;
+    }
+
+    .public-home-hero {
+        padding: 28px 20px;
+    }
+
+    .public-home-copy h1 {
+        font-size: clamp(28px, 9vw, 38px);
+    }
+
+    .public-home-copy p {
+        font-size: 16px;
+    }
+
+    .public-home-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .public-primary-action {
+        min-height: 54px;
+    }
+
+    .public-date-strip {
+        margin-right: 0;
+        margin-left: 0;
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    .public-date-chip {
+        min-width: 116px;
+    }
+
+    .public-slot-card-header,
+    .public-slot-button {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .public-slot-button {
+        min-height: 74px;
+    }
+
+    .public-reservation-summary {
+        justify-items: center;
+        text-align: center;
+    }
+
+    .nav {
+        justify-content: flex-start;
+    }
+
+    .quick-action,
+    .compact-item,
+    .timeline-meta {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    th,
+    td {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 520px) {
+    .topbar .nav {
+        padding-right: 2px;
+        padding-left: 2px;
+    }
+
+    .topbar .nav-link {
+        min-height: 34px;
+        padding: 5px 9px;
+        font-size: 12px;
+    }
+
+    .page,
+    .app-page {
+        width: min(100% - 16px, 1120px);
+    }
+
+    .page {
+        padding: 20px 0;
+    }
+
+    .app-page {
+        padding: 20px 0;
+    }
+
+    h1 {
+        font-size: 25px;
+    }
+
+    .clinical-profile-main h1,
+    .turno-detail-hero h1 {
+        font-size: 24px;
+    }
+
+    .metric-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .clinical-profile-card,
+    .turno-detail-hero,
+    .patient-list-card,
+    .turno-list-card,
+    .public-home-hero {
+        padding: 16px;
+    }
+
+    .patient-card-identity {
+        align-items: flex-start;
+    }
+
+    .patient-card-actions,
+    .turno-card-status {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .public-section-title {
+        padding: 18px;
+    }
+
+    .public-home-card {
+        padding: 18px;
+    }
+
+    .public-turno-card h2 {
+        font-size: 19px;
+    }
+}

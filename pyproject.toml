@@ -1,0 +1,134 @@
+[tool.black]
+line-length = 100
+target-version = ["py313"]
+extend-exclude = '''
+(
+  /migrations/
+)
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["app"]
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "app/media",
+    "app/staticfiles",
+    "htmlcov",
+    "media",
+    "staticfiles",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["ALL"]
+"**/models.py" = ["DJ012"]
+
+[tool.coverage.run]
+branch = true
+source = [
+    "config",
+    "consultorio",
+    "historias",
+    "odontogramas",
+    "pacientes",
+    "turnos",
+    "usuarios",
+]
+omit = [
+    "*/migrations/*",
+    "*/tests.py",
+    "*/tests_*.py",
+    "*/tests/*",
+    "*/tests_e2e/*",
+    "app/manage.py",
+    "app/config/asgi.py",
+    "app/config/wsgi.py",
+    "manage.py",
+    "config/asgi.py",
+    "config/wsgi.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 83
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "pragma: no cover",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "app"
+plugins = ["mypy_django_plugin.main"]
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_equality = true
+ignore_missing_imports = false
+follow_imports = "silent"
+exclude = [
+    "/migrations/",
+    "/tests\\.py$",
+    "/tests_.*\\.py$",
+    "/tests_e2e/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "cryptography.*",
+    "google.*",
+    "google_auth_oauthlib.*",
+    "psycopg.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "historias.*",
+    "odontogramas.*",
+    "pacientes.*",
+    "turnos.fields",
+    "turnos.models",
+    "turnos.selectors",
+    "turnos.services",
+    "usuarios.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+    "turnos.forms.*",
+    "turnos.public_access.*",
+    "turnos.solicitudes_publicas.*",
+    "turnos.views.*",
+]
+disable_error_code = [
+    "attr-defined",
+    "misc",
+    "union-attr",
+]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.bandit]
+exclude_dirs = [
+    ".venv",
+    "app/*/migrations",
+    "app/staticfiles",
+    "app/media",
+]

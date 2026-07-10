@@ -11,24 +11,24 @@ from django.urls import reverse
 from django.utils import timezone
 
 from pacientes.models import Paciente
+from turnos.admin import GoogleCalendarConexionAdmin
 from turnos.fields import ENCRYPTED_TEXT_PREFIX
-from turnos.integrations.google_calendar import (
-    GoogleCalendarClient,
-    GoogleCalendarError,
-    GoogleCalendarClienteNoConfiguradoError,
-    GoogleCalendarEventoSinIdError,
-    GoogleOAuthTokens,
-    construir_url_autorizacion_google_calendar,
-    construir_evento_desde_turno,
-    obtener_configuracion_google_calendar,
-)
 from turnos.google_calendar_sync import (
     MENSAJE_ERROR_INESPERADO,
     sincronizar_turno_actualizado,
     sincronizar_turno_cancelado,
     sincronizar_turno_creado,
 )
-from turnos.admin import GoogleCalendarConexionAdmin
+from turnos.integrations.google_calendar import (
+    GoogleCalendarClient,
+    GoogleCalendarClienteNoConfiguradoError,
+    GoogleCalendarError,
+    GoogleCalendarEventoSinIdError,
+    GoogleOAuthTokens,
+    construir_evento_desde_turno,
+    construir_url_autorizacion_google_calendar,
+    obtener_configuracion_google_calendar,
+)
 from turnos.models import (
     DisponibilidadOdontologo,
     GoogleCalendarConexion,
@@ -431,9 +431,7 @@ class GoogleCalendarOAuthViewsTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("turnos:google_calendar"))
-        self.assertFalse(
-            GoogleCalendarConexion.objects.filter(odontologo=self.odontologo).exists()
-        )
+        self.assertFalse(GoogleCalendarConexion.objects.filter(odontologo=self.odontologo).exists())
 
     def test_desconectar_limpia_tokens(self):
         conexion = GoogleCalendarConexion.objects.create(

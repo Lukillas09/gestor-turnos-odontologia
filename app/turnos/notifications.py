@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.mail import send_mail

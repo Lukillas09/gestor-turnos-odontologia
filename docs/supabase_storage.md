@@ -81,6 +81,20 @@ python manage.py probar_storage_historias --conservar
 
 La descarga pasa por Django, por eso el bucket puede mantenerse privado.
 
+## Logo del consultorio
+
+El logo del consultorio usa el storage default de Django. Si `MEDIA_STORAGE_BACKEND=config.storage_backends.SupabaseStorage`, el logo también se guarda en Supabase Storage.
+
+Al reemplazar, quitar o restaurar el perfil del consultorio, el archivo anterior se trata como una limpieza secundaria:
+
+- la configuración se guarda primero en base de datos;
+- la eliminación del logo anterior se programa con `transaction.on_commit()`;
+- si la eliminación falla, la vista no devuelve 500 y la configuración nueva no se revierte;
+- el fallo queda registrado como `warning` sin service role key, URL firmada ni cuerpo de respuesta de Supabase;
+- puede quedar un archivo huérfano excepcional para limpieza manual posterior.
+
+Esta tolerancia aplica solo al borrado del archivo anterior. Si falla la subida del logo nuevo, el error se informa normalmente y no se borra el logo anterior.
+
 ## Límites y costo
 
 Los límites del plan gratuito de Supabase pueden cambiar. Antes de usar datos reales de pacientes, revisar el panel de Supabase y la documentación oficial del plan vigente.

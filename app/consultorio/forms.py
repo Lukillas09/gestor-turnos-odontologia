@@ -46,14 +46,23 @@ class ConfiguracionConsultorioForm(forms.ModelForm):
             "anticipacion_minima_reserva_publica_minutos": forms.NumberInput(
                 attrs={"min": 0, "max": 10080, "step": 15}
             ),
-            "logo": forms.FileInput(attrs={"accept": ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"}),
+            "logo": forms.FileInput(
+                attrs={"accept": ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"}
+            ),
         }
         help_texts = {
             "nombre_corto": "Se usa en encabezados y menús si el nombre comercial es largo.",
             "logo": "PNG, JPG, JPEG o WEBP. Máximo 2 MB. No se permiten SVG.",
-            "whatsapp": "Conviene ingresar código de país y característica. Se publicará como enlace seguro de WhatsApp.",
-            "horario_atencion": "Texto informativo. No modifica la disponibilidad real de los odontólogos.",
-            "politica_cancelacion": "Texto público opcional. Se mostrará escapado, sin interpretar HTML.",
+            "whatsapp": (
+                "Conviene ingresar código de país y característica. "
+                "Se publicará como enlace seguro de WhatsApp."
+            ),
+            "horario_atencion": (
+                "Texto informativo. No modifica la disponibilidad real de los odontólogos."
+            ),
+            "politica_cancelacion": (
+                "Texto público opcional. Se mostrará escapado, sin interpretar HTML."
+            ),
             "color_principal": "Color de marca en formato HEX.",
             "ventana_reserva_publica_dias": (
                 "Cantidad máxima de días visibles y reservables desde la página pública. "
@@ -67,7 +76,7 @@ class ConfiguracionConsultorioForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        for nombre, campo in self.fields.items():
+        for _nombre, campo in self.fields.items():
             if isinstance(campo.widget, forms.CheckboxInput):
                 continue
             campo.widget.attrs.setdefault("class", "form-control")
@@ -84,7 +93,7 @@ class ConfiguracionConsultorioForm(forms.ModelForm):
         return logo
 
     def clean(self):
-        cleaned_data = super().clean()
+        cleaned_data = super().clean() or {}
         logo = cleaned_data.get("logo")
         quitar_logo = cleaned_data.get("quitar_logo")
         logo_nuevo = bool(logo) and not getattr(logo, "_committed", False)

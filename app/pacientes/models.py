@@ -1,8 +1,8 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models.deletion import ProtectedError
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from .normalizacion import normalizar_documento
@@ -104,10 +104,7 @@ class Paciente(models.Model):
                         archivado_por__isnull=True,
                         motivo_archivado="",
                     )
-                    | (
-                        Q(activo=False, archivado_en__isnull=False)
-                        & ~Q(motivo_archivado="")
-                    )
+                    | (Q(activo=False, archivado_en__isnull=False) & ~Q(motivo_archivado=""))
                 ),
             )
         ]

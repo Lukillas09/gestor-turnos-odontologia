@@ -6,7 +6,6 @@ from django.db.models.deletion import ProtectedError
 
 from .validators import normalizar_color_hex, validar_color_hex, validar_logo_consultorio
 
-
 CONFIGURACION_CONSULTORIO_PK = 1
 COLOR_PRINCIPAL_DEFAULT = "#2563EB"
 NOMBRE_COMERCIAL_DEFAULT = "Gestor de Turnos"
@@ -87,7 +86,7 @@ class ConfiguracionConsultorio(models.Model):
         ]
 
     def clean(self):
-        errors = {}
+        errors: dict[str, object] = {}
 
         if self.pk not in (None, CONFIGURACION_CONSULTORIO_PK):
             errors["id"] = "Solo puede existir una configuración del consultorio."
@@ -121,7 +120,7 @@ class ConfiguracionConsultorio(models.Model):
     def delete(self, *args, **kwargs):
         raise ProtectedError(
             "La configuración del consultorio no se puede borrar.",
-            self,
+            {self},
         )
 
     @property

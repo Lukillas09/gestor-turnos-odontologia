@@ -13,7 +13,6 @@ from django.utils.text import get_valid_filename
 
 from .fields import EncryptedTextField
 
-
 logger = logging.getLogger(__name__)
 
 MAX_FOTO_ODONTOLOGO_BYTES = 5 * 1024 * 1024
@@ -273,7 +272,9 @@ class ExcepcionAgenda(models.Model):
     mensaje_publico = models.CharField(
         max_length=200,
         blank=True,
-        help_text="Mensaje opcional para indicar el motivo operativo sin exponer detalles internos.",
+        help_text=(
+            "Mensaje opcional para indicar el motivo operativo sin exponer detalles internos."
+        ),
     )
     activo = models.BooleanField(default=True)
     creada_por = models.ForeignKey(
@@ -351,13 +352,17 @@ class ExcepcionAgenda(models.Model):
 
         if self.fecha_desde and self.fecha_hasta:
             if self.fecha_hasta < self.fecha_desde:
-                errors["fecha_hasta"] = "La fecha hasta debe ser posterior o igual a la fecha desde."
+                errors["fecha_hasta"] = (
+                    "La fecha hasta debe ser posterior o igual a la fecha desde."
+                )
 
             if (self.fecha_hasta - self.fecha_desde).days > 365:
                 errors["fecha_hasta"] = "El rango no puede superar 366 días corridos."
 
             if self.activo and self.fecha_hasta < timezone.localdate():
-                errors["fecha_hasta"] = "No se pueden crear excepciones activas totalmente vencidas."
+                errors["fecha_hasta"] = (
+                    "No se pueden crear excepciones activas totalmente vencidas."
+                )
 
         if self.todo_el_dia:
             self.hora_inicio = None
@@ -574,9 +579,7 @@ class Turno(models.Model):
 
         if self.pk:
             turno_original = (
-                Turno.objects.filter(pk=self.pk)
-                .values("odontologo_id", "fecha")
-                .first()
+                Turno.objects.filter(pk=self.pk).values("odontologo_id", "fecha").first()
             )
 
             if turno_original:
@@ -900,9 +903,7 @@ class GoogleCalendarConexion(models.Model):
 
     @property
     def necesita_renovar_access_token(self):
-        return self.esta_conectada and (
-            not self.access_token or self.access_token_expirado
-        )
+        return self.esta_conectada and (not self.access_token or self.access_token_expirado)
 
     @property
     def ultimo_error_para_usuario(self):
@@ -1005,23 +1006,16 @@ def normalizar_error_google_calendar_para_usuario(mensaje):
             "Conectá Google Calendar y volvé a intentar."
         )
 
-    if any(
-        patron in mensaje_normalizado
-        for patron in ("not found", "no se encontro", "404")
-    ):
+    if any(patron in mensaje_normalizado for patron in ("not found", "no se encontro", "404")):
         return (
             "No se encontró el evento en Google Calendar. "
             "Podés reintentar la sincronización para crear o actualizar el evento."
         )
 
     if any(
-        patron in mensaje_normalizado
-        for patron in ("timeout", "connection", "conectar", "red")
+        patron in mensaje_normalizado for patron in ("timeout", "connection", "conectar", "red")
     ):
-        return (
-            "No se pudo conectar con Google Calendar. "
-            "Reintenta en unos minutos."
-        )
+        return "No se pudo conectar con Google Calendar. " "Reintenta en unos minutos."
 
     return (
         "No se pudo sincronizar el turno con Google Calendar. "

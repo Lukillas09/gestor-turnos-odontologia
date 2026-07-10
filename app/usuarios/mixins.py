@@ -5,8 +5,8 @@ from .roles import (
     puede_archivar_pacientes,
     puede_borrar_pacientes,
     puede_conectar_google_calendar,
-    puede_gestionar_historias_clinicas,
     puede_gestionar_consultorio,
+    puede_gestionar_historias_clinicas,
     puede_ver_pacientes,
     puede_ver_turnos,
 )

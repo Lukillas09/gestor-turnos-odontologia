@@ -18,14 +18,12 @@ from historias.access_policy import (
     registrar_evento_acceso_clinico,
     usuario_puede_iniciar_acceso_emergencia,
 )
-from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
+from historias.models import AccesoClinicoAuditoria, HistoriaClinica, HistoriaClinicaAdjunto
 from historias.permissions import (
     puede_crear_historia_de_paciente,
     puede_ver_historia_de_paciente,
 )
-from historias.models import AccesoClinicoAuditoria
 from turnos.models import Turno
-
 from usuarios.mixins import (
     ArchivarPacientesRequeridoMixin,
     GestionConsultorioRequeridaMixin,
@@ -52,7 +50,6 @@ from .services import (
     puede_derivar_paciente,
     reactivar_paciente,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -90,34 +87,29 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 | Q(obra_social__icontains=busqueda)
             )
 
-        return (
-            queryset.only(
-                "id",
-                "nombre",
-                "apellido",
-                "documento",
-                "telefono",
-                "email",
-                "obra_social",
-                "activo",
-                "archivado_en",
-            )
-            .annotate(
-                ultimo_turno_fecha=Subquery(ultimo_turno.values("fecha")[:1]),
-                ultimo_turno_hora_inicio=Subquery(
-                    ultimo_turno.values("hora_inicio")[:1],
-                ),
-                ultimo_turno_estado=Subquery(ultimo_turno.values("estado")[:1]),
-            )
+        return queryset.only(
+            "id",
+            "nombre",
+            "apellido",
+            "documento",
+            "telefono",
+            "email",
+            "obra_social",
+            "activo",
+            "archivado_en",
+        ).annotate(
+            ultimo_turno_fecha=Subquery(ultimo_turno.values("fecha")[:1]),
+            ultimo_turno_hora_inicio=Subquery(
+                ultimo_turno.values("hora_inicio")[:1],
+            ),
+            ultimo_turno_estado=Subquery(ultimo_turno.values("estado")[:1]),
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["busqueda"] = self.request.GET.get("q", "").strip()
         context["estado_actual"] = (
-            self.request.GET.get("estado", "activos")
-            if self._puede_ver_archivados()
-            else "activos"
+            self.request.GET.get("estado", "activos") if self._puede_ver_archivados() else "activos"
         )
         context["puede_ver_archivados"] = self._puede_ver_archivados()
         estados_turno = dict(Turno.Estado.choices)
@@ -169,17 +161,14 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             super().get_queryset(),
             self.request.user,
         )
-        return (
-            queryset
-            .prefetch_related(
-                Prefetch(
-                    "odontologos_asociados",
-                    queryset=PacienteOdontologo.objects.filter(activo=True).select_related(
-                        "odontologo",
-                        "odontologo__usuario",
-                        "asignado_por",
-                    ),
-                )
+        return queryset.prefetch_related(
+            Prefetch(
+                "odontologos_asociados",
+                queryset=PacienteOdontologo.objects.filter(activo=True).select_related(
+                    "odontologo",
+                    "odontologo__usuario",
+                    "asignado_por",
+                ),
             )
         )
 
@@ -188,13 +177,12 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         paciente = self.object
         hoy = timezone.localdate()
         ahora = timezone.localtime().time()
-        puede_ver_historia = (
-            puede_gestionar_historias_clinicas(self.request.user)
-            and puede_ver_historia_de_paciente(
-                self.request.user,
-                paciente,
-                request=self.request,
-            )
+        puede_ver_historia = puede_gestionar_historias_clinicas(
+            self.request.user
+        ) and puede_ver_historia_de_paciente(
+            self.request.user,
+            paciente,
+            request=self.request,
         )
         politica_lectura_clinica = obtener_politica_lectura(
             self.request.user,
@@ -429,9 +417,7 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
     def _obtener_datos_administrativos(self, paciente, hoy):
         edad = self._calcular_edad(paciente.fecha_nacimiento, hoy)
         fecha_nacimiento = (
-            paciente.fecha_nacimiento.strftime("%d/%m/%Y")
-            if paciente.fecha_nacimiento
-            else "-"
+            paciente.fecha_nacimiento.strftime("%d/%m/%Y") if paciente.fecha_nacimiento else "-"
         )
         return [
             {
@@ -616,9 +602,7 @@ class FichaOdontologicaUpdateView(VerPacientesRequeridoMixin, View):
             "paciente_form": paciente_form,
             "ficha_form": ficha_form,
             "titulo": "Ficha odontológica",
-            "subtitulo": (
-                "Información general, contacto, cobertura y antecedentes clínicos."
-            ),
+            "subtitulo": ("Información general, contacto, cobertura y antecedentes clínicos."),
         }
 
 
@@ -757,7 +741,11 @@ class PacienteArchiveView(ArchivarPacientesRequeridoMixin, FormView):
             logger.exception("No se pudo archivar el paciente.")
             form.add_error(
                 None,
-                error.messages[0] if hasattr(error, "messages") else "No se pudo archivar el paciente.",
+                (
+                    error.messages[0]
+                    if hasattr(error, "messages")
+                    else "No se pudo archivar el paciente."
+                ),
             )
             messages.error(
                 self.request,
@@ -770,9 +758,7 @@ class PacienteArchiveView(ArchivarPacientesRequeridoMixin, FormView):
         return super().form_valid(form)
 
     def _turnos_que_bloquean_archivo(self):
-        return self.paciente.turnos.filter(
-            estado__in=self.estados_que_bloquean_archivo
-        )
+        return self.paciente.turnos.filter(estado__in=self.estados_que_bloquean_archivo)
 
     def _tiene_datos_clinicos(self):
         return self._cantidad_historias_clinicas() > 0 or self._tiene_ficha_odontologica()
@@ -821,7 +807,11 @@ class PacienteReactivateView(ArchivarPacientesRequeridoMixin, FormView):
         except Exception as error:
             form.add_error(
                 None,
-                error.messages[0] if hasattr(error, "messages") else "No se pudo reactivar el paciente.",
+                (
+                    error.messages[0]
+                    if hasattr(error, "messages")
+                    else "No se pudo reactivar el paciente."
+                ),
             )
             return super().form_invalid(form)
 
@@ -838,7 +828,9 @@ class PacienteEmergenciaClinicaStartView(ArchivarPacientesRequeridoMixin, FormVi
             return super().dispatch(request, *args, **kwargs)
 
         if not usuario_puede_iniciar_acceso_emergencia(request.user):
-            raise PermissionDenied("Solo un superusuario puede iniciar acceso clinico de emergencia.")
+            raise PermissionDenied(
+                "Solo un superusuario puede iniciar acceso clinico de emergencia."
+            )
 
         self.paciente = get_object_or_404(Paciente.objects.all(), pk=self.kwargs["pk"])
         return super().dispatch(request, *args, **kwargs)
@@ -864,7 +856,10 @@ class PacienteEmergenciaClinicaStartView(ArchivarPacientesRequeridoMixin, FormVi
         )
         messages.warning(
             self.request,
-            "Acceso clinico de emergencia activo durante 15 minutos. Todas las lecturas quedan auditadas.",
+            (
+                "Acceso clinico de emergencia activo durante 15 minutos. "
+                "Todas las lecturas quedan auditadas."
+            ),
         )
         return super().form_valid(form)
 

@@ -3,7 +3,6 @@ from pathlib import Path
 
 from django.core.exceptions import ValidationError
 
-
 COLOR_HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 EXTENSIONES_LOGO_PERMITIDAS = {".png", ".jpg", ".jpeg", ".webp"}
 LOGO_MAX_BYTES = 2 * 1024 * 1024

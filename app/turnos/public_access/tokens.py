@@ -2,8 +2,8 @@ from secrets import choice, token_urlsafe
 from string import digits
 
 from django.utils.crypto import salted_hmac
-from pacientes.normalizacion import normalizar_documento
 
+from pacientes.normalizacion import normalizar_documento
 
 PUBLIC_ACCESS_SESSION_KEY = "turnos_public_access"
 PUBLIC_ACCESS_PENDING_CHALLENGE_KEY = "turnos_public_access_pending_challenge"

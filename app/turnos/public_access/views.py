@@ -8,6 +8,10 @@ from django.utils.formats import date_format
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
+from turnos.excepciones import (
+    obtener_horarios_publicos_disponibles,
+    validar_fecha_reserva_publica,
+)
 from turnos.forms import (
     CancelacionAccesoPublicoTurnoForm,
     SolicitudAccesoPublicoTurnosForm,
@@ -16,10 +20,6 @@ from turnos.forms import (
 )
 from turnos.integrations.turnstile import validar_turnstile
 from turnos.models import AccionPublicaTurno
-from turnos.excepciones import (
-    obtener_horarios_publicos_disponibles,
-    validar_fecha_reserva_publica,
-)
 
 from .permissions import AccesoPublicoTurnosRequeridoMixin
 from .rate_limit import incrementar_limite, leer_contador
@@ -75,7 +75,8 @@ class SolicitarAccesoPublicoTurnosView(FormView):
 
         if self._requiere_turnstile(documento):
             resultado_turnstile = validar_turnstile(
-                self.request.POST.get("cf-turnstile-response") or form.cleaned_data["turnstile_token"],
+                self.request.POST.get("cf-turnstile-response")
+                or form.cleaned_data["turnstile_token"],
                 obtener_ip_cliente(self.request),
             )
 
@@ -143,8 +144,7 @@ class MisTurnosPublicoView(AccesoPublicoTurnosRequeridoMixin, TemplateView):
         acciones = generar_permisos_para_turnos(self.request, self.paciente_id_publico, turnos)
 
         context["items_turnos"] = [
-            self._construir_item_turno(turno, acciones.get(turno.pk, {}))
-            for turno in turnos
+            self._construir_item_turno(turno, acciones.get(turno.pk, {})) for turno in turnos
         ]
         return context
 
@@ -160,9 +160,7 @@ class MisTurnosPublicoView(AccesoPublicoTurnosRequeridoMixin, TemplateView):
             "odontologo": turno.odontologo.nombre_completo,
             "cancelar_accion": cancelar,
             "cancelar_token": (
-                obtener_token_accion_desde_session(self.request, cancelar.id)
-                if cancelar
-                else ""
+                obtener_token_accion_desde_session(self.request, cancelar.id) if cancelar else ""
             ),
             "reprogramar_accion": reprogramar,
         }
@@ -198,7 +196,9 @@ class CancelarTurnoPublicoSeguroView(AccesoPublicoTurnosRequeridoMixin, View):
             motivo_cancelacion=form.cleaned_data["motivo_cancelacion"],
         )
 
-        messages.success(request, "Tu turno fue cancelado correctamente." if ok else MENSAJE_ACCION_INVALIDA)
+        messages.success(
+            request, "Tu turno fue cancelado correctamente." if ok else MENSAJE_ACCION_INVALIDA
+        )
         return redirect("turnos:mis_turnos_publico")
 
     def _permitir_operacion(self, request, nombre):

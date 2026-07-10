@@ -354,11 +354,40 @@ python manage.py test
 python manage.py collectstatic --noinput
 ```
 
+Para tareas de calidad y mantenibilidad, instalar dependencias de desarrollo desde la raíz:
+
+```powershell
+pip install -r requirements-dev.txt
+python -m black --check app scripts --exclude migrations
+python -m ruff check app scripts
+python -m mypy app/config app/consultorio app/turnos/public_access app/turnos/solicitudes_publicas app/turnos/forms app/turnos/views
+python -m bandit -r app -x "*/migrations/*,*/tests/*" -ll
+python -m pip_audit -r requirements.txt
+cd app
+python -m coverage run --rcfile=../pyproject.toml manage.py test --verbosity 2
+python -m coverage report --rcfile=../pyproject.toml -m
+python -m coverage xml --rcfile=../pyproject.toml
+python manage.py test turnos.tests_e2e --verbosity 2
+```
+
+Los tests E2E usan Playwright y Chromium:
+
+```powershell
+python -m playwright install chromium
+```
+
 ## Integración Continua
 
 El repositorio incluye el workflow `CI Django` en `.github/workflows/ci.yml`.
 
-Se ejecuta en `push`, `pull_request` y `workflow_dispatch`, sin tareas programadas. La CI usa Python 3.13, instala `requirements.txt`, ejecuta `pip check`, valida la configuración de Django, comprueba migraciones pendientes con `makemigrations --check --dry-run`, corre la suite completa con `python manage.py test --verbosity 2` y genera archivos estáticos con `collectstatic --noinput`.
+Se ejecuta en `push`, `pull_request` y `workflow_dispatch`, sin tareas programadas. La CI usa Python 3.13 y separa responsabilidades:
+
+- `quality`: validación de codificación, Black, Ruff y Mypy incremental.
+- `django-tests`: `pip check`, `manage.py check`, migraciones, tests con Coverage, `coverage.xml` y `collectstatic`.
+- `security`: Bandit y `pip-audit` sobre dependencias de producción.
+- `e2e`: Playwright con Chromium para smoke tests públicos e internos.
+
+La cobertura inicial queda protegida con umbral `83%` en `pyproject.toml`, midiendo el código de aplicación y excluyendo tests/migraciones. Railway sigue instalando solo `requirements.txt`; `requirements-dev.txt` es para desarrollo y CI.
 
 La ejecución de CI usa SQLite, email en memoria, filesystem storage y flags seguros para pruebas. No requiere Redis, Turnstile, Google Calendar, Supabase ni secretos reales.
 
