@@ -1,392 +1,153 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Solicitar turno | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <section class="public-appointment-hero animate-fade-up">
-        <div class="public-profile" data-public-profile>
-            <div class="public-avatar">
-                {% if odontologo and odontologo.foto_perfil_url %}
-                    <img
-                        src="{{ odontologo.foto_perfil_url }}"
-                        alt="{{ odontologo }}"
-                        onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
-                        style="object-position: {{ odontologo.foto_object_position }};"
-                    >
-                    <span class="public-avatar-fallback" hidden>{{ odontologo.nombre_completo|first }}</span>
-                {% elif odontologo %}
-                    <span>{{ odontologo.nombre_completo|first }}</span>
-                {% else %}
-                    <span>+</span>
-                {% endif %}
-            </div>
-            <div>
-                <span class="public-pill">
-                    {% if odontologo %}{{ odontologo.especialidad|default:"Odontología general" }}{% else %}Autogestión de turnos{% endif %}
-                </span>
-                <h1>{% if odontologo %}{{ odontologo }}{% else %}Solicitar turno{% endif %}</h1>
-                {% if odontologo %}
-                    <p>{{ odontologo.duracion_turno_minutos }} minutos por turno</p>
-                    <p>Matrícula {{ odontologo.matricula }}</p>
-                    {% if odontologo.celular %}
-                        <p>Contacto {{ odontologo.celular }}</p>
-                    {% endif %}
-                {% else %}
-                    <p>Elegí un odontólogo y una fecha para ver disponibilidad.</p>
-                {% endif %}
-            </div>
-        </div>
-    </section>
+    {% include "turnos/includes/public_stepper.html" with current_step=1 current_label="Elegí tu turno" %}
 
-    {% include "consultorio/includes/public_contact_card.html" %}
+    <header class="public-booking-heading animate-fade-up">
+        <p class="eyebrow">Reserva online</p>
+        <h1>Elegí tu turno</h1>
+        <p>Seleccioná un profesional, una fecha y el horario que mejor te quede.</p>
+    </header>
 
     <section
-        class="public-appointment-panel"
+        class="public-booking-shell"
         data-public-availability
         data-availability-url="{% url 'turnos:solicitud_publica_horarios' %}"
     >
-        <div class="public-section-title animate-fade-up">
-            <h2>Opciones de turnos disponibles</h2>
-            <p>Elegí un horario y después completá tus datos para enviar la solicitud.</p>
-        </div>
+        <form class="public-search-panel public-search-panel-v2 animate-fade-up" method="get" novalidate data-public-search-form>
+            <section class="public-booking-control public-professional-control" aria-labelledby="professional-title">
+                <div class="public-booking-control-header">
+                    <span class="public-booking-control-number">1</span>
+                    <div><h2 id="professional-title">Profesional</h2><p>Elegí con quién querés atenderte.</p></div>
+                </div>
 
-        <form class="public-search-panel animate-fade-up" method="get" novalidate data-public-search-form>
-            <div>
-                <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontólogo</label>
-                {{ busqueda_form.odontologo }}
-                {% if busqueda_form.odontologo.errors %}
-                    <div class="field-error">{{ busqueda_form.odontologo.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ busqueda_form.fecha.id_for_label }}">Fecha</label>
-                {{ busqueda_form.fecha }}
-                {% if busqueda_form.fecha.errors %}
-                    <div class="field-error">{{ busqueda_form.fecha.errors }}</div>
-                {% endif %}
-            </div>
+                <div class="public-professional-picker" data-professional-picker>
+                    {% for profesional in busqueda_form.odontologo.field.queryset %}
+                        <button
+                            class="public-professional-option{% if odontologo and odontologo.pk == profesional.pk %} is-selected{% endif %}"
+                            type="button"
+                            data-public-professional="{{ profesional.pk }}"
+                            aria-pressed="{% if odontologo and odontologo.pk == profesional.pk %}true{% else %}false{% endif %}"
+                        >
+                            <span class="public-professional-option-photo">
+                                {% if profesional.foto_perfil_url %}
+                                    <img src="{{ profesional.foto_perfil_url }}" alt="" loading="lazy" style="object-position: {{ profesional.foto_object_position }};">
+                                {% else %}
+                                    <span>{{ profesional.nombre_completo|first|upper }}</span>
+                                {% endif %}
+                            </span>
+                            <span class="public-professional-option-copy">
+                                <strong>{{ profesional.nombre_completo }}</strong>
+                                <small>{{ profesional.especialidad|default:"Odontología general" }}</small>
+                                <span>{{ profesional.duracion_turno_minutos }} min habituales</span>
+                            </span>
+                            <span class="public-professional-option-check" aria-hidden="true">{% include "includes/icon.html" with name="check" %}</span>
+                        </button>
+                    {% empty %}
+                        <div class="empty-state public-empty-compact"><p>No hay odontólogos activos para solicitar turnos.</p></div>
+                    {% endfor %}
+                </div>
+
+                <div class="public-select-fallback">
+                    <label for="{{ busqueda_form.odontologo.id_for_label }}">Odontólogo</label>
+                    {{ busqueda_form.odontologo }}
+                    {% if busqueda_form.odontologo.errors %}<div class="field-error">{{ busqueda_form.odontologo.errors }}</div>{% endif %}
+                </div>
+            </section>
+
+            <section class="public-booking-control booking-date-control" aria-labelledby="date-title">
+                <div class="public-booking-control-header">
+                    <span class="public-booking-control-number">2</span>
+                    <div><h2 id="date-title">Fecha</h2><p>La agenda muestra únicamente días dentro de la ventana habilitada.</p></div>
+                </div>
+                <div>
+                    <label class="booking-date-label" for="{{ busqueda_form.fecha.id_for_label }}">
+                        <span>Seleccioná un día</span>
+                    </label>
+                    {{ busqueda_form.fecha }}
+                    {% if busqueda_form.fecha.errors %}<div class="field-error">{{ busqueda_form.fecha.errors }}</div>{% endif %}
+                </div>
+            </section>
+
             <div class="filter-actions public-search-fallback">
                 <button type="submit">Ver horarios</button>
             </div>
         </form>
 
-        <div data-public-results aria-live="polite">
-            {% if dias_cercanos %}
-                <div class="public-date-strip stagger-list">
-                    {% for dia in dias_cercanos %}
-                        <a class="public-date-chip animate-fade-up{% if dia.seleccionado %} is-active{% endif %}" style="--stagger-index: {{ forloop.counter0 }};" href="{{ dia.url }}" data-public-date="{{ dia.fecha|date:'Y-m-d' }}">
-                            <strong>{{ dia.fecha|date:"d/m" }}</strong>
-                            {% if dia.cantidad is not None %}
-                                <span>{{ dia.cantidad }} horario{% if dia.cantidad != 1 %}s{% endif %}</span>
-                            {% else %}
-                                <span>Ver horarios</span>
-                            {% endif %}
-                        </a>
-                    {% endfor %}
-                </div>
-            {% endif %}
+        <section class="public-booking-results" aria-labelledby="schedule-title">
+            <div class="public-booking-control-header public-schedule-heading">
+                <span class="public-booking-control-number">3</span>
+                <div><h2 id="schedule-title">Opciones de turnos disponibles</h2><p>Elegí un horario para continuar.</p></div>
+            </div>
 
-            {% if odontologo and fecha %}
-                <div class="public-slot-grid stagger-list">
-                    <section class="public-slot-card animate-fade-up card-hover" style="--stagger-index: 0;">
-                        <div class="public-slot-card-header">
-                            <div>
-                                <h3>Turnos por la mañana</h3>
-                                <p>{{ fecha|date:"l d/m/Y" }}</p>
-                            </div>
-                            <span>{{ odontologo.duracion_turno_minutos }} min</span>
+            <div data-public-results aria-live="polite" aria-busy="false">
+                {% if dias_cercanos %}
+                    <div class="public-date-strip stagger-list" aria-label="Días disponibles cercanos">
+                        {% for dia in dias_cercanos %}
+                            <a class="public-date-chip animate-fade-up{% if dia.seleccionado %} is-active{% endif %}" style="--stagger-index: {{ forloop.counter0 }};" href="{{ dia.url }}" data-public-date="{{ dia.fecha|date:'Y-m-d' }}" {% if dia.seleccionado %}aria-current="date"{% endif %}>
+                                <strong>{{ dia.fecha|date:"D d" }}</strong>
+                                <span>{% if dia.cantidad is not None %}{{ dia.cantidad }} horario{% if dia.cantidad != 1 %}s{% endif %}{% else %}Ver horarios{% endif %}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if odontologo and fecha %}
+                    <div class="public-selected-professional" data-public-selected-profile>
+                        <div class="public-selected-professional-photo">
+                            {% if odontologo.foto_perfil_url %}<img src="{{ odontologo.foto_perfil_url }}" alt="" style="object-position: {{ odontologo.foto_object_position }};">{% else %}<span>{{ odontologo.nombre_completo|first|upper }}</span>{% endif %}
                         </div>
+                        <div><span>{{ odontologo.especialidad|default:"Odontología general" }}</span><strong>{{ odontologo.nombre_completo }}</strong><small>{{ fecha|date:"l d/m/Y" }}</small></div>
+                    </div>
 
-                        {% if horarios_manana %}
-                            <div class="public-slot-list stagger-list">
-                                {% for opcion in horarios_manana %}
-                                    <a class="public-slot-button animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};" href="{{ opcion.url }}">
-                                        <span>{{ opcion.label }}</span>
-                                        <strong>Reservar turno</strong>
-                                    </a>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <p class="muted">No hay horarios por la mañana para esta fecha.</p>
-                        {% endif %}
-                    </section>
+                    <div class="public-slot-grid stagger-list">
+                        <section class="public-slot-card animate-fade-up" style="--stagger-index: 0;">
+                            <div class="public-slot-card-header"><div>{% include "includes/icon.html" with name="calendar" %}<h3>Mañana</h3></div><span>{{ horarios_manana|length }} opciones</span></div>
+                            {% if horarios_manana %}
+                                <div class="public-slot-list public-time-grid">
+                                    {% for opcion in horarios_manana %}
+                                        <a class="public-slot-button" href="{{ opcion.url }}" data-public-slot="{{ opcion.label }}" aria-label="Seleccionar horario {{ opcion.label }}"><span>{{ opcion.label }}</span></a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}<p class="muted public-slot-empty">No hay horarios por la mañana para esta fecha.</p>{% endif %}
+                        </section>
 
-                    <section class="public-slot-card animate-fade-up card-hover" style="--stagger-index: 1;">
-                        <div class="public-slot-card-header">
-                            <div>
-                                <h3>Turnos por la tarde</h3>
-                                <p>{{ fecha|date:"l d/m/Y" }}</p>
-                            </div>
-                            <span>{{ odontologo.duracion_turno_minutos }} min</span>
-                        </div>
+                        <section class="public-slot-card animate-fade-up" style="--stagger-index: 1;">
+                            <div class="public-slot-card-header"><div>{% include "includes/icon.html" with name="clock" %}<h3>Tarde</h3></div><span>{{ horarios_tarde|length }} opciones</span></div>
+                            {% if horarios_tarde %}
+                                <div class="public-slot-list public-time-grid">
+                                    {% for opcion in horarios_tarde %}
+                                        <a class="public-slot-button" href="{{ opcion.url }}" data-public-slot="{{ opcion.label }}" aria-label="Seleccionar horario {{ opcion.label }}"><span>{{ opcion.label }}</span></a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}<p class="muted public-slot-empty">No hay horarios por la tarde para esta fecha.</p>{% endif %}
+                        </section>
+                    </div>
+                {% elif not busqueda_form.errors %}
+                    <div class="empty-state public-booking-empty animate-fade-up">
+                        <img class="empty-state-visual" src="{% static 'images/calendar-empty.svg' %}" width="420" height="300" alt="">
+                        <h3>{% if hay_odontologos %}Tu agenda empieza acá{% else %}No hay profesionales disponibles{% endif %}</h3>
+                        <p>{% if hay_odontologos %}Elegí un odontólogo para ver los horarios disponibles.{% else %}El consultorio todavía no habilitó odontólogos para turnos online.{% endif %}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
 
-                        {% if horarios_tarde %}
-                            <div class="public-slot-list stagger-list">
-                                {% for opcion in horarios_tarde %}
-                                    <a class="public-slot-button animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};" href="{{ opcion.url }}">
-                                        <span>{{ opcion.label }}</span>
-                                        <strong>Reservar turno</strong>
-                                    </a>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <p class="muted">No hay horarios por la tarde para esta fecha.</p>
-                        {% endif %}
-                    </section>
-                </div>
-            {% elif not busqueda_form.errors %}
-                <div class="empty-state animate-fade-up">
-                    <p>
-                        {% if hay_odontologos %}
-                            Elegí un odontólogo para ver los horarios disponibles.
-                        {% else %}
-                            No hay odontólogos activos para solicitar turnos.
-                        {% endif %}
-                    </p>
-                </div>
-            {% endif %}
+        <div class="public-slot-action" data-public-slot-action hidden>
+            <div><span>Horario seleccionado</span><strong data-public-slot-label></strong></div>
+            <a class="button button-large" href="#" data-public-slot-continue>Continuar {% include "includes/icon.html" with name="arrow-right" %}</a>
         </div>
     </section>
 
-    <script>
-        (function () {
-            const panel = document.querySelector("[data-public-availability]");
+    <details class="public-booking-help ui-card">
+        <summary>Autogestión de turnos {% include "includes/icon.html" with name="chevron-down" %}</summary>
+        {% include "consultorio/includes/public_contact_card.html" %}
+    </details>
+{% endblock %}
 
-            if (!panel) {
-                return;
-            }
-
-            const form = panel.querySelector("[data-public-search-form]");
-            const results = panel.querySelector("[data-public-results]");
-            const profile = document.querySelector("[data-public-profile]");
-            const availabilityUrl = panel.dataset.availabilityUrl;
-            const odontologoControl = form ? form.elements.namedItem("odontologo") : null;
-            const fechaControl = form ? form.elements.namedItem("fecha") : null;
-            let activeRequest = null;
-            let debounceTimer = null;
-            const debounceDelay = 350;
-
-            if (!form || !results || !profile || !availabilityUrl || !odontologoControl || !fechaControl) {
-                return;
-            }
-
-            form.classList.add("is-enhanced");
-
-            function escapeHtml(value) {
-                return String(value || "")
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
-            }
-
-            function renderNeutralProfile() {
-                profile.innerHTML = `
-                    <div class="public-avatar"><span>+</span></div>
-                    <div>
-                        <span class="public-pill">Autogestión de turnos</span>
-                        <h1>Solicitar turno</h1>
-                        <p>Elegí un odontólogo y una fecha para ver disponibilidad.</p>
-                    </div>
-                `;
-            }
-
-            function renderProfile(odontologo) {
-                if (!odontologo) {
-                    renderNeutralProfile();
-                    return;
-                }
-
-                const foto = odontologo.foto_url
-                    ? `<img src="${escapeHtml(odontologo.foto_url)}" alt="${escapeHtml(odontologo.nombre)}" onerror="this.hidden=true; this.nextElementSibling.hidden=false;" style="object-position: ${escapeHtml(odontologo.foto_object_position)};"><span class="public-avatar-fallback" hidden>${escapeHtml(odontologo.inicial || "O")}</span>`
-                    : `<span>${escapeHtml(odontologo.inicial || "O")}</span>`;
-                const contacto = odontologo.celular
-                    ? `<p>Contacto ${escapeHtml(odontologo.celular)}</p>`
-                    : "";
-
-                profile.innerHTML = `
-                    <div class="public-avatar">${foto}</div>
-                    <div>
-                        <span class="public-pill">${escapeHtml(odontologo.especialidad)}</span>
-                        <h1>${escapeHtml(odontologo.nombre)}</h1>
-                        <p>${escapeHtml(odontologo.duracion)} minutos por turno</p>
-                        <p>Matrícula ${escapeHtml(odontologo.matricula)}</p>
-                        ${contacto}
-                    </div>
-                `;
-            }
-
-            function renderEmpty(message) {
-                results.innerHTML = `
-                    <div class="empty-state animate-fade-up">
-                        <p>${escapeHtml(message)}</p>
-                    </div>
-                `;
-            }
-
-            function renderLoading() {
-                results.innerHTML = `
-                    <div class="empty-state animate-fade-up public-loading-state">
-                        <p>Buscando horarios disponibles...</p>
-                    </div>
-                `;
-            }
-
-            function renderDateStrip(days) {
-                if (!days || days.length === 0) {
-                    return "";
-                }
-
-                const chips = days.map((day, index) => `
-                    <a
-                        class="public-date-chip animate-fade-up${day.seleccionado ? " is-active" : ""}"
-                        style="--stagger-index: ${index};"
-                        href="${escapeHtml(day.url)}"
-                        data-public-date="${escapeHtml(day.fecha)}"
-                    >
-                        <strong>${escapeHtml(day.label)}</strong>
-                        <span>${day.cantidad === null || day.cantidad === undefined ? "Ver horarios" : `${escapeHtml(day.cantidad)} horario${day.cantidad === 1 ? "" : "s"}`}</span>
-                    </a>
-                `).join("");
-
-                return `<div class="public-date-strip stagger-list">${chips}</div>`;
-            }
-
-            function renderSlotCard(title, fecha, duration, horarios, index, emptyMessage) {
-                const body = horarios && horarios.length > 0
-                    ? `<div class="public-slot-list stagger-list">
-                        ${horarios.map((slot, slotIndex) => `
-                            <a class="public-slot-button animate-fade-up" style="--stagger-index: ${slotIndex};" href="${escapeHtml(slot.url)}">
-                                <span>${escapeHtml(slot.label)}</span>
-                                <strong>Reservar turno</strong>
-                            </a>
-                        `).join("")}
-                    </div>`
-                    : `<p class="muted">${escapeHtml(emptyMessage)}</p>`;
-
-                return `
-                    <section class="public-slot-card animate-fade-up card-hover" style="--stagger-index: ${index};">
-                        <div class="public-slot-card-header">
-                            <div>
-                                <h3>${escapeHtml(title)}</h3>
-                                <p>${escapeHtml(fecha.display)}</p>
-                            </div>
-                            <span>${escapeHtml(duration)} min</span>
-                        </div>
-                        ${body}
-                    </section>
-                `;
-            }
-
-            function renderAvailability(data) {
-                renderProfile(data.odontologo);
-
-                if (!data.ok) {
-                    renderEmpty(data.mensaje || "Elegí un odontólogo para ver los horarios disponibles.");
-                    return;
-                }
-
-                const slotsCount = (data.horarios_manana || []).length + (data.horarios_tarde || []).length;
-                const status = slotsCount === 0
-                    ? `<div class="empty-state animate-fade-up"><p>${escapeHtml(data.mensaje)}</p></div>`
-                    : "";
-
-                results.innerHTML = `
-                    ${renderDateStrip(data.dias_cercanos)}
-                    ${status}
-                    <div class="public-slot-grid stagger-list">
-                        ${renderSlotCard("Turnos por la mañana", data.fecha, data.odontologo.duracion, data.horarios_manana, 0, "No hay horarios por la mañana para esta fecha.")}
-                        ${renderSlotCard("Turnos por la tarde", data.fecha, data.odontologo.duracion, data.horarios_tarde, 1, "No hay horarios por la tarde para esta fecha.")}
-                    </div>
-                `;
-            }
-
-            async function updateAvailability() {
-                if (debounceTimer) {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = null;
-                }
-
-                const odontologoId = odontologoControl.value;
-                const fecha = fechaControl.value;
-
-                if (!odontologoId) {
-                    renderNeutralProfile();
-                    renderEmpty("Elegí un odontólogo para ver los horarios disponibles.");
-                    return;
-                }
-
-                if (!fecha) {
-                    renderEmpty("Elegí una fecha para ver horarios disponibles.");
-                    return;
-                }
-
-                if (activeRequest) {
-                    activeRequest.abort();
-                }
-
-                const request = new AbortController();
-                activeRequest = request;
-                const params = new URLSearchParams({
-                    odontologo: odontologoId,
-                    fecha: fecha,
-                });
-
-                renderLoading();
-
-                try {
-                    const response = await fetch(`${availabilityUrl}?${params}`, {
-                        headers: {"Accept": "application/json"},
-                        signal: request.signal,
-                    });
-                    const data = await response.json();
-                    renderAvailability(data);
-                } catch (error) {
-                    if (error.name === "AbortError") {
-                        return;
-                    }
-
-                    renderEmpty("No se pudieron cargar los horarios. Intentá nuevamente.");
-                } finally {
-                    if (activeRequest === request) {
-                        activeRequest = null;
-                    }
-                }
-            }
-
-            function scheduleAvailabilityUpdate() {
-                if (activeRequest) {
-                    activeRequest.abort();
-                    activeRequest = null;
-                }
-
-                if (debounceTimer) {
-                    clearTimeout(debounceTimer);
-                }
-
-                debounceTimer = setTimeout(updateAvailability, debounceDelay);
-            }
-
-            odontologoControl.addEventListener("change", scheduleAvailabilityUpdate);
-            fechaControl.addEventListener("change", scheduleAvailabilityUpdate);
-
-            results.addEventListener("click", function (event) {
-                const dateLink = event.target.closest("[data-public-date]");
-
-                if (!dateLink) {
-                    return;
-                }
-
-                event.preventDefault();
-                fechaControl.value = dateLink.dataset.publicDate;
-                updateAvailability();
-            });
-
-            if (!odontologoControl.value) {
-                renderNeutralProfile();
-                renderEmpty("Elegí un odontólogo para ver los horarios disponibles.");
-            }
-        }());
-    </script>
+{% block extra_scripts %}
+    <script src="{% static 'js/public-booking.js' %}" defer></script>
 {% endblock %}

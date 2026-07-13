@@ -1,188 +1,34 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Mi perfil | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
-        <div>
-            <h1>Mi perfil</h1>
-            <p class="subtitle">Datos visibles dentro del consultorio y foto de perfil.</p>
-        </div>
-    </div>
+    <header class="internal-page-heading animate-fade-up"><div><p class="eyebrow">Cuenta</p><h1>Mi perfil</h1><p class="subtitle">Datos visibles dentro del consultorio y preferencias profesionales.</p></div></header>
 
-    <div class="profile-layout">
-        <section class="panel-section profile-photo-panel">
+    <div class="profile-layout profile-layout-v2">
+        <aside class="profile-photo-panel profile-identity-card animate-fade-up">
             <div class="profile-photo-preview" data-profile-photo-preview>
-                {% if odontologo and odontologo.foto_perfil_url %}
-                    <img
-                        src="{{ odontologo.foto_perfil_url }}"
-                        alt="{{ request.user.get_username }}"
-                        style="object-position: {{ odontologo.foto_object_position }};"
-                        data-profile-photo-image
-                    >
-                {% else %}
-                    <span data-profile-photo-initial>{{ request.user.get_username|first|upper }}</span>
-                    <img alt="" hidden data-profile-photo-image>
-                {% endif %}
+                {% if odontologo and odontologo.foto_perfil_url %}<img src="{{ odontologo.foto_perfil_url }}" alt="Foto de {{ request.user.get_full_name|default:request.user.get_username }}" style="object-position: {{ odontologo.foto_object_position }};" data-profile-photo-image>{% else %}<span data-profile-photo-initial>{{ request.user.get_username|first|upper }}</span><img alt="" hidden data-profile-photo-image>{% endif %}
             </div>
+            <div class="profile-summary"><strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong><span>{{ request.user.email|default:"Sin email cargado" }}</span>{% if odontologo %}<span>{{ odontologo.especialidad|default:"Odontología general" }}</span><small>Matrícula {{ odontologo.matricula }} · {{ odontologo.celular|default:"Sin celular cargado" }}</small>{% else %}<small>Usuario interno sin perfil de odontólogo asociado.</small>{% endif %}</div>
+            <form class="logout-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% include "includes/icon.html" with name="logout" %} Cerrar sesión</button></form>
+        </aside>
 
-            <div class="profile-summary">
-                <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
-                <span class="muted">{{ request.user.email|default:"Sin email cargado" }}</span>
-                {% if odontologo %}
-                    <span class="muted">{{ odontologo.especialidad|default:"Odontología general" }} - Matrícula {{ odontologo.matricula }}</span>
-                    <span class="muted">Celular {{ odontologo.celular|default:"Sin celular cargado" }}</span>
-                {% else %}
-                    <span class="muted">Este usuario no tiene perfil de odontólogo asociado.</span>
-                {% endif %}
-            </div>
+        <form class="form-panel internal-form-v2 profile-form-v2 animate-fade-up" method="post" enctype="multipart/form-data" novalidate data-profile-form>
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="form-error-panel" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 
-            <form class="logout-form" method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button class="button button-secondary" type="submit">Cerrar sesión</button>
-            </form>
-        </section>
+            <section class="form-section" aria-labelledby="profile-personal-title"><header><span>{% include "includes/icon.html" with name="user" %}</span><div><h2 id="profile-personal-title">Información personal</h2><p>Nombre y correo usados dentro del equipo.</p></div></header><div class="form-grid">{% include "includes/form_field.html" with field=form.first_name %}{% include "includes/form_field.html" with field=form.last_name %}{% include "includes/form_field.html" with field=form.email full=True %}</div></section>
 
-        <section class="form-panel">
-            <form method="post" enctype="multipart/form-data" novalidate data-profile-form>
-                {% csrf_token %}
+            {% if odontologo %}
+                <section class="form-section" aria-labelledby="profile-professional-title"><header><span>{% include "includes/icon.html" with name="clinical" %}</span><div><h2 id="profile-professional-title">Perfil profesional</h2><p>Información que identifica tu agenda y atención.</p></div></header><div class="form-grid">{% include "includes/form_field.html" with field=form.matricula short=True %}{% include "includes/form_field.html" with field=form.celular medium=True %}{% include "includes/form_field.html" with field=form.especialidad %}{% include "includes/form_field.html" with field=form.duracion_turno_minutos short=True %}</div></section>
+                <section class="form-section" aria-labelledby="profile-photo-title"><header><span>{% include "includes/icon.html" with name="user" %}</span><div><h2 id="profile-photo-title">Foto de perfil</h2><p>JPG, PNG o WEBP de hasta 5 MB. Ajustá el encuadre antes de guardar.</p></div></header><div class="form-grid">{% include "includes/form_field.html" with field=form.foto_perfil full=True %}<div class="field-full profile-photo-controls"><div>{% include "includes/form_field.html" with field=form.foto_posicion_x %}</div><div>{% include "includes/form_field.html" with field=form.foto_posicion_y %}</div></div></div></section>
+            {% endif %}
 
-                {% if form.non_field_errors %}
-                    <div class="field-error">{{ form.non_field_errors }}</div>
-                {% endif %}
-
-                <div class="form-grid">
-                    <div>
-                        <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
-                        {{ form.first_name }}
-                        {% if form.first_name.errors %}
-                            <div class="field-error">{{ form.first_name.errors }}</div>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
-                        {{ form.last_name }}
-                        {% if form.last_name.errors %}
-                            <div class="field-error">{{ form.last_name.errors }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="field-full">
-                        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
-                        {{ form.email }}
-                        {% if form.email.errors %}
-                            <div class="field-error">{{ form.email.errors }}</div>
-                        {% endif %}
-                    </div>
-
-                    {% if odontologo %}
-                        <div>
-                            <label for="{{ form.matricula.id_for_label }}">{{ form.matricula.label }}</label>
-                            {{ form.matricula }}
-                            {% if form.matricula.errors %}
-                                <div class="field-error">{{ form.matricula.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div>
-                            <label for="{{ form.celular.id_for_label }}">{{ form.celular.label }}</label>
-                            {{ form.celular }}
-                            {% if form.celular.errors %}
-                                <div class="field-error">{{ form.celular.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div>
-                            <label for="{{ form.especialidad.id_for_label }}">{{ form.especialidad.label }}</label>
-                            {{ form.especialidad }}
-                            {% if form.especialidad.errors %}
-                                <div class="field-error">{{ form.especialidad.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div>
-                            <label for="{{ form.duracion_turno_minutos.id_for_label }}">{{ form.duracion_turno_minutos.label }}</label>
-                            {{ form.duracion_turno_minutos }}
-                            {% if form.duracion_turno_minutos.errors %}
-                                <div class="field-error">{{ form.duracion_turno_minutos.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div>
-                            <label for="{{ form.foto_perfil.id_for_label }}">{{ form.foto_perfil.label }}</label>
-                            {{ form.foto_perfil }}
-                            <p class="muted">JPG, PNG o WEBP hasta 5 MB.</p>
-                            {% if form.foto_perfil.errors %}
-                                <div class="field-error">{{ form.foto_perfil.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="field-full profile-photo-controls">
-                            <div>
-                                <label for="{{ form.foto_posicion_x.id_for_label }}">Ajuste horizontal</label>
-                                {{ form.foto_posicion_x }}
-                                {% if form.foto_posicion_x.errors %}
-                                    <div class="field-error">{{ form.foto_posicion_x.errors }}</div>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <label for="{{ form.foto_posicion_y.id_for_label }}">Ajuste vertical</label>
-                                {{ form.foto_posicion_y }}
-                                {% if form.foto_posicion_y.errors %}
-                                    <div class="field-error">{{ form.foto_posicion_y.errors }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endif %}
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit">Guardar perfil</button>
-                </div>
-            </form>
-        </section>
+            <div class="form-actions sticky-form-actions"><button class="button button-large" type="submit">{% include "includes/icon.html" with name="check" %} Guardar perfil</button></div>
+        </form>
     </div>
-
-    <script>
-        (function () {
-            var input = document.querySelector("input[name='foto_perfil']");
-            var image = document.querySelector("[data-profile-photo-image]");
-            var initial = document.querySelector("[data-profile-photo-initial]");
-            var positionX = document.querySelector("input[name='foto_posicion_x']");
-            var positionY = document.querySelector("input[name='foto_posicion_y']");
-
-            function updatePosition() {
-                if (!image) {
-                    return;
-                }
-
-                var x = positionX ? positionX.value : 50;
-                var y = positionY ? positionY.value : 50;
-                image.style.objectPosition = x + "% " + y + "%";
-            }
-
-            if (input && image) {
-                input.addEventListener("change", function () {
-                    var file = input.files && input.files[0];
-
-                    if (!file) {
-                        return;
-                    }
-
-                    image.src = URL.createObjectURL(file);
-                    image.hidden = false;
-
-                    if (initial) {
-                        initial.hidden = true;
-                    }
-
-                    updatePosition();
-                });
-            }
-
-            if (positionX) {
-                positionX.addEventListener("input", updatePosition);
-            }
-
-            if (positionY) {
-                positionY.addEventListener("input", updatePosition);
-            }
-
-            updatePosition();
-        }());
-    </script>
 {% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'js/profile-preview.js' %}" defer></script>{% endblock %}

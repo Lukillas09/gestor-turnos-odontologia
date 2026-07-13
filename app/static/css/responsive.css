@@ -457,3 +457,951 @@
         font-size: 19px;
     }
 }
+
+/* Responsive system V2 */
+@media (max-width: 1279px) {
+    .patient-list-v2 .patient-list-card {
+        grid-template-columns: minmax(280px, 1fr) minmax(260px, 0.8fr);
+    }
+
+    .patient-list-v2 .patient-card-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+        border-top: 1px solid var(--line);
+        padding-top: var(--space-3);
+    }
+
+    .dashboard-metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .agenda-heading-actions {
+        max-width: 680px;
+    }
+
+    .public-home-hero-v2 .public-home-copy {
+        width: min(66%, 690px);
+    }
+
+    .public-home-hero-image {
+        right: -4rem;
+    }
+}
+
+@media (max-width: 1023px) {
+    .login-shell {
+        grid-template-columns: 0.8fr 1fr;
+    }
+
+    .login-visual,
+    .login-panel {
+        padding: var(--space-6) var(--space-5);
+    }
+
+    .profile-layout-v2 {
+        grid-template-columns: 230px minmax(0, 1fr);
+    }
+
+    .app-shell-body .consultorio-editor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .consultorio-preview-panel {
+        position: static;
+    }
+
+    .consultorio-preview-jump {
+        display: inline-flex;
+    }
+
+    .history-filter-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .history-filter-form .filter-actions {
+        grid-column: 1 / -1;
+    }
+
+    .turnos-filters-v2 .turnos-filter-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .turno-list-v2 .turno-list-card {
+        grid-template-columns: 120px minmax(0, 1fr) auto;
+    }
+
+    .dashboard-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-side-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-side-header,
+    .dashboard-review-list {
+        grid-column: 1 / -1;
+    }
+
+    .internal-page-heading,
+    .agenda-page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .dashboard-shortcuts,
+    .agenda-heading-actions {
+        justify-content: flex-start;
+    }
+
+    .agenda-filter-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .topbar-inner,
+    .page {
+        width: min(100% - 32px, var(--content-max));
+    }
+
+    .public-home-hero-v2 {
+        min-height: 540px;
+        padding: var(--space-6);
+    }
+
+    .public-home-hero-image {
+        width: 48%;
+        right: -3rem;
+    }
+
+    .public-patient-actions,
+    .public-data-layout,
+    .public-access-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .public-patient-actions {
+        gap: var(--space-5);
+    }
+
+    .public-booking-summary {
+        position: static;
+        grid-row: 1;
+    }
+
+    .public-access-visual {
+        grid-row: 1;
+    }
+
+    .public-access-visual img {
+        width: min(260px, 58vw);
+    }
+}
+
+@media (max-width: 767px) {
+    .login-shell {
+        min-height: 0;
+        grid-template-columns: 1fr;
+        margin: var(--space-4) auto;
+    }
+
+    .login-visual {
+        min-height: 210px;
+        grid-template-columns: 150px minmax(0, 1fr);
+        align-items: center;
+        justify-items: start;
+        gap: var(--space-4);
+        padding: var(--space-5);
+        text-align: left;
+    }
+
+    .login-visual img {
+        width: 150px;
+    }
+
+    .login-visual h2 {
+        font-size: var(--font-xl);
+    }
+
+    .login-visual p:last-child {
+        display: none;
+    }
+
+    .login-panel {
+        padding: var(--space-5);
+    }
+
+    .profile-layout-v2 {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-identity-card {
+        position: static;
+        grid-template-columns: auto minmax(0, 1fr);
+        justify-items: start;
+        text-align: left;
+    }
+
+    .profile-layout-v2 .profile-photo-preview {
+        width: 84px;
+        height: 84px;
+        font-size: var(--font-2xl);
+    }
+
+    .profile-layout-v2 .logout-form {
+        grid-column: 1 / -1;
+    }
+
+    .profile-photo-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .affected-appointments-list article,
+    .exception-card-main > header,
+    .public-request-main > header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .exception-filters > form,
+    .requests-filters > form,
+    .exception-card {
+        grid-template-columns: 1fr;
+    }
+
+    .exception-card-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .exception-card-actions,
+    .exception-card-actions form,
+    .exception-card-actions .button,
+    .exception-card-actions button {
+        width: 100%;
+    }
+
+    .public-request-card {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .public-request-card > .button {
+        width: 100%;
+    }
+
+    .internal-form-v2 .form-grid,
+    .history-filter-form {
+        grid-template-columns: 1fr;
+    }
+
+    .internal-form-v2 .form-field,
+    .internal-form-v2 .form-field-medium,
+    .internal-form-v2 .form-field-short,
+    .history-filter-form .filter-actions {
+        grid-column: 1;
+    }
+
+    .form-section {
+        padding: var(--space-4);
+    }
+
+    .sticky-form-actions {
+        bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + var(--space-2));
+        padding: var(--space-3) var(--space-4);
+    }
+
+    .sticky-form-actions .button,
+    .sticky-form-actions button {
+        width: 100%;
+    }
+
+    .clinical-history-heading,
+    .clinical-history-entry > header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .clinical-history-row {
+        grid-template-columns: 1fr;
+        gap: var(--space-2);
+    }
+
+    .clinical-history-date {
+        grid-template-columns: auto 1fr;
+        gap: var(--space-2);
+        align-items: center;
+        text-align: left;
+    }
+
+    .clinical-history-date::after,
+    .clinical-history-date .clinical-history-dot {
+        display: none;
+    }
+
+    .clinical-history-date time {
+        display: flex;
+        gap: var(--space-1);
+        align-items: baseline;
+        padding: 0;
+    }
+
+    .clinical-history-date strong {
+        font-size: var(--font-lg);
+    }
+
+    .clinical-history-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .clinical-history-entry > footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .clinical-history-entry > footer .button:first-of-type {
+        margin-left: 0;
+    }
+
+    .clinical-history-entry > footer .button {
+        width: 100%;
+    }
+
+    .patient-search-v2 .patient-search-form {
+        grid-template-columns: 1fr;
+    }
+
+    .patient-search-v2 .patient-search-actions,
+    .patient-search-v2 .patient-search-actions .button,
+    .patient-search-v2 .patient-search-actions button {
+        width: 100%;
+    }
+
+    .patient-list-v2 .patient-list-card {
+        grid-template-columns: 1fr;
+        padding: var(--space-4);
+    }
+
+    .patient-appointments-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .patient-list-v2 .patient-card-actions {
+        grid-column: 1;
+        justify-content: flex-start;
+    }
+
+    .patient-list-v2 .patient-card-actions .button:first-child {
+        flex: 1;
+    }
+
+    .clinical-profile-card {
+        grid-template-columns: 1fr;
+    }
+
+    .clinical-profile-main {
+        align-items: flex-start;
+    }
+
+    .clinical-profile-tabs {
+        margin-right: calc(var(--space-3) * -1);
+        margin-left: calc(var(--space-3) * -1);
+        padding: 0 var(--space-3);
+    }
+
+    .list-filters-panel > summary {
+        display: flex;
+    }
+
+    .list-filters-panel:not([open]) > form,
+    .list-filters-panel:not([open]) > nav {
+        display: none;
+    }
+
+    .turnos-filters-v2 .turnos-filter-form {
+        grid-template-columns: 1fr;
+        border-top: 1px solid var(--line);
+    }
+
+    .turno-list-v2 .turno-list-card {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+    }
+
+    .turno-list-v2 .turno-card-time {
+        grid-template-columns: auto auto 1fr;
+        gap: var(--space-2);
+        align-items: baseline;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        padding: 0 0 var(--space-2);
+    }
+
+    .turno-list-v2 .turno-card-time strong { margin: 0; font-size: var(--font-xl); }
+
+    .turno-list-v2 .turno-card-status {
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+    }
+
+    .turno-list-v2 .turno-card-status > .button:not(.button-icon) { margin-left: auto; }
+
+    .turno-detail-hero-v2,
+    .turno-detail-identity {
+        align-items: flex-start;
+    }
+
+    .turno-detail-hero-v2 {
+        flex-direction: column;
+    }
+
+    .turno-detail-state {
+        justify-items: start;
+    }
+
+    .dashboard-metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-shortcuts {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-shortcuts .button {
+        width: 100%;
+    }
+
+    .dashboard-agenda-section,
+    .dashboard-side-panel {
+        padding: var(--space-4);
+    }
+
+    .dashboard-side-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-side-panel > * {
+        grid-column: 1;
+    }
+
+    .dashboard-timeline-content {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .dashboard-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .agenda-heading-actions {
+        width: 100%;
+    }
+
+    .segmented-control {
+        flex: 1 1 100%;
+    }
+
+    .segmented-control a {
+        flex: 1;
+    }
+
+    .agenda-summary-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .agenda-summary-strip > div:nth-child(2) { border-right: 0; }
+    .agenda-summary-strip > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+
+    .agenda-filters-panel > summary {
+        display: flex;
+    }
+
+    .agenda-filters-panel:not([open]) .agenda-filter-form {
+        display: none;
+    }
+
+    .agenda-filter-form {
+        grid-template-columns: 1fr;
+        border-top: 1px solid var(--line);
+    }
+
+    .agenda-professional-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .agenda-time-grid .schedule-row {
+        grid-template-columns: 56px minmax(0, 1fr);
+    }
+
+    .agenda-time-grid .schedule-slot {
+        padding: var(--space-3) var(--space-2);
+    }
+
+    .agenda-turno-body {
+        grid-template-columns: 1fr;
+    }
+
+    .agenda-turno-actions .button,
+    .agenda-turno-actions form,
+    .agenda-turno-actions button {
+        flex: 1 1 auto;
+    }
+
+    .agenda-mobile-day-strip {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(54px, 1fr));
+        overflow-x: auto;
+        border-bottom: 1px solid var(--line);
+        padding: var(--space-2);
+    }
+
+    .agenda-mobile-day-strip a {
+        min-height: 52px;
+        display: grid;
+        place-items: center;
+        border-radius: var(--radius-sm);
+        color: var(--gray-600);
+        text-decoration: none;
+    }
+
+    .agenda-mobile-day-strip span { font-size: var(--font-xs); text-transform: uppercase; }
+
+    .agenda-week-board {
+        grid-template-columns: 1fr;
+        overflow: visible;
+    }
+
+    .agenda-week-column {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .agenda-week-column > header {
+        min-height: 54px;
+        display: flex;
+        justify-content: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+    }
+
+    .agenda-week-column-body {
+        min-height: 90px;
+        background: var(--gray-50);
+    }
+
+    .app-sidebar {
+        display: none;
+    }
+
+    .app-topbar {
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        margin-left: 0;
+        padding: 0 var(--space-4);
+    }
+
+    .app-topbar-title {
+        display: grid;
+    }
+
+    .app-topbar-date,
+    .app-user-text {
+        display: none;
+    }
+
+    .app-topbar-actions {
+        margin-left: auto;
+    }
+
+    .app-user-profile-link {
+        padding: 2px;
+    }
+
+    .app-page {
+        width: min(100% - 24px, var(--content-max));
+        margin-left: 0;
+        padding: var(--space-5) 0;
+    }
+
+    .topbar-inner,
+    .page {
+        width: min(100% - 24px, var(--content-max));
+    }
+
+    .topbar-inner {
+        min-height: 68px;
+        padding: var(--space-2) 0;
+    }
+
+    .public-topbar .brand-text {
+        max-width: 150px;
+    }
+
+    .public-topbar .nav {
+        width: 100%;
+        padding-bottom: var(--space-1);
+    }
+
+    .public-topbar .nav-link,
+    .public-topbar .public-nav-cta {
+        min-height: 38px;
+        font-size: var(--font-xs);
+    }
+
+    .public-home-hero-v2 {
+        min-height: 600px;
+        align-items: flex-start;
+        padding: var(--space-5);
+    }
+
+    .public-home-hero-v2 .public-home-copy {
+        width: 100%;
+        gap: var(--space-4);
+    }
+
+    .public-home-hero-v2 .public-home-copy p {
+        max-width: 100%;
+    }
+
+    .public-home-hero-image {
+        width: 170px;
+        right: -0.5rem;
+        bottom: -0.5rem;
+    }
+
+    .public-home-hero-v2 .public-home-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
+
+    .public-home-hero-v2 .public-home-actions .button {
+        width: 100%;
+    }
+
+    .public-trust-list {
+        max-width: calc(100% - 110px);
+        display: grid;
+        gap: var(--space-2);
+    }
+
+    .public-section {
+        padding: var(--space-7) 0;
+    }
+
+    .public-section-heading h2,
+    .public-booking-heading h1,
+    .public-success-shell h1,
+    .public-access-panel h1 {
+        font-size: var(--font-2xl);
+    }
+
+    .public-section-heading > p:last-child,
+    .public-booking-heading > p:last-child,
+    .public-success-lead {
+        font-size: var(--font-md);
+    }
+
+    .public-how-grid,
+    .public-patient-actions,
+    .public-patient-actions .public-home-secondary,
+    .public-professionals-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .public-how-grid {
+        gap: var(--space-5);
+    }
+
+    .public-how-item {
+        min-height: 96px;
+    }
+
+    .public-secondary-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .public-contact-details-body,
+    .public-contact-details summary,
+    .public-booking-help summary {
+        padding: var(--space-4);
+    }
+
+    .public-stepper {
+        margin-bottom: var(--space-5);
+    }
+
+    .public-stepper-list {
+        display: none;
+    }
+
+    .public-stepper-mobile {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin: 0;
+        border-radius: var(--radius-sm);
+        padding: var(--space-3) var(--space-4);
+        background: var(--primary-soft);
+    }
+
+    .public-stepper-mobile span {
+        color: var(--primary-dark);
+        font-size: var(--font-sm);
+        font-weight: 700;
+    }
+
+    .public-booking-heading {
+        margin-bottom: var(--space-5);
+        text-align: left;
+    }
+
+    .public-search-panel.public-search-panel-v2,
+    .public-search-panel.public-search-panel-v2.is-enhanced {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        grid-template-columns: 1fr;
+        border-radius: var(--radius-sm);
+    }
+
+    .public-professional-control {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .public-professional-picker,
+    .public-search-panel-v2.is-enhanced .public-professional-picker {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: 1fr;
+    }
+
+    .public-professional-option,
+    .booking-date-control {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .public-booking-control,
+    .public-booking-results {
+        padding: var(--space-4);
+    }
+
+    .public-booking-results {
+        min-height: 260px;
+        border-radius: var(--radius-sm);
+    }
+
+    .public-selected-professional {
+        align-items: flex-start;
+    }
+
+    .public-time-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .public-slot-button {
+        min-height: 48px;
+        align-items: center;
+    }
+
+    .public-slot-action {
+        bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+        border-radius: var(--radius-sm);
+    }
+
+    .public-slot-action > div {
+        min-width: 0;
+    }
+
+    .public-slot-action .button {
+        flex: 0 0 auto;
+    }
+
+    .public-data-layout .public-data-form,
+    .public-booking-summary,
+    .public-access-panel {
+        border-radius: var(--radius-sm);
+        padding: var(--space-4);
+    }
+
+    .public-form-intro {
+        align-items: center;
+    }
+
+    .public-form-actions button {
+        width: 100%;
+    }
+
+    .public-success-summary {
+        grid-template-columns: 1fr;
+        border-radius: var(--radius-sm);
+    }
+
+    .public-success-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .public-access-layout {
+        gap: var(--space-5);
+        margin-top: 0;
+    }
+
+    .public-access-visual {
+        grid-row: auto;
+    }
+
+    .public-access-visual img {
+        width: min(210px, 58vw);
+    }
+
+    .public-access-secondary-actions,
+    .public-access-secondary-actions form,
+    .public-access-secondary-actions .button {
+        width: 100%;
+    }
+
+    .public-turno-card-v2 {
+        grid-template-columns: 1fr;
+        border-radius: var(--radius-sm);
+        padding: var(--space-4);
+    }
+
+    .public-turno-actions {
+        width: 100%;
+    }
+
+    .public-reprogram-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .public-reprogram-summary {
+        grid-row: 1;
+        position: static;
+    }
+}
+
+@media (max-width: 520px) {
+    .login-visual {
+        min-height: 0;
+        grid-template-columns: 1fr;
+    }
+
+    .login-visual img {
+        width: 124px;
+        justify-self: center;
+    }
+
+    .login-visual > div {
+        text-align: center;
+    }
+
+    .login-panel > header {
+        grid-template-columns: 1fr;
+    }
+
+    .clinical-profile-main {
+        flex-direction: column;
+    }
+
+    .clinical-profile-avatar {
+        width: 56px;
+        height: 56px;
+        flex-basis: 56px;
+        font-size: var(--font-xl);
+    }
+
+    .clinical-profile-card .clinical-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-metric-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-metric {
+        min-height: 104px;
+    }
+
+    .dashboard-shortcuts {
+        grid-template-columns: 1fr;
+    }
+
+    .agenda-date-navigation {
+        flex: 1 1 auto;
+    }
+
+    .agenda-heading-actions > .button:not(.button-icon),
+    .agenda-date-navigation .button-secondary:not(.button-icon) {
+        flex: 1;
+    }
+
+    .public-topbar .brand-text {
+        max-width: 118px;
+        font-size: var(--font-sm);
+    }
+
+    .public-topbar .nav-link:first-child,
+    .public-topbar .nav-link-internal {
+        display: none;
+    }
+
+    .public-home-hero-v2 {
+        min-height: 620px;
+        border-radius: var(--radius-lg);
+    }
+
+    .public-home-brand-signal {
+        max-width: calc(100% - 12px);
+        font-size: var(--font-md);
+    }
+
+    .public-home-hero-image {
+        width: 150px;
+    }
+
+    .public-professional-card {
+        grid-template-columns: auto minmax(0, 1fr);
+        padding: var(--space-4);
+    }
+
+    .public-time-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-slot-action {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .public-slot-action .button {
+        width: 100%;
+    }
+
+    .public-booking-summary-details div {
+        grid-template-columns: 1fr;
+        gap: var(--space-1);
+    }
+
+    .public-booking-summary-details dd {
+        text-align: left;
+    }
+
+    .public-code-field input {
+        font-size: var(--font-xl);
+        letter-spacing: 0.25rem;
+    }
+}

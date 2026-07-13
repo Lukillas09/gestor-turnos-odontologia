@@ -3,101 +3,77 @@
 {% block title %}Agenda diaria | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
+    <header class="internal-page-heading agenda-page-heading animate-fade-up">
         <div>
+            <p class="eyebrow">Agenda profesional</p>
             <h1>Agenda diaria</h1>
-            <p class="subtitle">{{ fecha|date:"l d/m/Y" }}</p>
+            <p class="subtitle">{{ fecha|date:"l d \d\e F \d\e Y"|capfirst }}</p>
         </div>
-        <div class="header-actions">
-            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Día anterior</a>
-            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&buscar={{ busqueda|urlencode }}{% endif %}">Día siguiente</a>
-            {% if puede_gestionar_turnos %}
-                <a class="button" href="{% url 'turnos:crear' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&odontologo={{ odontologo.pk }}{% endif %}">Nuevo turno</a>
-            {% endif %}
+        <div class="agenda-heading-actions">
+            <nav class="segmented-control" aria-label="Vista de agenda">
+                <a class="is-active" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}" aria-current="page">Día</a>
+                <a href="{% url 'turnos:agenda_semana' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}">Semana</a>
+            </nav>
+            <nav class="agenda-date-navigation" aria-label="Cambiar día">
+                <a class="button button-icon button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_anterior|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&amp;buscar={{ busqueda|urlencode }}{% endif %}" aria-label="Día anterior">{% include "includes/icon.html" with name="arrow-left" %}</a>
+                <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Hoy</a>
+                <a class="button button-icon button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&amp;buscar={{ busqueda|urlencode }}{% endif %}" aria-label="Día siguiente">{% include "includes/icon.html" with name="arrow-right" %}</a>
+            </nav>
+            {% if puede_gestionar_turnos %}<a class="button" href="{% url 'turnos:crear' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
         </div>
-    </div>
+    </header>
 
-    <section class="metric-grid stagger-list">
-        <div class="metric-card metric-card-total animate-fade-up card-hover" style="--stagger-index: 0;">
-            <span class="metric-label">Turnos</span>
-            <strong>{{ resumen_estados.total }}</strong>
-        </div>
-        <div class="metric-card metric-card-pendiente animate-fade-up card-hover" style="--stagger-index: 1;">
-            <span class="metric-label">Pendientes</span>
-            <strong>{{ resumen_estados.pendiente }}</strong>
-        </div>
-        <div class="metric-card metric-card-confirmado animate-fade-up card-hover" style="--stagger-index: 2;">
-            <span class="metric-label">Confirmados</span>
-            <strong>{{ resumen_estados.confirmado }}</strong>
-        </div>
-        <div class="metric-card metric-card-cancelado animate-fade-up card-hover" style="--stagger-index: 3;">
-            <span class="metric-label">Cancelados</span>
-            <strong>{{ resumen_estados.cancelado }}</strong>
-        </div>
+    <section class="agenda-summary-strip" aria-label="Resumen del día">
+        <div><span>Total</span><strong>{{ resumen_estados.total }}</strong></div>
+        <div class="is-pending"><span>Pendientes</span><strong>{{ resumen_estados.pendiente }}</strong></div>
+        <div class="is-confirmed"><span>Confirmados</span><strong>{{ resumen_estados.confirmado }}</strong></div>
+        <div class="is-cancelled"><span>Cancelados</span><strong>{{ resumen_estados.cancelado }}</strong></div>
     </section>
 
-    <form class="filter-panel agenda-filter animate-fade-up" method="get">
-        <div>
-            <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
-            {{ filtros_form.fecha }}
-        </div>
-        <div>
-            <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
-            {{ filtros_form.odontologo }}
-        </div>
-        <div>
-            <label for="{{ filtros_form.buscar.id_for_label }}">Buscar</label>
-            {{ filtros_form.buscar }}
-        </div>
-        <div class="filter-actions">
-            <button type="submit">Ver agenda</button>
-            <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Hoy</a>
-        </div>
-    </form>
+    <details class="agenda-filters-panel" open>
+        <summary>{% include "includes/icon.html" with name="filter" %} Filtros <span>{% if busqueda or odontologo %}Activos{% endif %}</span></summary>
+        <form class="agenda-filter-form" method="get">
+            <div><label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>{{ filtros_form.fecha }}</div>
+            <div><label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>{{ filtros_form.odontologo }}</div>
+            <div class="agenda-search-field"><label for="{{ filtros_form.buscar.id_for_label }}">Buscar</label><span>{% include "includes/icon.html" with name="search" %}{{ filtros_form.buscar }}</span></div>
+            <div class="filter-actions"><button type="submit">Aplicar</button><a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Limpiar</a></div>
+        </form>
+    </details>
 
-    <div class="agenda-legend-panel animate-fade-up">
-        <div class="agenda-legend">
+    <div class="agenda-legend-panel">
+        <div class="agenda-legend" aria-label="Estados de turnos">
             <span class="status-badge status-pendiente">Pendiente</span>
             <span class="status-badge status-confirmado">Confirmado</span>
             <span class="status-badge status-cancelado">Cancelado</span>
+            <span class="agenda-empty-slot">Disponible</span>
         </div>
-        {% if busqueda %}
-            <span class="muted">Filtro activo: "{{ busqueda }}"</span>
-        {% endif %}
+        {% if busqueda %}<span class="muted">Filtro activo: "{{ busqueda }}"</span>{% endif %}
     </div>
 
     {% include "turnos/includes/excepciones_agenda_panel.html" %}
 
     {% if agenda_odontologos %}
-        <div class="agenda-professional-list stagger-list">
+        <div class="agenda-professional-list agenda-workspace-v2 stagger-list">
             {% for agenda in agenda_odontologos %}
-                <section class="panel-section agenda-professional animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
-                    <div class="section-header">
-                        <div>
-                            <h2>{{ agenda.odontologo }}</h2>
-                            <p class="subtitle">
-                                {{ agenda.turnos|length }} turno{% if agenda.turnos|length != 1 %}s{% endif %} para este día.
-                            </p>
+                <section class="agenda-professional-v2 animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};" aria-labelledby="profesional-{{ agenda.odontologo.pk }}">
+                    <header class="agenda-professional-header">
+                        <div class="agenda-professional-identity">
+                            <span class="patient-avatar">{{ agenda.odontologo.nombre_completo|first|upper }}</span>
+                            <div><h2 id="profesional-{{ agenda.odontologo.pk }}">{{ agenda.odontologo }}</h2><p>{{ agenda.turnos|length }} turno{% if agenda.turnos|length != 1 %}s{% endif %} para este día.</p></div>
                         </div>
-                        {% if puede_gestionar_turnos %}
-                            <a class="button button-secondary button-small" href="{% url 'turnos:crear' %}?odontologo={{ agenda.odontologo.pk }}&fecha={{ fecha|date:'Y-m-d' }}">Nuevo turno</a>
-                        {% endif %}
-                    </div>
+                        {% if puede_gestionar_turnos %}<a class="button button-secondary button-small" href="{% url 'turnos:crear' %}?odontologo={{ agenda.odontologo.pk }}&amp;fecha={{ fecha|date:'Y-m-d' }}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
+                    </header>
 
                     {% if busqueda and not agenda.turnos %}
-                        <p class="muted">No hay turnos que coincidan con la búsqueda para este odontólogo.</p>
+                        {% include "includes/empty_state.html" with icon_name="search" title="Sin coincidencias" description="No hay turnos que coincidan con la búsqueda para este odontólogo." compact=True %}
                     {% elif agenda.bloques %}
-                        <div class="schedule-list stagger-list">
+                        <div class="schedule-list agenda-time-grid">
                             {% for bloque in agenda.bloques %}
-                                <div class="schedule-row animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
-                                    <div class="schedule-slot">{{ bloque.hora_inicio|time:"H:i" }} a {{ bloque.hora_fin|time:"H:i" }}</div>
-                                    <div>
+                                <div class="schedule-row">
+                                    <time class="schedule-slot" datetime="{{ fecha|date:'Y-m-d' }}T{{ bloque.hora_inicio|time:'H:i' }}">{{ bloque.hora_inicio|time:"H:i" }}<small>{{ bloque.hora_fin|time:"H:i" }}</small></time>
+                                    <div class="agenda-time-content">
                                         {% if bloque.turnos %}
-                                            <div class="agenda-items">
-                                                {% for turno in bloque.turnos %}
-                                                    {% include "turnos/includes/agenda_turno_card.html" %}
-                                                {% endfor %}
-                                            </div>
+                                            <div class="agenda-items">{% for turno in bloque.turnos %}{% include "turnos/includes/agenda_turno_card.html" %}{% endfor %}</div>
                                         {% else %}
                                             <span class="agenda-empty-slot">Disponible</span>
                                         {% endif %}
@@ -106,18 +82,16 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="muted">No hay disponibilidad ni turnos para este odontólogo.</p>
+                        {% include "includes/empty_state.html" with icon_name="calendar" title="Sin agenda configurada" description="No hay disponibilidad ni turnos para este odontólogo." compact=True %}
                     {% endif %}
                 </section>
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state animate-fade-up">
-            {% if busqueda %}
-                <p>No hay turnos que coincidan con la búsqueda para este día.</p>
-            {% else %}
-                <p>No hay disponibilidad ni turnos cargados para este día.</p>
-            {% endif %}
-        </div>
+        {% if busqueda %}
+            {% include "includes/empty_state.html" with illustration="images/no-results.svg" title="Sin coincidencias" description="No hay turnos que coincidan con la búsqueda para este día." %}
+        {% else %}
+            {% include "includes/empty_state.html" with illustration="images/calendar-empty.svg" title="No hay agenda para este día" description="No hay disponibilidad ni turnos cargados para la fecha seleccionada." %}
+        {% endif %}
     {% endif %}
 {% endblock %}

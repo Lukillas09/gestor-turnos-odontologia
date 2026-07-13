@@ -11,20 +11,20 @@
 {% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
+    <div class="internal-page-heading animate-fade-up">
         <div>
             <h1>Entrada de historia clínica</h1>
             <p class="subtitle">{{ historia.paciente }} - {{ historia.fecha|date:"d/m/Y" }}</p>
         </div>
         <div class="header-actions">
-            <a class="button button-secondary" href="{% url 'historias:lista_paciente' historia.paciente.pk %}">Volver</a>
+            <a class="button button-secondary" href="{% url 'historias:lista_paciente' historia.paciente.pk %}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a>
             {% if puede_editar_historia %}
-                <a class="button" href="{% url 'historias:editar' historia.pk %}">Editar</a>
+                <a class="button" href="{% url 'historias:editar' historia.pk %}">{% include "includes/icon.html" with name="edit" %} Editar</a>
             {% endif %}
         </div>
     </div>
 
-    <section class="detail-panel animate-fade-up card-hover">
+    <section class="detail-panel clinical-detail-panel animate-fade-up">
         <dl class="detail-grid">
             <div>
                 <dt>Paciente</dt>
@@ -105,9 +105,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="empty-state animate-fade-up">
-                <p>No hay cambios de odontograma asociados a esta entrada.</p>
-            </div>
+            {% include "includes/empty_state.html" with icon_name="clinical" title="Sin cambios dentales" description="No hay cambios de odontograma asociados a esta entrada." compact=True %}
         {% endif %}
     </section>
 
@@ -135,14 +133,12 @@
                                 {% endif %}
                             </span>
                         </div>
-                        <a class="text-link" href="{% url 'historias:descargar_adjunto' adjunto.pk %}" target="_blank" rel="noopener">Abrir</a>
+                        <a class="button button-secondary button-small" href="{% url 'historias:descargar_adjunto' adjunto.pk %}" target="_blank" rel="noopener">{% include "includes/icon.html" with name="attachment" %} Abrir</a>
                     </article>
                 {% endfor %}
             </div>
         {% else %}
-            <div class="empty-state animate-fade-up">
-                <p>No hay adjuntos cargados para esta entrada.</p>
-            </div>
+            {% include "includes/empty_state.html" with icon_name="attachment" title="Sin adjuntos" description="No hay archivos cargados para esta entrada." compact=True %}
         {% endif %}
     </section>
 {% endblock %}

@@ -3,128 +3,124 @@
 {% block title %}Completar datos | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <div class="page-header public-data-header animate-fade-up">
-        <div>
-            <h1>Completar datos</h1>
-            <p class="subtitle">Completá tus datos de contacto para confirmar la solicitud. El consultorio te avisará cuando el turno quede confirmado.</p>
-        </div>
-    </div>
+    {% include "turnos/includes/public_stepper.html" with current_step=2 current_label="Completá tus datos" %}
 
-    {% if odontologo and fecha and hora_inicio %}
-        <section class="public-reservation-summary public-reservation-summary-actionable animate-fade-up card-hover">
-            <div class="public-avatar public-avatar-small">
-                {% if odontologo.foto_perfil_url %}
-                    <img
-                        src="{{ odontologo.foto_perfil_url }}"
-                        alt="{{ odontologo }}"
-                        onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
-                        style="object-position: {{ odontologo.foto_object_position }};"
-                    >
-                    <span class="public-avatar-fallback" hidden>{{ odontologo.nombre_completo|first }}</span>
-                {% else %}
-                    <span>{{ odontologo.nombre_completo|first }}</span>
-                {% endif %}
-            </div>
-            <div class="public-reservation-details">
+    <header class="public-booking-heading public-data-header animate-fade-up">
+        <p class="eyebrow">Datos del paciente</p>
+        <h1>Completar datos</h1>
+        <p>Ingresá la información necesaria para que el consultorio pueda identificarte y avisarte cuando el turno quede confirmado.</p>
+    </header>
+
+    <div class="public-data-layout">
+        <form class="form-panel public-data-form public-simple-form animate-fade-up" method="post" novalidate>
+            {% csrf_token %}
+
+            {{ form.odontologo.as_hidden }}
+            {{ form.fecha.as_hidden }}
+            {{ form.hora_inicio.as_hidden }}
+            {{ form.idempotency_token }}
+            {{ form.turnstile_token }}
+
+            <div class="public-form-intro">
+                <span class="public-form-icon" aria-hidden="true">{% include "includes/icon.html" with name="user" %}</span>
                 <div>
-                    <span class="public-pill">{{ odontologo.especialidad|default:"Odontología general" }}</span>
-                    <h2>{{ odontologo }}</h2>
-                    <p>{{ fecha|date:"l d/m/Y" }} de {{ hora_inicio|time:"H:i" }} a {{ hora_fin|time:"H:i" }}</p>
-                    {% if odontologo.celular %}
-                        <p>Contacto {{ odontologo.celular }}</p>
-                    {% endif %}
+                    <h2>Tus datos de contacto</h2>
+                    <p>Solo pedimos lo necesario para identificarte y mantenerte al tanto.</p>
                 </div>
-                <a class="button button-secondary button-small" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ odontologo.pk }}&fecha={{ fecha|date:'Y-m-d' }}">Cambiar horario</a>
             </div>
-        </section>
-    {% endif %}
 
-    <form class="form-panel public-data-form public-simple-form animate-fade-up" method="post" novalidate>
-        {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="form-error-summary" role="alert">
+                    {% include "includes/icon.html" with name="alert" %}
+                    <div><strong>Revisá la solicitud</strong>{{ form.non_field_errors }}</div>
+                </div>
+            {% endif %}
 
-        {{ form.odontologo.as_hidden }}
-        {{ form.fecha.as_hidden }}
-        {{ form.hora_inicio.as_hidden }}
-        {{ form.idempotency_token }}
-        {{ form.turnstile_token }}
+            {% if form.odontologo.errors or form.fecha.errors or form.hora_inicio.errors %}
+                <div class="form-error-summary field-full" role="alert">
+                    {% include "includes/icon.html" with name="alert" %}
+                    <div>{{ form.odontologo.errors }}{{ form.fecha.errors }}{{ form.hora_inicio.errors }}</div>
+                </div>
+            {% endif %}
 
-        <div class="public-form-intro">
-            <h2>Tus datos de contacto</h2>
-            <p>Solo pedimos lo necesario para identificarte y poder avisarte el estado del turno.</p>
-            <p class="muted">Usaremos este correo para enviarte códigos de acceso y permitirte consultar, cancelar o reprogramar tus turnos.</p>
-            <p class="muted">Si ya sos paciente, cualquier cambio en tus datos será revisado por el consultorio antes de aplicarse.</p>
-        </div>
+            <div class="form-grid public-short-form-grid">
+                <div class="field-group">
+                    <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}<div class="field-error">{{ form.nombre.errors }}</div>{% endif %}
+                </div>
+                <div class="field-group">
+                    <label for="{{ form.apellido.id_for_label }}">{{ form.apellido.label }}</label>
+                    {{ form.apellido }}
+                    {% if form.apellido.errors %}<div class="field-error">{{ form.apellido.errors }}</div>{% endif %}
+                </div>
+                <div class="field-group field-phone">
+                    <label for="{{ form.telefono.id_for_label }}">{{ form.telefono.label }}</label>
+                    {{ form.telefono }}
+                    <p class="field-help">Incluí el código de área.</p>
+                    {% if form.telefono.errors %}<div class="field-error">{{ form.telefono.errors }}</div>{% endif %}
+                </div>
+                <div class="field-group field-document">
+                    <label for="{{ form.documento.id_for_label }}">{{ form.documento.label }}</label>
+                    {{ form.documento }}
+                    <p class="field-help">Solo números, sin puntos.</p>
+                    {% if form.documento.errors %}<div class="field-error">{{ form.documento.errors }}</div>{% endif %}
+                </div>
+                <div class="field-group field-full">
+                    <label for="{{ form.email.id_for_label }}">{{ form.email.label }} <span class="field-label-note">Necesario si es tu primera solicitud</span></label>
+                    {{ form.email }}
+                    {% if form.email.help_text %}<p class="field-help">{{ form.email.help_text }}</p>{% endif %}
+                    {% if form.email.errors %}<div class="field-error">{{ form.email.errors }}</div>{% endif %}
+                </div>
+                <div class="field-group field-full">
+                    <label for="{{ form.motivo.id_for_label }}">{{ form.motivo.label }} <span class="field-label-note">Opcional</span></label>
+                    {{ form.motivo }}
+                    {% if form.motivo.errors %}<div class="field-error">{{ form.motivo.errors }}</div>{% endif %}
+                </div>
+            </div>
 
-        {% if form.non_field_errors %}
-            <div class="field-error">{{ form.non_field_errors }}</div>
+            <div class="public-privacy-note">
+                {% include "includes/icon.html" with name="lock" %}
+                <div>
+                    <p>Usaremos este correo para enviarte códigos de acceso y permitirte consultar, cancelar o reprogramar tus turnos.</p>
+                    <p>Si ya sos paciente, cualquier cambio en tus datos será revisado por el consultorio antes de aplicarse.</p>
+                </div>
+            </div>
+
+            {% if turnstile_requerido and turnstile_site_key %}
+                <div class="field-full">
+                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+                    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                </div>
+            {% endif %}
+
+            <div class="form-actions public-form-actions">
+                <button class="button-large" type="submit">Enviar solicitud {% include "includes/icon.html" with name="arrow-right" %}</button>
+            </div>
+        </form>
+
+        {% if odontologo and fecha and hora_inicio %}
+            <aside class="public-booking-summary animate-fade-up" aria-label="Resumen del turno">
+                <div class="public-booking-summary-header">
+                    <span>Resumen del turno</span>
+                    <span class="status-badge status-sync-ok">Seleccionado</span>
+                </div>
+                <div class="public-booking-summary-professional">
+                    <div class="public-avatar public-avatar-small">
+                        {% if odontologo.foto_perfil_url %}
+                            <img src="{{ odontologo.foto_perfil_url }}" alt="" onerror="this.hidden=true; this.nextElementSibling.hidden=false;" style="object-position: {{ odontologo.foto_object_position }};">
+                            <span class="public-avatar-fallback" hidden>{{ odontologo.nombre_completo|first }}</span>
+                        {% else %}<span>{{ odontologo.nombre_completo|first }}</span>{% endif %}
+                    </div>
+                    <div><strong>{{ odontologo }}</strong><span>{{ odontologo.especialidad|default:"Odontología general" }}</span></div>
+                </div>
+                <dl class="public-booking-summary-details">
+                    <div><dt>{% include "includes/icon.html" with name="calendar" %} Fecha</dt><dd>{{ fecha|date:"l d/m/Y" }}</dd></div>
+                    <div><dt>{% include "includes/icon.html" with name="clock" %} Horario</dt><dd>{{ hora_inicio|time:"H:i" }} a {{ hora_fin|time:"H:i" }}</dd></div>
+                    <div><dt>{% include "includes/icon.html" with name="appointments" %} Duración</dt><dd>30 minutos</dd></div>
+                </dl>
+                <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ odontologo.pk }}&fecha={{ fecha|date:'Y-m-d' }}">{% include "includes/icon.html" with name="arrow-left" %} Cambiar horario</a>
+            </aside>
         {% endif %}
-
-        {% if form.odontologo.errors or form.fecha.errors or form.hora_inicio.errors %}
-            <div class="field-error field-full">
-                {{ form.odontologo.errors }}
-                {{ form.fecha.errors }}
-                {{ form.hora_inicio.errors }}
-            </div>
-        {% endif %}
-
-        <div class="form-grid public-short-form-grid">
-            <div>
-                <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
-                {{ form.nombre }}
-                {% if form.nombre.errors %}
-                    <div class="field-error">{{ form.nombre.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.apellido.id_for_label }}">{{ form.apellido.label }}</label>
-                {{ form.apellido }}
-                {% if form.apellido.errors %}
-                    <div class="field-error">{{ form.apellido.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.telefono.id_for_label }}">{{ form.telefono.label }}</label>
-                {{ form.telefono }}
-                {% if form.telefono.errors %}
-                    <div class="field-error">{{ form.telefono.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.documento.id_for_label }}">{{ form.documento.label }}</label>
-                {{ form.documento }}
-                {% if form.documento.errors %}
-                    <div class="field-error">{{ form.documento.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
-                {{ form.email }}
-                <p class="muted">Necesario si es tu primera solicitud.</p>
-                {% if form.email.help_text %}
-                    <p class="muted">{{ form.email.help_text }}</p>
-                {% endif %}
-                {% if form.email.errors %}
-                    <div class="field-error">{{ form.email.errors }}</div>
-                {% endif %}
-            </div>
-            <div>
-                <label for="{{ form.motivo.id_for_label }}">{{ form.motivo.label }}</label>
-                {{ form.motivo }}
-                {% if form.motivo.errors %}
-                    <div class="field-error">{{ form.motivo.errors }}</div>
-                {% endif %}
-            </div>
-        </div>
-
-        {% if turnstile_requerido and turnstile_site_key %}
-            <div class="field-full">
-                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
-                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-            </div>
-        {% endif %}
-
-        <div class="form-actions public-form-actions">
-            <button type="submit">Enviar solicitud</button>
-        </div>
-    </form>
+    </div>
 {% endblock %}

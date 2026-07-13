@@ -1,43 +1,39 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Verificar acceso | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <div class="page-header public-data-header animate-fade-up">
-        <div>
+    <div class="public-access-layout public-access-layout-code">
+        <section class="public-access-panel animate-fade-up" aria-labelledby="verify-title">
             <p class="eyebrow">Código temporal</p>
-            <h1>Verificar acceso</h1>
-            <p class="subtitle">Revisá tu medio de contacto. Si los datos ingresados coinciden con un paciente registrado, recibirás un código para continuar.</p>
-        </div>
-    </div>
+            <h1 id="verify-title">Verificar acceso</h1>
+            <p class="public-access-lead">Revisá tu medio de contacto. Si los datos coinciden con un paciente registrado, recibirás un código de seis dígitos.</p>
 
-    {% include "consultorio/includes/public_contact_card.html" %}
+            <form class="public-access-form" method="post" novalidate>
+                {% csrf_token %}
+                <div class="field-group public-code-field">
+                    <label for="{{ form.codigo.id_for_label }}">{{ form.codigo.label }}</label>
+                    {{ form.codigo }}
+                    <p class="field-help">El código vence en pocos minutos y es de un solo uso.</p>
+                    {% if form.codigo.errors %}<div class="field-error">{{ form.codigo.errors }}</div>{% endif %}
+                    {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+                </div>
+                <button class="button-large" type="submit">Validar código {% include "includes/icon.html" with name="check" %}</button>
+            </form>
 
-    <section class="public-query-panel animate-fade-up">
-        <form class="public-dni-form" method="post" novalidate>
-            {% csrf_token %}
-            <div>
-                <label for="{{ form.codigo.id_for_label }}">{{ form.codigo.label }}</label>
-                {{ form.codigo }}
-                {% if form.codigo.errors %}
-                    <div class="field-error">{{ form.codigo.errors }}</div>
-                {% endif %}
-                {% if form.non_field_errors %}
-                    <div class="field-error">{{ form.non_field_errors }}</div>
-                {% endif %}
+            <div class="public-access-secondary-actions">
+                <form method="post">
+                    {% csrf_token %}<input type="hidden" name="accion" value="reenviar">
+                    <button class="button button-secondary" type="submit">{% include "includes/icon.html" with name="refresh" %} Reenviar código</button>
+                </form>
+                <a class="button button-tertiary" href="{% url 'turnos:acceso_publico_solicitar' %}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a>
             </div>
-            <button type="submit">Validar código</button>
-        </form>
+        </section>
 
-        <form class="public-dni-form public-form-actions" method="post">
-            {% csrf_token %}
-            <input type="hidden" name="accion" value="reenviar">
-            <button class="button button-secondary" type="submit">Reenviar código</button>
-            <a class="button button-secondary" href="{% url 'turnos:acceso_publico_solicitar' %}">Volver</a>
-        </form>
-
-        <div class="empty-state" aria-live="polite">
-            <p>El código vence en pocos minutos y es de un solo uso.</p>
-        </div>
-    </section>
+        <aside class="public-access-visual" aria-label="Código de acceso protegido">
+            <img src="{% static 'images/secure-access.svg' %}" width="420" height="320" alt="">
+            <div><strong>Acceso por única vez</strong><p>Nunca compartas el código con otras personas.</p></div>
+        </aside>
+    </div>
 {% endblock %}

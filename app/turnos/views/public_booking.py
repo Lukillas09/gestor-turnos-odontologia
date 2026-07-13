@@ -137,6 +137,10 @@ class LandingPublicaPacientesView(TemplateView):
         )
         context["solicitud_turno_confirmada"] = bool(confirmacion)
         context["solicitud_turno_confirmada_con_email"] = False
+        context["odontologos_publicos"] = Odontologo.objects.filter(activo=True).select_related(
+            "usuario"
+        )
+        context["fecha_minima_reserva_publica"] = obtener_rango_reserva_publica().fecha_minima
         return context
 
 

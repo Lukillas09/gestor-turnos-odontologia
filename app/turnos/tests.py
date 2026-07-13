@@ -1699,6 +1699,8 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Solicitar turno")
         self.assertContains(response, "Opciones de turnos disponibles")
+        self.assertContains(response, "Paso 1 de 3")
+        self.assertContains(response, 'aria-current="step"')
         self.assertContains(response, "Seleccionar odontólogo")
         self.assertContains(response, "Elegí un odontólogo para ver los horarios disponibles.")
         self.assertContains(response, "Autogestión de turnos")
@@ -1709,7 +1711,8 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertIsNone(response.context["odontologo"])
         self.assertEqual(response.context["horarios_manana"], [])
         self.assertEqual(response.context["horarios_tarde"], [])
-        self.assertNotContains(response, 'src="https://example.com/paula.jpg"')
+        self.assertContains(response, 'data-public-professional="')
+        self.assertContains(response, 'src="https://example.com/paula.jpg"')
 
     def test_formulario_publico_muestra_horarios_disponibles(self):
         paciente = Paciente.objects.create(
@@ -1990,6 +1993,8 @@ class SolicitudTurnoPublicaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Completar datos")
+        self.assertContains(response, "Paso 2 de 3")
+        self.assertContains(response, 'aria-label="Progreso de la solicitud"')
         self.assertContains(response, "Paula Publica")
         self.assertContains(response, "10:00 a 10:30")
         self.assertContains(response, "Cambiar horario")

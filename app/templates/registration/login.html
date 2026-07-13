@@ -1,45 +1,27 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Ingresar | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header">
-        <div>
-            <h1>Ingresar</h1>
-            <p class="subtitle">Acceso interno del consultorio.</p>
+    <section class="login-shell animate-fade-up" aria-labelledby="login-title">
+        <div class="login-visual">
+            <img src="{% static 'images/secure-access.svg' %}" alt="" width="320" height="240">
+            <div><p class="eyebrow">Área profesional</p><h2>Tu jornada clínica, organizada</h2><p>Accedé a la agenda, los turnos y la información de pacientes desde un espacio protegido.</p></div>
         </div>
-    </div>
 
-    <form class="form-panel" method="post" novalidate>
-        {% csrf_token %}
+        <form class="login-panel" method="post" novalidate>
+            {% csrf_token %}
+            <header><span class="login-icon">{% include "includes/icon.html" with name="lock" %}</span><div><p class="eyebrow">Acceso interno</p><h1 id="login-title">Ingresar</h1><p>Usá las credenciales asignadas por el consultorio.</p></div></header>
 
-        {% if form.non_field_errors %}
-            <div class="field-error">{{ form.non_field_errors }}</div>
-        {% endif %}
+            {% if form.non_field_errors %}<div class="form-error-summary" role="alert">{% include "includes/icon.html" with name="alert" %}<div>{{ form.non_field_errors }}</div></div>{% endif %}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
-        {% if next %}
-            <input type="hidden" name="next" value="{{ next }}">
-        {% endif %}
-
-        <div class="form-grid">
-            <div class="field-full">
-                <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
-                {{ form.username }}
-                {% if form.username.errors %}
-                    <div class="field-error">{{ form.username.errors }}</div>
-                {% endif %}
+            <div class="login-fields">
+                {% include "includes/form_field.html" with field=form.username full=True %}
+                {% include "includes/form_field.html" with field=form.password full=True %}
             </div>
-            <div class="field-full">
-                <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
-                {{ form.password }}
-                {% if form.password.errors %}
-                    <div class="field-error">{{ form.password.errors }}</div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit">Ingresar</button>
-        </div>
-    </form>
+            <button class="button button-large" type="submit">{% include "includes/icon.html" with name="lock" %} Ingresar de forma segura</button>
+        </form>
+    </section>
 {% endblock %}

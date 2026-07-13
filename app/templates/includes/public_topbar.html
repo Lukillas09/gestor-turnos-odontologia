@@ -1,19 +1,20 @@
-            <div class="topbar-inner">
-                <a class="brand" href="{% url 'landing_publica' %}">
-                    {% if configuracion_consultorio.logo_url %}
-                        <span class="brand-logo">
-                            <img src="{{ configuracion_consultorio.logo_url }}" alt="">
-                        </span>
-                    {% else %}
-                        <span class="brand-mark">{{ configuracion_consultorio.iniciales }}</span>
-                    {% endif %}
-                    <span class="brand-text">{{ configuracion_consultorio.nombre_visible }}</span>
-                </a>
-                <nav class="nav" aria-label="Principal">
-                    <a class="nav-link nav-link-public-primary" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
-                    <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar turnos</a>
-                    <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Cancelar turno</a>
-                    <a class="nav-link nav-link-internal" href="{% url 'login' %}">Ingresar</a>
-                </nav>
-            </div>
-        </header>
+<header class="topbar public-topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="{% url 'landing_publica' %}">
+            {% if configuracion_consultorio.logo_url %}
+                <span class="brand-logo"><img src="{{ configuracion_consultorio.logo_url }}" alt=""></span>
+            {% else %}
+                <span class="brand-mark">{{ configuracion_consultorio.iniciales }}</span>
+            {% endif %}
+            <span class="brand-text">{{ configuracion_consultorio.nombre_visible }}</span>
+        </a>
+        <nav class="nav public-nav" aria-label="Navegación para pacientes">
+            <a class="nav-link" href="{% url 'landing_publica' %}">Inicio</a>
+            <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Mis turnos</a>
+            <a class="button button-small public-nav-cta" href="{% url 'turnos:solicitud_publica' %}">
+                {% include "includes/icon.html" with name="calendar" %} Solicitar turno
+            </a>
+            <a class="nav-link nav-link-internal" href="{% url 'login' %}">Ingresar</a>
+        </nav>
+    </div>
+</header>

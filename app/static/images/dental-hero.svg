@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520" role="img" aria-labelledby="title desc">
+  <title id="title">Atención odontológica y reserva de turnos</title>
+  <desc id="desc">Ilustración de una profesional, un calendario y un diente protegido.</desc>
+  <path fill="#dff8f4" d="M84 42h480c31 0 56 25 56 56v324c0 31-25 56-56 56H84c-31 0-56-25-56-56V98c0-31 25-56 56-56Z"/>
+  <circle cx="512" cy="116" r="54" fill="#ccfbf1"/>
+  <path fill="#fff" stroke="#0f766e" stroke-width="8" stroke-linejoin="round" d="M458 119c-7-43-56-45-68-13-12-32-61-30-68 13-7 43 24 53 30 102 4 34 12 68 29 68 14 0 9-61 29-61s15 61 29 61c17 0 25-34 29-68 6-49 37-59 30-102Z"/>
+  <path fill="#14b8a6" d="m383 158 18 18 39-43 13 12-52 58-31-31 13-14Z"/>
+  <rect x="88" y="84" width="194" height="226" rx="24" fill="#fff" stroke="#bfdbfe" stroke-width="6"/>
+  <path fill="#2563eb" d="M88 108c0-13 11-24 24-24h146c13 0 24 11 24 24v42H88v-42Z"/>
+  <path stroke="#fff" stroke-width="9" stroke-linecap="round" d="M137 68v31M233 68v31"/>
+  <path stroke="#dbeafe" stroke-width="5" d="M117 182h136M117 218h136M117 254h136M151 164v126M198 164v126"/>
+  <rect x="204" y="226" width="37" height="29" rx="8" fill="#14b8a6"/>
+  <circle cx="183" cy="392" r="70" fill="#1d2b45"/>
+  <circle cx="183" cy="362" r="29" fill="#f7c9aa"/>
+  <path fill="#0b1324" d="M151 359c0-25 13-41 32-41 20 0 33 16 33 41-20-8-42-8-65 0Z"/>
+  <path fill="#fff" d="M117 458c4-45 28-72 66-72s62 27 66 72H117Z"/>
+  <path fill="#2563eb" d="M167 389h32l-6 69h-20l-6-69Z"/>
+  <rect x="300" y="326" width="280" height="98" rx="20" fill="#fff" stroke="#cbd5e1" stroke-width="4"/>
+  <circle cx="346" cy="375" r="24" fill="#dcfce7"/>
+  <path stroke="#15803d" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" d="m335 375 8 8 15-17"/>
+  <rect x="382" y="352" width="154" height="13" rx="6.5" fill="#1d2b45"/>
+  <rect x="382" y="380" width="112" height="10" rx="5" fill="#cbd5e1"/>
+</svg>

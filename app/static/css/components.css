@@ -1,0 +1,319 @@
+.ui-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: inline-block;
+    flex: 0 0 auto;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+    vertical-align: -0.2em;
+}
+
+.ui-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+}
+
+.ui-card-interactive {
+    transition:
+        border-color var(--motion-normal) var(--ease-standard),
+        box-shadow var(--motion-normal) var(--ease-standard),
+        transform var(--motion-normal) var(--ease-standard);
+}
+
+.ui-card-interactive:hover,
+.ui-card-interactive:focus-within {
+    border-color: color-mix(in srgb, var(--primary) 34%, var(--line));
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+}
+
+.ui-card-header,
+.ui-card-body,
+.ui-card-footer {
+    padding: var(--space-5);
+}
+
+.ui-card-header {
+    border-bottom: 1px solid var(--line);
+}
+
+.ui-card-footer {
+    border-top: 1px solid var(--line);
+}
+
+.button,
+button,
+.button-primary,
+.button-secondary,
+.button-tertiary,
+.button-danger,
+.button-success,
+.button-icon {
+    min-height: 44px;
+    gap: var(--space-2);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 1rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+    transition:
+        background-color var(--motion-fast) var(--ease-standard),
+        border-color var(--motion-fast) var(--ease-standard),
+        box-shadow var(--motion-fast) var(--ease-standard),
+        color var(--motion-fast) var(--ease-standard),
+        transform var(--motion-instant) var(--ease-standard);
+}
+
+.button:active,
+button:active,
+.button-icon:active {
+    transform: scale(0.98);
+}
+
+.button-large {
+    min-height: 52px;
+    padding-inline: 1.35rem;
+    font-size: var(--font-md);
+}
+
+.button-small {
+    min-height: 36px;
+    padding: 0.45rem 0.75rem;
+    font-size: var(--font-sm);
+}
+
+.button-tertiary {
+    border-color: transparent;
+    background: transparent;
+    color: var(--primary-dark);
+}
+
+.button-tertiary:hover {
+    background: var(--primary-soft);
+}
+
+.button-icon {
+    width: 44px;
+    padding: 0;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--gray-700);
+}
+
+.button-icon:hover {
+    border-color: var(--line-strong);
+    background: var(--gray-50);
+    color: var(--gray-950);
+}
+
+.button-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.button-loading::after {
+    width: 1rem;
+    height: 1rem;
+    content: "";
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: ui-spin 700ms linear infinite;
+}
+
+.status-badge {
+    min-height: 26px;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    line-height: 1.15;
+}
+
+.status-badge::before {
+    width: 0.42rem;
+    height: 0.42rem;
+    flex: 0 0 auto;
+    content: "";
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.status-cancelado::before {
+    border-radius: 2px;
+}
+
+.empty-state {
+    min-height: 180px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    text-align: center;
+}
+
+.empty-state-visual {
+    width: min(190px, 56vw);
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
+}
+
+.empty-state-icon {
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--teal-100);
+    color: var(--teal-700);
+}
+
+.empty-state-icon .ui-icon {
+    width: 1.6rem;
+    height: 1.6rem;
+}
+
+.empty-state h2,
+.empty-state h3,
+.empty-state p {
+    margin: 0;
+}
+
+.empty-state p {
+    max-width: 38rem;
+    color: var(--muted);
+}
+
+.empty-state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+}
+
+.messages {
+    position: relative;
+    z-index: 5;
+    display: grid;
+    gap: var(--space-3);
+}
+
+.message {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    align-items: start;
+    border-radius: var(--radius-md);
+    padding: 0.9rem 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.message-icon {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.message-copy {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.message-copy strong {
+    font-size: var(--font-sm);
+}
+
+.message-copy span {
+    font-size: var(--font-sm);
+}
+
+.message-close {
+    width: 36px;
+    min-height: 36px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: currentColor;
+}
+
+.message-close:hover {
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.ui-skeleton {
+    overflow: hidden;
+    position: relative;
+    border-radius: var(--radius-sm);
+    background: var(--gray-200);
+}
+
+.ui-skeleton::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+    transform: translateX(-100%);
+    animation: ui-shimmer 1.25s ease-in-out infinite;
+}
+
+.ui-skeleton-line {
+    width: 100%;
+    height: 0.8rem;
+}
+
+.ui-skeleton-line-short {
+    width: 58%;
+}
+
+.ui-skeleton-card {
+    height: 118px;
+}
+
+.visually-hidden,
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+}
+
+.skip-link {
+    position: fixed;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 1000;
+    padding: 0.7rem 1rem;
+    border-radius: var(--radius-sm);
+    background: var(--navy-950);
+    color: #ffffff;
+    font-weight: 800;
+    text-decoration: none;
+    transform: translateY(-160%);
+    transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
+@keyframes ui-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes ui-shimmer {
+    to {
+        transform: translateX(100%);
+    }
+}

@@ -1,45 +1,37 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Solicitud recibida | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
-        <div>
-            <h1>Solicitud recibida</h1>
-            <p class="subtitle">El consultorio revisará la información y se comunicará por un medio de contacto válido.</p>
-            <p class="subtitle">Guardá el email que ingresaste. Cuando el contacto quede habilitado, podrás usarlo para solicitar un código y administrar tus turnos.</p>
-        </div>
-        <div class="header-actions">
-            <a class="button" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
-        </div>
-    </div>
+    {% include "turnos/includes/public_stepper.html" with current_step=3 current_label="Solicitud recibida" %}
 
-    {% include "consultorio/includes/public_contact_card.html" %}
+    <section class="public-success-shell animate-fade-up" aria-labelledby="success-title">
+        <img class="public-success-visual" src="{% static 'images/booking-success.svg' %}" width="420" height="320" alt="">
+        <span class="public-success-check animate-check" aria-hidden="true">{% include "includes/icon.html" with name="check" %}</span>
+        <p class="eyebrow">Solicitud enviada</p>
+        <h1 id="success-title">Solicitud recibida</h1>
+        <p class="public-success-lead">Tu turno todavía está pendiente. El consultorio revisará la información y se comunicará por un medio de contacto válido.</p>
+        <p class="public-success-note">Guardá el email que ingresaste. Cuando el contacto quede habilitado, podrás usarlo para solicitar un código y administrar tus turnos.</p>
 
-    {% if turno %}
-        <section class="detail-panel animate-fade-up card-hover">
-            <dl class="detail-grid">
-                <div>
-                    <dt>Odontólogo</dt>
-                    <dd>{{ turno.odontologo }}</dd>
-                </div>
-                <div>
-                    <dt>Fecha</dt>
-                    <dd>{{ turno.fecha|date:"d/m/Y" }}</dd>
-                </div>
-                <div>
-                    <dt>Horario</dt>
-                    <dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd>
-                </div>
-                <div>
-                    <dt>Estado</dt>
-                    <dd><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></dd>
-                </div>
+        {% if turno %}
+            <dl class="public-success-summary">
+                <div><dt>Odontólogo</dt><dd>{{ turno.odontologo }}</dd></div>
+                <div><dt>Fecha</dt><dd>{{ turno.fecha|date:"d/m/Y" }}</dd></div>
+                <div><dt>Horario</dt><dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd></div>
+                <div><dt>Estado</dt><dd><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></dd></div>
             </dl>
-        </section>
-    {% else %}
-        <section class="empty-state animate-fade-up">
-            <p>El consultorio podrá confirmar o reprogramar la solicitud desde el panel interno.</p>
-        </section>
-    {% endif %}
+        {% else %}
+            <div class="public-success-summary public-success-summary-generic"><p>El consultorio podrá confirmar o reprogramar la solicitud desde el panel interno.</p></div>
+        {% endif %}
+
+        <div class="public-success-actions">
+            <a class="button button-large" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar mis turnos</a>
+            <a class="button button-secondary button-large" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
+        </div>
+    </section>
+
+    <div class="public-success-contact">
+        {% include "consultorio/includes/public_contact_card.html" %}
+    </div>
 {% endblock %}

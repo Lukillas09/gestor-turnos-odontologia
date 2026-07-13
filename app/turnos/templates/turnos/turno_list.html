@@ -3,133 +3,68 @@
 {% block title %}Turnos | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
-        <div>
-            <p class="eyebrow">Turnos</p>
-            <h1>Agenda de turnos</h1>
-            <p class="subtitle">Identificá paciente, horario, odontólogo y estado sin leer una tabla densa.</p>
-        </div>
-        {% if puede_gestionar_turnos %}
-            <a class="button" href="{% url 'turnos:crear' %}">Nuevo turno</a>
-        {% endif %}
-    </div>
+    <header class="internal-page-heading animate-fade-up">
+        <div><p class="eyebrow">Turnos</p><h1>Agenda de turnos</h1><p class="subtitle">Pacientes, horarios y estados listos para revisar de un vistazo.</p></div>
+        {% if puede_gestionar_turnos %}<a class="button" href="{% url 'turnos:crear' %}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
+    </header>
 
-    <section class="turnos-filter-panel panel-section animate-fade-up" style="--stagger-index: 1;" aria-label="Filtros de turnos">
-        <div class="section-header">
-            <div>
-                <h2>Filtrar turnos</h2>
-                <p class="subtitle">Usá fecha, estado u odontólogo para encontrar rápido el turno correcto.</p>
-            </div>
-            {% if hay_filtros_activos %}
-                <span class="status-badge status-sync-ok">Mostrando turnos filtrados</span>
-            {% endif %}
-        </div>
-
+    <details class="list-filters-panel turnos-filters-v2 animate-fade-up" open>
+        <summary>{% include "includes/icon.html" with name="filter" %} Filtros de turnos {% if hay_filtros_activos %}<span class="status-badge status-sync-ok">Activos</span>{% endif %}</summary>
         <form class="turnos-filter-form" method="get">
-            <div>
-                <label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>
-                {{ filtros_form.fecha }}
-            </div>
-            <div>
-                <label for="{{ filtros_form.estado.id_for_label }}">Estado</label>
-                {{ filtros_form.estado }}
-            </div>
-            <div>
-                <label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>
-                {{ filtros_form.odontologo }}
-            </div>
-            <div>
-                <label class="consultorio-checkbox">
-                    {{ filtros_form.datos_por_revisar }}
-                    <span>{{ filtros_form.datos_por_revisar.label }}</span>
-                </label>
-            </div>
-            <div class="turnos-filter-actions">
-                <button type="submit">Filtrar</button>
-                <a class="button button-secondary" href="{% url 'turnos:lista' %}">Limpiar</a>
-            </div>
+            <div><label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>{{ filtros_form.fecha }}</div>
+            <div><label for="{{ filtros_form.estado.id_for_label }}">Estado</label>{{ filtros_form.estado }}</div>
+            <div><label for="{{ filtros_form.odontologo.id_for_label }}">Odontólogo</label>{{ filtros_form.odontologo }}</div>
+            <label class="consultorio-checkbox turnos-review-check">{{ filtros_form.datos_por_revisar }}<span>{{ filtros_form.datos_por_revisar.label }}</span></label>
+            <div class="turnos-filter-actions"><button type="submit">Aplicar</button><a class="button button-secondary" href="{% url 'turnos:lista' %}">Limpiar</a></div>
         </form>
+        <nav class="quick-filter-row" aria-label="Filtros frecuentes">
+            {% for acceso in accesos_rapidos_turnos %}<a class="quick-filter-pill{% if acceso.activo %} is-active{% endif %}" href="{{ acceso.url }}"{% if acceso.activo %} aria-current="page"{% endif %}>{{ acceso.label }}</a>{% endfor %}
+        </nav>
+    </details>
 
-        <div class="quick-filter-row" aria-label="Accesos rápidos">
-            {% for acceso in accesos_rapidos_turnos %}
-                <a class="quick-filter-pill{% if acceso.activo %} is-active{% endif %}" href="{{ acceso.url }}">
-                    {{ acceso.label }}
-                </a>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="metric-grid stagger-list" aria-label="Resumen de turnos">
-        <article class="metric-card metric-card-total animate-fade-up card-hover" style="--stagger-index: 0;">
-            <span class="metric-label">Total</span>
-            <strong>{{ resumen_turnos.total }}</strong>
-        </article>
-        <article class="metric-card metric-card-pendiente animate-fade-up card-hover" style="--stagger-index: 1;">
-            <span class="metric-label">Pendientes</span>
-            <strong>{{ resumen_turnos.pendiente }}</strong>
-        </article>
-        <article class="metric-card metric-card-confirmado animate-fade-up card-hover" style="--stagger-index: 2;">
-            <span class="metric-label">Confirmados</span>
-            <strong>{{ resumen_turnos.confirmado }}</strong>
-        </article>
-        <article class="metric-card metric-card-cancelado animate-fade-up card-hover" style="--stagger-index: 3;">
-            <span class="metric-label">Cancelados</span>
-            <strong>{{ resumen_turnos.cancelado }}</strong>
-        </article>
+    <section class="agenda-summary-strip turnos-summary-strip" aria-label="Resumen de turnos">
+        <div><span>Total</span><strong>{{ resumen_turnos.total }}</strong></div><div class="is-pending"><span>Pendientes</span><strong>{{ resumen_turnos.pendiente }}</strong></div><div class="is-confirmed"><span>Confirmados</span><strong>{{ resumen_turnos.confirmado }}</strong></div><div class="is-cancelled"><span>Cancelados</span><strong>{{ resumen_turnos.cancelado }}</strong></div>
     </section>
 
     {% if turnos %}
-        <section class="turno-card-list stagger-list" aria-label="Listado de turnos">
+        <section class="turno-card-list turno-list-v2 stagger-list" aria-label="Listado de turnos">
             {% for turno in turnos %}
-                <article class="turno-list-card turno-list-card-{{ turno.estado }} animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
-                    <div class="turno-card-time">
-                        <span>{{ turno.fecha|date:"d/m/Y" }}</span>
-                        <strong>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</strong>
-                    </div>
-
-                    <div class="turno-card-main">
-                        <h2>
-                            <a class="turno-card-main-link" href="{% url 'turnos:detalle' turno.pk %}">
-                                {{ turno.paciente }}
-                            </a>
-                        </h2>
-                        <p>{{ turno.motivo|default:"Sin motivo cargado" }}</p>
-                        <div class="turno-card-meta">
-                            <span>Odontólogo: {{ turno.odontologo }}</span>
-                            {% if turno.tiene_solicitud_publica %}
-                                <span class="status-badge status-sync-ok">Solicitud web</span>
-                            {% endif %}
-                            {% if turno.tiene_datos_publicos_pendientes_revision %}
-                                <span class="status-badge status-pendiente">Datos por revisar</span>
-                            {% endif %}
-                            {% if turno.paciente.telefono %}
-                                <span>Teléfono: {{ turno.paciente.telefono }}</span>
-                            {% endif %}
+                <article class="turno-list-card turno-list-card-{{ turno.estado }} animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};" data-turno-card>
+                    <div class="turno-card-time"><span>{% include "includes/icon.html" with name="calendar" %} {{ turno.fecha|date:"d/m/Y" }}</span><strong>{{ turno.hora_inicio|time:"H:i" }}</strong><small>hasta {{ turno.hora_fin|time:"H:i" }}</small></div>
+                    <div class="turno-card-patient">
+                        <span class="patient-avatar">{{ turno.paciente.apellido|default:turno.paciente.nombre|first|upper }}</span>
+                        <div class="turno-card-main">
+                            <h2><a class="turno-card-main-link" href="{% url 'turnos:detalle' turno.pk %}">{{ turno.paciente }}</a></h2>
+                            <p>{{ turno.motivo|default:"Sin motivo cargado" }}</p>
+                            <div class="turno-card-meta">
+                                <span>{% include "includes/icon.html" with name="user" %} {{ turno.odontologo }}</span>
+                                {% if turno.paciente.telefono %}<a href="tel:{{ turno.paciente.telefono }}">{% include "includes/icon.html" with name="phone" %} {{ turno.paciente.telefono }}</a>{% endif %}
+                                {% if turno.tiene_solicitud_publica %}<span class="status-badge status-sync-ok">Solicitud web</span>{% endif %}
+                                {% if turno.tiene_datos_publicos_pendientes_revision %}<span class="status-badge status-pendiente">Datos por revisar</span>{% endif %}
+                            </div>
                         </div>
                     </div>
-
                     <div class="turno-card-status">
                         <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-                        <a class="button button-small" href="{% url 'turnos:detalle' turno.pk %}">Ver</a>
+                        <a class="button button-small" href="{% url 'turnos:detalle' turno.pk %}">Ver detalle</a>
+                        <details class="row-actions-menu" data-row-actions-menu>
+                            <summary class="button button-icon button-tertiary" id="turno-actions-trigger-{{ turno.pk }}" aria-label="Más acciones para {{ turno.paciente }}" aria-haspopup="menu" aria-expanded="false" aria-controls="turno-actions-menu-{{ turno.pk }}">{% include "includes/icon.html" with name="more" %}</summary>
+                            <div id="turno-actions-menu-{{ turno.pk }}" role="menu" aria-labelledby="turno-actions-trigger-{{ turno.pk }}">{% if turno.paciente.telefono %}<a href="tel:{{ turno.paciente.telefono }}" role="menuitem">{% include "includes/icon.html" with name="phone" %} Llamar</a>{% endif %}{% if turno.paciente.email %}<a href="mailto:{{ turno.paciente.email }}" role="menuitem">{% include "includes/icon.html" with name="mail" %} Enviar email</a>{% endif %}<a href="{% url 'pacientes:detalle' turno.paciente.pk %}" role="menuitem">{% include "includes/icon.html" with name="user" %} Ver paciente</a></div>
+                        </details>
                     </div>
                 </article>
             {% endfor %}
         </section>
     {% else %}
-        <div class="empty-state animate-fade-up">
-            <p>{{ mensaje_sin_turnos }}</p>
-        </div>
+        {% url 'turnos:crear' as crear_turno_url %}
+        {% if puede_gestionar_turnos %}{% include "includes/empty_state.html" with illustration="images/calendar-empty.svg" title="No hay turnos para mostrar" description=mensaje_sin_turnos action_url=crear_turno_url action_label="Crear turno" %}{% else %}{% include "includes/empty_state.html" with illustration="images/calendar-empty.svg" title="No hay turnos para mostrar" description=mensaje_sin_turnos %}{% endif %}
     {% endif %}
 
     {% if is_paginated %}
         <nav class="pagination-actions animate-fade-up" aria-label="Paginación de turnos">
-            {% if page_obj.has_previous %}
-                <a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Anterior</a>
-            {% endif %}
+            {% if page_obj.has_previous %}<a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if filtros_querystring %}&amp;{{ filtros_querystring }}{% endif %}">{% include "includes/icon.html" with name="arrow-left" %} Anterior</a>{% endif %}
             <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}
-                <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if filtros_querystring %}&{{ filtros_querystring }}{% endif %}">Siguiente</a>
-            {% endif %}
+            {% if page_obj.has_next %}<a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if filtros_querystring %}&amp;{{ filtros_querystring }}{% endif %}">Siguiente {% include "includes/icon.html" with name="arrow-right" %}</a>{% endif %}
         </nav>
     {% endif %}
 {% endblock %}

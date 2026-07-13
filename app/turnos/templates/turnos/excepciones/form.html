@@ -1,133 +1,25 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ titulo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
-        <div>
-            <p class="eyebrow">Agenda</p>
-            <h1>{{ titulo }}</h1>
-            <p class="subtitle">Bloqueo operativo visible para la agenda interna y los turnos públicos.</p>
-        </div>
-        <div class="header-actions">
-            <a class="button button-secondary" href="{{ url_cancelar }}">Volver</a>
-        </div>
-    </div>
+    <header class="internal-page-heading animate-fade-up"><div><p class="eyebrow">Agenda</p><h1>{{ titulo }}</h1><p class="subtitle">Definí un bloqueo operativo para la agenda interna y las reservas públicas.</p></div><a class="button button-secondary" href="{{ url_cancelar }}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a></header>
 
     {% if requiere_confirmacion_afectados %}
-        <section class="form-panel form-error-panel animate-fade-up">
-            <div class="section-header">
-                <div>
-                    <h2>Turnos afectados</h2>
-                    <p class="subtitle">La excepción coincide con turnos pendientes o confirmados existentes. No se cancelarán automáticamente.</p>
-                </div>
-            </div>
-            <div class="agenda-items">
-                {% for turno in turnos_afectados %}
-                    <div class="agenda-card">
-                        <strong>{{ turno.fecha|date:"d/m/Y" }} · {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</strong>
-                        <span>{{ turno.paciente }} · {{ turno.odontologo }}</span>
-                        <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-                    </div>
-                {% endfor %}
-            </div>
-        </section>
+        <section class="affected-appointments-panel animate-fade-up" role="alert"><header><span>{% include "includes/icon.html" with name="alert" %}</span><div><h2>Turnos afectados</h2><p>Estos turnos no se cancelarán automáticamente. Revisalos antes de confirmar el bloqueo.</p></div></header><div class="affected-appointments-list">{% for turno in turnos_afectados %}<article><div><strong>{{ turno.fecha|date:"d/m/Y" }} · {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</strong><span>{{ turno.paciente }} · {{ turno.odontologo }}</span></div><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></article>{% endfor %}</div></section>
     {% endif %}
 
-    <form class="form-panel animate-fade-up" method="post" novalidate data-excepcion-form>
-        {% csrf_token %}
-        {% if requiere_confirmacion_afectados %}
-            <input type="hidden" name="confirmar_afectados" value="1">
-        {% else %}
-            {{ form.confirmar_afectados }}
-        {% endif %}
+    <form class="form-panel internal-form-v2 animate-fade-up" method="post" novalidate data-excepcion-form>
+        {% csrf_token %}{% if requiere_confirmacion_afectados %}<input type="hidden" name="confirmar_afectados" value="1">{% else %}{{ form.confirmar_afectados }}{% endif %}
+        {% if form.non_field_errors %}<div class="form-error-panel" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 
-        {% if form.non_field_errors %}
-            <div class="field-error">{{ form.non_field_errors }}</div>
-        {% endif %}
+        <section class="form-section" aria-labelledby="exception-scope-title"><header><span>{% include "includes/icon.html" with name="block" %}</span><div><h2 id="exception-scope-title">Tipo y alcance</h2><p>Indicá el motivo del bloqueo y a qué profesional afecta.</p></div></header><div class="form-grid">{% include "includes/form_field.html" with field=form.tipo medium=True %}{% include "includes/form_field.html" with field=form.odontologo %}{% include "includes/form_field.html" with field=form.motivo full=True %}</div></section>
+        <section class="form-section" aria-labelledby="exception-schedule-title"><header><span>{% include "includes/icon.html" with name="calendar" %}</span><div><h2 id="exception-schedule-title">Fecha y horario</h2><p>Elegí un rango completo o un tramo horario específico.</p></div></header><div class="form-grid">{% include "includes/form_field.html" with field=form.fecha_desde short=True %}{% include "includes/form_field.html" with field=form.fecha_hasta short=True %}<div class="form-field field-full"><label class="consultorio-checkbox">{{ form.todo_el_dia }} <span>{{ form.todo_el_dia.label }}</span></label>{% if form.todo_el_dia.help_text %}<p class="field-help">{{ form.todo_el_dia.help_text }}</p>{% endif %}{% if form.todo_el_dia.errors %}<div class="field-error" role="alert">{{ form.todo_el_dia.errors }}</div>{% endif %}</div><div data-partial-time-field>{% include "includes/form_field.html" with field=form.hora_inicio short=True %}</div><div data-partial-time-field>{% include "includes/form_field.html" with field=form.hora_fin short=True %}</div></div></section>
+        <section class="form-section" aria-labelledby="exception-public-title"><header><span>{% include "includes/icon.html" with name="info" %}</span><div><h2 id="exception-public-title">Comunicación pública</h2><p>Mensaje opcional que pueden ver los pacientes al consultar disponibilidad.</p></div></header><div class="form-grid">{% include "includes/form_field.html" with field=form.mensaje_publico full=True %}</div></section>
 
-        <div class="form-grid">
-            <div>
-                <label for="{{ form.tipo.id_for_label }}">{{ form.tipo.label }}</label>
-                {{ form.tipo }}
-                {% if form.tipo.errors %}<div class="field-error">{{ form.tipo.errors }}</div>{% endif %}
-            </div>
-            <div>
-                <label for="{{ form.odontologo.id_for_label }}">{{ form.odontologo.label }}</label>
-                {{ form.odontologo }}
-                {% if form.odontologo.help_text %}<p class="muted">{{ form.odontologo.help_text }}</p>{% endif %}
-                {% if form.odontologo.errors %}<div class="field-error">{{ form.odontologo.errors }}</div>{% endif %}
-            </div>
-            <div>
-                <label for="{{ form.fecha_desde.id_for_label }}">{{ form.fecha_desde.label }}</label>
-                {{ form.fecha_desde }}
-                {% if form.fecha_desde.errors %}<div class="field-error">{{ form.fecha_desde.errors }}</div>{% endif %}
-            </div>
-            <div>
-                <label for="{{ form.fecha_hasta.id_for_label }}">{{ form.fecha_hasta.label }}</label>
-                {{ form.fecha_hasta }}
-                {% if form.fecha_hasta.errors %}<div class="field-error">{{ form.fecha_hasta.errors }}</div>{% endif %}
-            </div>
-            <div class="field-full">
-                <label class="consultorio-checkbox">
-                    {{ form.todo_el_dia }}
-                    <span>{{ form.todo_el_dia.label }}</span>
-                </label>
-                {% if form.todo_el_dia.help_text %}<p class="muted">{{ form.todo_el_dia.help_text }}</p>{% endif %}
-                {% if form.todo_el_dia.errors %}<div class="field-error">{{ form.todo_el_dia.errors }}</div>{% endif %}
-            </div>
-            <div data-partial-time-field>
-                <label for="{{ form.hora_inicio.id_for_label }}">{{ form.hora_inicio.label }}</label>
-                {{ form.hora_inicio }}
-                {% if form.hora_inicio.errors %}<div class="field-error">{{ form.hora_inicio.errors }}</div>{% endif %}
-            </div>
-            <div data-partial-time-field>
-                <label for="{{ form.hora_fin.id_for_label }}">{{ form.hora_fin.label }}</label>
-                {{ form.hora_fin }}
-                {% if form.hora_fin.errors %}<div class="field-error">{{ form.hora_fin.errors }}</div>{% endif %}
-            </div>
-            <div class="field-full">
-                <label for="{{ form.motivo.id_for_label }}">{{ form.motivo.label }}</label>
-                {{ form.motivo }}
-                {% if form.motivo.errors %}<div class="field-error">{{ form.motivo.errors }}</div>{% endif %}
-            </div>
-            <div class="field-full">
-                <label for="{{ form.mensaje_publico.id_for_label }}">{{ form.mensaje_publico.label }}</label>
-                {{ form.mensaje_publico }}
-                {% if form.mensaje_publico.help_text %}<p class="muted">{{ form.mensaje_publico.help_text }}</p>{% endif %}
-                {% if form.mensaje_publico.errors %}<div class="field-error">{{ form.mensaje_publico.errors }}</div>{% endif %}
-            </div>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit">
-                {% if requiere_confirmacion_afectados %}Confirmar y guardar{% else %}{{ texto_boton }}{% endif %}
-            </button>
-            <a class="button button-secondary" href="{{ url_cancelar }}">Cancelar</a>
-        </div>
+        <div class="form-actions sticky-form-actions"><button class="button button-large" type="submit">{% include "includes/icon.html" with name="check" %} {% if requiere_confirmacion_afectados %}Confirmar y guardar{% else %}{{ texto_boton }}{% endif %}</button><a class="button button-secondary" href="{{ url_cancelar }}">Cancelar</a></div>
     </form>
-
-    <script>
-        (() => {
-            const form = document.querySelector("[data-excepcion-form]");
-
-            if (!form) {
-                return;
-            }
-
-            const allDay = form.querySelector("#{{ form.todo_el_dia.id_for_label }}");
-            const timeFields = form.querySelectorAll("[data-partial-time-field]");
-
-            function refresh() {
-                timeFields.forEach((field) => {
-                    field.hidden = allDay && allDay.checked;
-                });
-            }
-
-            if (allDay) {
-                allDay.addEventListener("change", refresh);
-                refresh();
-            }
-        })();
-    </script>
 {% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'js/exception-form.js' %}" defer></script>{% endblock %}

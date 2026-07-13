@@ -3,35 +3,46 @@
 {% block title %}{{ titulo }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
-        <div>
-            <h1>{{ titulo }}</h1>
-            <p class="subtitle">{{ subtitulo }}</p>
-        </div>
-    </div>
+    <header class="internal-page-heading animate-fade-up">
+        <div><p class="eyebrow">Pacientes</p><h1>{{ titulo }}</h1><p class="subtitle">{{ subtitulo }}</p></div>
+        <a class="button button-secondary" href="{{ url_cancelar }}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a>
+    </header>
 
-    <form class="form-panel animate-fade-up" method="post" novalidate>
+    <form class="form-panel internal-form-v2 animate-fade-up" method="post" novalidate>
         {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-error-panel" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 
-        {% if form.non_field_errors %}
-            <div class="field-error">{{ form.non_field_errors }}</div>
-        {% endif %}
+        <section class="form-section" aria-labelledby="patient-identity-title">
+            <header><span>{% include "includes/icon.html" with name="user" %}</span><div><h2 id="patient-identity-title">Identificación</h2><p>Datos principales para reconocer al paciente.</p></div></header>
+            <div class="form-grid">
+                {% include "includes/form_field.html" with field=form.nombre %}
+                {% include "includes/form_field.html" with field=form.apellido %}
+                {% include "includes/form_field.html" with field=form.documento short=True %}
+                {% include "includes/form_field.html" with field=form.fecha_nacimiento short=True %}
+                {% include "includes/form_field.html" with field=form.genero medium=True %}
+            </div>
+        </section>
 
-        <div class="form-grid">
-            {% for field in form %}
-                <div class="{% if field.name == 'domicilio' or field.name == 'contacto_emergencia' or field.name == 'observaciones' %}field-full{% endif %}">
-                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.errors %}
-                        <div class="field-error">{{ field.errors }}</div>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        </div>
+        <section class="form-section" aria-labelledby="patient-contact-title">
+            <header><span>{% include "includes/icon.html" with name="phone" %}</span><div><h2 id="patient-contact-title">Contacto y domicilio</h2><p>Canales para coordinar turnos y notificaciones.</p></div></header>
+            <div class="form-grid">
+                {% include "includes/form_field.html" with field=form.telefono medium=True %}
+                {% include "includes/form_field.html" with field=form.email %}
+                {% include "includes/form_field.html" with field=form.domicilio full=True %}
+                {% include "includes/form_field.html" with field=form.localidad medium=True %}
+                {% include "includes/form_field.html" with field=form.contacto_emergencia full=True %}
+            </div>
+        </section>
 
-        <div class="form-actions">
-            <button type="submit">{{ texto_boton }}</button>
-            <a class="button button-secondary" href="{{ url_cancelar }}">Cancelar</a>
-        </div>
+        <section class="form-section" aria-labelledby="patient-coverage-title">
+            <header><span>{% include "includes/icon.html" with name="clinical" %}</span><div><h2 id="patient-coverage-title">Cobertura y observaciones</h2><p>Información administrativa complementaria.</p></div></header>
+            <div class="form-grid">
+                {% include "includes/form_field.html" with field=form.obra_social medium=True %}
+                {% include "includes/form_field.html" with field=form.numero_afiliado medium=True %}
+                {% include "includes/form_field.html" with field=form.observaciones full=True %}
+            </div>
+        </section>
+
+        <div class="form-actions sticky-form-actions"><button class="button button-large" type="submit">{% include "includes/icon.html" with name="check" %} {{ texto_boton }}</button><a class="button button-secondary" href="{{ url_cancelar }}">Cancelar</a></div>
     </form>
 {% endblock %}

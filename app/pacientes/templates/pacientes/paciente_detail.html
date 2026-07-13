@@ -4,11 +4,13 @@
 
 {% block content %}
     <div class="patient-backline animate-fade-up">
-        <a class="button button-secondary button-small button-subtle" href="{% url 'pacientes:lista' %}">&larr; Volver a pacientes</a>
+        <a class="button button-secondary button-small button-subtle" href="{% url 'pacientes:lista' %}">{% include "includes/icon.html" with name="arrow-left" %} Volver a pacientes</a>
     </div>
 
     <section class="clinical-profile-card animate-fade-up card-hover" style="--stagger-index: 1;">
         <div class="clinical-profile-main">
+            <div class="clinical-profile-avatar" aria-hidden="true">{{ paciente.apellido|default:paciente.nombre|first|upper }}</div>
+            <div class="clinical-profile-heading">
             <span class="eyebrow">Perfil clínico</span>
             <h1>{{ paciente.nombre }} {{ paciente.apellido }}</h1>
             <div class="clinical-profile-meta">
@@ -21,18 +23,25 @@
                 {% endif %}
             </div>
             <div class="clinical-contact-strip">
-                <span>{{ paciente.telefono|default:"Teléfono no cargado" }}</span>
-                <span>{{ paciente.email|default:"Email no cargado" }}</span>
+                {% if paciente.telefono %}<a href="tel:{{ paciente.telefono }}">{% include "includes/icon.html" with name="phone" %} {{ paciente.telefono }}</a>{% else %}<span>Teléfono no cargado</span>{% endif %}
+                {% if paciente.email %}<a href="mailto:{{ paciente.email }}">{% include "includes/icon.html" with name="mail" %} {{ paciente.email }}</a>{% else %}<span>Email no cargado</span>{% endif %}
+            </div>
             </div>
         </div>
 
-        {% if puede_editar_ficha_odontologica or puede_ver_historia_clinica %}
+        {% if puede_gestionar_turnos or puede_crear_historia_clinica or puede_editar_ficha_odontologica or puede_ver_historia_clinica %}
             <div class="clinical-actions" aria-label="Acciones clínicas">
+                {% if puede_gestionar_turnos %}
+                    <a class="button" href="{% url 'turnos:crear' %}?paciente={{ paciente.pk }}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>
+                {% endif %}
+                {% if puede_crear_historia_clinica %}
+                    <a class="button button-clinical-primary" href="{% url 'historias:crear' paciente.pk %}">{% include "includes/icon.html" with name="clinical" %} Nueva evolución</a>
+                {% endif %}
                 {% if puede_editar_ficha_odontologica %}
-                    <a class="button button-clinical-primary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">Ficha odontológica</a>
+                    <a class="button button-secondary" href="{% url 'pacientes:ficha_odontologica' paciente.pk %}">Ficha odontológica</a>
                 {% endif %}
                 {% if puede_ver_historia_clinica %}
-                    <a class="button button-clinical-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clínica</a>
+                    <a class="button button-tertiary" href="{% url 'historias:lista_paciente' paciente.pk %}">Historia clínica</a>
                 {% endif %}
             </div>
         {% endif %}
@@ -43,8 +52,16 @@
         {% endif %}
     </section>
 
+    <nav class="clinical-profile-tabs" aria-label="Secciones de la ficha clínica">
+        <a class="is-active" href="#resumen-clinico" aria-current="location">Resumen</a>
+        {% if puede_ver_historia_clinica %}<a href="#historia-clinica">Historia clínica</a>{% endif %}
+        <a href="#turnos-paciente">Turnos</a>
+        {% if puede_ver_historia_clinica %}<a href="{% url 'historias:lista_paciente' paciente.pk %}">Archivos</a>{% endif %}
+        {% if odontograma_feature_enabled and puede_ver_historia_clinica %}<a href="{% url 'odontogramas:detalle_paciente' paciente.pk %}">Odontograma</a>{% endif %}
+    </nav>
+
     {% if not puede_ver_historia_clinica %}
-        <section class="panel-section animate-fade-up" style="--stagger-index: 2;">
+        <section class="panel-section animate-fade-up" id="resumen-clinico" style="--stagger-index: 2;">
             <div class="section-header">
                 <div>
                     <h2>Información clínica restringida</h2>
@@ -53,7 +70,7 @@
             </div>
         </section>
     {% else %}
-    <section class="panel-section clinical-alert-panel animate-fade-up" style="--stagger-index: 2;">
+    <section class="panel-section clinical-alert-panel animate-fade-up" id="resumen-clinico" style="--stagger-index: 2;">
         <div class="section-header">
             <div>
                 <h2>Alertas clínicas</h2>
@@ -132,7 +149,7 @@
     <div class="clinical-layout">
         <div class="clinical-main-column">
             {% if puede_ver_historia_clinica %}
-                <section class="panel-section animate-fade-up">
+                <section class="panel-section animate-fade-up" id="historia-clinica">
                     <div class="section-header">
                         <div>
                             <h2>Historia clínica reciente</h2>
@@ -212,7 +229,7 @@
             {% endif %}
         </div>
 
-        <aside class="clinical-side-column">
+        <aside class="clinical-side-column" id="turnos-paciente">
             <section class="panel-section animate-fade-up">
                 <div class="section-header">
                     <div>
@@ -239,26 +256,37 @@
             <section class="panel-section animate-fade-up">
                 <div class="section-header">
                     <div>
-                        <h2>Turnos recientes</h2>
-                        <p class="subtitle">Últimos movimientos del paciente.</p>
+                        <h2>Último turno</h2>
+                        <p class="subtitle">Última atención registrada.</p>
                     </div>
                 </div>
 
-                {% if turnos_recientes %}
-                    <div class="clinical-turn-list stagger-list">
-                        {% for turno in turnos_recientes %}
-                            <a class="clinical-turn-card animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};" href="{% url 'turnos:detalle' turno.pk %}">
-                                <div>
-                                    <strong>{{ turno.fecha|date:"d/m/Y" }} {{ turno.hora_inicio|time:"H:i" }}</strong>
-                                    <span>{{ turno.motivo|default:"Sin motivo" }}</span>
-                                    <small>{{ turno.odontologo }}</small>
-                                </div>
-                                <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-                            </a>
-                        {% endfor %}
-                    </div>
+                {% if ultimo_turno %}
+                    <article class="clinical-last-turn">
+                        <div class="clinical-last-turn-datetime">
+                            <span>{% include "includes/icon.html" with name="calendar" %}<strong>{{ ultimo_turno.fecha|date:"d \d\e F \d\e Y" }}</strong></span>
+                            <span>{% include "includes/icon.html" with name="clock" %}<strong>{{ ultimo_turno.hora_inicio|time:"H:i" }} a {{ ultimo_turno.hora_fin|time:"H:i" }}</strong></span>
+                        </div>
+                        <div class="clinical-last-turn-main">
+                            <strong>{{ ultimo_turno.motivo|default:"Sin motivo cargado" }}</strong>
+                            <span>{{ ultimo_turno.odontologo }}</span>
+                        </div>
+                        <footer class="clinical-last-turn-footer">
+                            <div class="clinical-last-turn-badges">
+                                <span class="status-badge status-{{ ultimo_turno.estado }}">{{ ultimo_turno.get_estado_display }}</span>
+                                {% if ultimo_turno.tiene_solicitud_publica %}<span class="status-badge status-sync-ok">Solicitud web</span>{% endif %}
+                            </div>
+                            <a class="button button-secondary button-small" href="{% url 'turnos:detalle' ultimo_turno.pk %}">Ver turno {% include "includes/icon.html" with name="arrow-right" %}</a>
+                        </footer>
+                    </article>
                 {% else %}
-                    <p class="muted">Este paciente todavía no tiene turnos cargados.</p>
+                    <div class="clinical-empty-state compact clinical-last-turn-empty">
+                        {% include "includes/icon.html" with name="calendar" %}
+                        <div>
+                            <strong>Sin turnos anteriores</strong>
+                            <span>Este paciente todavía no tiene turnos anteriores registrados.</span>
+                        </div>
+                    </div>
                 {% endif %}
             </section>
         </aside>

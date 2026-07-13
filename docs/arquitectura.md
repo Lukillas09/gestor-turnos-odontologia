@@ -386,6 +386,23 @@ Supabase mantiene:
 
 La navegación interna, la navegación pública, mensajes y banner de emergencia clínica viven en includes reutilizables bajo `app/templates/includes/`.
 
+### Sistema visual V2
+
+La interfaz continúa siendo server-rendered con Django Templates. No se agregó un framework frontend ni una dependencia de iconos. La composición se divide en:
+
+- `tokens.css`: paleta clínica, escala tipográfica, espacios, radios, sombras y tiempos de movimiento.
+- `components.css`: botones, badges, mensajes, estados vacíos, skeletons e iconos.
+- `calendar.css`: patrones de calendario y selección de disponibilidad.
+- `mobile-navigation.css`: navegación inferior y drawer accesible para el panel interno.
+- `animations.css`: transiciones breves con fallback para `prefers-reduced-motion`.
+- `public.css`, `internal.css` y `responsive.css`: superficies de producto y adaptación por viewport.
+
+Los SVG se sirven desde `app/static/images/` y fueron creados para el proyecto. `includes/icon.html` centraliza la iconografía de trazo con `currentColor`; `form_field.html`, `empty_state.html` y `public_stepper.html` evitan repetir markup.
+
+El JavaScript es progresivo y modular. `ui.js` contiene interacciones globales pequeñas; `public-booking.js`, `consultorio-preview.js`, `profile-preview.js`, `exception-form.js` y `review-form.js` solo se cargan o inicializan donde existe su componente. Las reglas de disponibilidad, permisos y persistencia continúan en Django.
+
+La lista de pacientes anota próximo y último turno mediante subconsultas para mostrar contexto operativo sin introducir consultas por tarjeta.
+
 ## Calidad automatizada
 
 La configuración de Black, Ruff, Coverage, Mypy y Bandit vive en `pyproject.toml`. `requirements-dev.txt` contiene herramientas de desarrollo y no se usa en runtime de Railway.

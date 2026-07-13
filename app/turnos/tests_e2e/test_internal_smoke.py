@@ -1,5 +1,6 @@
 import os
 from datetime import time, timedelta
+from pathlib import Path
 
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 
@@ -14,6 +15,8 @@ from playwright.sync_api import sync_playwright
 from pacientes.models import Paciente
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_RECEPCIONISTA
+
+SCREENSHOT_DIR = Path(__file__).resolve().parents[3] / "docs" / "screenshots"
 
 
 def _fecha_laboral_futura():
@@ -36,6 +39,10 @@ def _crear_disponibilidad(odontologo):
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     MEDIA_STORAGE_BACKEND="django.core.files.storage.FileSystemStorage",
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    },
     TURNOS_PUBLIC_REDIS_REQUIRED=False,
     TURNSTILE_ENABLED=False,
 )
@@ -53,7 +60,7 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         super().tearDownClass()
 
     def setUp(self):
-        self.context = self.browser.new_context()
+        self.context = self.browser.new_context(viewport={"width": 1440, "height": 900})
         self.page = self.context.new_page()
 
         User = get_user_model()
@@ -92,20 +99,200 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
             duracion_minutos=30,
             motivo="Control E2E",
         )
+        self.turno_hoy = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=timezone.localdate(),
+            hora_inicio=time(14, 0),
+            duracion_minutos=30,
+            motivo="Revisión preventiva",
+        )
 
     def tearDown(self):
         self.context.close()
 
-    def test_login_listado_y_detalle_de_turno(self):
+    def _login(self):
         self.page.goto(f"{self.live_server_url}{reverse('login')}")
         self.page.fill("input[name='username']", "recepcion.e2e")
         self.page.fill("input[name='password']", "clave-segura-e2e")
         self.page.get_by_role("button", name="Ingresar").click()
-
         self.page.wait_for_url(f"**{reverse('inicio')}")
+
+    def _capture(self, name):
+        if os.environ.get("CAPTURE_UI_SCREENSHOTS") != "1":
+            return
+        self.page.wait_for_timeout(450)
+        SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        self.page.screenshot(path=SCREENSHOT_DIR / name, full_page=False)
+
+    def _assert_no_horizontal_overflow(self):
+        scroll_width = self.page.evaluate("document.documentElement.scrollWidth")
+        client_width = self.page.evaluate("document.documentElement.clientWidth")
+        self.assertLessEqual(scroll_width, client_width + 1)
+
+    def _assert_turno_actions_menu(self):
+        self.page.goto(f"{self.live_server_url}{reverse('turnos:lista')}")
+        self.page.get_by_role("heading", name="Agenda de turnos").wait_for()
+        cards = self.page.locator("[data-turno-card]")
+        self.assertGreaterEqual(cards.count(), 2)
+        first_card = cards.nth(0)
+        second_card = cards.nth(1)
+        first_menu = first_card.locator("[data-row-actions-menu]")
+        second_menu = second_card.locator("[data-row-actions-menu]")
+        first_trigger = first_menu.locator(":scope > summary")
+        second_trigger = second_menu.locator(":scope > summary")
+        first_panel = first_menu.locator(":scope > [role='menu']")
+
+        first_card.evaluate(
+            "card => window.scrollTo(0, window.scrollY + card.getBoundingClientRect().top - 180)"
+        )
+        first_trigger.click()
+        self.page.wait_for_function(
+            "document.querySelector('[data-row-actions-menu] > summary')"
+            ".getAttribute('aria-expanded') === 'true'"
+        )
+
+        self.assertEqual(first_trigger.get_attribute("aria-haspopup"), "menu")
+        self.assertEqual(first_trigger.get_attribute("aria-expanded"), "true")
+        self.assertIn("is-actions-menu-open", first_card.get_attribute("class"))
+        first_panel.wait_for(state="visible")
+        first_panel.get_by_role("menuitem", name="Llamar").click(trial=True)
+        self.assertEqual(
+            first_panel.get_by_role("menuitem", name="Llamar").get_attribute("href"),
+            f"tel:{self.paciente.telefono}",
+        )
+        self.assertEqual(
+            first_panel.get_by_role("menuitem", name="Enviar email").get_attribute("href"),
+            f"mailto:{self.paciente.email}",
+        )
+        self.assertEqual(
+            first_panel.get_by_role("menuitem", name="Ver paciente").get_attribute("href"),
+            reverse("pacientes:detalle", args=[self.paciente.pk]),
+        )
+
+        menu_box = first_panel.bounding_box()
+        next_card_box = second_card.bounding_box()
+        self.assertIsNotNone(menu_box)
+        self.assertIsNotNone(next_card_box)
+        viewport = self.page.viewport_size
+        self.assertGreaterEqual(menu_box["x"], 0)
+        self.assertGreaterEqual(menu_box["y"], 0)
+        self.assertLessEqual(menu_box["x"] + menu_box["width"], viewport["width"] + 1)
+        self.assertLessEqual(menu_box["y"] + menu_box["height"], viewport["height"] + 1)
+
+        overlap_top = max(menu_box["y"], next_card_box["y"])
+        overlap_bottom = min(
+            menu_box["y"] + menu_box["height"],
+            next_card_box["y"] + next_card_box["height"],
+        )
+        self.assertGreater(overlap_bottom, overlap_top)
+        test_point = {
+            "x": menu_box["x"] + min(12, menu_box["width"] / 2),
+            "y": overlap_top + min(8, (overlap_bottom - overlap_top) / 2),
+        }
+        menu_is_topmost = self.page.evaluate(
+            "point => Boolean(document.elementFromPoint(point.x, point.y)?.closest('[role=menu]'))",
+            test_point,
+        )
+        self.assertTrue(menu_is_topmost)
+        self._assert_no_horizontal_overflow()
+
+        second_trigger.focus()
+        self.page.keyboard.press("Enter")
+        self.page.wait_for_function(
+            "document.querySelectorAll('[data-row-actions-menu]')[1]"
+            ".querySelector('summary').getAttribute('aria-expanded') === 'true'"
+        )
+        self.assertEqual(first_trigger.get_attribute("aria-expanded"), "false")
+        self.assertEqual(second_trigger.get_attribute("aria-expanded"), "true")
+
+        self.page.keyboard.press("Escape")
+        self.assertEqual(second_trigger.get_attribute("aria-expanded"), "false")
+        self.assertTrue(second_trigger.evaluate("trigger => document.activeElement === trigger"))
+
+        first_trigger.focus()
+        self.page.keyboard.press("Enter")
+        self.page.wait_for_function(
+            "document.querySelector('[data-row-actions-menu] > summary')"
+            ".getAttribute('aria-expanded') === 'true'"
+        )
+        self.assertEqual(first_trigger.get_attribute("aria-expanded"), "true")
+        self.page.locator(".turnos-summary-strip").click()
+        self.page.wait_for_function(
+            "document.querySelector('[data-row-actions-menu] > summary')"
+            ".getAttribute('aria-expanded') === 'false'"
+        )
+        self.assertEqual(first_trigger.get_attribute("aria-expanded"), "false")
+
+    def test_login_listado_y_detalle_de_turno(self):
+        self._login()
+        self.page.get_by_role("heading", name="Resumen de la agenda").wait_for()
+        self._capture("internal-dashboard-desktop.png")
+
+        self.page.goto(f"{self.live_server_url}{reverse('turnos:agenda_dia')}")
+        self.page.get_by_role("heading", name="Agenda diaria").wait_for()
+        self.page.get_by_text("Revisión preventiva").wait_for()
+        self._capture("agenda-desktop.png")
+
         self.page.goto(f"{self.live_server_url}{reverse('turnos:lista')}")
         self.page.get_by_role("heading", name="Agenda de turnos").wait_for()
         self.page.get_by_text("Control E2E").wait_for()
 
         self.page.get_by_role("link", name="Ver").first.click()
         self.page.get_by_role("heading", name="Turno de Interno, Paciente").wait_for()
+
+        self.page.goto(
+            f"{self.live_server_url}{reverse('pacientes:detalle', args=[self.paciente.pk])}"
+        )
+        self.page.get_by_role("heading", name="Paciente Interno").wait_for()
+        self._capture("patient-profile-desktop.png")
+
+    def test_navegacion_interna_mobile_no_tapa_contenido(self):
+        self.context.close()
+        self.context = self.browser.new_context(viewport={"width": 390, "height": 844})
+        self.page = self.context.new_page()
+        self._login()
+
+        self.page.locator(".mobile-navigation").wait_for()
+        self.assertEqual(
+            self.page.get_by_role("link", name="Inicio").get_attribute("aria-current"),
+            "page",
+        )
+        self._capture("internal-dashboard-mobile.png")
+        self._assert_no_horizontal_overflow()
+
+        for name, heading in (
+            ("Agenda", "Agenda diaria"),
+            ("Turnos", "Agenda de turnos"),
+            ("Pacientes", "Directorio clínico"),
+        ):
+            self.page.get_by_role("link", name=name, exact=True).click()
+            self.page.get_by_role("heading", name=heading, exact=True).wait_for()
+            self._assert_no_horizontal_overflow()
+
+        more = self.page.locator(".mobile-more > summary")
+        more.click()
+        self.page.wait_for_function(
+            "document.querySelector('.mobile-more > summary')"
+            ".getAttribute('aria-expanded') === 'true'"
+        )
+        self.assertEqual(more.get_attribute("aria-expanded"), "true")
+        self.page.get_by_role("heading", name="Más opciones").wait_for()
+        self.page.get_by_role("link", name="Mi perfil").wait_for()
+        self.page.keyboard.press("Escape")
+        self.page.wait_for_function(
+            "document.querySelector('.mobile-more > summary')"
+            ".getAttribute('aria-expanded') === 'false'"
+        )
+        self.assertEqual(more.get_attribute("aria-expanded"), "false")
+
+    def test_menu_acciones_turno_permanece_sobre_las_tarjetas_en_desktop(self):
+        self._login()
+        self._assert_turno_actions_menu()
+
+    def test_menu_acciones_turno_permanece_sobre_las_tarjetas_en_mobile(self):
+        self.context.close()
+        self.context = self.browser.new_context(viewport={"width": 390, "height": 844})
+        self.page = self.context.new_page()
+        self._login()
+        self._assert_turno_actions_menu()

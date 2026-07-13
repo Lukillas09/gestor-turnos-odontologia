@@ -1,42 +1,44 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Consultar mis turnos | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <div class="page-header public-data-header animate-fade-up">
-        <div>
-            <p class="eyebrow">Pacientes</p>
-            <h1>Consultar mis turnos</h1>
-            <p class="subtitle">Ingresá tu DNI. Si coincide con un paciente registrado, te enviaremos un código de acceso al medio de contacto asociado.</p>
-        </div>
+    <div class="public-access-layout">
+        <section class="public-access-panel animate-fade-up" aria-labelledby="access-title">
+            <p class="eyebrow">Acceso de pacientes</p>
+            <h1 id="access-title">Consultar mis turnos</h1>
+            <p class="public-access-lead">Ingresá tu DNI. Si coincide con un paciente registrado, enviaremos un código temporal al medio de contacto asociado.</p>
+
+            <form class="public-access-form" method="post" novalidate>
+                {% csrf_token %}
+                <div class="field-group">
+                    <label for="{{ form.documento.id_for_label }}">DNI</label>
+                    {{ form.documento }}
+                    <p class="field-help">Ingresalo sin puntos ni espacios.</p>
+                    {% if form.documento.errors %}<div class="field-error">{{ form.documento.errors }}</div>{% endif %}
+                    {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+                </div>
+
+                {% if turnstile_requerido and turnstile_site_key %}
+                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+                    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                {% endif %}
+
+                <button class="button-large" type="submit">Enviar código de acceso {% include "includes/icon.html" with name="arrow-right" %}</button>
+            </form>
+
+            <div class="public-access-security-note">
+                {% include "includes/icon.html" with name="lock" %}
+                <p>El DNI por sí solo no permite consultar turnos. También necesitás el código temporal enviado a tu contacto registrado.</p>
+            </div>
+        </section>
+
+        <aside class="public-access-visual" aria-label="Acceso protegido">
+            <img src="{% static 'images/secure-access.svg' %}" width="420" height="320" alt="">
+            <div><strong>Tu información está protegida</strong><p>El acceso vence automáticamente y no requiere crear una cuenta.</p></div>
+        </aside>
     </div>
 
-    {% include "consultorio/includes/public_contact_card.html" %}
-
-    <section class="public-query-panel animate-fade-up">
-        <form class="public-dni-form" method="post" novalidate>
-            {% csrf_token %}
-            <div>
-                <label for="{{ form.documento.id_for_label }}">DNI</label>
-                {{ form.documento }}
-                {% if form.documento.errors %}
-                    <div class="field-error">{{ form.documento.errors }}</div>
-                {% endif %}
-                {% if form.non_field_errors %}
-                    <div class="field-error">{{ form.non_field_errors }}</div>
-                {% endif %}
-            </div>
-
-            {% if turnstile_requerido and turnstile_site_key %}
-                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
-                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-            {% endif %}
-
-            <button type="submit">Enviar código de acceso</button>
-        </form>
-
-        <div class="empty-state" aria-live="polite">
-            <p>El DNI por sí solo no permite consultar turnos. El acceso requiere un código temporal enviado al contacto registrado.</p>
-        </div>
-    </section>
+    <div class="public-access-contact">{% include "consultorio/includes/public_contact_card.html" %}</div>
 {% endblock %}

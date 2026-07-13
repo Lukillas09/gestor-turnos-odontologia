@@ -1,0 +1,50 @@
+@keyframes ui-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes ui-check-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.75);
+    }
+
+    70% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.page-transition,
+.animate-fade-up {
+    animation: ui-fade-up var(--motion-slow) var(--ease-emphasized) both;
+}
+
+.animate-fade-up {
+    animation-delay: calc(var(--stagger-index, 0) * 28ms);
+}
+
+.animate-check {
+    animation: ui-check-in var(--motion-slow) var(--ease-emphasized) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-skeleton::after {
+        display: none;
+    }
+
+    .animate-check {
+        animation: none;
+    }
+}

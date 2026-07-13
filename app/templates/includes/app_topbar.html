@@ -1,25 +1,33 @@
-        <header class="app-topbar">
-            <div class="app-topbar-title">
-                <strong>{{ configuracion_consultorio.nombre_visible }}</strong>
-                <span>Panel interno</span>
-            </div>
-            <div class="app-user-menu">
-                <a class="app-user-profile-link" href="{% url 'perfil' %}">
-                    <div class="app-user-text">
-                        <strong>{{ request.user.get_username }}</strong>
-                        <span>{% if request.user.is_staff %}Administrador{% elif puede_conectar_google_calendar %}Odontólogo{% elif puede_gestionar_turnos %}Recepción{% else %}Usuario interno{% endif %}</span>
-                    </div>
-                    <div class="app-avatar">
-                        {% if odontologo_usuario and odontologo_usuario.foto_perfil_url %}
-                            <img
-                                src="{{ odontologo_usuario.foto_perfil_url }}"
-                                alt="{{ request.user.get_username }}"
-                                style="object-position: {{ odontologo_usuario.foto_object_position }};"
-                            >
-                        {% else %}
-                            <span>{{ request.user.get_username|first|upper }}</span>
-                        {% endif %}
-                    </div>
-                </a>
-            </div>
-        </header>
+<header class="app-topbar">
+    <div class="app-topbar-title">
+        <span class="app-topbar-kicker">Panel interno</span>
+        <strong>
+            {% if request.resolver_match.url_name == "inicio" %}Inicio
+            {% elif request.resolver_match.url_name == "agenda_dia" %}Agenda diaria
+            {% elif request.resolver_match.url_name == "agenda_semana" %}Agenda semanal
+            {% elif request.resolver_match.namespace == "pacientes" %}Pacientes
+            {% elif request.resolver_match.namespace == "historias" %}Historia clínica
+            {% elif request.resolver_match.namespace == "consultorio" %}Configuración
+            {% elif request.resolver_match.namespace == "turnos" %}Turnos
+            {% else %}{{ configuracion_consultorio.nombre_visible }}{% endif %}
+        </strong>
+    </div>
+    <div class="app-topbar-actions">
+        <time class="app-topbar-date">{% now "l d \d\e F" %}</time>
+        <div class="app-user-menu">
+            <a class="app-user-profile-link" href="{% url 'perfil' %}" aria-label="Abrir perfil de {{ request.user.get_username }}">
+                <div class="app-user-text">
+                    <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
+                    <span>{% if request.user.is_staff %}Administrador{% elif puede_conectar_google_calendar %}Odontólogo{% elif puede_gestionar_turnos %}Recepción{% else %}Usuario interno{% endif %}</span>
+                </div>
+                <div class="app-avatar">
+                    {% if odontologo_usuario and odontologo_usuario.foto_perfil_url %}
+                        <img src="{{ odontologo_usuario.foto_perfil_url }}" alt="" style="object-position: {{ odontologo_usuario.foto_object_position }};">
+                    {% else %}
+                        <span>{{ request.user.get_username|first|upper }}</span>
+                    {% endif %}
+                </div>
+            </a>
+        </div>
+    </div>
+</header>

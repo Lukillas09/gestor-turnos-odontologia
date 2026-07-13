@@ -31,6 +31,7 @@ from usuarios.mixins import (
 )
 from usuarios.roles import (
     limitar_pacientes_por_usuario,
+    limitar_turnos_por_usuario,
     puede_archivar_pacientes,
     puede_gestionar_historias_clinicas,
 )
@@ -64,6 +65,7 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
         queryset = super().get_queryset()
         queryset = limitar_pacientes_por_usuario(queryset, self.request.user)
         estado = self.request.GET.get("estado", "activos")
+        ahora = timezone.localtime()
 
         if estado == "archivados" and self._puede_ver_archivados():
             queryset = queryset.archivados()
@@ -74,6 +76,16 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
         ultimo_turno = Turno.objects.filter(paciente=OuterRef("pk")).order_by(
             "-fecha",
             "-hora_inicio",
+        )
+        proximo_turno = (
+            Turno.objects.filter(
+                paciente=OuterRef("pk"),
+                estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
+            )
+            .filter(
+                Q(fecha__gt=ahora.date()) | Q(fecha=ahora.date(), hora_inicio__gte=ahora.time()),
+            )
+            .order_by("fecha", "hora_inicio")
         )
 
         if busqueda:
@@ -103,6 +115,11 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 ultimo_turno.values("hora_inicio")[:1],
             ),
             ultimo_turno_estado=Subquery(ultimo_turno.values("estado")[:1]),
+            proximo_turno_fecha=Subquery(proximo_turno.values("fecha")[:1]),
+            proximo_turno_hora_inicio=Subquery(
+                proximo_turno.values("hora_inicio")[:1],
+            ),
+            proximo_turno_estado=Subquery(proximo_turno.values("estado")[:1]),
         )
 
     def get_context_data(self, **kwargs):
@@ -123,6 +140,16 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                     "estado_label": estados_turno.get(paciente.ultimo_turno_estado, ""),
                 }
                 if paciente.ultimo_turno_fecha
+                else None
+            )
+            paciente.proximo_turno_resumen = (
+                {
+                    "fecha": paciente.proximo_turno_fecha,
+                    "hora_inicio": paciente.proximo_turno_hora_inicio,
+                    "estado": paciente.proximo_turno_estado,
+                    "estado_label": estados_turno.get(paciente.proximo_turno_estado, ""),
+                }
+                if paciente.proximo_turno_fecha
                 else None
             )
 
@@ -175,8 +202,9 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         paciente = self.object
-        hoy = timezone.localdate()
-        ahora = timezone.localtime().time()
+        ahora_local = timezone.localtime()
+        hoy = timezone.localdate(ahora_local)
+        ahora = ahora_local.time()
         puede_ver_historia = puede_gestionar_historias_clinicas(
             self.request.user
         ) and puede_ver_historia_de_paciente(
@@ -200,7 +228,14 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             and usuario_puede_iniciar_acceso_emergencia(self.request.user)
         )
 
-        turnos = paciente.turnos.select_related("odontologo", "odontologo__usuario")
+        turnos = limitar_turnos_por_usuario(
+            paciente.turnos.all(),
+            self.request.user,
+        ).select_related(
+            "odontologo",
+            "odontologo__usuario",
+            "solicitud_publica",
+        )
         turnos_activos = turnos.filter(
             estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
         )
@@ -210,8 +245,12 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
             .order_by("fecha", "hora_inicio")
             .first()
         )
-        ultimo_turno = turnos.order_by("-fecha", "-hora_inicio").first()
-        turnos_recientes = list(turnos.order_by("-fecha", "-hora_inicio")[:5])
+        ultimo_turno = (
+            turnos.exclude(estado=Turno.Estado.CANCELADO)
+            .filter(Q(fecha__lt=hoy) | Q(fecha=hoy, hora_inicio__lte=ahora))
+            .order_by("-fecha", "-hora_inicio")
+            .first()
+        )
 
         historias_recientes = []
         ultima_historia = None
@@ -261,7 +300,6 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                     paciente,
                     hoy,
                 ),
-                "turnos_recientes": turnos_recientes,
                 "turnos_pendientes_o_confirmados": cantidad_turnos_activos,
                 "proximo_turno": proximo_turno,
                 "ultimo_turno": ultimo_turno,

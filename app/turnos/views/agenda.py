@@ -108,6 +108,7 @@ class AgendaSemanaView(VerTurnosRequeridoMixin, TemplateView):
         context["busqueda"] = busqueda
         context["inicio_semana"] = inicio_semana
         context["fin_semana"] = inicio_semana + timedelta(days=6)
+        context["hoy"] = timezone.localdate()
         context["semana_anterior"] = inicio_semana - timedelta(days=7)
         context["semana_siguiente"] = inicio_semana + timedelta(days=7)
         context["dias"] = obtener_turnos_de_la_semana(

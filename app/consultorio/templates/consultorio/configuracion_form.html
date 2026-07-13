@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Perfil del consultorio | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
@@ -10,6 +11,7 @@
             <p class="subtitle">Editá la identidad visible para pacientes, panel interno y emails del consultorio.</p>
         </div>
         <div class="header-actions">
+            <a class="button button-secondary consultorio-preview-jump" href="#consultorio-preview">{% include "includes/icon.html" with name="search" %} Vista previa</a>
             <a class="button button-secondary" href="{% url 'inicio' %}">Cancelar</a>
         </div>
     </div>
@@ -20,6 +22,8 @@
         enctype="multipart/form-data"
         novalidate
         data-consultorio-form
+        data-preview-initials="{{ configuracion.iniciales }}"
+        data-preview-logo="{{ configuracion.logo_url|default:'' }}"
     >
         {% csrf_token %}
 
@@ -206,14 +210,14 @@
                     {% if form.politica_cancelacion.errors %}<div class="field-error">{{ form.politica_cancelacion.errors }}</div>{% endif %}
                 </section>
 
-                <div class="form-actions">
-                    <button type="submit">Guardar cambios</button>
-                    <button class="button button-secondary" type="submit" name="accion" value="restaurar_defaults" formnovalidate>Restaurar predeterminados</button>
+                <div class="form-actions sticky-form-actions consultorio-form-actions">
+                    <button type="submit">{% include "includes/icon.html" with name="check" %} Guardar cambios</button>
+                    <button class="button button-tertiary" type="submit" name="accion" value="restaurar_defaults" formnovalidate>{% include "includes/icon.html" with name="refresh" %} Restaurar predeterminados</button>
                     <a class="button button-secondary" href="{% url 'inicio' %}">Cancelar</a>
                 </div>
             </div>
 
-            <aside class="consultorio-preview-panel" aria-label="Vista previa del perfil">
+            <aside class="consultorio-preview-panel" id="consultorio-preview" aria-label="Vista previa del perfil">
                 <div class="consultorio-preview-card" data-preview-card style="--preview-color: {{ configuracion.color_principal }};">
                     <span class="public-pill public-pill-light">Vista previa sin guardar</span>
                     <div class="consultorio-preview-brand">
@@ -245,144 +249,6 @@
         </div>
     </form>
 
-    <script>
-        (() => {
-            const form = document.querySelector("[data-consultorio-form]");
-
-            if (!form) {
-                return;
-            }
-
-            const fields = {
-                name: form.querySelector("#{{ form.nombre_corto.id_for_label }}"),
-                commercialName: form.querySelector("#{{ form.nombre_comercial.id_for_label }}"),
-                title: form.querySelector("#{{ form.titulo_portada.id_for_label }}"),
-                welcome: form.querySelector("#{{ form.texto_bienvenida.id_for_label }}"),
-                color: form.querySelector("#{{ form.color_principal.id_for_label }}"),
-                logo: form.querySelector("#{{ form.logo.id_for_label }}"),
-                removeLogo: form.querySelector("#{{ form.quitar_logo.id_for_label }}"),
-                address: form.querySelector("#{{ form.direccion.id_for_label }}"),
-                locality: form.querySelector("#{{ form.localidad.id_for_label }}"),
-                province: form.querySelector("#{{ form.provincia.id_for_label }}"),
-                phone: form.querySelector("#{{ form.telefono.id_for_label }}"),
-                email: form.querySelector("#{{ form.email.id_for_label }}"),
-            };
-            const preview = {
-                card: form.querySelector("[data-preview-card]"),
-                logo: form.querySelector("[data-preview-logo]"),
-                name: form.querySelector("[data-preview-name]"),
-                title: form.querySelector("[data-preview-title]"),
-                welcome: form.querySelector("[data-preview-welcome]"),
-                colorText: form.querySelector("[data-preview-color-text]"),
-                address: form.querySelector("[data-preview-address]"),
-                phone: form.querySelector("[data-preview-phone]"),
-                email: form.querySelector("[data-preview-email]"),
-            };
-
-            const fallbackInitials = "{{ configuracion.iniciales|escapejs }}";
-            const fallbackLogo = "{{ configuracion.logo_url|escapejs }}";
-
-            function textValue(input, fallback) {
-                const value = input && input.value.trim();
-                return value || fallback;
-            }
-
-            function initials(value) {
-                const words = value.trim().split(/\s+/).filter(Boolean);
-
-                if (!words.length) {
-                    return "GT";
-                }
-
-                if (words.length === 1) {
-                    return words[0].slice(0, 2).toUpperCase();
-                }
-
-                return `${words[0][0]}${words[1][0]}`.toUpperCase();
-            }
-
-            function renderLogo(src) {
-                const name = textValue(fields.name, textValue(fields.commercialName, "Gestor de Turnos"));
-
-                if (src) {
-                    preview.logo.innerHTML = `<img src="${src}" alt=""><span hidden>${initials(name)}</span>`;
-                    return;
-                }
-
-                preview.logo.innerHTML = `<span>${initials(name) || fallbackInitials}</span>`;
-            }
-
-            function updateText() {
-                const name = textValue(fields.name, textValue(fields.commercialName, "Gestor de Turnos"));
-                const address = [
-                    fields.address && fields.address.value.trim(),
-                    fields.locality && fields.locality.value.trim(),
-                    fields.province && fields.province.value.trim(),
-                ].filter(Boolean).join(", ");
-
-                preview.name.textContent = name;
-                preview.title.textContent = textValue(fields.title, "Reservá tu turno odontológico de forma simple");
-                preview.welcome.textContent = textValue(
-                    fields.welcome,
-                    "Elegí un odontólogo, seleccioná un horario disponible y enviá tu solicitud. El consultorio te avisará cuando el turno quede confirmado."
-                );
-                preview.address.textContent = address || "Datos de contacto opcionales";
-                preview.phone.textContent = textValue(fields.phone, "Teléfono opcional");
-                preview.email.textContent = textValue(fields.email, "Email opcional");
-
-                if (!fields.logo || !fields.logo.files.length) {
-                    renderLogo(fields.removeLogo && fields.removeLogo.checked ? "" : fallbackLogo);
-                }
-            }
-
-            function updateColor() {
-                const value = fields.color && fields.color.value ? fields.color.value.toUpperCase() : "#2563EB";
-
-                if (/^#[0-9A-F]{6}$/.test(value)) {
-                    preview.card.style.setProperty("--preview-color", value);
-                    preview.colorText.textContent = value;
-                }
-            }
-
-            function updateLogo() {
-                if (fields.removeLogo && fields.removeLogo.checked) {
-                    if (fields.logo) {
-                        fields.logo.value = "";
-                    }
-                    renderLogo("");
-                    return;
-                }
-
-                if (!fields.logo || !fields.logo.files.length) {
-                    renderLogo(fallbackLogo);
-                    return;
-                }
-
-                const file = fields.logo.files[0];
-                const reader = new FileReader();
-                reader.addEventListener("load", () => renderLogo(reader.result));
-                reader.readAsDataURL(file);
-            }
-
-            Object.values(fields).forEach((field) => {
-                if (!field) {
-                    return;
-                }
-
-                field.addEventListener("input", () => {
-                    updateText();
-                    updateColor();
-                });
-                field.addEventListener("change", () => {
-                    updateText();
-                    updateColor();
-                    updateLogo();
-                });
-            });
-
-            updateText();
-            updateColor();
-            updateLogo();
-        })();
-    </script>
 {% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'js/consultorio-preview.js' %}" defer></script>{% endblock %}

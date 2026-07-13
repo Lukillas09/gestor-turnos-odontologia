@@ -4,17 +4,19 @@
 
 {% block content %}
     <div class="patient-backline animate-fade-up">
-        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:lista' %}">&larr; Volver a turnos</a>
+        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:lista' %}">{% include "includes/icon.html" with name="arrow-left" %} Volver a turnos</a>
     </div>
 
-    <section class="turno-detail-hero animate-fade-up card-hover" style="--stagger-index: 1;">
-        <div>
+    <section class="turno-detail-hero turno-detail-hero-v2 animate-fade-up" style="--stagger-index: 1;">
+        <div class="turno-detail-identity">
+            <span class="turno-detail-avatar">{{ turno.paciente.apellido|default:turno.paciente.nombre|first|upper }}</span>
+            <div>
             <p class="eyebrow">Detalle de turno</p>
             <h1>Turno de {{ turno.paciente }}</h1>
             <div class="turno-detail-meta">
-                <span>{{ turno.fecha|date:"d/m/Y" }}</span>
-                <span>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</span>
-                <span>{{ turno.odontologo }}</span>
+                <span>{% include "includes/icon.html" with name="calendar" %} {{ turno.fecha|date:"d/m/Y" }}</span>
+                <span>{% include "includes/icon.html" with name="clock" %} {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</span>
+                <span>{% include "includes/icon.html" with name="user" %} {{ turno.odontologo }}</span>
                 {% if solicitud_publica %}
                     <span>Solicitud web</span>
                 {% endif %}
@@ -22,14 +24,15 @@
                     <span class="status-badge status-pendiente">Datos por revisar</span>
                 {% endif %}
             </div>
+            </div>
         </div>
-        <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+        <div class="turno-detail-state"><small>Estado actual</small><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></div>
     </section>
 
     <section class="turno-detail-grid stagger-list" aria-label="Información del turno">
         <article class="turno-info-card animate-fade-up card-hover" style="--stagger-index: 0;">
             <div class="turno-info-card-header">
-                <span>Paciente</span>
+                <span>{% include "includes/icon.html" with name="user" %} Paciente</span>
                 <a class="text-link" href="{% url 'pacientes:detalle' turno.paciente.pk %}">Ver perfil</a>
             </div>
             <h2>{{ turno.paciente }}</h2>
@@ -40,18 +43,18 @@
                 </div>
                 <div>
                     <dt>Teléfono</dt>
-                    <dd>{{ turno.paciente.telefono|default:"-" }}</dd>
+                    <dd>{% if turno.paciente.telefono %}<a href="tel:{{ turno.paciente.telefono }}">{{ turno.paciente.telefono }}</a>{% else %}-{% endif %}</dd>
                 </div>
                 <div>
                     <dt>Email</dt>
-                    <dd>{{ turno.paciente.email|default:"-" }}</dd>
+                    <dd>{% if turno.paciente.email %}<a href="mailto:{{ turno.paciente.email }}">{{ turno.paciente.email }}</a>{% else %}-{% endif %}</dd>
                 </div>
             </dl>
         </article>
 
         <article class="turno-info-card animate-fade-up card-hover" style="--stagger-index: 1;">
             <div class="turno-info-card-header">
-                <span>Odontólogo</span>
+                <span>{% include "includes/icon.html" with name="clinical" %} Odontólogo</span>
             </div>
             <h2>{{ turno.odontologo }}</h2>
             <dl>
@@ -68,7 +71,7 @@
 
         <article class="turno-info-card animate-fade-up card-hover" style="--stagger-index: 2;">
             <div class="turno-info-card-header">
-                <span>Horario</span>
+                <span>{% include "includes/icon.html" with name="clock" %} Horario</span>
             </div>
             <h2>{{ turno.fecha|date:"d/m/Y" }}</h2>
             <dl>
@@ -171,12 +174,12 @@
             <div class="turno-detail-actions">
                 {% if puede_confirmar_turno %}
                     <a class="button button-success" href="{% url 'turnos:confirmar' turno.pk %}">
-                        {% if confirmacion_requiere_revision_publica %}Revisar y confirmar turno{% else %}Confirmar turno{% endif %}
+                        {% include "includes/icon.html" with name="check" %} {% if confirmacion_requiere_revision_publica %}Revisar y confirmar turno{% else %}Confirmar turno{% endif %}
                     </a>
                 {% endif %}
 
                 {% if puede_reprogramar_turno %}
-                    <a class="button button-soft-primary" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar</a>
+                    <a class="button button-soft-primary" href="{% url 'turnos:reprogramar' turno.pk %}">{% include "includes/icon.html" with name="refresh" %} Reprogramar</a>
                 {% endif %}
 
                 {% if puede_rechazar_solicitud_publica %}
@@ -186,12 +189,12 @@
                 {% if puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}
                     <form method="post" action="{% url 'turnos:cancelar' turno.pk %}">
                         {% csrf_token %}
-                        <button class="button-danger" type="submit">Cancelar turno</button>
+                        <button class="button-danger" type="submit">{% include "includes/icon.html" with name="close" %} Cancelar turno</button>
                     </form>
                 {% endif %}
 
                 {% if puede_gestionar_turnos and turno.estado != turno.Estado.CANCELADO %}
-                    <a class="button button-secondary" href="{% url 'turnos:editar' turno.pk %}">Editar turno</a>
+                    <a class="button button-secondary" href="{% url 'turnos:editar' turno.pk %}">{% include "includes/icon.html" with name="edit" %} Editar turno</a>
                 {% endif %}
             </div>
         </section>

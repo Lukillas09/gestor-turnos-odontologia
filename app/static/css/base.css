@@ -6,6 +6,8 @@
 html {
     width: 100%;
     max-width: 100%;
+    overflow-x: clip;
+    color-scheme: light;
     -webkit-text-size-adjust: 100%;
     scroll-padding-top: var(--topbar-height);
 }
@@ -17,13 +19,18 @@ body {
     overflow-x: hidden;
     background: var(--bg);
     color: var(--text);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-family);
     line-height: 1.5;
+    text-rendering: optimizeLegibility;
 }
 
 img,
 svg {
     max-width: 100%;
+}
+
+img {
+    display: block;
 }
 
 a {
@@ -43,26 +50,27 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-    outline: 3px solid rgba(37, 99, 235, 0.28);
+    outline: 3px solid color-mix(in srgb, var(--primary) 28%, transparent);
     outline-offset: 2px;
 }
 
 .topbar {
-    background: var(--surface);
+    background: rgba(255, 255, 255, 0.96);
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 40;
+    backdrop-filter: blur(14px);
 }
 
 .topbar-inner,
 .page {
-    width: min(1120px, calc(100% - 32px));
+    width: min(var(--content-max), calc(100% - 40px));
     margin: 0 auto;
 }
 
 .topbar-inner {
-    min-height: 64px;
+    min-height: var(--topbar-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -74,21 +82,21 @@ textarea:focus-visible {
     align-items: center;
     gap: 10px;
     min-width: 0;
-    font-size: 18px;
-    font-weight: 700;
+    font-size: var(--font-lg);
+    font-weight: 800;
     text-decoration: none;
     white-space: nowrap;
 }
 
 .brand-logo,
 .brand-mark {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     display: grid;
     flex: 0 0 auto;
     place-items: center;
     overflow: hidden;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--primary);
     color: var(--primary-contrast);
     font-size: 13px;
@@ -112,8 +120,20 @@ textarea:focus-visible {
     text-overflow: ellipsis;
 }
 
+.brand-copy {
+    min-width: 0;
+    display: grid;
+    gap: 0;
+}
+
+.brand-copy small {
+    color: rgba(226, 232, 240, 0.62);
+    font-size: var(--font-xs);
+    font-weight: 600;
+}
+
 .app-shell-body {
-    background: #f4f6f8;
+    background: var(--bg);
 }
 
 .app-topbar {
@@ -126,7 +146,7 @@ textarea:focus-visible {
     top: 0;
     z-index: 20;
     margin-left: var(--sidebar-width);
-    padding: 0 32px;
+    padding: 0 clamp(1.25rem, 3vw, 2.5rem);
     border-bottom: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(12px);
@@ -134,17 +154,33 @@ textarea:focus-visible {
 
 .app-topbar-title {
     min-width: 0;
+    display: grid;
+    gap: 0.05rem;
 }
 
 .app-topbar-title strong {
     display: block;
-    font-size: 16px;
+    font-size: var(--font-lg);
 }
 
-.app-topbar-title span {
+.app-topbar-kicker {
     display: block;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--font-xs);
+    font-weight: 750;
+    text-transform: uppercase;
+}
+
+.app-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+}
+
+.app-topbar-date {
+    color: var(--muted);
+    font-size: var(--font-sm);
+    text-transform: capitalize;
 }
 
 .app-user-menu {
@@ -158,14 +194,16 @@ textarea:focus-visible {
     display: flex;
     align-items: center;
     gap: 12px;
-    border-radius: 999px;
-    padding: 4px 8px 4px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    padding: 4px 6px 4px 12px;
     color: var(--text);
     text-decoration: none;
 }
 
 .app-user-profile-link:hover {
-    background: #eef2f7;
+    border-color: var(--line);
+    background: var(--gray-50);
 }
 
 .app-user-text {
@@ -184,14 +222,14 @@ textarea:focus-visible {
 }
 
 .app-avatar {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
     display: grid;
     place-items: center;
     overflow: hidden;
     border-radius: 999px;
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: var(--primary-soft);
+    color: var(--primary-dark);
     font-size: 14px;
     font-weight: 800;
 }
@@ -257,8 +295,9 @@ textarea:focus-visible {
     display: flex;
     flex-direction: column;
     gap: 18px;
-    border-right: 1px solid var(--line);
-    background: #ffffff;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--navy-950);
+    color: #ffffff;
 }
 
 .app-sidebar-header {
@@ -266,18 +305,27 @@ textarea:focus-visible {
     display: flex;
     align-items: center;
     padding: 0 22px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-sidebar-header .brand-logo {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.app-sidebar-header .brand-mark {
+    background: var(--primary);
 }
 
 .app-sidebar-nav {
     display: grid;
     gap: 4px;
     padding: 0 14px;
+    overflow-y: auto;
 }
 
 .app-sidebar-label {
     margin: 14px 8px 6px;
-    color: var(--muted);
+    color: rgba(226, 232, 240, 0.5);
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -287,10 +335,10 @@ textarea:focus-visible {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 40px;
-    border-radius: 8px;
-    padding: 8px 10px;
-    color: #344054;
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    padding: 9px 11px;
+    color: rgba(241, 245, 249, 0.76);
     font-size: 14px;
     font-weight: 700;
     text-decoration: none;
@@ -298,8 +346,13 @@ textarea:focus-visible {
 
 .app-sidebar-link:hover,
 .app-sidebar-link.is-active {
-    background: var(--primary-soft);
-    color: var(--primary-dark);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+.app-sidebar-link.is-active {
+    background: color-mix(in srgb, var(--primary) 28%, transparent);
+    box-shadow: inset 3px 0 0 var(--teal-500);
 }
 
 .app-sidebar-link-icon {
@@ -310,18 +363,38 @@ textarea:focus-visible {
     font-size: 15px;
 }
 
+.app-sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: auto;
+    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(226, 232, 240, 0.58);
+    font-size: var(--font-xs);
+    font-weight: 700;
+}
+
+.app-sidebar-footer-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--teal-500);
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.14);
+}
+
 .app-page {
     width: auto;
-    max-width: 1200px;
+    max-width: calc(var(--content-max) + var(--sidebar-width));
     margin-left: var(--sidebar-width);
-    padding: 32px;
+    padding: clamp(1.5rem, 3vw, 2.5rem);
 }
 
 .nav {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 4px;
+    gap: var(--space-2);
     flex-wrap: wrap;
 }
 
@@ -332,14 +405,21 @@ textarea:focus-visible {
 }
 
 .nav-link {
-    border-radius: 6px;
-    padding: 6px 8px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
 }
 
 .nav-link:hover,
 .nav-link.is-active {
-    background: #eef2f7;
+    background: var(--gray-100);
     color: var(--text);
+}
+
+.public-nav-cta {
+    min-height: 42px;
 }
 
 .nav-user {
@@ -434,7 +514,7 @@ button,
 }
 
 .page {
-    padding: 32px 0;
+    padding: clamp(1.5rem, 4vw, 3rem) 0;
 }
 
 .page-header {
@@ -442,7 +522,7 @@ button,
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-5);
 }
 
 .header-actions {
@@ -454,25 +534,29 @@ button,
 
 h1 {
     margin: 0;
-    font-size: 28px;
-    line-height: 1.2;
+    font-size: var(--font-2xl);
+    line-height: 1.18;
+    letter-spacing: 0;
 }
 
 h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: var(--font-xl);
     line-height: 1.3;
+    letter-spacing: 0;
 }
 
 .eyebrow {
     margin: 0 0 6px;
-    color: var(--primary);
-    font-size: 12px;
-    font-weight: 700;
+    color: var(--primary-dark);
+    font-size: var(--font-xs);
+    font-weight: 800;
+    letter-spacing: 0;
     text-transform: uppercase;
 }
 
 .subtitle {
     margin: 8px 0 0;
     color: var(--muted);
+    max-width: 48rem;
 }

@@ -1,13 +1,15 @@
-from datetime import date, time
+from datetime import date, datetime, time
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from historias.models import HistoriaClinica, HistoriaClinicaAdjunto
-from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
+from turnos.models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 from .models import FichaOdontologica, Paciente, PacienteOdontologo
@@ -431,6 +433,132 @@ class PacienteViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Elena")
         self.assertContains(response, "20111222")
+
+    def test_detalle_muestra_solamente_el_ultimo_turno_pasado_no_cancelado(self):
+        paciente = Paciente.objects.create(
+            nombre="Elena",
+            apellido="Ultimo turno",
+            documento="20111228",
+        )
+        odontologo = self._crear_odontologo_para_paciente(paciente, "ULTIMO")
+        Turno.objects.bulk_create(
+            [
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 7, 10),
+                    hora_inicio=time(9, 0),
+                    motivo="Pasado antiguo",
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 7, 13),
+                    hora_inicio=time(11, 30),
+                    motivo="Control pasado reciente",
+                    estado=Turno.Estado.PENDIENTE,
+                ),
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 7, 13),
+                    hora_inicio=time(11, 45),
+                    motivo="Pasado cancelado",
+                    estado=Turno.Estado.CANCELADO,
+                ),
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 7, 13),
+                    hora_inicio=time(12, 30),
+                    motivo="Turno futuro",
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+            ]
+        )
+        turno_esperado = Turno.objects.get(motivo="Control pasado reciente")
+        SolicitudTurnoPublica.objects.create(
+            turno=turno_esperado,
+            paciente=paciente,
+            documento_enviado=paciente.documento,
+            nombre_enviado=paciente.nombre,
+            apellido_enviado=paciente.apellido,
+            telefono_enviado="11112222",
+        )
+        momento_local = timezone.make_aware(datetime(2026, 7, 13, 12, 0))
+
+        with (
+            patch("pacientes.views.timezone.localtime", return_value=momento_local),
+            patch("pacientes.views.timezone.localdate", return_value=momento_local.date()),
+        ):
+            response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["ultimo_turno"].pk, turno_esperado.pk)
+        self.assertNotIn("turnos_recientes", response.context)
+        self.assertContains(response, "Último turno")
+        self.assertNotContains(response, "Turnos recientes")
+        self.assertContains(response, "13 de julio de 2026")
+        self.assertContains(response, "11:30 a 12:00")
+        self.assertContains(response, "Control pasado reciente")
+        self.assertContains(response, str(odontologo))
+        self.assertContains(response, "Pendiente")
+        self.assertContains(response, "Solicitud web")
+        self.assertContains(response, "Ver turno")
+        self.assertContains(response, 'class="clinical-last-turn"', count=1)
+        self.assertNotContains(response, "Pasado antiguo")
+        self.assertNotContains(response, "Pasado cancelado")
+
+        ultimo_turno = response.context["ultimo_turno"]
+        with self.assertNumQueries(0):
+            str(ultimo_turno.odontologo.usuario)
+            self.assertTrue(ultimo_turno.tiene_solicitud_publica)
+
+    def test_detalle_muestra_estado_vacio_sin_turnos_anteriores_validos(self):
+        paciente = Paciente.objects.create(
+            nombre="Elena",
+            apellido="Sin anteriores",
+            documento="20111229",
+        )
+        odontologo = self._crear_odontologo_para_paciente(paciente, "VACIO")
+        Turno.objects.bulk_create(
+            [
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 7, 12),
+                    hora_inicio=time(9, 0),
+                    motivo="Cancelado anterior",
+                    estado=Turno.Estado.CANCELADO,
+                ),
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 7, 14),
+                    hora_inicio=time(9, 0),
+                    motivo="Próximo control",
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+            ]
+        )
+        momento_local = timezone.make_aware(datetime(2026, 7, 13, 12, 0))
+
+        with (
+            patch("pacientes.views.timezone.localtime", return_value=momento_local),
+            patch("pacientes.views.timezone.localdate", return_value=momento_local.date()),
+        ):
+            response = self.client.get(reverse("pacientes:detalle", kwargs={"pk": paciente.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context["ultimo_turno"])
+        self.assertContains(response, "Último turno")
+        self.assertContains(response, "Sin turnos anteriores")
+        self.assertContains(
+            response,
+            "Este paciente todavía no tiene turnos anteriores registrados.",
+        )
+        self.assertNotContains(response, "Turnos recientes")
 
     def test_detalle_no_muestra_edicion_separada_de_paciente(self):
         paciente = Paciente.objects.create(

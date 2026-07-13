@@ -1,0 +1,20 @@
+<nav class="public-stepper" aria-label="Progreso de la solicitud">
+    <p class="public-stepper-mobile">
+        <span>Paso {{ current_step }} de 3</span>
+        <strong>{{ current_label }}</strong>
+    </p>
+    <ol class="public-stepper-list">
+        <li class="{% if current_step == 1 %}is-current{% elif current_step > 1 %}is-complete{% endif %}" {% if current_step == 1 %}aria-current="step"{% endif %}>
+            <span>{% if current_step > 1 %}{% include "includes/icon.html" with name="check" %}{% else %}1{% endif %}</span>
+            <strong>Turno</strong>
+        </li>
+        <li class="{% if current_step == 2 %}is-current{% elif current_step > 2 %}is-complete{% endif %}" {% if current_step == 2 %}aria-current="step"{% endif %}>
+            <span>{% if current_step > 2 %}{% include "includes/icon.html" with name="check" %}{% else %}2{% endif %}</span>
+            <strong>Datos</strong>
+        </li>
+        <li class="{% if current_step == 3 %}is-current{% endif %}" {% if current_step == 3 %}aria-current="step"{% endif %}>
+            <span>3</span>
+            <strong>Confirmación</strong>
+        </li>
+    </ol>
+</nav>

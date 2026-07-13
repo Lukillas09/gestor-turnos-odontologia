@@ -1,0 +1,16 @@
+{% load static %}
+<div class="empty-state{% if compact %} compact{% endif %}{% if extra_class %} {{ extra_class }}{% endif %}">
+    {% if illustration %}
+        <img class="empty-state-visual" src="{% static illustration %}" width="420" height="300" alt="">
+    {% elif icon_name %}
+        <span class="empty-state-icon" aria-hidden="true">{% include "includes/icon.html" with name=icon_name %}</span>
+    {% endif %}
+    {% if title %}<h2>{{ title }}</h2>{% endif %}
+    {% if description %}<p>{{ description }}</p>{% endif %}
+    {% if action_url or secondary_url %}
+        <div class="empty-state-actions">
+            {% if action_url %}<a class="button" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+            {% if secondary_url %}<a class="button button-secondary" href="{{ secondary_url }}">{{ secondary_label }}</a>{% endif %}
+        </div>
+    {% endif %}
+</div>

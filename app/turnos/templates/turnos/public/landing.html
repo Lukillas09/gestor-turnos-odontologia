@@ -1,93 +1,141 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Turnos online | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
     {% if solicitud_turno_confirmada %}
         <section class="public-confirmation-banner animate-fade-up" role="status" aria-live="polite">
-            <span class="public-confirmation-icon" aria-hidden="true">✓</span>
+            <span class="public-confirmation-icon animate-check" aria-hidden="true">{% include "includes/icon.html" with name="check" %}</span>
             <div class="public-confirmation-copy">
                 <strong>Tu solicitud fue registrada</strong>
                 <p>El consultorio revisará la información y se comunicará por un medio de contacto válido.</p>
             </div>
             <div class="public-confirmation-actions">
-                <a class="button public-primary-action" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
+                <a class="button button-large" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
                 <a class="button button-secondary" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar mis turnos</a>
             </div>
         </section>
     {% endif %}
 
-    <section class="public-home-hero animate-fade-up">
+    <section class="public-home-hero public-home-hero-v2 animate-fade-up" aria-labelledby="public-home-title">
+        <img class="public-home-hero-image" src="{% static 'images/dental-hero.svg' %}" width="640" height="520" alt="">
         <div class="public-home-copy">
-            <span class="public-pill public-pill-light">Autogestión para pacientes</span>
-            <div class="consultorio-preview-brand">
-                <div class="consultorio-preview-logo">
-                    {% if configuracion_consultorio.logo_url %}
-                        <img src="{{ configuracion_consultorio.logo_url }}" alt="{{ configuracion_consultorio.nombre_visible }}">
-                    {% else %}
-                        <span>{{ configuracion_consultorio.iniciales }}</span>
-                    {% endif %}
-                </div>
-                <div>
-                    <strong>{{ configuracion_consultorio.nombre_comercial }}</strong>
-                    {% if configuracion_consultorio.direccion_completa and configuracion_consultorio.mostrar_direccion %}
-                        <small>{{ configuracion_consultorio.direccion_completa }}</small>
-                    {% endif %}
-                </div>
+            <span class="public-pill public-pill-light">Turnos online</span>
+            <div class="public-home-brand-signal">
+                {% if configuracion_consultorio.logo_url %}
+                    <span class="public-home-logo"><img src="{{ configuracion_consultorio.logo_url }}" alt=""></span>
+                {% else %}
+                    <span class="public-home-logo public-home-logo-fallback">{{ configuracion_consultorio.iniciales }}</span>
+                {% endif %}
+                <strong>{{ configuracion_consultorio.nombre_comercial }}</strong>
             </div>
-            <h1>{{ configuracion_consultorio.titulo_portada }}</h1>
+            <h1 id="public-home-title">{{ configuracion_consultorio.titulo_portada }}</h1>
             <p>{{ configuracion_consultorio.texto_bienvenida }}</p>
             <div class="public-home-actions">
-                <a class="button public-primary-action" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
-                {% if configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp %}
-                    <a class="button button-secondary" href="{{ configuracion_consultorio.whatsapp_url }}" rel="noopener noreferrer" target="_blank">WhatsApp</a>
-                {% endif %}
+                <a class="button public-primary-action button-large" href="{% url 'turnos:solicitud_publica' %}">
+                    {% include "includes/icon.html" with name="calendar" %} Solicitar turno
+                </a>
+                <a class="button button-secondary button-large" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar mis turnos</a>
             </div>
-            {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono or configuracion_consultorio.email and configuracion_consultorio.mostrar_email or configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion %}
-                <div class="consultorio-public-card">
-                    <div class="consultorio-public-contact">
-                        {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono %}
-                            <span>Tel. {{ configuracion_consultorio.telefono }}</span>
-                        {% endif %}
-                        {% if configuracion_consultorio.email and configuracion_consultorio.mostrar_email %}
-                            <a href="mailto:{{ configuracion_consultorio.email }}">{{ configuracion_consultorio.email }}</a>
-                        {% endif %}
-                    </div>
-                    {% if configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion %}
-                        <p class="muted">{{ configuracion_consultorio.horario_atencion|linebreaksbr }}</p>
-                    {% endif %}
-                </div>
-            {% endif %}
-            {% if configuracion_consultorio.politica_cancelacion %}
-                <div class="consultorio-policy">
-                    <strong>Política de cancelación</strong><br>
-                    {{ configuracion_consultorio.politica_cancelacion|linebreaksbr }}
-                </div>
-            {% endif %}
-        </div>
-        <div class="public-home-card card-hover">
-            <h2>Gestión rápida</h2>
-            <ul class="public-feature-list">
-                <li>Solicitá turnos sin crear una cuenta.</li>
-                <li>Consultá tus turnos con un código enviado a tu contacto registrado.</li>
-                <li>Cancelá turnos pendientes o confirmados.</li>
-                <li>Cambiá el horario si el turno sigue pendiente.</li>
+            <ul class="public-trust-list" aria-label="Características de la reserva">
+                <li>{% include "includes/icon.html" with name="lock" %}<span>Reserva segura</span></li>
+                <li>{% include "includes/icon.html" with name="user" %}<span>Sin crear una cuenta</span></li>
+                <li>{% include "includes/icon.html" with name="mail" %}<span>Seguimiento por email</span></li>
             </ul>
         </div>
     </section>
 
-    <section class="public-home-secondary animate-fade-up">
-        <a class="public-secondary-card card-hover" href="{% url 'turnos:acceso_publico_solicitar' %}">
-            <span>Consultar mis turnos</span>
-            <strong>Solicitá un código temporal para revisar tus turnos activos.</strong>
-        </a>
-        <a class="public-secondary-card card-hover" href="{% url 'turnos:acceso_publico_solicitar' %}">
-            <span>Cancelar turno</span>
-            <strong>Verificá tu identidad y elegí el turno que querés cancelar.</strong>
-        </a>
-        <a class="public-secondary-card public-secondary-card-muted card-hover" href="{% url 'login' %}">
-            <span>Personal del consultorio</span>
-            <strong>Acceso interno para odontólogos, recepción y administración.</strong>
-        </a>
+    <section class="public-section public-how-section" aria-labelledby="how-title">
+        <div class="public-section-heading">
+            <p class="eyebrow">Simple y rápido</p>
+            <h2 id="how-title">¿Cómo funciona?</h2>
+            <p>Completá la solicitud en tres pasos. El consultorio confirma el turno después de revisar tus datos.</p>
+        </div>
+        <ol class="public-how-grid">
+            <li class="public-how-item">
+                <span class="public-how-number">1</span>
+                <span class="public-how-icon">{% include "includes/icon.html" with name="user" %}</span>
+                <div><strong>Elegí un profesional</strong><p>Seleccioná el odontólogo con quien querés atenderte.</p></div>
+            </li>
+            <li class="public-how-item">
+                <span class="public-how-number">2</span>
+                <span class="public-how-icon">{% include "includes/icon.html" with name="calendar" %}</span>
+                <div><strong>Seleccioná fecha y hora</strong><p>Solo verás opciones disponibles dentro de la agenda.</p></div>
+            </li>
+            <li class="public-how-item">
+                <span class="public-how-number">3</span>
+                <span class="public-how-icon">{% include "includes/icon.html" with name="check" %}</span>
+                <div><strong>Enviá tus datos</strong><p>Recibirás novedades cuando la solicitud sea revisada.</p></div>
+            </li>
+        </ol>
     </section>
+
+    {% if odontologos_publicos %}
+        <section class="public-section public-professionals-section" aria-labelledby="professionals-title">
+            <div class="public-section-heading">
+                <p class="eyebrow">Profesionales</p>
+                <h2 id="professionals-title">Nuestro equipo</h2>
+                <p>Conocé a los profesionales disponibles para turnos online.</p>
+            </div>
+            <div class="public-professionals-grid">
+                {% for profesional in odontologos_publicos %}
+                    <article class="public-professional-card ui-card ui-card-interactive">
+                        <div class="public-professional-photo">
+                            {% if profesional.foto_perfil_url %}
+                                <img src="{{ profesional.foto_perfil_url }}" alt="" loading="lazy" style="object-position: {{ profesional.foto_object_position }};">
+                            {% else %}
+                                <span>{{ profesional.nombre_completo|first|upper }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="public-professional-copy">
+                            <h3>{{ profesional.nombre_completo }}</h3>
+                            <p>{{ profesional.especialidad|default:"Odontología general" }}</p>
+                            <span>Matrícula {{ profesional.matricula }}</span>
+                        </div>
+                        <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ profesional.pk }}&amp;fecha={{ fecha_minima_reserva_publica|date:'Y-m-d' }}">
+                            Ver disponibilidad {% include "includes/icon.html" with name="arrow-right" %}
+                        </a>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    <section class="public-section public-patient-actions" aria-labelledby="patient-actions-title">
+        <div class="public-section-heading">
+            <p class="eyebrow">Ya tengo un turno</p>
+            <h2 id="patient-actions-title">Gestioná tus solicitudes</h2>
+        </div>
+        <div class="public-home-secondary">
+            <a class="public-secondary-card ui-card ui-card-interactive" href="{% url 'turnos:acceso_publico_solicitar' %}">
+                <span class="public-secondary-icon">{% include "includes/icon.html" with name="appointments" %}</span>
+                <strong>Consultar mis turnos</strong>
+                <p>Solicitá un código temporal para revisar tus turnos activos.</p>
+            </a>
+            <a class="public-secondary-card ui-card ui-card-interactive" href="{% url 'turnos:acceso_publico_solicitar' %}">
+                <span class="public-secondary-icon">{% include "includes/icon.html" with name="refresh" %}</span>
+                <strong>Reprogramar o cancelar</strong>
+                <p>Verificá tu identidad antes de realizar cualquier cambio.</p>
+            </a>
+        </div>
+    </section>
+
+    {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono or configuracion_consultorio.email and configuracion_consultorio.mostrar_email or configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion or configuracion_consultorio.direccion_completa and configuracion_consultorio.mostrar_direccion or configuracion_consultorio.politica_cancelacion %}
+        <details class="public-contact-details ui-card">
+            <summary>Información del consultorio {% include "includes/icon.html" with name="chevron-down" %}</summary>
+            <div class="public-contact-details-body">
+                <div class="public-contact-grid">
+                    {% if configuracion_consultorio.telefono and configuracion_consultorio.mostrar_telefono %}<a href="tel:{{ configuracion_consultorio.telefono }}">{% include "includes/icon.html" with name="phone" %}<span><small>Teléfono</small>{{ configuracion_consultorio.telefono }}</span></a>{% endif %}
+                    {% if configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp %}<a href="{{ configuracion_consultorio.whatsapp_url }}" target="_blank" rel="noopener noreferrer">{% include "includes/icon.html" with name="whatsapp" %}<span><small>WhatsApp</small>Escribir al consultorio</span></a>{% endif %}
+                    {% if configuracion_consultorio.email and configuracion_consultorio.mostrar_email %}<a href="mailto:{{ configuracion_consultorio.email }}">{% include "includes/icon.html" with name="mail" %}<span><small>Email</small>{{ configuracion_consultorio.email }}</span></a>{% endif %}
+                    {% if configuracion_consultorio.direccion_completa and configuracion_consultorio.mostrar_direccion %}<div>{% include "includes/icon.html" with name="home" %}<span><small>Dirección</small>{{ configuracion_consultorio.direccion_completa }}</span></div>{% endif %}
+                </div>
+                {% if configuracion_consultorio.horario_atencion and configuracion_consultorio.mostrar_horario_atencion %}<div class="public-contact-note"><strong>Horarios de atención</strong><p>{{ configuracion_consultorio.horario_atencion|linebreaksbr }}</p></div>{% endif %}
+                {% if configuracion_consultorio.politica_cancelacion %}<div class="public-contact-note"><strong>Política de cancelación</strong><p>{{ configuracion_consultorio.politica_cancelacion|linebreaksbr }}</p></div>{% endif %}
+            </div>
+        </details>
+    {% endif %}
+
+    <p class="public-internal-access"><a href="{% url 'login' %}">Acceso para personal del consultorio</a></p>
 {% endblock %}

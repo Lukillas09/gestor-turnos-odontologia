@@ -1,59 +1,23 @@
-<div class="agenda-turno agenda-turno-{{ turno.estado }} card-hover">
-    <div class="agenda-turno-header">
-        <a class="text-link" href="{% url 'turnos:detalle' turno.pk %}">
-            {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}
-        </a>
+<article class="agenda-turno agenda-turno-{{ turno.estado }}{% if compact %} agenda-turno-compact{% endif %}">
+    <header class="agenda-turno-header">
+        <a class="agenda-turno-time" href="{% url 'turnos:detalle' turno.pk %}">{% include "includes/icon.html" with name="clock" %} {{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</a>
         <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-        {% if turno.tiene_datos_publicos_pendientes_revision %}
-            <span class="status-badge status-pendiente">Datos por revisar</span>
-        {% endif %}
-    </div>
+        {% if turno.tiene_datos_publicos_pendientes_revision %}<span class="status-badge status-pendiente">Datos por revisar</span>{% endif %}
+    </header>
 
     <div class="agenda-turno-body">
-        <div>
-            <span class="agenda-field-label">Paciente</span>
-            <strong>{{ turno.paciente }}</strong>
-        </div>
-        <div>
-            <span class="agenda-field-label">Contacto</span>
-            {% if turno.paciente.telefono %}
-                <a class="agenda-contact-link" href="tel:{{ turno.paciente.telefono }}">{{ turno.paciente.telefono }}</a>
-            {% elif turno.paciente.email %}
-                <a class="agenda-contact-link" href="mailto:{{ turno.paciente.email }}">{{ turno.paciente.email }}</a>
-            {% else %}
-                <span class="muted">Sin contacto</span>
-            {% endif %}
-        </div>
-        <div>
-            <span class="agenda-field-label">Motivo</span>
-            <span>{{ turno.motivo|default:"Sin motivo cargado" }}</span>
-        </div>
-        <div>
-            <span class="agenda-field-label">Odontólogo</span>
-            <span>{{ turno.odontologo }}</span>
-        </div>
+        <div class="agenda-patient-cell"><span class="patient-avatar">{{ turno.paciente.apellido|default:turno.paciente.nombre|first|upper }}</span><span><span class="agenda-field-label">Paciente</span><strong>{{ turno.paciente }}</strong></span></div>
+        <div><span class="agenda-field-label">Contacto</span>{% if turno.paciente.telefono %}<a class="agenda-contact-link" href="tel:{{ turno.paciente.telefono }}">{{ turno.paciente.telefono }}</a>{% elif turno.paciente.email %}<a class="agenda-contact-link" href="mailto:{{ turno.paciente.email }}">{{ turno.paciente.email }}</a>{% else %}<span class="muted">Sin contacto</span>{% endif %}</div>
+        <div><span class="agenda-field-label">Motivo</span><span>{{ turno.motivo|default:"Sin motivo cargado" }}</span></div>
+        {% if not compact %}<div><span class="agenda-field-label">Odontólogo</span><span>{{ turno.odontologo }}</span></div>{% endif %}
     </div>
 
-    <div class="agenda-turno-actions">
-        <a class="button button-secondary button-small" href="{% url 'turnos:detalle' turno.pk %}">Ver</a>
-
-        {% if turno.estado == "pendiente" %}
-            {% if puede_gestionar_turnos or turno.odontologo.usuario_id == request.user.id %}
-                <a class="button button-success button-small" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar</a>
-            {% endif %}
+    <footer class="agenda-turno-actions">
+        <a class="button button-secondary button-small" href="{% url 'turnos:detalle' turno.pk %}">Ver detalle</a>
+        {% if not compact %}
+            {% if turno.estado == "pendiente" and puede_gestionar_turnos or turno.estado == "pendiente" and turno.odontologo.usuario_id == request.user.id %}<a class="button button-success button-small" href="{% url 'turnos:confirmar' turno.pk %}">Confirmar</a>{% endif %}
+            {% if turno.estado == "pendiente" or turno.estado == "confirmado" %}{% if puede_gestionar_turnos or turno.odontologo.usuario_id == request.user.id %}<a class="button button-secondary button-small" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar</a>{% endif %}{% endif %}
+            {% if puede_gestionar_turnos and turno.estado != "cancelado" %}<form class="inline-form" method="post" action="{% url 'turnos:cancelar' turno.pk %}">{% csrf_token %}<button class="button-danger button-small" type="submit">Cancelar</button></form>{% endif %}
         {% endif %}
-
-        {% if turno.estado == "pendiente" or turno.estado == "confirmado" %}
-            {% if puede_gestionar_turnos or turno.odontologo.usuario_id == request.user.id %}
-                <a class="button button-secondary button-small" href="{% url 'turnos:reprogramar' turno.pk %}">Reprogramar</a>
-            {% endif %}
-        {% endif %}
-
-        {% if puede_gestionar_turnos and turno.estado != "cancelado" %}
-            <form class="inline-form" method="post" action="{% url 'turnos:cancelar' turno.pk %}">
-                {% csrf_token %}
-                <button class="button-danger button-small" type="submit">Cancelar</button>
-            </form>
-        {% endif %}
-    </div>
-</div>
+    </footer>
+</article>

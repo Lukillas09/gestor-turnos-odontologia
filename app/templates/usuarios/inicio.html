@@ -3,117 +3,116 @@
 {% block title %}Inicio | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
+    <header class="internal-page-heading dashboard-heading animate-fade-up">
         <div>
-            <p class="eyebrow">{{ rol_principal }}</p>
+            <p class="dashboard-greeting">Buen día, {{ request.user.first_name|default:request.user.username }}</p>
             {% if es_dashboard_odontologo %}
                 <h1>Tu agenda de hoy</h1>
-                <p class="subtitle">Resumen de tu agenda para {{ hoy|date:"l d/m/Y" }}.</p>
+                <p class="subtitle">{{ hoy|date:"l d \d\e F"|capfirst }} · {{ rol_principal }}</p>
             {% else %}
                 <h1>Resumen de la agenda</h1>
-                <p class="subtitle">Vista simple del consultorio para {{ hoy|date:"l d/m/Y" }}.</p>
+                <p class="subtitle">{{ hoy|date:"l d \d\e F"|capfirst }} · {{ rol_principal }}</p>
             {% endif %}
         </div>
-    </div>
-
-    <section class="metric-grid stagger-list" aria-label="Resumen de agenda">
-        <a class="metric-card dashboard-card dashboard-card-today animate-fade-up card-hover" style="--stagger-index: 0;" href="{{ url_turnos_hoy }}">
-            <span class="dashboard-card-header">
-                <span class="dashboard-card-title">Turnos de hoy</span>
-                <span class="dashboard-card-icon" aria-hidden="true"></span>
-            </span>
-            <strong>{{ turnos_hoy }}</strong>
-            <span class="dashboard-card-action">Abrir agenda</span>
-        </a>
-
-        <a class="metric-card dashboard-card dashboard-card-week animate-fade-up card-hover" style="--stagger-index: 1;" href="{{ url_turnos_semana }}">
-            <span class="dashboard-card-header">
-                <span>
-                    <span class="dashboard-card-title">Turnos de la semana</span>
-                    <span class="dashboard-card-range">{{ inicio_semana|date:"d/m" }} al {{ fin_semana|date:"d/m" }}</span>
-                </span>
-                <span class="dashboard-card-icon" aria-hidden="true"></span>
-            </span>
-            <strong>{{ turnos_semana }}</strong>
-            <span class="dashboard-card-action">Ver semana</span>
-        </a>
-
-        <a class="metric-card dashboard-card dashboard-card-pending animate-fade-up card-hover" style="--stagger-index: 2;" href="{{ url_turnos_pendientes }}">
-            <span class="dashboard-card-header">
-                <span class="dashboard-card-title">{% if es_dashboard_odontologo %}Mis pendientes{% else %}Pendientes{% endif %}</span>
-                <span class="dashboard-card-icon" aria-hidden="true"></span>
-            </span>
-            <strong>{{ turnos_pendientes }}</strong>
-            <span class="dashboard-card-action">Gestionar pendientes</span>
-        </a>
-
-        <a class="metric-card dashboard-card dashboard-card-pending animate-fade-up card-hover" style="--stagger-index: 3;" href="{{ url_turnos_datos_por_revisar }}">
-            <span class="dashboard-card-header">
-                <span class="dashboard-card-title">Datos por revisar</span>
-                <span class="dashboard-card-icon" aria-hidden="true"></span>
-            </span>
-            <strong>{{ turnos_datos_por_revisar }}</strong>
-            <span class="dashboard-card-action">Ver turnos por revisar</span>
-        </a>
-
-        {% if alertas_administrativas_publicas %}
-            <a class="metric-card dashboard-card animate-fade-up card-hover" style="--stagger-index: 4;" href="{{ url_alertas_administrativas }}">
-                <span class="dashboard-card-header">
-                    <span class="dashboard-card-title">Alertas administrativas</span>
-                    <span class="dashboard-card-icon" aria-hidden="true"></span>
-                </span>
-                <strong>{{ alertas_administrativas_publicas }}</strong>
-                <span class="dashboard-card-action">Revisar alerta</span>
-            </a>
-        {% endif %}
-    </section>
-
-    <section class="panel-section animate-fade-up" style="--stagger-index: 3;">
-        <div class="section-header">
-            <div>
-                <h2>Turnos de hoy</h2>
-                {% if es_dashboard_odontologo and odontologo_inicio %}
-                    <p class="subtitle">Sólo se muestran los turnos de {{ odontologo_inicio }}.</p>
-                {% else %}
-                    <p class="subtitle">Agenda operativa del día.</p>
-                {% endif %}
-            </div>
+        <div class="dashboard-shortcuts" aria-label="Atajos de trabajo">
+            {% if puede_gestionar_turnos %}
+                <a class="button" href="{% url 'turnos:crear' %}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>
+            {% endif %}
+            {% if puede_gestionar_pacientes %}
+                <a class="button button-secondary" href="{% url 'pacientes:crear' %}">{% include "includes/icon.html" with name="patients" %} Nuevo paciente</a>
+            {% endif %}
+            {% if puede_ver_excepciones_agenda %}
+                <a class="button button-secondary" href="{% url 'turnos:excepcion_crear' %}">{% include "includes/icon.html" with name="block" %} Bloquear agenda</a>
+            {% endif %}
             {% if puede_ver_turnos %}
-                <a class="dashboard-panel-link" href="{{ url_turnos_hoy }}">Ver agenda</a>
+                <a class="button button-tertiary" href="{{ url_turnos_hoy }}">{% include "includes/icon.html" with name="agenda-day" %} Ver agenda</a>
             {% endif %}
         </div>
+    </header>
 
-        {% if turnos_hoy_lista %}
-            <div class="compact-list stagger-list">
-                {% for turno in turnos_hoy_lista %}
-                    <a class="compact-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};" href="{% url 'turnos:detalle' turno.pk %}">
-                        <span>
-                            <strong>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</strong>
-                            <span>
-                                {{ turno.paciente }}{% if not es_dashboard_odontologo %} con {{ turno.odontologo }}{% endif %}
-                                · {{ turno.motivo|default:"Sin motivo" }}
-                            </span>
-                        </span>
-                        <span class="dashboard-actions">
-                            {% if turno.tiene_datos_publicos_pendientes_revision %}
-                                <span class="status-badge status-pendiente">Datos por revisar</span>
-                            {% endif %}
-                            <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
-                            <span class="button button-secondary button-small">Ver</span>
-                        </span>
-                    </a>
-                {% endfor %}
+    <section class="metric-grid dashboard-metric-grid stagger-list" aria-label="Resumen de agenda">
+        <a class="metric-card dashboard-metric dashboard-metric-blue animate-fade-up" style="--stagger-index: 0;" href="{{ url_turnos_hoy }}">
+            <span class="dashboard-metric-icon">{% include "includes/icon.html" with name="calendar" %}</span>
+            <span class="dashboard-metric-copy"><span>Turnos de hoy</span><strong>{{ turnos_hoy }}</strong><small>Abrir agenda diaria</small></span>
+            {% include "includes/icon.html" with name="arrow-right" %}
+        </a>
+        <a class="metric-card dashboard-metric dashboard-metric-teal animate-fade-up" style="--stagger-index: 1;" href="{{ url_turnos_semana }}">
+            <span class="dashboard-metric-icon">{% include "includes/icon.html" with name="agenda-week" %}</span>
+            <span class="dashboard-metric-copy"><span>Turnos de la semana</span><strong>{{ turnos_semana }}</strong><small>{{ inicio_semana|date:"d/m" }} al {{ fin_semana|date:"d/m" }}</small></span>
+            {% include "includes/icon.html" with name="arrow-right" %}
+        </a>
+        <a class="metric-card dashboard-metric dashboard-metric-amber animate-fade-up" style="--stagger-index: 2;" href="{{ url_turnos_pendientes }}">
+            <span class="dashboard-metric-icon">{% include "includes/icon.html" with name="clock" %}</span>
+            <span class="dashboard-metric-copy"><span>{% if es_dashboard_odontologo %}Mis pendientes{% else %}Pendientes{% endif %}</span><strong>{{ turnos_pendientes }}</strong><small>Requieren seguimiento</small></span>
+            {% include "includes/icon.html" with name="arrow-right" %}
+        </a>
+        <a class="metric-card dashboard-metric dashboard-metric-red animate-fade-up" style="--stagger-index: 3;" href="{{ url_turnos_datos_por_revisar }}">
+            <span class="dashboard-metric-icon">{% include "includes/icon.html" with name="alert" %}</span>
+            <span class="dashboard-metric-copy"><span>Datos por revisar</span><strong>{{ turnos_datos_por_revisar }}</strong><small>Solicitudes web</small></span>
+            {% include "includes/icon.html" with name="arrow-right" %}
+        </a>
+    </section>
+
+    <div class="dashboard-workspace">
+        <section class="dashboard-agenda-section animate-fade-up" aria-labelledby="dashboard-today-title">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">Agenda operativa</p>
+                    <h2 id="dashboard-today-title">Turnos de hoy</h2>
+                    {% if es_dashboard_odontologo and odontologo_inicio %}
+                        <p class="subtitle">Solo se muestran los turnos de {{ odontologo_inicio }}.</p>
+                    {% else %}
+                        <p class="subtitle">Próximas atenciones del consultorio.</p>
+                    {% endif %}
+                </div>
+                {% if puede_ver_turnos %}<a class="button button-secondary button-small" href="{{ url_turnos_hoy }}">Ver agenda completa</a>{% endif %}
             </div>
-        {% else %}
-            <div class="clinical-empty-state compact">
-                {% if es_dashboard_odontologo %}
-                    <strong>No tenés turnos cargados para hoy.</strong>
-                    <span>Cuando haya turnos asignados a tu agenda, van a aparecer acá.</span>
-                {% else %}
-                    <strong>No hay turnos cargados para hoy.</strong>
-                    <span>Cuando haya turnos en la agenda del consultorio, van a aparecer acá.</span>
+
+            {% if turnos_hoy_lista %}
+                <div class="dashboard-timeline stagger-list">
+                    {% for turno in turnos_hoy_lista %}
+                        <article class="dashboard-timeline-row animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
+                            <time datetime="{{ turno.fecha|date:'Y-m-d' }}T{{ turno.hora_inicio|time:'H:i' }}">{{ turno.hora_inicio|time:"H:i" }}</time>
+                            <span class="dashboard-timeline-marker status-{{ turno.estado }}" aria-hidden="true"></span>
+                            <div class="dashboard-timeline-content">
+                                <div>
+                                    <h3>{{ turno.paciente }}</h3>
+                                    <p>{{ turno.motivo|default:"Sin motivo" }}{% if not es_dashboard_odontologo %} · {{ turno.odontologo }}{% endif %}</p>
+                                </div>
+                                <div class="dashboard-actions">
+                                    {% if turno.tiene_datos_publicos_pendientes_revision %}<span class="status-badge status-pendiente">Datos por revisar</span>{% endif %}
+                                    <span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+                                    <a class="button button-icon button-secondary" href="{% url 'turnos:detalle' turno.pk %}" aria-label="Ver turno de {{ turno.paciente }}">{% include "includes/icon.html" with name="arrow-right" %}</a>
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% include "includes/empty_state.html" with icon_name="calendar" title="Agenda libre por ahora" description="Cuando haya turnos cargados para hoy, van a aparecer en esta línea de tiempo." compact=True %}
+            {% endif %}
+        </section>
+
+        <aside class="dashboard-side-panel animate-fade-up" aria-labelledby="dashboard-review-title">
+            <div class="dashboard-side-header">
+                <span class="dashboard-side-icon">{% include "includes/icon.html" with name="alert" %}</span>
+                <div><p class="eyebrow">Seguimiento</p><h2 id="dashboard-review-title">Para revisar</h2></div>
+            </div>
+            <div class="dashboard-review-list">
+                <a href="{{ url_turnos_pendientes }}"><span><strong>Turnos pendientes</strong><small>Esperan confirmación</small></span><b>{{ turnos_pendientes }}</b></a>
+                <a href="{{ url_turnos_datos_por_revisar }}"><span><strong>Datos por revisar</strong><small>Información enviada por pacientes</small></span><b>{{ turnos_datos_por_revisar }}</b></a>
+                {% if alertas_administrativas_publicas %}
+                    <a href="{{ url_alertas_administrativas }}"><span><strong>Alertas administrativas</strong><small>Requieren intervención</small></span><b>{{ alertas_administrativas_publicas }}</b></a>
                 {% endif %}
             </div>
-        {% endif %}
-    </section>
+            {% if puede_conectar_google_calendar %}
+                <a class="dashboard-calendar-status" href="{% url 'turnos:google_calendar' %}">{% include "includes/icon.html" with name="google" %}<span><strong>Google Calendar</strong><small>Revisar conexión y sincronización</small></span>{% include "includes/icon.html" with name="arrow-right" %}</a>
+            {% endif %}
+            <div class="dashboard-week-summary">
+                <span>Esta semana</span>
+                <strong>{{ turnos_semana }} turnos</strong>
+                <small>Del {{ inicio_semana|date:"d/m" }} al {{ fin_semana|date:"d/m" }}</small>
+            </div>
+        </aside>
+    </div>
 {% endblock %}

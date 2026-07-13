@@ -6,7 +6,16 @@ Aplicación web en Django para gestionar la agenda de un consultorio odontológi
 
 El proyecto busca resolver un flujo real de trabajo: cargar pacientes, administrar turnos, validar disponibilidad, confirmar solicitudes públicas, mantener historia clínica, adjuntar archivos clínicos, sincronizar con Google Calendar y enviar notificaciones por email.
 
-> No hay capturas versionadas en el repositorio por ahora. La documentación describe el estado real del código actual.
+## Interfaz Visual V2
+
+La experiencia pública y el panel interno comparten un sistema visual responsive, accesible y sin frameworks frontend. Las capturas usan datos ficticios generados por los tests E2E.
+
+| Reserva pública | Panel interno |
+| --- | --- |
+| ![Landing pública en escritorio](docs/screenshots/public-home-desktop.png) | ![Dashboard interno en escritorio](docs/screenshots/internal-dashboard-desktop.png) |
+| ![Selección de horario en móvil](docs/screenshots/public-booking-mobile.png) | ![Dashboard interno en móvil](docs/screenshots/internal-dashboard-mobile.png) |
+
+Las referencias completas están en [`docs/screenshots/`](docs/screenshots/). El sistema de diseño y las decisiones de experiencia se documentan en [Design system](docs/design-system.md) e [Interfaz UI/UX V2](docs/ui-ux-v2.md).
 
 ## Estado Actual
 
@@ -86,6 +95,8 @@ Documentación técnica principal:
 - [Email por API HTTP](docs/email_api.md)
 - [Seguridad antes de producción](docs/seguridad_produccion.md)
 - [Rendimiento y fluidez](docs/rendimiento_y_fluidez.md)
+- [Sistema de diseño](docs/design-system.md)
+- [Interfaz UI/UX V2](docs/ui-ux-v2.md)
 
 ## Estructura Del Repositorio
 

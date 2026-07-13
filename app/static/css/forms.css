@@ -228,3 +228,144 @@ tr:last-child td {
     gap: 14px;
     margin-bottom: 18px;
 }
+
+/* Internal form system V2 */
+.internal-form-v2 {
+    max-width: 980px;
+    display: grid;
+    gap: 0;
+    overflow: clip;
+    margin-inline: auto;
+    padding: 0;
+}
+
+.internal-form-v2 .form-error-panel,
+.internal-form-v2 > .field-error {
+    margin: var(--space-4) var(--space-5) 0;
+    border: 1px solid var(--red-100);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3) var(--space-4);
+    background: var(--red-50);
+    color: var(--red-700);
+}
+
+.form-section {
+    display: grid;
+    gap: var(--space-5);
+    padding: var(--space-5);
+}
+
+.form-section + .form-section {
+    border-top: 1px solid var(--line);
+}
+
+.form-section > header {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: start;
+}
+
+.form-section > header > span {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--teal-50);
+    color: var(--teal-700);
+}
+
+.form-section > header h2,
+.form-section > header p {
+    margin: 0;
+}
+
+.form-section > header h2 {
+    color: var(--navy-800);
+    font-size: var(--font-lg);
+}
+
+.form-section > header p {
+    margin-top: var(--space-1);
+    color: var(--muted);
+    font-size: var(--font-sm);
+}
+
+.internal-form-v2 .form-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.internal-form-v2 .form-field {
+    min-width: 0;
+    grid-column: span 6;
+}
+
+.internal-form-v2 .form-field-medium {
+    grid-column: span 5;
+}
+
+.internal-form-v2 .form-field-short {
+    grid-column: span 4;
+}
+
+.internal-form-v2 .field-full {
+    grid-column: 1 / -1;
+}
+
+.form-field label {
+    color: var(--gray-700);
+    font-size: var(--font-sm);
+}
+
+.required-mark {
+    margin-left: 0.2rem;
+    color: var(--red-700);
+}
+
+.form-field:focus-within label {
+    color: var(--primary-dark);
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    border-color: var(--line-strong);
+    background: var(--surface);
+}
+
+.form-field textarea {
+    min-height: 112px;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: var(--primary);
+    outline: 3px solid color-mix(in srgb, var(--primary) 16%, transparent);
+    outline-offset: 0;
+}
+
+.field-help {
+    margin: var(--space-1) 0 0;
+    color: var(--muted);
+    font-size: var(--font-xs);
+}
+
+.sticky-form-actions {
+    position: sticky;
+    z-index: 4;
+    bottom: var(--space-3);
+    align-items: center;
+    margin: 0;
+    border-top: 1px solid var(--line);
+    padding: var(--space-4) var(--space-5);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.05);
+    backdrop-filter: blur(10px);
+}
+
+.form-clinical-section {
+    background: var(--teal-50);
+}

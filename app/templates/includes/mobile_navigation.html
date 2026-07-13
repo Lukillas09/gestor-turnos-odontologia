@@ -1,0 +1,38 @@
+<nav class="mobile-navigation" aria-label="Navegación móvil">
+    <a class="mobile-nav-link{% if request.resolver_match.url_name == 'inicio' %} is-active{% endif %}" href="{% url 'inicio' %}" {% if request.resolver_match.url_name == 'inicio' %}aria-current="page"{% endif %}>
+        {% include "includes/icon.html" with name="home" %}<span>Inicio</span>
+    </a>
+    {% if puede_ver_turnos %}
+        <a class="mobile-nav-link{% if request.resolver_match.url_name == 'agenda_dia' or request.resolver_match.url_name == 'agenda_semana' %} is-active{% endif %}" href="{% url 'turnos:agenda_dia' %}" {% if request.resolver_match.url_name == 'agenda_dia' or request.resolver_match.url_name == 'agenda_semana' %}aria-current="page"{% endif %}>
+            {% include "includes/icon.html" with name="agenda-day" %}<span>Agenda</span>
+        </a>
+        <a class="mobile-nav-link{% if request.resolver_match.namespace == 'turnos' and request.resolver_match.url_name == 'lista' %} is-active{% endif %}" href="{% url 'turnos:lista' %}" {% if request.resolver_match.namespace == 'turnos' and request.resolver_match.url_name == 'lista' %}aria-current="page"{% endif %}>
+            {% include "includes/icon.html" with name="appointments" %}<span>Turnos</span>
+        </a>
+    {% else %}
+        <span class="mobile-nav-link" aria-hidden="true">{% include "includes/icon.html" with name="agenda-day" %}<span>Agenda</span></span>
+        <span class="mobile-nav-link" aria-hidden="true">{% include "includes/icon.html" with name="appointments" %}<span>Turnos</span></span>
+    {% endif %}
+    {% if puede_ver_pacientes %}
+        <a class="mobile-nav-link{% if request.resolver_match.namespace == 'pacientes' or request.resolver_match.namespace == 'historias' %} is-active{% endif %}" href="{% url 'pacientes:lista' %}" {% if request.resolver_match.namespace == 'pacientes' or request.resolver_match.namespace == 'historias' %}aria-current="page"{% endif %}>
+            {% include "includes/icon.html" with name="patients" %}<span>Pacientes</span>
+        </a>
+    {% else %}
+        <span class="mobile-nav-link" aria-hidden="true">{% include "includes/icon.html" with name="patients" %}<span>Pacientes</span></span>
+    {% endif %}
+    <details class="mobile-more" data-mobile-more>
+        <summary aria-label="Abrir más opciones" aria-expanded="false" aria-controls="mobile-more-panel">{% include "includes/icon.html" with name="more" %}<span>Más</span></summary>
+        <span class="mobile-more-overlay" data-mobile-more-close aria-hidden="true"></span>
+        <div class="mobile-more-panel" id="mobile-more-panel" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
+            <div class="mobile-more-title"><h2 id="mobile-more-title">Más opciones</h2><button class="button button-icon button-secondary" type="button" data-mobile-more-close aria-label="Cerrar menú">{% include "includes/icon.html" with name="close" %}</button></div>
+            <div class="mobile-more-links">
+                {% if puede_ver_excepciones_agenda %}<a class="mobile-more-link" href="{% url 'turnos:excepciones' %}">{% include "includes/icon.html" with name="block" %} Bloqueos y excepciones</a>{% endif %}
+                {% if puede_configurar_consultorio %}<a class="mobile-more-link" href="{% url 'consultorio:configuracion' %}">{% include "includes/icon.html" with name="settings" %} Perfil del consultorio</a>{% endif %}
+                {% if puede_conectar_google_calendar %}<a class="mobile-more-link" href="{% url 'turnos:google_calendar' %}">{% include "includes/icon.html" with name="google" %} Google Calendar</a>{% endif %}
+                <a class="mobile-more-link" href="{% url 'perfil' %}">{% include "includes/icon.html" with name="user" %} Mi perfil</a>
+                {% if request.user.is_staff and puede_configurar_disponibilidad %}<a class="mobile-more-link" href="{% url 'admin:index' %}">{% include "includes/icon.html" with name="admin" %} Administración</a>{% endif %}
+                <form class="mobile-more-link logout-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">{% include "includes/icon.html" with name="logout" %} Cerrar sesión</button></form>
+            </div>
+        </div>
+    </details>
+</nav>

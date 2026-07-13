@@ -3,125 +3,39 @@
 {% block title %}Historia clínica de {{ paciente }} | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <div class="page-header animate-fade-up">
-        <div>
-            <h1>Historia clínica</h1>
-            <p class="subtitle">{{ paciente.nombre_completo }}</p>
-        </div>
-        <div class="header-actions">
-            <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">Volver</a>
-            {% if puede_crear_historia_clinica %}
-                <a class="button" href="{% url 'historias:crear' paciente.pk %}">Nueva entrada</a>
-            {% endif %}
-        </div>
-    </div>
+    <div class="patient-backline animate-fade-up"><a class="button button-secondary button-small button-subtle" href="{% url 'pacientes:detalle' paciente.pk %}">{% include "includes/icon.html" with name="arrow-left" %} Volver a la ficha</a></div>
+    <header class="internal-page-heading clinical-history-heading animate-fade-up">
+        <div class="clinical-history-patient"><span class="patient-avatar">{{ paciente.apellido|default:paciente.nombre|first|upper }}</span><div><p class="eyebrow">Historia clínica</p><h1>{{ paciente.nombre_completo }}</h1><p class="subtitle">DNI {{ paciente.documento|default:"-" }} · {{ page_obj.paginator.count }} entrada{% if page_obj.paginator.count != 1 %}s{% endif %}</p></div></div>
+        {% if puede_crear_historia_clinica %}<a class="button" href="{% url 'historias:crear' paciente.pk %}">{% include "includes/icon.html" with name="plus" %} Nueva entrada</a>{% endif %}
+    </header>
 
-    <section class="metric-grid stagger-list">
-        <div class="metric-card animate-fade-up card-hover" style="--stagger-index: 0;">
-            <span class="metric-label">Paciente</span>
-            <strong>{{ paciente.apellido }}</strong>
-        </div>
-        <div class="metric-card animate-fade-up card-hover" style="--stagger-index: 1;">
-            <span class="metric-label">DNI</span>
-            <strong>{{ paciente.documento|default:"-" }}</strong>
-        </div>
-        <div class="metric-card animate-fade-up card-hover" style="--stagger-index: 2;">
-            <span class="metric-label">Entradas</span>
-            <strong>{{ page_obj.paginator.count }}</strong>
-        </div>
-    </section>
-
-    <form class="filter-panel animate-fade-up" method="get" novalidate>
-        {% if filtros_form.non_field_errors %}
-            <div class="field-error field-full">{{ filtros_form.non_field_errors }}</div>
-        {% endif %}
-
-        <div>
-            <label for="{{ filtros_form.q.id_for_label }}">{{ filtros_form.q.label }}</label>
-            {{ filtros_form.q }}
-            {% if filtros_form.q.errors %}
-                <div class="field-error">{{ filtros_form.q.errors }}</div>
-            {% endif %}
-        </div>
-        <div>
-            <label for="{{ filtros_form.fecha_desde.id_for_label }}">{{ filtros_form.fecha_desde.label }}</label>
-            {{ filtros_form.fecha_desde }}
-            {% if filtros_form.fecha_desde.errors %}
-                <div class="field-error">{{ filtros_form.fecha_desde.errors }}</div>
-            {% endif %}
-        </div>
-        <div>
-            <label for="{{ filtros_form.fecha_hasta.id_for_label }}">{{ filtros_form.fecha_hasta.label }}</label>
-            {{ filtros_form.fecha_hasta }}
-            {% if filtros_form.fecha_hasta.errors %}
-                <div class="field-error">{{ filtros_form.fecha_hasta.errors }}</div>
-            {% endif %}
-        </div>
-        <div class="filter-actions">
-            <button type="submit">Filtrar</button>
-            <a class="button button-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Limpiar</a>
-        </div>
-    </form>
+    <details class="list-filters-panel history-filters-panel animate-fade-up" open>
+        <summary>{% include "includes/icon.html" with name="filter" %} Filtrar historia</summary>
+        <form class="history-filter-form" method="get" novalidate>
+            {% if filtros_form.non_field_errors %}<div class="field-error field-full" role="alert">{{ filtros_form.non_field_errors }}</div>{% endif %}
+            {% include "includes/form_field.html" with field=filtros_form.q %}
+            {% include "includes/form_field.html" with field=filtros_form.fecha_desde short=True %}
+            {% include "includes/form_field.html" with field=filtros_form.fecha_hasta short=True %}
+            <div class="filter-actions"><button type="submit">Filtrar</button><a class="button button-secondary" href="{% url 'historias:lista_paciente' paciente.pk %}">Limpiar</a></div>
+        </form>
+    </details>
 
     {% if historias %}
-        <div class="timeline-list stagger-list">
+        <section class="clinical-history-timeline stagger-list" aria-label="Evoluciones clínicas">
             {% for historia in historias %}
-                <article class="timeline-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
-                    <div class="timeline-meta">
-                        <div>
-                            <strong>{{ historia.fecha|date:"d/m/Y" }}</strong>
-                            <span>{{ historia.odontologo }}</span>
-                        </div>
-                        {% if historia.proximo_control %}
-                            <span class="status-badge status-sync-ok">Control {{ historia.proximo_control|date:"d/m/Y" }}</span>
-                        {% endif %}
-                    </div>
-                    <p class="muted">
-                        {% if historia.creado_por %}
-                            Cargado por {{ historia.creado_por.get_full_name|default:historia.creado_por.username }}
-                        {% else %}
-                            Cargado por -
-                        {% endif %}
-                        - Adjuntos: {{ historia.cantidad_adjuntos }}
-                    </p>
-                    <dl class="detail-grid">
-                        <div class="field-full">
-                            <dt>Motivo</dt>
-                            <dd>{{ historia.motivo_consulta|linebreaksbr }}</dd>
-                        </div>
-                        <div>
-                            <dt>Pieza dental</dt>
-                            <dd>{{ historia.pieza_dental|default:"-" }}</dd>
-                        </div>
-                        <div>
-                            <dt>Diagnóstico</dt>
-                            <dd>{{ historia.diagnostico|truncatechars:90|default:"-" }}</dd>
-                        </div>
-                    </dl>
-                    <div class="timeline-actions">
-                        <a class="text-link" href="{% url 'historias:detalle' historia.pk %}">Ver detalle</a>
-                        {% if historia.odontologo.usuario_id == request.user.id %}
-                            <a class="text-link" href="{% url 'historias:editar' historia.pk %}">Editar</a>
-                        {% endif %}
+                <article class="clinical-history-row animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
+                    <div class="clinical-history-date"><time datetime="{{ historia.fecha|date:'Y-m-d' }}"><strong>{{ historia.fecha|date:"d" }}</strong><span>{{ historia.fecha|date:"M Y" }}</span></time><span class="clinical-history-dot" aria-hidden="true"></span></div>
+                    <div class="clinical-history-entry">
+                        <header><div><p>{{ historia.odontologo }}</p><h2>{{ historia.motivo_consulta|truncatechars:110 }}</h2></div>{% if historia.proximo_control %}<span class="status-badge status-sync-ok">Control {{ historia.proximo_control|date:"d/m/Y" }}</span>{% endif %}</header>
+                        <div class="clinical-history-summary"><div><span>Diagnóstico</span><p>{{ historia.diagnostico|truncatechars:140|default:"Sin diagnóstico cargado" }}</p></div><div><span>Pieza</span><p>{{ historia.pieza_dental|default:"-" }}</p></div></div>
+                        <footer><span>{% include "includes/icon.html" with name="attachment" %} {{ historia.cantidad_adjuntos }} adjunto{% if historia.cantidad_adjuntos != 1 %}s{% endif %}</span><span>{% if historia.creado_por %}Cargado por {{ historia.creado_por.get_full_name|default:historia.creado_por.username }}{% else %}Cargado por -{% endif %}</span><a class="button button-secondary button-small" href="{% url 'historias:detalle' historia.pk %}">Ver detalle</a>{% if historia.odontologo.usuario_id == request.user.id %}<a class="button button-tertiary button-small" href="{% url 'historias:editar' historia.pk %}">{% include "includes/icon.html" with name="edit" %} Editar</a>{% endif %}</footer>
                     </div>
                 </article>
             {% endfor %}
-        </div>
+        </section>
     {% else %}
-        <div class="empty-state animate-fade-up">
-            <p>No hay entradas de historia clínica para este paciente.</p>
-        </div>
+        {% url 'historias:crear' paciente.pk as crear_historia_url %}{% if puede_crear_historia_clinica %}{% include "includes/empty_state.html" with icon_name="clinical" title="Sin entradas clínicas" description="Registrá la primera evolución de este paciente." action_url=crear_historia_url action_label="Nueva entrada" %}{% else %}{% include "includes/empty_state.html" with icon_name="clinical" title="Sin entradas clínicas" description="No hay evoluciones registradas para este paciente." %}{% endif %}
     {% endif %}
 
-    {% if is_paginated %}
-        <div class="form-actions animate-fade-up">
-            {% if page_obj.has_previous %}
-                <a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
-            {% endif %}
-            <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}
-                <a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
-            {% endif %}
-        </div>
-    {% endif %}
+    {% if is_paginated %}<nav class="pagination-actions animate-fade-up" aria-label="Paginación de historia clínica">{% if page_obj.has_previous %}<a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">{% include "includes/icon.html" with name="arrow-left" %} Anterior</a>{% endif %}<span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Siguiente {% include "includes/icon.html" with name="arrow-right" %}</a>{% endif %}</nav>{% endif %}
 {% endblock %}

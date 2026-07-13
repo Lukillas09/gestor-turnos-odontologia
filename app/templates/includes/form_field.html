@@ -1,0 +1,6 @@
+<div class="form-field{% if full %} field-full{% endif %}{% if short %} form-field-short{% endif %}{% if medium %} form-field-medium{% endif %}{% if extra_class %} {{ extra_class }}{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> obligatorio</span>{% endif %}</label>
+    {{ field }}
+    {% if field.help_text %}<p class="field-help" id="{{ field.id_for_label }}-help">{{ field.help_text }}</p>{% endif %}
+    {% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}
+</div>

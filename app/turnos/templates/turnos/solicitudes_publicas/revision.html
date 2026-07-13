@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ titulo_revision }} | Gestor de Turnos{% endblock %}
 
@@ -214,46 +215,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-    <script>
-        (() => {
-            const form = document.querySelector("[data-review-form]");
-
-            if (!form) {
-                return;
-            }
-
-            const submitButton = form.querySelector("[data-review-submit]");
-            const actionInputs = Array.from(form.querySelectorAll("[data-review-action]"));
-            const fieldGroup = document.querySelector("[data-review-field-group]");
-            const fieldCheckboxes = Array.from(document.querySelectorAll("[data-review-field-checkbox]"));
-
-            function syncReviewState() {
-                const selectedAction = actionInputs.find((input) => input.checked);
-
-                if (!selectedAction) {
-                    return;
-                }
-
-                if (submitButton && selectedAction.dataset.buttonLabel) {
-                    submitButton.textContent = selectedAction.dataset.buttonLabel;
-                }
-
-                const canSelectFields = selectedAction.value === "aplicar_campos";
-
-                if (fieldGroup) {
-                    fieldGroup.classList.toggle("is-disabled", !canSelectFields);
-                }
-
-                fieldCheckboxes.forEach((checkbox) => {
-                    checkbox.disabled = !canSelectFields;
-                });
-            }
-
-            actionInputs.forEach((input) => {
-                input.addEventListener("change", syncReviewState);
-            });
-
-            syncReviewState();
-        })();
-    </script>
+    <script src="{% static 'js/review-form.js' %}" defer></script>
 {% endblock %}
