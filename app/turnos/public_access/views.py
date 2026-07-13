@@ -19,6 +19,7 @@ from turnos.forms import (
     VerificacionAccesoPublicoTurnosForm,
 )
 from turnos.integrations.turnstile import validar_turnstile
+from turnos.mixins import PublicShellMixin
 from turnos.models import AccionPublicaTurno
 
 from .permissions import AccesoPublicoTurnosRequeridoMixin
@@ -49,7 +50,7 @@ from .tokens import (
 )
 
 
-class SolicitarAccesoPublicoTurnosView(FormView):
+class SolicitarAccesoPublicoTurnosView(PublicShellMixin, FormView):
     form_class = SolicitudAccesoPublicoTurnosForm
     template_name = "turnos/public_access/solicitar_acceso.html"
     success_url = "turnos:acceso_publico_verificar"
@@ -107,7 +108,7 @@ class SolicitarAccesoPublicoTurnosView(FormView):
         return requiere_por_ip or requiere_por_dni
 
 
-class VerificarAccesoPublicoTurnosView(FormView):
+class VerificarAccesoPublicoTurnosView(PublicShellMixin, FormView):
     form_class = VerificacionAccesoPublicoTurnosForm
     template_name = "turnos/public_access/verificar.html"
 
@@ -135,7 +136,11 @@ class VerificarAccesoPublicoTurnosView(FormView):
         return redirect("turnos:mis_turnos_publico")
 
 
-class MisTurnosPublicoView(AccesoPublicoTurnosRequeridoMixin, TemplateView):
+class MisTurnosPublicoView(
+    PublicShellMixin,
+    AccesoPublicoTurnosRequeridoMixin,
+    TemplateView,
+):
     template_name = "turnos/public_access/mis_turnos.html"
 
     def get_context_data(self, **kwargs):
@@ -267,7 +272,11 @@ class HorariosReprogramacionPublicaJsonView(AccesoPublicoTurnosRequeridoMixin, V
         )
 
 
-class ReprogramarTurnoPublicoSeguroView(AccesoPublicoTurnosRequeridoMixin, FormView):
+class ReprogramarTurnoPublicoSeguroView(
+    PublicShellMixin,
+    AccesoPublicoTurnosRequeridoMixin,
+    FormView,
+):
     form_class = TurnoReprogramacionAccesoPublicoForm
     template_name = "turnos/public_access/reprogramar.html"
     accion = None

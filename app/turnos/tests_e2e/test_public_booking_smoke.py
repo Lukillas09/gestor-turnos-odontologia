@@ -15,6 +15,15 @@ from consultorio.services import obtener_configuracion_consultorio
 from turnos.models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
 
 SCREENSHOT_DIR = Path(__file__).resolve().parents[3] / "docs" / "screenshots"
+RESPONSIVE_VIEWPORTS = (
+    (320, 568),
+    (360, 800),
+    (390, 844),
+    (393, 852),
+    (430, 932),
+    (768, 1024),
+    (1440, 900),
+)
 
 
 def _fecha_laboral_futura():
@@ -65,9 +74,11 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         User = get_user_model()
         usuario = User.objects.create_user(
             username="dra.publica.e2e",
+            password="clave-segura-e2e",
             first_name="Dra",
             last_name="Publica",
         )
+        self.usuario = usuario
         self.odontologo = Odontologo.objects.create(
             usuario=usuario,
             matricula="E2E-PUB",
@@ -130,6 +141,23 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         )
         self.assertEqual(visible_overflow, [])
 
+    def _assert_centered(self, selector):
+        box = self.page.locator(selector).bounding_box()
+        viewport = self.page.viewport_size
+        self.assertIsNotNone(box)
+        self.assertIsNotNone(viewport)
+        margen_izquierdo = box["x"]
+        margen_derecho = viewport["width"] - (box["x"] + box["width"])
+        self.assertAlmostEqual(margen_izquierdo, margen_derecho, delta=2)
+        self.assertGreaterEqual(margen_izquierdo, 15)
+
+    def _login(self):
+        self.page.goto(f"{self.live_server_url}{reverse('login')}")
+        self.page.fill("input[name='username']", self.usuario.username)
+        self.page.fill("input[name='password']", "clave-segura-e2e")
+        self.page.get_by_role("button", name="Ingresar").click()
+        self.page.wait_for_url(f"**{reverse('inicio')}")
+
     def test_flujo_publico_crea_un_turno_pendiente(self):
         self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
         self.page.get_by_text("Solicitar turno").first.wait_for()
@@ -172,15 +200,19 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.assertEqual(SolicitudTurnoPublica.objects.filter(turno=turno).count(), 1)
 
     def test_landing_publica_mobile_sin_scroll_horizontal(self):
-        self.context.close()
-        self.context = self.browser.new_context(viewport={"width": 390, "height": 844})
-        self.page = self.context.new_page()
+        for width, height in RESPONSIVE_VIEWPORTS:
+            with self.subTest(viewport=f"{width}x{height}"):
+                self.page.set_viewport_size({"width": width, "height": height})
+                self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
+                self.page.get_by_role("link", name="Solicitar turno").first.wait_for()
+                self.page.wait_for_timeout(150)
+                self._assert_centered(".public-home-hero-v2")
+                self._assert_no_horizontal_overflow()
 
+        self.page.set_viewport_size({"width": 390, "height": 844})
         self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
         self.page.get_by_role("link", name="Solicitar turno").first.wait_for()
-        self.page.wait_for_timeout(400)
         self._capture("public-home-mobile.png")
-        self._assert_no_horizontal_overflow()
 
         self.page.get_by_role("link", name="Solicitar turno").first.click()
         self.page.locator(".public-search-panel-v2.is-enhanced").wait_for()
@@ -191,3 +223,28 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.locator(".public-booking-results").scroll_into_view_if_needed()
         self._capture("public-booking-mobile.png")
         self._assert_no_horizontal_overflow()
+
+    def test_landing_autenticada_conserva_shell_publico(self):
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self._login()
+
+        self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
+        self.page.locator(".public-home-hero-v2").wait_for()
+
+        self.assertEqual(self.page.locator("body.public-shell-body").count(), 1)
+        self.assertEqual(self.page.locator(".public-topbar").count(), 1)
+        self.assertEqual(self.page.locator(".app-sidebar").count(), 0)
+        self.assertEqual(self.page.locator(".app-topbar").count(), 0)
+        self.assertEqual(self.page.locator(".mobile-navigation").count(), 0)
+        self._assert_centered(".public-home-hero-v2")
+        self._assert_no_horizontal_overflow()
+        self._capture("public-home-authenticated-mobile.png")
+
+        self.page.goto(f"{self.live_server_url}{reverse('inicio')}")
+        self.page.locator(".app-page").wait_for()
+
+        self.assertEqual(self.page.locator("body.app-shell-body").count(), 1)
+        self.page.locator(".mobile-navigation").wait_for()
+        self._assert_centered(".app-page")
+        self._assert_no_horizontal_overflow()
+        self._capture("internal-home-after-public-mobile.png")

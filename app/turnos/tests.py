@@ -1111,6 +1111,28 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, reverse("turnos:acceso_publico_solicitar"))
         self.assertContains(response, reverse("login"))
 
+    def test_landing_publica_mantiene_shell_publico_con_usuario_autenticado(self):
+        self.client.force_login(self.odontologo.usuario)
+
+        response = self.client.get(reverse("landing_publica"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["usar_shell_publico"])
+        self.assertContains(response, '<body class="public-shell-body">')
+        self.assertContains(response, 'class="topbar public-topbar"')
+        self.assertContains(response, 'id="main-content" class="page page-transition"')
+        self.assertNotContains(response, 'class="app-sidebar"')
+        self.assertNotContains(response, 'class="app-topbar"')
+        self.assertNotContains(response, 'class="mobile-navigation"')
+
+        response_interna = self.client.get(reverse("inicio"))
+
+        self.assertEqual(response_interna.status_code, 200)
+        self.assertContains(response_interna, '<body class="app-shell-body">')
+        self.assertContains(response_interna, 'class="app-sidebar"')
+        self.assertContains(response_interna, 'class="app-topbar"')
+        self.assertContains(response_interna, 'class="mobile-navigation"')
+
     def _datos_solicitud_publica(self, **overrides):
         datos = {
             "nombre": "Lucia",

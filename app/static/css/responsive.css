@@ -1,3 +1,11 @@
+:root {
+    --mobile-content-gutter: max(
+        16px,
+        env(safe-area-inset-left),
+        env(safe-area-inset-right)
+    );
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -25,11 +33,14 @@
     .topbar-inner,
     .page,
     .app-page {
-        width: min(100% - 20px, 1120px);
+        width: min(
+            calc(100% - var(--mobile-content-gutter) - var(--mobile-content-gutter)),
+            var(--content-max)
+        );
+        margin-inline: auto;
     }
 
-    .app-topbar,
-    .app-page {
+    .app-topbar {
         margin-left: 0;
     }
 
@@ -403,7 +414,11 @@
 
     .page,
     .app-page {
-        width: min(100% - 16px, 1120px);
+        width: min(
+            calc(100% - var(--mobile-content-gutter) - var(--mobile-content-gutter)),
+            var(--content-max)
+        );
+        margin-inline: auto;
     }
 
     .page {
@@ -560,7 +575,11 @@
 
     .topbar-inner,
     .page {
-        width: min(100% - 32px, var(--content-max));
+        width: min(
+            calc(100% - var(--mobile-content-gutter) - var(--mobile-content-gutter)),
+            var(--content-max)
+        );
+        margin-inline: auto;
     }
 
     .public-home-hero-v2 {
@@ -1026,14 +1045,21 @@
     }
 
     .app-page {
-        width: min(100% - 24px, var(--content-max));
-        margin-left: 0;
+        width: min(
+            calc(100% - var(--mobile-content-gutter) - var(--mobile-content-gutter)),
+            var(--content-max)
+        );
+        margin-inline: auto;
         padding: var(--space-5) 0;
     }
 
     .topbar-inner,
     .page {
-        width: min(100% - 24px, var(--content-max));
+        width: min(
+            calc(100% - var(--mobile-content-gutter) - var(--mobile-content-gutter)),
+            var(--content-max)
+        );
+        margin-inline: auto;
     }
 
     .topbar-inner {

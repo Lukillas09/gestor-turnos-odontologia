@@ -29,6 +29,7 @@ from ..forms import (
     SolicitudTurnoBusquedaPublicaForm,
     SolicitudTurnoPublicaForm,
 )
+from ..mixins import PublicShellMixin
 from ..models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
 from ..services import crear_solicitud_turno_publica_resultado
 from ..solicitudes_publicas.proteccion import (
@@ -126,7 +127,7 @@ def _obtener_entero_configurado(nombre, default):
         return default
 
 
-class LandingPublicaPacientesView(TemplateView):
+class LandingPublicaPacientesView(PublicShellMixin, TemplateView):
     template_name = "turnos/public/landing.html"
 
     def get_context_data(self, **kwargs):
@@ -274,7 +275,11 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
         return f"{reverse('turnos:solicitud_publica_datos')}?{querystring}"
 
 
-class SolicitudTurnoPublicaView(SolicitudTurnoPublicaDisponibilidadMixin, TemplateView):
+class SolicitudTurnoPublicaView(
+    PublicShellMixin,
+    SolicitudTurnoPublicaDisponibilidadMixin,
+    TemplateView,
+):
     template_name = "turnos/solicitud_publica_seleccion.html"
 
     def get_context_data(self, **kwargs):
@@ -488,7 +493,7 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
         ]
 
 
-class SolicitudTurnoPublicaDatosView(FormView):
+class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
     form_class = SolicitudTurnoPublicaForm
     template_name = "turnos/solicitud_publica_form.html"
     success_url = reverse_lazy("landing_publica")
@@ -703,7 +708,7 @@ class SolicitudTurnoPublicaDatosView(FormView):
         }
 
 
-class SolicitudTurnoPublicaOkView(TemplateView):
+class SolicitudTurnoPublicaOkView(PublicShellMixin, TemplateView):
     template_name = "turnos/solicitud_publica_ok.html"
 
     def get_context_data(self, **kwargs):
