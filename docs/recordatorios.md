@@ -56,30 +56,48 @@ Para activarlo en GitHub:
 STAGING_RECORDATORIOS_ACTIVO=true
 ```
 
-3. Crear los secrets minimos:
+3. Crear los secrets obligatorios:
 
 ```text
 STAGING_DJANGO_SECRET_KEY
 STAGING_DJANGO_ALLOWED_HOSTS
 STAGING_DJANGO_CSRF_TRUSTED_ORIGINS
 STAGING_DATABASE_URL
+STAGING_OAUTH_TOKEN_ENCRYPTION_KEY
 STAGING_EMAIL_BACKEND
 STAGING_EMAIL_API_PROVIDER
 STAGING_EMAIL_API_KEY
 STAGING_DEFAULT_FROM_EMAIL
 ```
 
-Valores esperados para staging:
+`STAGING_OAUTH_TOKEN_ENCRYPTION_KEY` debe contener la misma clave Fernet estable que usa el entorno conectado a la base de staging. No se debe generar una clave nueva en cada ejecución porque dejaría inaccesibles los tokens OAuth cifrados previamente.
+
+Valores no secretos recomendados para Resend:
 
 ```text
-STAGING_DJANGO_ALLOWED_HOSTS=tu-app.up.railway.app
-STAGING_DJANGO_CSRF_TRUSTED_ORIGINS=https://tu-app.up.railway.app
 STAGING_EMAIL_BACKEND=config.email_backends.EmailApiBackend
 STAGING_EMAIL_API_PROVIDER=resend
-STAGING_DEFAULT_FROM_EMAIL=Consultorio Odontologico <onboarding@resend.dev>
 ```
 
-El workflow corre automaticamente cada hora. Tambien se puede ejecutar manualmente desde `Actions` -> `Staging recordatorios` -> `Run workflow`.
+Secrets opcionales según el backend seleccionado:
+
+```text
+STAGING_EMAIL_API_URL
+STAGING_EMAIL_HOST
+STAGING_EMAIL_PORT
+STAGING_EMAIL_HOST_USER
+STAGING_EMAIL_HOST_PASSWORD
+STAGING_EMAIL_USE_TLS
+STAGING_EMAIL_USE_SSL
+```
+
+Con `config.email_backends.EmailApiBackend`, el workflow exige que `STAGING_EMAIL_API_PROVIDER` y `STAGING_EMAIL_API_KEY` no estén vacíos. También rechaza explícitamente los backends de consola, memoria, dummy y archivos para evitar ejecuciones exitosas que no envíen emails reales.
+
+El job configura `TURNOS_PUBLIC_REDIS_REQUIRED=False` y deja `REDIS_URL` vacío únicamente durante la ejecución programada. Este proceso no atiende tráfico público ni necesita el rate limiting distribuido; la aplicación web en Railway conserva su configuración y política de Redis independientes.
+
+Antes de enviar recordatorios, el workflow valida los Secrets requeridos y ejecuta `python manage.py check` con `DJANGO_DEBUG=False`. No ejecuta migraciones ni `collectstatic`.
+
+El workflow corre automáticamente cada hora. También se puede ejecutar manualmente desde `Actions` -> `Staging recordatorios` -> `Run workflow`.
 
 En ejecucion manual se puede cambiar `horas` para probar una ventana mas amplia, por ejemplo `72`.
 

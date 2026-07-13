@@ -10,10 +10,18 @@ on:
   schedule:
     - cron: "0 * * * *"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-recordatorios
+  cancel-in-progress: false
+
 jobs:
   enviar-recordatorios:
     if: ${{ vars.STAGING_RECORDATORIOS_ACTIVO == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     env:
       DJANGO_DEBUG: "False"
@@ -24,17 +32,20 @@ jobs:
       DJANGO_SESSION_COOKIE_SECURE: "True"
       DJANGO_CSRF_COOKIE_SECURE: "True"
       DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-      EMAIL_BACKEND: ${{ secrets.STAGING_EMAIL_BACKEND || 'django.core.mail.backends.console.EmailBackend' }}
+      OAUTH_TOKEN_ENCRYPTION_KEY: ${{ secrets.STAGING_OAUTH_TOKEN_ENCRYPTION_KEY }}
+      TURNOS_PUBLIC_REDIS_REQUIRED: "False"
+      REDIS_URL: ""
+      EMAIL_BACKEND: ${{ secrets.STAGING_EMAIL_BACKEND }}
       EMAIL_HOST: ${{ secrets.STAGING_EMAIL_HOST || 'localhost' }}
       EMAIL_PORT: ${{ secrets.STAGING_EMAIL_PORT || '25' }}
       EMAIL_HOST_USER: ${{ secrets.STAGING_EMAIL_HOST_USER }}
       EMAIL_HOST_PASSWORD: ${{ secrets.STAGING_EMAIL_HOST_PASSWORD }}
       EMAIL_USE_TLS: ${{ secrets.STAGING_EMAIL_USE_TLS || 'False' }}
       EMAIL_USE_SSL: ${{ secrets.STAGING_EMAIL_USE_SSL || 'False' }}
-      EMAIL_API_PROVIDER: ${{ secrets.STAGING_EMAIL_API_PROVIDER || 'resend' }}
+      EMAIL_API_PROVIDER: ${{ secrets.STAGING_EMAIL_API_PROVIDER }}
       EMAIL_API_KEY: ${{ secrets.STAGING_EMAIL_API_KEY }}
       EMAIL_API_URL: ${{ secrets.STAGING_EMAIL_API_URL }}
-      DEFAULT_FROM_EMAIL: ${{ secrets.STAGING_DEFAULT_FROM_EMAIL || 'turnos@localhost' }}
+      DEFAULT_FROM_EMAIL: ${{ secrets.STAGING_DEFAULT_FROM_EMAIL }}
       TURNOS_RECORDATORIO_HORAS: ${{ inputs.horas || '24' }}
       GOOGLE_CALENDAR_CLIENT_ID: ${{ secrets.STAGING_GOOGLE_CALENDAR_CLIENT_ID }}
       GOOGLE_CALENDAR_CLIENT_SECRET: ${{ secrets.STAGING_GOOGLE_CALENDAR_CLIENT_SECRET }}
@@ -58,13 +69,38 @@ jobs:
 
       - name: Validar variables minimas
         run: |
-          test -n "$DJANGO_SECRET_KEY"
-          test -n "$DJANGO_ALLOWED_HOSTS"
-          test -n "$DJANGO_CSRF_TRUSTED_ORIGINS"
-          test -n "$DATABASE_URL"
+          require_secret() {
+            secret_name="$1"
+            secret_value="$2"
+            if [ -z "$secret_value" ]; then
+              echo "::error::Falta el secret ${secret_name}."
+              exit 1
+            fi
+          }
+
+          require_secret "STAGING_DJANGO_SECRET_KEY" "$DJANGO_SECRET_KEY"
+          require_secret "STAGING_DJANGO_ALLOWED_HOSTS" "$DJANGO_ALLOWED_HOSTS"
+          require_secret "STAGING_DJANGO_CSRF_TRUSTED_ORIGINS" "$DJANGO_CSRF_TRUSTED_ORIGINS"
+          require_secret "STAGING_DATABASE_URL" "$DATABASE_URL"
+          require_secret "STAGING_OAUTH_TOKEN_ENCRYPTION_KEY" "$OAUTH_TOKEN_ENCRYPTION_KEY"
+          require_secret "STAGING_EMAIL_BACKEND" "$EMAIL_BACKEND"
+          require_secret "STAGING_DEFAULT_FROM_EMAIL" "$DEFAULT_FROM_EMAIL"
+
+          case "$EMAIL_BACKEND" in
+            django.core.mail.backends.console.EmailBackend|django.core.mail.backends.locmem.EmailBackend|django.core.mail.backends.dummy.EmailBackend|django.core.mail.backends.filebased.EmailBackend)
+              echo "::error::STAGING_EMAIL_BACKEND no esta configurado para enviar emails reales."
+              exit 1
+              ;;
+          esac
+
           if [ "$EMAIL_BACKEND" = "config.email_backends.EmailApiBackend" ]; then
-            test -n "$EMAIL_API_KEY"
+            require_secret "STAGING_EMAIL_API_PROVIDER" "$EMAIL_API_PROVIDER"
+            require_secret "STAGING_EMAIL_API_KEY" "$EMAIL_API_KEY"
           fi
+
+      - name: Validar configuracion de Django
+        working-directory: app
+        run: python manage.py check
 
       - name: Enviar recordatorios
         working-directory: app
