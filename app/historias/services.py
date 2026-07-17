@@ -134,7 +134,7 @@ def actualizar_historia_borrador(
 ):
     motivo_cambio = validar_motivo_cambio(motivo_cambio)
     historia = (
-        HistoriaClinica.objects.select_for_update()
+        HistoriaClinica.objects.select_for_update(of=("self",))
         .select_related("paciente", "odontologo", "odontologo__usuario")
         .get(pk=historia.pk)
     )
@@ -183,7 +183,7 @@ def actualizar_historia_borrador(
 @transaction.atomic
 def crear_version_historia(*, historia, usuario, motivo, request=None):
     historia = (
-        HistoriaClinica.objects.select_for_update()
+        HistoriaClinica.objects.select_for_update(of=("self",))
         .select_related("paciente", "odontologo", "odontologo__usuario")
         .get(pk=historia.pk)
     )
@@ -202,7 +202,7 @@ def finalizar_historia_clinica(*, historia, usuario, request=None):
     referencia = HistoriaClinica.objects.only("paciente_id").get(pk=historia.pk)
     Paciente.objects.select_for_update().get(pk=referencia.paciente_id)
     historia = (
-        HistoriaClinica.objects.select_for_update()
+        HistoriaClinica.objects.select_for_update(of=("self",))
         .select_related("paciente", "odontologo", "odontologo__usuario")
         .get(pk=historia.pk)
     )
@@ -256,7 +256,7 @@ def crear_enmienda_historia(
     request=None,
 ):
     historia = (
-        HistoriaClinica.objects.select_for_update()
+        HistoriaClinica.objects.select_for_update(of=("self",))
         .select_related("paciente", "odontologo", "odontologo__usuario")
         .get(pk=historia.pk)
     )
@@ -317,7 +317,7 @@ def crear_enmienda_historia(
 @transaction.atomic
 def inicializar_integridad_historia_legacy(*, historia, usuario, request=None):
     historia = (
-        HistoriaClinica.objects.select_for_update()
+        HistoriaClinica.objects.select_for_update(of=("self",))
         .select_related("paciente", "odontologo", "odontologo__usuario")
         .get(pk=historia.pk)
     )

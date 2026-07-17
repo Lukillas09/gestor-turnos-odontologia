@@ -142,6 +142,10 @@ jobs:
         working-directory: app
         run: python manage.py makemigrations --check --dry-run
 
+      - name: Generar archivos estaticos
+        working-directory: app
+        run: python manage.py collectstatic --noinput
+
       - name: Ejecutar tests con cobertura
         working-directory: app
         run: >
@@ -171,10 +175,6 @@ jobs:
         with:
           name: coverage-xml
           path: app/coverage.xml
-
-      - name: Generar archivos estaticos
-        working-directory: app
-        run: python manage.py collectstatic --noinput
 
   clinical-postgresql:
     name: Clinical integrity on PostgreSQL
@@ -217,6 +217,10 @@ jobs:
       - name: Aplicar migraciones PostgreSQL
         working-directory: app
         run: python manage.py migrate --noinput
+
+      - name: Generar archivos estaticos
+        working-directory: app
+        run: python manage.py collectstatic --noinput
 
       - name: Ejecutar tests clinicos sobre PostgreSQL
         working-directory: app
@@ -282,6 +286,10 @@ jobs:
 
       - name: Instalar Chromium
         run: python -m playwright install --with-deps chromium
+
+      - name: Generar archivos estaticos
+        working-directory: app
+        run: python manage.py collectstatic --noinput
 
       - name: Ejecutar E2E
         working-directory: app

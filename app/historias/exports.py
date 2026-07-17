@@ -155,7 +155,7 @@ def exportar_historia_completa(*, historia_referencia, usuario, motivo, request)
 
 def _obtener_historias_bloqueadas(paciente):
     return list(
-        HistoriaClinica.objects.select_for_update()
+        HistoriaClinica.objects.select_for_update(of=("self",))
         .filter(paciente=paciente)
         .select_related(
             "paciente",

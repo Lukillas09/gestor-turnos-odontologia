@@ -67,7 +67,7 @@ class IndicacionServiceTests(IndicacionesTestCase):
         ) as seleccionar_bloqueada:
             self.emitir(indicacion=borrador, ejecutar_callback=False)
 
-        seleccionar_bloqueada.assert_called()
+        seleccionar_bloqueada.assert_called_once_with(of=("self",))
 
     def test_fallo_de_email_no_revierte_emision_ni_expone_detalle(self):
         borrador = self.crear_borrador()

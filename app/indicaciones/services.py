@@ -352,7 +352,7 @@ def crear_version_plantilla(*, plantilla, usuario, datos, motivo):
 
 def _obtener_indicacion_bloqueada(pk):
     return (
-        IndicacionPaciente.objects.select_for_update()
+        IndicacionPaciente.objects.select_for_update(of=("self",))
         .select_related(
             "paciente",
             "odontologo",

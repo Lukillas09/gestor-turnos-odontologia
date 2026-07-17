@@ -63,5 +63,5 @@ def indicaciones_pendientes_de_email(*, max_intentos):
         email_intentos__lt=max_intentos,
     )
     if connection.vendor == "postgresql":
-        return queryset.select_for_update(skip_locked=True)
+        return queryset.select_for_update(skip_locked=True, of=("self",))
     return queryset.select_for_update()

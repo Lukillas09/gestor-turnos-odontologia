@@ -36,7 +36,7 @@ def enviar_indicacion_por_email(
 
     with transaction.atomic():
         indicacion = (
-            IndicacionPaciente.objects.select_for_update()
+            IndicacionPaciente.objects.select_for_update(of=("self",))
             .select_related(
                 "paciente",
                 "odontologo",
