@@ -2,12 +2,23 @@ import json
 
 from django import forms
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models
 
 from config.form_widgets import HtmlDateInput
 from odontogramas.domain import DIENTES_FDI
 from odontogramas.models import EstadoDental
 
-from .models import HistoriaClinica, HistoriaClinicaAdjunto, validar_archivo_clinico
+from .models import HistoriaClinica, validar_archivo_clinico
+from .services import validar_motivo_cambio
+
+
+class HtmlDateTimeInput(forms.DateTimeInput):
+    input_type = "datetime-local"
+
+    def __init__(self, attrs=None, format=None):
+        attrs = {"step": "60", **(attrs or {})}
+        super().__init__(attrs=attrs, format=format or "%Y-%m-%dT%H:%M")
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -59,6 +70,12 @@ class HistoriaClinicaFiltroForm(forms.Form):
 
 
 class HistoriaClinicaForm(forms.ModelForm):
+    motivo_cambio = forms.CharField(
+        required=False,
+        label="Motivo de la modificación",
+        help_text="Explicá qué información corregiste o completaste.",
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
     estados_odontograma = forms.CharField(
         required=False,
         widget=forms.HiddenInput(),
@@ -72,7 +89,7 @@ class HistoriaClinicaForm(forms.ModelForm):
     class Meta:
         model = HistoriaClinica
         fields = (
-            "fecha",
+            "fecha_hora_atencion",
             "motivo_consulta",
             "diagnostico",
             "tratamiento_realizado",
@@ -81,14 +98,15 @@ class HistoriaClinicaForm(forms.ModelForm):
             "proximo_control",
         )
         labels = {
-            "fecha": "Fecha de atención",
+            "fecha_hora_atencion": "Fecha y hora de atención",
             "motivo_consulta": "Motivo de consulta",
+            "diagnostico": "Diagnóstico",
             "tratamiento_realizado": "Tratamiento realizado",
             "pieza_dental": "Pieza dental",
             "proximo_control": "Próximo control",
         }
         widgets = {
-            "fecha": HtmlDateInput(),
+            "fecha_hora_atencion": HtmlDateTimeInput(),
             "motivo_consulta": forms.Textarea(attrs={"rows": 3, "autofocus": True}),
             "diagnostico": forms.Textarea(attrs={"rows": 3}),
             "tratamiento_realizado": forms.Textarea(attrs={"rows": 3}),
@@ -98,9 +116,27 @@ class HistoriaClinicaForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["fecha_hora_atencion"].input_formats = [
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%dT%H:%M:%S",
+        ]
+
+        if self.instance and self.instance.pk:
+            self.fields["motivo_cambio"].required = True
+        else:
+            self.fields.pop("motivo_cambio", None)
 
         if not settings.ODONTOGRAMA_FEATURE_ENABLED:
             self.fields.pop("estados_odontograma", None)
+
+    def clean_motivo_cambio(self):
+        motivo = self.cleaned_data.get("motivo_cambio")
+        if self.instance and self.instance.pk:
+            try:
+                return validar_motivo_cambio(motivo)
+            except ValidationError as error:
+                raise forms.ValidationError(error.messages) from error
+        return ""
 
     def clean_adjuntos(self):
         adjuntos = self.cleaned_data.get("adjuntos") or []
@@ -142,10 +178,8 @@ class HistoriaClinicaForm(forms.ModelForm):
 
             if diente not in DIENTES_FDI:
                 raise forms.ValidationError("El diente del odontograma no es válido.")
-
             if cara not in EstadoDental.CaraDental.values:
                 raise forms.ValidationError("La cara dental seleccionada no es válida.")
-
             if estado_clinico not in EstadoDental.EstadoClinico.values:
                 raise forms.ValidationError("El estado clínico seleccionado no es válido.")
 
@@ -161,25 +195,46 @@ class HistoriaClinicaForm(forms.ModelForm):
 
         return estados
 
-    def guardar_adjuntos(self, historia, usuario):
-        for archivo in self.cleaned_data.get("adjuntos", []):
-            HistoriaClinicaAdjunto.objects.create(
-                historia=historia,
-                archivo=archivo,
-                subido_por=usuario,
-            )
 
-    def guardar_estados_odontograma(self, historia, odontograma, usuario):
-        from odontogramas.services import registrar_estado_dental
+class FinalizarHistoriaClinicaForm(forms.Form):
+    confirmar = forms.BooleanField(
+        required=True,
+        label="Confirmo que la entrada está completa y debe quedar bloqueada.",
+    )
 
-        for estado in self.cleaned_data.get("estados_odontograma", []):
-            registrar_estado_dental(
-                odontograma=odontograma,
-                diente=estado["diente"],
-                cara=estado["cara"],
-                estado_clinico=estado["estado_clinico"],
-                observacion=estado["observacion"],
-                realizado=estado["realizado"],
-                usuario=usuario,
-                historia_clinica=historia,
-            )
+
+class HistoriaClinicaEnmiendaForm(forms.Form):
+    texto = forms.CharField(
+        label="Texto de la enmienda",
+        widget=forms.Textarea(attrs={"rows": 6, "autofocus": True}),
+    )
+    motivo = forms.CharField(
+        label="Motivo",
+        help_text="Explicá por qué se agrega esta corrección o aclaración.",
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+
+    def clean_texto(self):
+        texto = (self.cleaned_data.get("texto") or "").strip()
+        if not texto:
+            raise forms.ValidationError("El texto de la enmienda es obligatorio.")
+        return texto
+
+    def clean_motivo(self):
+        try:
+            return validar_motivo_cambio(self.cleaned_data.get("motivo"))
+        except ValidationError as error:
+            raise forms.ValidationError(error.messages) from error
+
+
+class ExportarHistoriaClinicaForm(forms.Form):
+    class Motivo(models.TextChoices):
+        SOLICITUD_PACIENTE = "solicitud_paciente", "Solicitud del paciente"
+        INTERCONSULTA = "interconsulta", "Interconsulta autorizada"
+        AUDITORIA = "auditoria", "Auditoría autorizada"
+        OTRO = "otro", "Otro procedimiento autorizado"
+
+    motivo = forms.ChoiceField(
+        choices=Motivo.choices,
+        label="Motivo de la exportación",
+    )

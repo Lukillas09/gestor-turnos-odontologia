@@ -7,6 +7,31 @@ Esta guia cubre el backup minimo para staging y primeras pruebas controladas:
 
 Los backups pueden contener datos sensibles. Deben guardarse fuera del repositorio y con acceso restringido.
 
+## PDF de indicaciones postoperatorias
+
+Los documentos emitidos agregan objetos privados bajo `indicaciones/<uuid>/documento.pdf`
+y filas en las tablas `indicaciones_*`. Una restauración consistente requiere el dump de
+PostgreSQL y esos objetos del mismo punto temporal. La clave
+`CLINICAL_INTEGRITY_HMAC_KEY` se custodia por separado y debe corresponder al período de los
+sellos restaurados.
+
+El comando `backup_storage_historias` enumera adjuntos de historia clínica y no debe
+considerarse un backup automático del prefijo `indicaciones/`. Mientras no exista un
+comando unificado, exportar ese prefijo con herramientas privadas del proveedor, registrar
+hashes y ensayar la restauración en un bucket aislado. No volver público el bucket ni copiar
+PDF a `MEDIA_ROOT` para simplificar el procedimiento.
+
+La historia versionada requiere conservar como un conjunto coherente:
+
+- PostgreSQL, incluidos versiones, enmiendas, auditoría, folios, hashes y migraciones;
+- Storage privado con las mismas rutas de los adjuntos;
+- logs operativos y de infraestructura según la política de retención;
+- la clave `CLINICAL_INTEGRITY_HMAC_KEY` mediante custodia separada de la base.
+
+La clave HMAC no debe incluirse dentro del dump, el backup de Storage ni `manifest.json`.
+Sin la clave correspondiente, los datos se pueden recuperar pero los sellos históricos no
+se pueden verificar.
+
 ## Carpeta local
 
 El repositorio ignora la carpeta:
@@ -87,6 +112,23 @@ La restauracion completa requiere dos pasos:
 
 Todavia no automatizamos la subida de restauracion porque conviene hacerla primero de forma controlada en un proyecto Supabase de prueba.
 
+Después de restaurar en el entorno aislado:
+
+```powershell
+python manage.py showmigrations historias
+python manage.py verificar_integridad_historias --fallar-si-hay-errores
+python manage.py verificar_integridad_historias --verificar-adjuntos --fallar-si-hay-errores
+```
+
+La prueba debe usar la clave clínica correspondiente al momento del backup. No sustituirla
+por una clave nueva ni regenerar versiones para forzar un resultado válido. Comparar
+conteos de pacientes, asientos, versiones, enmiendas y adjuntos y verificar una muestra de
+ZIP en un canal autorizado.
+
+La política real debe definir RPO, RTO, frecuencia, retención, cifrado, acceso, copia
+externa y responsable de cada restauración. Probar periódicamente la recuperación completa
+de base más Storage; un dump que nunca se restauró no es evidencia suficiente.
+
 ## Checklist
 
 - Crear backup PostgreSQL.
@@ -96,5 +138,8 @@ Todavia no automatizamos la subida de restauracion porque conviene hacerla prime
 - Abrir un archivo de prueba desde `archivos/`.
 - Guardar una copia fuera de Supabase y fuera del hosting de la app.
 - Documentar quien puede acceder al backup.
+- Conservar la clave HMAC en custodia separada y probar que puede recuperarse sin exponerla.
+- Ejecutar el verificador de integridad después de cada simulacro de restauración.
+- Registrar fecha, responsable y resultado del simulacro.
 
 Antes de produccion real, la restauracion base + storage debe probarse en un entorno separado.

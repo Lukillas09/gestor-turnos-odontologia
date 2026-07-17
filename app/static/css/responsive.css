@@ -6,6 +6,56 @@
     );
 }
 
+@media (max-width: 900px) {
+    .indication-review-layout,
+    .indication-detail-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .indication-review-action { position: static; }
+
+    .indication-list-item {
+        grid-template-columns: 80px minmax(0, 1fr) auto;
+    }
+
+    .indication-list-item > .button { grid-column: 2 / -1; justify-self: start; }
+}
+
+@media (max-width: 640px) {
+    .patient-indications-summary,
+    .indication-document-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .patient-indications-summary > div,
+    .indication-document-meta > div,
+    .indication-document-meta > div:nth-child(even),
+    .indication-document-meta > div:nth-last-child(-n + 2) {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .patient-indications-summary > div:last-child,
+    .indication-document-meta > div:last-child { border-bottom: 0; }
+
+    .patient-indications-list .compact-item,
+    .indication-list-item {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    .indication-list-date {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+    }
+
+    .indication-list-item > .button { grid-column: auto; width: 100%; }
+    .indication-document-header { align-items: flex-start; flex-direction: column; }
+    .indication-detail-actions .button { width: 100%; }
+    .indication-form .sticky-form-actions { padding-bottom: 96px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -782,6 +832,30 @@
     }
 
     .clinical-history-entry > footer .button {
+        width: 100%;
+    }
+
+    .clinical-status-group {
+        justify-content: flex-start;
+    }
+
+    .clinical-trace-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .clinical-state-banner,
+    .clinical-integrity-warning,
+    .clinical-lock-warning {
+        padding: var(--space-3);
+    }
+
+    .clinical-integrity-panel form,
+    .clinical-integrity-panel form .button {
+        width: 100%;
+    }
+
+    .clinical-confirm-dialog .form-actions,
+    .clinical-confirm-dialog .form-actions .button {
         width: 100%;
     }
 

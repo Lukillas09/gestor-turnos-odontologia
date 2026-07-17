@@ -33,7 +33,12 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
 - Asociación paciente-odontólogo y derivación de pacientes.
 - Autorizacion por objeto para pacientes, historias, adjuntos, odontogramas y turnos internos: conocer un ID no concede acceso.
 - Ficha odontológica combinada con datos personales, administrativos y clínicos.
-- Historia clínica con adjuntos clínicos. El odontograma queda desactivado como implementación futura.
+- Historia clínica con borradores versionados, finalización inmutable, folios por paciente,
+  enmiendas posteriores, sellos de integridad y adjuntos con SHA-256. El odontograma queda
+  desactivado como implementación futura.
+- Indicaciones postoperatorias con plantillas versionadas, borrador profesional, PDF privado,
+  sello de integridad, entrega al email verificado, anulación y reemplazo. El módulo queda
+  desactivado por defecto hasta completar la validación del entorno.
 - Turnos con estados `Pendiente`, `Confirmado` y `Cancelado`.
 - Turnos internos confirmados automáticamente.
 - Solicitudes públicas que crean turnos `Pendiente` con duración inicial de 30 minutos y quedan visibles directamente en Turnos y Agenda.
@@ -80,13 +85,16 @@ El proyecto está organizado por apps Django con responsabilidades separadas:
 | `usuarios` | Login interno, dashboard, perfil de usuario, roles, permisos y mixins. |
 | `pacientes` | Datos personales, ficha odontológica, asociación con odontólogos, derivación y borrado seguro. |
 | `turnos` | Odontólogos, disponibilidad, turnos, excepciones operativas de agenda, solicitud pública, emails, recordatorios y Google Calendar. |
-| `historias` | Historia clínica, adjuntos clínicos, auditoría básica y permisos clínicos. |
+| `historias` | Asientos clínicos versionados, folios, enmiendas, integridad HMAC, adjuntos privados, exportación y auditoría. |
+| `indicaciones` | Documentos postoperatorios inmutables, plantillas versionadas, PDF privado, email, reintentos, anulación y auditoría clínica. |
 | `odontogramas` | Implementación experimental del odontograma FDI, conservada detrás del feature flag `ODONTOGRAMA_FEATURE_ENABLED` para retomarla en una etapa futura. |
 
 Documentación técnica principal:
 
 - [Arquitectura](docs/arquitectura.md)
 - [Configuración](docs/configuracion.md)
+- [Historia clínica versionada e inmutable](docs/historia_clinica_inmutable.md)
+- [Indicaciones postoperatorias](docs/indicaciones_postoperatorias.md)
 - [Flujo de turnos](docs/flujo-turnos.md)
 - [Deploy en Railway usando Supabase](docs/deploy.md)
 - [Recordatorios automáticos](docs/recordatorios.md)
@@ -129,6 +137,7 @@ gestor-turnos-odontologia/
     ├── pacientes/
     ├── turnos/
     ├── historias/
+    ├── indicaciones/
     ├── odontogramas/
     └── templates/
 ```
@@ -173,7 +182,8 @@ Variables principales:
 | Grupo | Variables |
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
-| Feature flags | `ODONTOGRAMA_FEATURE_ENABLED`, `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS`, `ACCESO_CLINICO_EMERGENCIA_SECONDS` |
+| Feature flags | `ODONTOGRAMA_FEATURE_ENABLED`, `INDICACIONES_POSTOPERATORIAS_ENABLED`, `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS`, `ACCESO_CLINICO_EMERGENCIA_SECONDS` |
+| Integridad clínica | `CLINICAL_INTEGRITY_ENABLED`, `CLINICAL_INTEGRITY_HMAC_KEY` |
 | Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_IP_LIMIT`, `TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_DNI_LIMIT`, `TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS`, `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI`, `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS`, `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT`, `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Cifrado OAuth | `OAUTH_TOKEN_ENCRYPTION_KEY` |
 | Seguridad HTTPS | `DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE`, `DJANGO_SECURE_PROXY_SSL_HEADER`, `DJANGO_SECURE_HSTS_SECONDS`, `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SECURE_HSTS_PRELOAD` |
@@ -181,7 +191,7 @@ Variables principales:
 | Email | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL`, `EMAIL_API_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_API_URL` |
 | Recordatorios | `TURNOS_RECORDATORIO_HORAS` |
 | Google Calendar | `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`, `GOOGLE_CALENDAR_REDIRECT_URI`, `GOOGLE_CALENDAR_SCOPES` |
-| Storage clínico | `MEDIA_STORAGE_BACKEND`, `SUPABASE_STORAGE_URL`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_TIMEOUT`, `SUPABASE_STORAGE_CACHE_CONTROL`, `SUPABASE_STORAGE_SIGNED_URL_SECONDS` |
+| Storage clínico | `MEDIA_STORAGE_BACKEND`, `PRIVATE_CLINICAL_STORAGE_BACKEND`, `INDICACIONES_PDF_MAX_BYTES`, `SUPABASE_STORAGE_URL`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_TIMEOUT`, `SUPABASE_STORAGE_CACHE_CONTROL`, `SUPABASE_STORAGE_SIGNED_URL_SECONDS` |
 | Deploy | `WEB_CONCURRENCY` |
 
 Detalle completo: [docs/configuracion.md](docs/configuracion.md).
@@ -214,7 +224,8 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 8. Gestiona excepciones operativas de agenda según rol.
 9. Configura el perfil del consultorio si tiene permisos de gestión.
 10. Gestiona ficha odontológica, historia clínica y adjuntos clínicos.
-11. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
+11. Con el feature flag activo, el odontólogo emite indicaciones postoperatorias inmutables y puede anularlas o reemplazarlas sin borrar el original.
+12. Cada odontólogo puede conectar su propia cuenta de Google Calendar.
 
 Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 

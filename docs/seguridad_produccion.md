@@ -243,3 +243,60 @@ No activar `DJANGO_SECURE_HSTS_PRELOAD=True` hasta estar seguro de que todos los
 - Turnstile configurado o decisión documentada para mantenerlo apagado; Redis igualmente activo.
 - Limpieza de desafios OTP y acciones publicas agendada.
 - Logs sin secretos ni datos clinicos sensibles.
+- `CLINICAL_INTEGRITY_HMAC_KEY` independiente, estable y custodiada fuera de la base.
+- Migraciones clínicas `0005` a `0007` aplicadas y triggers verificados en PostgreSQL.
+- Ventana de mantenimiento clínico mantenida hasta completar migración, backfill e
+  inicialización legacy.
+- Hashes de adjuntos legacy completados antes de inicializar sus sellos.
+- `verificar_integridad_historias --verificar-adjuntos --fallar-si-hay-errores` sin errores.
+- Procedimiento institucional de solicitud, autenticación y entrega de copias aprobado.
+- Runbook de incidente de integridad revisado por responsables operativos.
+
+## Controles de historia clínica
+
+La historia versionada agrega bloqueo de registros finalizados, versiones y enmiendas
+append-only, folios, SHA-256 de adjuntos, auditoría, exportación interna y triggers
+PostgreSQL. El sello HMAC es evidencia técnica de integridad y **no es una firma digital**.
+
+Antes del deploy:
+
+1. Crear una clave clínica con alta entropía, distinta de cualquier otra credencial.
+2. Guardarla en las variables secretas del servicio y en custodia de recuperación
+   separada de los backups de base.
+3. Aplicar migraciones con un backup completo ya probado.
+4. Ejecutar backfill e inicialización legacy en ese orden.
+5. Revisar registros que no tengan usuario histórico; no asignar autores ficticios.
+6. Ejecutar la verificación completa y conservar el resultado operativo.
+7. Probar exportación y restauración en un entorno aislado.
+
+La clave no debe aparecer en logs, tickets, manifiestos, base de datos ni archivos del
+repositorio. Una persona con control simultáneo de base y secretos aún podría reconstruir
+sellos, por lo que se requieren privilegios mínimos, separación de funciones, monitoreo y
+backups externos.
+
+Ante pérdida, exposición o error de integridad, no volver a sellar ni modificar el asiento.
+Seguir [`docs/runbooks/incidente_integridad_clinica.md`](runbooks/incidente_integridad_clinica.md).
+La guía completa está en
+[`docs/historia_clinica_inmutable.md`](historia_clinica_inmutable.md).
+
+## Controles de indicaciones postoperatorias
+
+Antes de activar `INDICACIONES_POSTOPERATORIAS_ENABLED=True`:
+
+1. Aplicar `historias.0008` e `indicaciones.0001/0002` sobre PostgreSQL y revisar el SQL de
+   triggers.
+2. Confirmar que `CLINICAL_INTEGRITY_HMAC_KEY` es independiente, estable y está respaldada
+   fuera de los datos.
+3. Configurar `PRIVATE_CLINICAL_STORAGE_BACKEND` contra un bucket privado y comprobar que
+   la descarga directa no es pública.
+4. Probar Resend con un PDF ficticio en staging y confirmar que OTP, turnos y recordatorios
+   simples conservan su funcionamiento.
+5. Simular un error de email: la indicación debe permanecer emitida y quedar reintentable.
+6. Verificar que recepción y odontólogos no asociados reciben denegación sin exposición de
+   contenido.
+7. Respaldar PostgreSQL y el prefijo privado `indicaciones/`, y ensayar una restauración.
+8. Revisar logs: no deben contener contenido clínico, emails completos, PDF, Base64, URLs
+   firmadas ni secretos.
+
+La inmutabilidad es defensa en profundidad: servicios, modelo, QuerySet, admin y triggers
+PostgreSQL. El HMAC se presenta como sello técnico de integridad y no como firma digital.

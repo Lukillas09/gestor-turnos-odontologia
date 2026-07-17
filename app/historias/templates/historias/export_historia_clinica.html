@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src 'none'; script-src 'none'; object-src 'none'; frame-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none';">
+    <title>Historia clínica de {{ paciente.nombre_completo }}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { color: #172033; font: 15px/1.5 Arial, sans-serif; margin: 32px auto; max-width: 920px; padding: 0 24px; }
+        h1, h2, h3 { line-height: 1.2; }
+        header, article, section { margin-bottom: 28px; }
+        article { border-top: 2px solid #172033; padding-top: 20px; }
+        a { color: #1558a6; overflow-wrap: anywhere; }
+        dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+        dt { color: #526079; font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        dd { margin: 3px 0 0; white-space: pre-wrap; }
+        .estado { border: 1px solid #9aa8bd; display: inline-block; font-weight: bold; padding: 3px 8px; }
+        .enmienda { border-left: 4px solid #16857b; padding: 4px 0 4px 16px; }
+        .version { background: #f3f6fa; border: 1px solid #d8e0eb; padding: 12px; }
+        .advertencia { background: #fff7df; border: 1px solid #e1b64f; padding: 12px; }
+        code { overflow-wrap: anywhere; }
+        .clinical-export-attachments { display: grid; gap: 20px; margin-top: 16px; }
+        .clinical-export-attachment { background: #fff; border: 1px solid #d8dee8; border-radius: 8px; break-inside: avoid; margin: 0; padding: 14px; page-break-inside: avoid; }
+        .clinical-export-image > a { background: #f4f6f8; display: block; }
+        .clinical-export-image img { background: #f4f6f8; display: block; height: auto; margin: 0 auto; max-height: 720px; max-width: 820px; object-fit: contain; width: 100%; }
+        .clinical-export-file { align-items: center; background: #f4f6f8; border: 1px dashed #aeb8c7; display: flex; justify-content: space-between; min-height: 88px; padding: 18px; }
+        .clinical-export-file span { color: #526071; }
+        .clinical-export-file strong { font-size: 18px; }
+        .clinical-export-attachment figcaption { display: grid; gap: 5px; margin-top: 12px; }
+        .clinical-export-attachment small { color: #526071; overflow-wrap: anywhere; }
+        .clinical-export-preview-note { color: #6b4d00; margin: 4px 0; }
+        @media print {
+            body { margin: 0; max-width: none; padding: 0; }
+            .clinical-export-attachment { break-inside: avoid; page-break-inside: avoid; }
+            .clinical-export-image img { max-height: 220mm; }
+            .clinical-export-attachment a { color: inherit; text-decoration: none; }
+        }
+        @media (max-width: 600px) {
+            body { margin: 20px auto; padding: 0 16px; }
+            dl { grid-template-columns: 1fr; }
+            .clinical-export-attachment { padding: 10px; }
+            .clinical-export-file { align-items: flex-start; flex-direction: column; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Historia clínica</h1>
+        <p><strong>Paciente:</strong> {{ paciente.nombre_completo }} · <strong>DNI:</strong> {{ paciente.documento|default:"-" }}</p>
+        <p><strong>Generada:</strong> {{ generado_en|date:"d/m/Y H:i:s" }} · <strong>Motivo:</strong> {{ motivo_exportacion }}</p>
+        <p class="advertencia">Esta exportación no constituye por sí sola una copia autenticada. La autenticación requiere el procedimiento institucional correspondiente.</p>
+    </header>
+
+    {% for asiento in asientos_exportados %}
+        {% with historia=asiento.historia %}
+            <article>
+                <h2>{% if historia.numero_asiento %}Asiento {{ historia.numero_asiento }}{% else %}Borrador sin folio{% endif %}</h2>
+                <p><span class="estado">{{ historia.estado_display }}</span></p>
+                <dl>
+                    <div><dt>Fecha y hora de atención</dt><dd>{% if historia.migrada_desde_legacy %}{{ historia.fecha|date:"d/m/Y" }} · Hora histórica no disponible{% else %}{{ historia.fecha_hora_atencion|date:"d/m/Y H:i" }}{% endif %}</dd></div>
+                    <div><dt>Profesional</dt><dd>{{ historia.odontologo }} · Matrícula {{ historia.odontologo.matricula }}</dd></div>
+                    <div><dt>Motivo de consulta</dt><dd>{{ historia.motivo_consulta }}</dd></div>
+                    <div><dt>Pieza dental</dt><dd>{{ historia.pieza_dental|default:"-" }}</dd></div>
+                    <div><dt>Diagnóstico</dt><dd>{{ historia.diagnostico|default:"-" }}</dd></div>
+                    <div><dt>Tratamiento realizado</dt><dd>{{ historia.tratamiento_realizado|default:"-" }}</dd></div>
+                    <div><dt>Observaciones</dt><dd>{{ historia.observaciones|default:"-" }}</dd></div>
+                    <div><dt>Próximo control</dt><dd>{{ historia.proximo_control|date:"d/m/Y"|default:"-" }}</dd></div>
+                </dl>
+
+                <section>
+                    <h3>Versiones del borrador</h3>
+                    {% for version in historia.versiones.all %}
+                        <div class="version">
+                            <strong>Versión {{ version.numero_version }}</strong> · {{ version.creado_en|date:"d/m/Y H:i:s" }} · {{ version.creado_por.get_full_name|default:version.creado_por.username }}
+                            <p>{{ version.motivo }}</p>
+                            <p><small>Sello de integridad: <code>{{ version.hash_integridad }}</code></small></p>
+                        </div>
+                    {% empty %}<p>Registro migrado pendiente de inicialización de integridad.</p>{% endfor %}
+                </section>
+
+                <section>
+                    <h3>Enmiendas posteriores</h3>
+                    {% for enmienda in historia.enmiendas.all %}
+                        <div class="enmienda">
+                            <strong>Enmienda {{ enmienda.numero_enmienda }}</strong> · {{ enmienda.creado_en|date:"d/m/Y H:i:s" }} · {{ enmienda.odontologo }}
+                            <p>{{ enmienda.texto }}</p>
+                            <p><strong>Motivo:</strong> {{ enmienda.motivo }}</p>
+                        </div>
+                    {% empty %}<p>Sin enmiendas.</p>{% endfor %}
+                </section>
+
+                <section>
+                    <h3>Adjuntos</h3>
+                    {% if asiento.adjuntos %}
+                        <div class="clinical-export-attachments">
+                            {% for adjunto in asiento.adjuntos %}
+                                <figure class="clinical-export-attachment{% if adjunto.puede_mostrarse_inline %} clinical-export-image{% endif %}">
+                                    {% if adjunto.puede_mostrarse_inline %}
+                                        <a href="{{ adjunto.ruta_zip }}" target="_blank" rel="noopener noreferrer">
+                                            <img src="{{ adjunto.data_uri }}" alt="Adjunto clínico del asiento {% if historia.numero_asiento %}{{ historia.numero_asiento }}{% else %}sin folio{% endif %}">
+                                        </a>
+                                    {% else %}
+                                        <div class="clinical-export-file">
+                                            <span>Documento adjunto</span>
+                                            <strong>{{ adjunto.tipo_display }}</strong>
+                                        </div>
+                                    {% endif %}
+                                    <figcaption>
+                                        <strong>{{ adjunto.titulo }}</strong>
+                                        <span>{{ adjunto.nombre_original }}</span>
+                                        <span>{{ adjunto.tipo_display }} · {{ adjunto.tamano_legible }}</span>
+                                        <small>SHA-256: <code>{{ adjunto.sha256 }}</code></small>
+                                        {% if adjunto.motivo_sin_vista_previa == "supera_limite" %}
+                                            <p class="clinical-export-preview-note">Vista previa no incluida por el tamaño del archivo.</p>
+                                        {% elif adjunto.motivo_sin_vista_previa %}
+                                            <p class="clinical-export-preview-note">Vista previa no incluida porque el tipo del archivo no es compatible o no coincide.</p>
+                                        {% endif %}
+                                        <a href="{{ adjunto.ruta_zip }}" target="_blank" rel="noopener noreferrer">{% if adjunto.puede_mostrarse_inline %}Ver imagen en tamaño completo{% else %}Abrir archivo{% endif %}</a>
+                                    </figcaption>
+                                </figure>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>Sin adjuntos.</p>
+                    {% endif %}
+                </section>
+            </article>
+        {% endwith %}
+    {% empty %}<p>No hay asientos clínicos registrados.</p>{% endfor %}
+</body>
+</html>

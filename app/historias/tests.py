@@ -1,6 +1,6 @@
 import json
 import tempfile
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from io import StringIO
 from pathlib import Path
 
@@ -58,6 +58,17 @@ def crear_turno_de_atencion(paciente, odontologo, fecha=date(2026, 5, 8)):
         duracion_minutos=30,
         estado=Turno.Estado.CONFIRMADO,
     )
+
+
+def fecha_hora_form(fecha=None):
+    if fecha is None:
+        instante = timezone.localtime().replace(second=0, microsecond=0)
+    else:
+        instante = timezone.make_aware(
+            datetime.combine(fecha, time(12, 0)),
+            timezone.get_current_timezone(),
+        )
+    return instante.strftime("%Y-%m-%dT%H:%M")
 
 
 class HistoriaClinicaAccessTests(TestCase):
@@ -292,7 +303,7 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
-                "fecha": fecha.isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(fecha),
                 "motivo_consulta": "Dolor molar",
                 "diagnostico": "Caries",
                 "tratamiento_realizado": "Restauracion",
@@ -311,6 +322,8 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(historia.pieza_dental, "16")
         self.assertEqual(historia.creado_por, self.usuario_odontologo)
         self.assertEqual(historia.actualizado_por, self.usuario_odontologo)
+        self.assertTrue(historia.borrador)
+        self.assertEqual(historia.versiones.count(), 1)
 
     def test_formulario_nueva_entrada_no_muestra_odontograma_por_defecto(self):
         response = self.client.get(
@@ -348,7 +361,7 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
-                "fecha": fecha.isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(fecha),
                 "motivo_consulta": "Control con odontograma",
                 "diagnostico": "Caries oclusal",
                 "tratamiento_realizado": "",
@@ -454,13 +467,14 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("historias:editar", kwargs={"pk": historia.pk}),
             {
-                "fecha": timezone.localdate().isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(),
                 "motivo_consulta": "Control actualizado",
                 "diagnostico": "Evolucion favorable",
                 "tratamiento_realizado": "Pulido",
                 "pieza_dental": "",
                 "observaciones": "",
                 "proximo_control": "",
+                "motivo_cambio": "Se completó la evolución y el tratamiento realizado.",
             },
         )
 
@@ -484,7 +498,7 @@ class HistoriaClinicaViewsTests(TestCase):
         response_post = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
-                "fecha": timezone.localdate().isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(),
                 "motivo_consulta": "Control no permitido",
                 "diagnostico": "",
                 "tratamiento_realizado": "",
@@ -519,7 +533,7 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
-                "fecha": timezone.localdate().isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(),
                 "motivo_consulta": "Control derivado",
                 "diagnostico": "",
                 "tratamiento_realizado": "",
@@ -545,7 +559,7 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
-                "fecha": fecha.isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(fecha),
                 "motivo_consulta": "Control con radiografia",
                 "diagnostico": "Evaluacion radiografica",
                 "tratamiento_realizado": "",
@@ -575,7 +589,7 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
-                "fecha": fecha.isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(fecha),
                 "motivo_consulta": "Control con archivo invalido",
                 "diagnostico": "",
                 "tratamiento_realizado": "",
@@ -589,6 +603,32 @@ class HistoriaClinicaViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(HistoriaClinica.objects.exists())
         self.assertContains(response, "PDF, imagen o DICOM")
+
+    def test_rechaza_ejecutable_disfrazado_como_pdf(self):
+        fecha = timezone.localdate()
+        archivo = SimpleUploadedFile(
+            "informe.pdf",
+            b"MZ" + (b"contenido-ejecutable" * 4),
+            content_type="application/pdf",
+        )
+
+        response = self.client.post(
+            reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
+            {
+                "fecha_hora_atencion": fecha_hora_form(fecha),
+                "motivo_consulta": "Control con archivo disfrazado",
+                "diagnostico": "",
+                "tratamiento_realizado": "",
+                "pieza_dental": "",
+                "observaciones": "",
+                "proximo_control": "",
+                "adjuntos": [archivo],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(HistoriaClinica.objects.exists())
+        self.assertContains(response, "documento clínico permitido")
 
     def test_detalle_muestra_adjuntos_y_auditoria(self):
         historia = HistoriaClinica.objects.create(
@@ -724,7 +764,7 @@ class HistoriaClinicaViewsTests(TestCase):
         response = self.client.post(
             reverse("historias:crear", kwargs={"paciente_pk": self.paciente.pk}),
             {
-                "fecha": fecha_futura.isoformat(),
+                "fecha_hora_atencion": fecha_hora_form(fecha_futura),
                 "motivo_consulta": "Control futuro",
                 "diagnostico": "",
                 "tratamiento_realizado": "",
@@ -736,7 +776,7 @@ class HistoriaClinicaViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(HistoriaClinica.objects.exists())
-        self.assertContains(response, "no puede ser futura")
+        self.assertContains(response, "no pueden ser futuras")
 
     def test_descarga_adjunto_requiere_odontologo(self):
         historia = HistoriaClinica.objects.create(

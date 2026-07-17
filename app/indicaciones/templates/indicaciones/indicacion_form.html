@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo_pagina }} | Gestor de Turnos{% endblock %}
+{% block content %}
+<header class="internal-page-heading animate-fade-up">
+    <div><p class="eyebrow">Indicaciones postoperatorias</p><h1>{{ titulo_pagina }}</h1><p class="subtitle">{{ paciente.nombre }} {{ paciente.apellido }}</p></div>
+    <a class="button button-secondary" href="{% if indicacion %}{% url 'indicaciones:detalle' paciente.pk indicacion.uuid %}{% else %}{% url 'indicaciones:lista' paciente.pk %}{% endif %}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a>
+</header>
+
+<div class="clinical-state-banner clinical-state-draft animate-fade-up" role="status">{% include "includes/icon.html" with name="edit" %}<div><strong>Estado: Borrador</strong><span>El contenido puede personalizarse hasta el momento de la emisión.</span></div></div>
+
+<form class="form-panel internal-form-v2 indication-form animate-fade-up" method="post" novalidate>
+    {% csrf_token %}{% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% if form.non_field_errors %}<div class="form-error-panel" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% if form.plantilla %}
+    <section class="form-section" aria-labelledby="indication-template-title">
+        <header><span>{% include "includes/icon.html" with name="document" %}</span><div><h2 id="indication-template-title">Punto de partida</h2><p>Seleccioná una plantilla aprobada o prepará una indicación personalizada.</p></div></header>
+        <div class="form-grid">{% include "includes/form_field.html" with field=form.plantilla full=True %}</div>
+        <div class="clinical-copy-notice" role="note">Las plantillas deben haber sido revisadas y aprobadas por los profesionales responsables del consultorio.</div>
+    </section>
+    {% endif %}
+    <section class="form-section" aria-labelledby="indication-links-title">
+        <header><span>{% include "includes/icon.html" with name="clinical" %}</span><div><h2 id="indication-links-title">Contexto clínico</h2><p>Las relaciones son opcionales y quedan registradas al emitir.</p></div></header>
+        <div class="form-grid">{% include "includes/form_field.html" with field=form.turno %}{% include "includes/form_field.html" with field=form.historia_clinica %}{% include "includes/form_field.html" with field=form.titulo full=True %}{% include "includes/form_field.html" with field=form.procedimiento full=True %}</div>
+    </section>
+    <section class="form-section" aria-labelledby="indication-content-title">
+        <header><span>{% include "includes/icon.html" with name="edit" %}</span><div><h2 id="indication-content-title">Contenido profesional</h2><p>Revisá y personalizá cada sección para este paciente.</p></div></header>
+        <div class="form-grid">{% include "includes/form_field.html" with field=form.contenido full=True %}{% include "includes/form_field.html" with field=form.pautas_alarma full=True %}{% include "includes/form_field.html" with field=form.recomendaciones_control full=True %}{% include "includes/form_field.html" with field=form.observaciones_personalizadas full=True %}{% include "includes/form_field.html" with field=form.proximo_control_en medium=True %}</div>
+    </section>
+    <div class="form-actions sticky-form-actions"><button class="button button-large" type="submit">{% include "includes/icon.html" with name="check" %} {{ texto_boton }}</button><a class="button button-secondary" href="{% if indicacion %}{% url 'indicaciones:detalle' paciente.pk indicacion.uuid %}{% else %}{% url 'indicaciones:lista' paciente.pk %}{% endif %}">Cancelar</a></div>
+</form>
+{% if plantillas_json %}{{ plantillas_json|json_script:"indication-templates-data" }}{% endif %}
+{% endblock %}
+{% block extra_scripts %}
+{% if plantillas_json %}<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const selector = document.getElementById("id_plantilla");
+    const dataNode = document.getElementById("indication-templates-data");
+    if (!selector || !dataNode) return;
+    const templates = new Map(JSON.parse(dataNode.textContent).map(item => [String(item.id), item]));
+    const fields = {titulo: "id_titulo", procedimiento: "id_procedimiento", contenido: "id_contenido", pautas_alarma: "id_pautas_alarma", recomendaciones_control: "id_recomendaciones_control"};
+    selector.addEventListener("change", () => {
+        const selected = templates.get(selector.value);
+        if (!selected) return;
+        Object.entries(fields).forEach(([key, id]) => {
+            const field = document.getElementById(id);
+            if (field) field.value = selected[key] || "";
+        });
+    });
+});
+</script>{% endif %}
+{% endblock %}

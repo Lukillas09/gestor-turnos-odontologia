@@ -1,0 +1,27 @@
+<div class="indication-document" aria-label="Contenido de la indicación">
+    <header class="indication-document-header">
+        <div>
+            <span class="eyebrow">Indicaciones postoperatorias</span>
+            <h2>{{ indicacion.titulo }}</h2>
+        </div>
+        <span class="status-badge {% if indicacion.estado == 'borrador' %}status-pendiente{% elif indicacion.estado == 'emitida' %}status-confirmado{% else %}status-cancelado{% endif %}">{{ indicacion.get_estado_display }}</span>
+    </header>
+
+    <dl class="indication-document-meta">
+        <div><dt>Paciente</dt><dd>{{ indicacion.paciente.nombre }} {{ indicacion.paciente.apellido }}</dd></div>
+        <div><dt>Profesional</dt><dd>{{ indicacion.odontologo }}</dd></div>
+        <div><dt>Procedimiento</dt><dd>{{ indicacion.procedimiento|default:"No especificado" }}</dd></div>
+        <div><dt>Próximo control</dt><dd>{{ indicacion.proximo_control_en|date:"d/m/Y H:i"|default:"No programado" }}</dd></div>
+    </dl>
+
+    <section><h3>Indicaciones</h3><div class="indication-copy">{{ indicacion.contenido|linebreaksbr }}</div></section>
+    <section><h3>Pautas de alarma</h3><div class="indication-copy">{{ indicacion.pautas_alarma|linebreaksbr|default:"No especificadas." }}</div></section>
+    <section><h3>Recomendaciones de control</h3><div class="indication-copy">{{ indicacion.recomendaciones_control|linebreaksbr|default:"No especificadas." }}</div></section>
+    <section><h3>Observaciones personalizadas</h3><div class="indication-copy">{{ indicacion.observaciones_personalizadas|linebreaksbr|default:"Sin observaciones adicionales." }}</div></section>
+
+    <div class="indication-urgent-note" role="note">
+        {% include "includes/icon.html" with name="alert" %}
+        <p>Ante síntomas inesperados, empeoramiento o una urgencia, comuníquese con el consultorio o con el servicio de salud correspondiente.</p>
+    </div>
+    <p class="indication-legal-note">Este documento contiene indicaciones de cuidado brindadas por el profesional y no constituye una receta electrónica de medicamentos.</p>
+</div>

@@ -162,23 +162,40 @@ Reglas:
 
 Responsabilidades:
 
-- Historia clínica por paciente.
-- Adjuntos clínicos.
-- Búsqueda y filtros de historias.
-- Auditoría básica por logs.
-- Integración del odontograma dentro de nuevas entradas clínicas.
+- Asientos de historia clínica por paciente con estado borrador/finalizado.
+- Versiones completas append-only de cada cambio efectivo.
+- Finalización transaccional y folio secuencial por paciente.
+- Enmiendas inmutables para correcciones posteriores.
+- Adjuntos privados con SHA-256.
+- Sellos HMAC-SHA-256 encadenados y verificación operativa.
+- Exportación clínica completa y auditada.
+- Auditoría de acceso y actuaciones sin contenido clínico en los motivos.
+- Integración opcional con referencias del odontograma existente.
 
 Modelos:
 
 - `HistoriaClinica`
 - `HistoriaClinicaAdjunto`
+- `HistoriaClinicaVersion`
+- `HistoriaClinicaEnmienda`
+- `AccesoClinicoAuditoria`
 
 Reglas actuales:
 
 - Solo usuarios con perfil de odontólogo pueden acceder a historia clínica.
 - Un odontólogo puede ver según las reglas de permisos clínicos.
 - La creación exige asociación del odontólogo con el paciente.
-- La edición queda limitada al odontólogo responsable de la entrada.
+- La edición de borradores queda limitada al odontólogo responsable y exige motivo.
+- Las escrituras pasan por `historias/services.py` con transacciones y locks.
+- Una entrada finalizada no se edita ni se elimina; toda corrección es una enmienda.
+- Versiones, enmiendas y adjuntos clínicos no admiten borrado físico.
+- PostgreSQL agrega triggers de inmutabilidad; SQLite conserva constraints y controles
+  de aplicación para desarrollo y tests.
+- `historias/integrity.py` implementa serialización canónica y sellos de integridad. El
+  HMAC no es una firma digital.
+
+El diseño, la migración legacy, la exportación y las limitaciones están detallados en
+[`docs/historia_clinica_inmutable.md`](historia_clinica_inmutable.md).
 
 ### `odontogramas`
 
@@ -237,6 +254,26 @@ URLs internas:
 ```
 
 La URL independiente de odontograma se conserva para compatibilidad interna, pero el flujo clínico principal lo integra en la creación de una entrada de historia clínica.
+
+### `indicaciones`
+
+Responsabilidades:
+
+- plantillas clínicas configurables con historial append-only;
+- borradores asociados al odontólogo autenticado y al alcance clínico del paciente;
+- emisión transaccional e idempotente con snapshots, PDF A4, SHA-256 y HMAC;
+- almacenamiento en el alias privado `clinical_private`;
+- descarga autenticada y auditada, sin depender de una URL pública del storage;
+- email adjunto posterior al commit, con estado e intentos independientes;
+- anulación sin borrado y reemplazos vinculados.
+
+Las vistas coordinan formularios y servicios; las reglas de transición viven en
+`indicaciones/services.py` y `indicaciones/models.py`. PostgreSQL agrega triggers para
+versiones, borrado físico e inmutabilidad de emitidas/anuladas. La auditoría reutiliza
+`AccesoClinicoAuditoria` y la firma HMAC reutiliza `historias/integrity.py`.
+
+El diseño completo está en
+[`docs/indicaciones_postoperatorias.md`](indicaciones_postoperatorias.md).
 
 ## Reglas de Turnos
 

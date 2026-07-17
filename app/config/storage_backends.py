@@ -7,7 +7,17 @@ from urllib.request import Request, urlopen
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
-from django.core.files.storage import Storage
+from django.core.files.storage import FileSystemStorage, Storage
+
+
+class PrivateClinicalFileSystemStorage(FileSystemStorage):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("location", settings.PRIVATE_CLINICAL_ROOT)
+        kwargs.setdefault("base_url", None)
+        super().__init__(*args, **kwargs)
+
+    def url(self, name):
+        raise ValueError("Los archivos clínicos privados no tienen una URL pública.")
 
 
 class SupabaseStorageError(RuntimeError):

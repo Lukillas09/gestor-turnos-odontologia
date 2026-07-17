@@ -65,6 +65,7 @@ db.sqlite3
 db.sqlite3-journal
 staticfiles/
 app/staticfiles/
+app/private_media/
 media/
 app/media/
 

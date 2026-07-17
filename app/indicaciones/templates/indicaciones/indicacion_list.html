@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Indicaciones postoperatorias | Gestor de Turnos{% endblock %}
+{% block content %}
+<header class="internal-page-heading animate-fade-up">
+    <div><p class="eyebrow">Documentos clínicos</p><h1>Indicaciones postoperatorias</h1><p class="subtitle">{{ paciente.nombre }} {{ paciente.apellido }}</p></div>
+    <div class="clinical-actions">
+        {% if puede_crear %}<a class="button" href="{% url 'indicaciones:crear' paciente.pk %}">{% include "includes/icon.html" with name="plus" %} Nueva indicación</a>{% endif %}
+        <a class="button button-secondary" href="{% url 'pacientes:detalle' paciente.pk %}">{% include "includes/icon.html" with name="arrow-left" %} Volver a la ficha</a>
+    </div>
+</header>
+
+{% if indicaciones %}
+<section class="indication-list stagger-list" aria-label="Historial de indicaciones">
+    {% for indicacion in indicaciones %}
+    <article class="indication-list-item animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
+        <div class="indication-list-date"><strong>{{ indicacion.emitida_en|default:indicacion.creado_en|date:"d/m/Y" }}</strong><span>{{ indicacion.emitida_en|default:indicacion.creado_en|time:"H:i" }}</span></div>
+        <div class="indication-list-main"><h2><a href="{% url 'indicaciones:detalle' paciente.pk indicacion.uuid %}">{{ indicacion.titulo }}</a></h2><p>{{ indicacion.procedimiento|default:"Sin procedimiento especificado" }}</p><span>{{ indicacion.odontologo }}</span></div>
+        <div class="indication-list-status">
+            <span class="status-badge {% if indicacion.estado == 'borrador' %}status-pendiente{% elif indicacion.estado == 'emitida' %}status-confirmado{% else %}status-cancelado{% endif %}">{{ indicacion.get_estado_display }}</span>
+            {% if indicacion.esta_reemplazada %}<span class="status-badge status-sync-ok">Reemplazada</span>{% endif %}
+            {% if indicacion.estado != 'borrador' %}<span class="status-badge {% if indicacion.email_estado == 'enviado' %}status-sync-ok{% elif indicacion.email_estado == 'error' %}status-sync-error{% else %}status-sync-pending{% endif %}">{{ indicacion.get_email_estado_display }}</span>{% endif %}
+        </div>
+        <a class="button button-secondary button-small" href="{% url 'indicaciones:detalle' paciente.pk indicacion.uuid %}">Ver detalle {% include "includes/icon.html" with name="arrow-right" %}</a>
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+{% include "includes/empty_state.html" with icon_name="document" title="Sin indicaciones" description="Todavía no hay documentos postoperatorios para este paciente." %}
+{% endif %}
+{% endblock %}

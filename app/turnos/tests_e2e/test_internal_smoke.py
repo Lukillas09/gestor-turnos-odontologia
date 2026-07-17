@@ -12,9 +12,9 @@ from django.urls import reverse
 from django.utils import timezone
 from playwright.sync_api import sync_playwright
 
-from pacientes.models import Paciente
+from pacientes.models import Paciente, PacienteOdontologo
 from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
-from usuarios.roles import ROL_RECEPCIONISTA
+from usuarios.roles import ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 SCREENSHOT_DIR = Path(__file__).resolve().parents[3] / "docs" / "screenshots"
 
@@ -45,6 +45,7 @@ def _crear_disponibilidad(odontologo):
     },
     TURNOS_PUBLIC_REDIS_REQUIRED=False,
     TURNSTILE_ENABLED=False,
+    CLINICAL_INTEGRITY_HMAC_KEY="clave-clinica-e2e-independiente",
 )
 class InternalSmokeE2ETests(StaticLiveServerTestCase):
     @classmethod
@@ -73,13 +74,16 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         grupo, _ = Group.objects.get_or_create(name=ROL_RECEPCIONISTA)
         self.usuario.groups.add(grupo)
 
-        usuario_odontologo = User.objects.create_user(
+        self.usuario_odontologo = User.objects.create_user(
             username="dra.e2e",
+            password="clave-clinica-e2e",
             first_name="Dra",
             last_name="E2E",
         )
+        grupo_odontologo, _ = Group.objects.get_or_create(name=ROL_ODONTOLOGO)
+        self.usuario_odontologo.groups.add(grupo_odontologo)
         self.odontologo = Odontologo.objects.create(
-            usuario=usuario_odontologo,
+            usuario=self.usuario_odontologo,
             matricula="E2E-INT",
             especialidad="Odontologia general",
         )
@@ -90,6 +94,12 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
             documento="55111222",
             telefono="1133334444",
             email="interno@example.com",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            asignado_por=self.usuario_odontologo,
+            motivo="Atención clínica E2E",
         )
         self.turno = Turno.objects.create(
             paciente=self.paciente,
@@ -115,6 +125,13 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         self.page.goto(f"{self.live_server_url}{reverse('login')}")
         self.page.fill("input[name='username']", "recepcion.e2e")
         self.page.fill("input[name='password']", "clave-segura-e2e")
+        self.page.get_by_role("button", name="Ingresar").click()
+        self.page.wait_for_url(f"**{reverse('inicio')}")
+
+    def _login_odontologo(self):
+        self.page.goto(f"{self.live_server_url}{reverse('login')}")
+        self.page.fill("input[name='username']", "dra.e2e")
+        self.page.fill("input[name='password']", "clave-clinica-e2e")
         self.page.get_by_role("button", name="Ingresar").click()
         self.page.wait_for_url(f"**{reverse('inicio')}")
 
@@ -224,6 +241,82 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         )
         self.assertEqual(first_trigger.get_attribute("aria-expanded"), "false")
 
+    def _assert_clinical_history_flow(self):
+        self._login_odontologo()
+        self.page.goto(
+            f"{self.live_server_url}"
+            f"{reverse('historias:crear', kwargs={'paciente_pk': self.paciente.pk})}"
+        )
+        self.page.get_by_role(
+            "heading", name="Nueva entrada de historia clínica", exact=True
+        ).wait_for()
+        self.page.get_by_text("Estado: Borrador", exact=True).wait_for()
+        self.page.get_by_label("Fecha y hora de atención").fill(
+            timezone.localtime(timezone.now() - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M")
+        )
+        self.page.get_by_label("Pieza dental").fill("16")
+        self.page.get_by_label("Motivo de consulta").fill("Control clínico E2E")
+        self.page.get_by_label("Diagnóstico").fill("Diagnóstico inicial E2E")
+        self.page.get_by_label("Tratamiento realizado").fill("Evaluación preventiva")
+        self.page.get_by_label("Observaciones").fill("Registro de navegador")
+        self.page.get_by_role("button", name="Guardar borrador").click()
+
+        self.page.get_by_role("heading", name="Entrada de historia clínica").wait_for()
+        self.page.get_by_text("Borrador editable", exact=True).wait_for()
+        self.page.get_by_text("Versión 1", exact=True).wait_for()
+        self._assert_no_horizontal_overflow()
+
+        self.page.get_by_role("link", name="Editar borrador").click()
+        self.page.get_by_role("heading", name="Editar borrador clínico").wait_for()
+        self.page.get_by_label("Diagnóstico").fill("Diagnóstico actualizado E2E")
+        self.page.get_by_role("textbox", name="Motivo de la modificación").fill(
+            "Se precisó el diagnóstico durante la prueba de navegador."
+        )
+        self.page.get_by_role("button", name="Guardar nueva versión").click()
+        self.page.get_by_text("Versión 2", exact=True).wait_for()
+        self.page.get_by_role("link", name="Ver versión").last.click()
+        self.page.get_by_role("heading", name="Versión 2", exact=True).wait_for()
+        self.page.get_by_text("Diagnóstico actualizado E2E", exact=True).wait_for()
+        self.page.get_by_role("link", name="Volver al asiento").click()
+
+        boton_finalizar = self.page.get_by_role("button", name="Finalizar", exact=True)
+        boton_finalizar.focus()
+        self.assertTrue(boton_finalizar.evaluate("elemento => document.activeElement === elemento"))
+        self.page.keyboard.press("Enter")
+        dialogo = self.page.locator("dialog[data-finalize-dialog]")
+        dialogo.wait_for(state="visible")
+        dialogo.get_by_role("heading", name="Finalizar entrada clínica").wait_for()
+        dialogo.get_by_label("Confirmo que revisé el contenido y deseo bloquearlo.").check()
+        dialogo.get_by_role("button", name="Finalizar y bloquear").click()
+
+        self.page.get_by_text("Registro finalizado e inmutable", exact=True).wait_for()
+        self.assertEqual(self.page.get_by_role("link", name="Editar borrador").count(), 0)
+        self.assertEqual(self.page.get_by_role("button", name="Finalizar").count(), 0)
+        self.page.get_by_role("link", name="Agregar enmienda").click()
+        self.page.get_by_role("heading", name="Agregar enmienda").wait_for()
+        self.page.get_by_label("Texto de la enmienda").fill(
+            "Se agrega una aclaración posterior sin alterar el asiento original."
+        )
+        self.page.get_by_label("Motivo").fill(
+            "Se documenta una aclaración detectada durante la revisión clínica."
+        )
+        self.page.get_by_role("button", name="Registrar enmienda").click()
+        self.page.get_by_text("Enmienda 1", exact=True).wait_for()
+        self.page.get_by_role("link", name="Ver enmienda").click()
+        self.page.get_by_role("heading", name="Enmienda 1", exact=True).wait_for()
+        self.page.get_by_text("El asiento original permanece intacto", exact=True).wait_for()
+        self.page.get_by_role("link", name="Volver al original").click()
+        self._assert_no_horizontal_overflow()
+
+        self.page.get_by_role("link", name="Exportar", exact=True).click()
+        self.page.get_by_role("heading", name="Exportar historia clínica completa").wait_for()
+        self.page.get_by_label("Motivo de la exportación").select_option("solicitud_paciente")
+        with self.page.expect_download() as descarga_info:
+            self.page.get_by_role("button", name="Generar exportación").click()
+        descarga = descarga_info.value
+        self.assertRegex(descarga.suggested_filename, r"^historia-clinica-paciente-.*\.zip$")
+        self._assert_no_horizontal_overflow()
+
     def test_login_listado_y_detalle_de_turno(self):
         self._login()
         self.page.get_by_role("heading", name="Resumen de la agenda").wait_for()
@@ -296,3 +389,12 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         self.page = self.context.new_page()
         self._login()
         self._assert_turno_actions_menu()
+
+    def test_historia_clinica_inmutable_en_desktop(self):
+        self._assert_clinical_history_flow()
+
+    def test_historia_clinica_inmutable_en_mobile(self):
+        self.context.close()
+        self.context = self.browser.new_context(viewport={"width": 390, "height": 844})
+        self.page = self.context.new_page()
+        self._assert_clinical_history_flow()

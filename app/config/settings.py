@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "pacientes",
     "turnos",
     "historias",
+    "indicaciones.apps.IndicacionesConfig",
     "odontogramas",
     "consultorio.apps.ConsultorioConfig",
     "usuarios.apps.UsuariosConfig",
@@ -146,6 +147,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+PRIVATE_CLINICAL_ROOT = BASE_DIR / "private_media"
 MEDIA_STORAGE_BACKEND = env(
     "MEDIA_STORAGE_BACKEND",
     "django.core.files.storage.FileSystemStorage",
@@ -156,12 +158,23 @@ SUPABASE_STORAGE_SERVICE_ROLE_KEY = env("SUPABASE_STORAGE_SERVICE_ROLE_KEY")
 SUPABASE_STORAGE_TIMEOUT = int(env("SUPABASE_STORAGE_TIMEOUT", "30"))
 SUPABASE_STORAGE_CACHE_CONTROL = env("SUPABASE_STORAGE_CACHE_CONTROL", "3600")
 SUPABASE_STORAGE_SIGNED_URL_SECONDS = int(env("SUPABASE_STORAGE_SIGNED_URL_SECONDS", "300"))
+PRIVATE_CLINICAL_STORAGE_BACKEND = env(
+    "PRIVATE_CLINICAL_STORAGE_BACKEND",
+    (
+        "config.storage_backends.PrivateClinicalFileSystemStorage"
+        if MEDIA_STORAGE_BACKEND == "django.core.files.storage.FileSystemStorage"
+        else MEDIA_STORAGE_BACKEND
+    ),
+)
 STORAGES = {
     "default": {
         "BACKEND": MEDIA_STORAGE_BACKEND,
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+    "clinical_private": {
+        "BACKEND": PRIVATE_CLINICAL_STORAGE_BACKEND,
     },
 }
 
@@ -188,11 +201,24 @@ CACHES = {
 }
 
 ODONTOGRAMA_FEATURE_ENABLED = env_bool("ODONTOGRAMA_FEATURE_ENABLED", False)
+INDICACIONES_POSTOPERATORIAS_ENABLED = env_bool(
+    "INDICACIONES_POSTOPERATORIAS_ENABLED",
+    False,
+)
 DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS = env_bool(
     "DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS",
     False,
 )
 ACCESO_CLINICO_EMERGENCIA_SECONDS = int(env("ACCESO_CLINICO_EMERGENCIA_SECONDS", "900"))
+
+CLINICAL_INTEGRITY_ENABLED = env_bool("CLINICAL_INTEGRITY_ENABLED", True)
+CLINICAL_INTEGRITY_HMAC_KEY = env("CLINICAL_INTEGRITY_HMAC_KEY")
+
+if CLINICAL_INTEGRITY_ENABLED and not CLINICAL_INTEGRITY_HMAC_KEY:
+    raise RuntimeError(
+        "CLINICAL_INTEGRITY_HMAC_KEY debe configurarse cuando la integridad clínica "
+        "está habilitada. Debe ser independiente de DJANGO_SECRET_KEY."
+    )
 
 
 def env_nonnegative_int(nombre, default):
@@ -202,6 +228,15 @@ def env_nonnegative_int(nombre, default):
         raise RuntimeError(f"{nombre} no puede ser negativo.")
 
     return valor
+
+
+INDICACIONES_PDF_MAX_BYTES = env_nonnegative_int(
+    "INDICACIONES_PDF_MAX_BYTES",
+    5 * 1024 * 1024,
+)
+
+if INDICACIONES_PDF_MAX_BYTES == 0:
+    raise RuntimeError("INDICACIONES_PDF_MAX_BYTES debe ser mayor a cero.")
 
 
 TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT = env_nonnegative_int("TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT", 5)
@@ -336,6 +371,11 @@ LOGGING = {
             "propagate": False,
         },
         "historias": {
+            "handlers": ["console"],
+            "level": DJANGO_LOG_LEVEL,
+            "propagate": False,
+        },
+        "indicaciones": {
             "handlers": ["console"],
             "level": DJANGO_LOG_LEVEL,
             "propagate": False,

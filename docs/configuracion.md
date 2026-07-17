@@ -65,6 +65,73 @@ DJANGO_SECURE_HSTS_SECONDS=0
 
 En produccion se recomienda mantener `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS=False` salvo una decision explicita de politica clinica.
 
+## Integridad de Historia Clínica
+
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `CLINICAL_INTEGRITY_ENABLED` | `True` | Habilita la creación y verificación de sellos de integridad. |
+| `CLINICAL_INTEGRITY_HMAC_KEY` | Sin default | Clave independiente y estable para HMAC-SHA-256. Es obligatoria si la función está habilitada, también en local. |
+
+Generar una clave con un CSPRNG:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Configurar el resultado en el entorno local o en las variables del servicio Railway. No
+reutilizar `DJANGO_SECRET_KEY`, `OAUTH_TOKEN_ENCRYPTION_KEY`, contraseñas ni API keys. La
+clave no se guarda en PostgreSQL, Storage, manifiestos de exportación ni logs.
+
+```env
+CLINICAL_INTEGRITY_ENABLED=True
+CLINICAL_INTEGRITY_HMAC_KEY=valor-aleatorio-independiente
+```
+
+La clave debe permanecer estable mientras existan sellos creados con ella. La versión
+actual no implementa keyring: cambiarla directamente invalida la verificación histórica.
+Consultar [Historia clínica inmutable](historia_clinica_inmutable.md) antes de una
+rotación, migración o recuperación.
+
+Después de migrar datos legacy:
+
+```powershell
+python manage.py completar_hashes_adjuntos_legacy --dry-run
+python manage.py completar_hashes_adjuntos_legacy --fallar-si-hay-errores
+python manage.py inicializar_integridad_historias_legacy --dry-run
+python manage.py inicializar_integridad_historias_legacy --fallar-si-hay-errores
+python manage.py verificar_integridad_historias --verificar-adjuntos --fallar-si-hay-errores
+```
+
+Los comandos muestran IDs internos y conteos; no imprimen contenido clínico.
+
+## Indicaciones Postoperatorias
+
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `INDICACIONES_POSTOPERATORIAS_ENABLED` | `False` | Muestra el módulo y habilita sus URLs. No elimina datos cuando se apaga. |
+| `INDICACIONES_PDF_MAX_BYTES` | `5242880` | Tamaño máximo del PDF generado y del adjunto enviado. Debe ser mayor a cero. |
+| `PRIVATE_CLINICAL_STORAGE_BACKEND` | Filesystem privado local o `MEDIA_STORAGE_BACKEND` en deploy | Alias `clinical_private` utilizado por los PDF. |
+
+Configuración local:
+
+```env
+INDICACIONES_POSTOPERATORIAS_ENABLED=False
+INDICACIONES_PDF_MAX_BYTES=5242880
+PRIVATE_CLINICAL_STORAGE_BACKEND=config.storage_backends.PrivateClinicalFileSystemStorage
+```
+
+Railway con Supabase privado:
+
+```env
+INDICACIONES_POSTOPERATORIAS_ENABLED=False
+INDICACIONES_PDF_MAX_BYTES=5242880
+PRIVATE_CLINICAL_STORAGE_BACKEND=config.storage_backends.SupabaseStorage
+```
+
+Aplicar migraciones y validar storage, permisos, email y backups antes de cambiar el flag a
+`True`. El módulo reutiliza `CLINICAL_INTEGRITY_HMAC_KEY`; no necesita una segunda clave.
+Consultar [Indicaciones postoperatorias](indicaciones_postoperatorias.md).
+
 ## Perfil del Consultorio
 
 La identidad visible del consultorio se configura desde:

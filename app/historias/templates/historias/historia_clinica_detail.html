@@ -2,143 +2,55 @@
 {% load static %}
 
 {% block title %}Entrada clínica de {{ historia.paciente }} | Gestor de Turnos{% endblock %}
-
-{% block extra_head %}
-    {% if mostrar_odontograma %}
-        {% get_static_prefix as STATIC_PREFIX %}
-        <link rel="stylesheet" href="{{ STATIC_PREFIX }}odontogramas/odontograma.css">
-    {% endif %}
-{% endblock %}
+{% block extra_head %}{% if mostrar_odontograma %}{% get_static_prefix as STATIC_PREFIX %}<link rel="stylesheet" href="{{ STATIC_PREFIX }}odontogramas/odontograma.css">{% endif %}{% endblock %}
 
 {% block content %}
-    <div class="internal-page-heading animate-fade-up">
-        <div>
-            <h1>Entrada de historia clínica</h1>
-            <p class="subtitle">{{ historia.paciente }} - {{ historia.fecha|date:"d/m/Y" }}</p>
-        </div>
+    <header class="internal-page-heading animate-fade-up">
+        <div><p class="eyebrow">{% if historia.numero_asiento %}Asiento {{ historia.numero_asiento }}{% else %}Entrada sin folio{% endif %}</p><h1>Entrada de historia clínica</h1><p class="subtitle">{{ historia.paciente }} · {% if historia.migrada_desde_legacy %}{{ historia.fecha|date:"d/m/Y" }} · Hora histórica no disponible{% else %}{{ historia.fecha_hora_atencion|date:"d/m/Y H:i" }}{% endif %}</p></div>
         <div class="header-actions">
             <a class="button button-secondary" href="{% url 'historias:lista_paciente' historia.paciente.pk %}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a>
-            {% if puede_editar_historia %}
-                <a class="button" href="{% url 'historias:editar' historia.pk %}">{% include "includes/icon.html" with name="edit" %} Editar</a>
-            {% endif %}
+            <a class="button button-secondary" href="{% url 'historias:exportar' historia.pk %}">{% include "includes/icon.html" with name="attachment" %} Exportar</a>
+            {% if puede_editar_historia %}<a class="button button-secondary" href="{% url 'historias:editar' historia.pk %}">{% include "includes/icon.html" with name="edit" %} Editar borrador</a>{% endif %}
+            {% if puede_finalizar_historia %}<button class="button" type="button" data-finalize-open>{% include "includes/icon.html" with name="lock" %} Finalizar</button>{% endif %}
+            {% if puede_enmendar_historia and integridad_inicializada %}<a class="button" href="{% url 'historias:crear_enmienda' historia.pk %}">{% include "includes/icon.html" with name="plus" %} Agregar enmienda</a>{% endif %}
         </div>
-    </div>
+    </header>
 
-    <section class="detail-panel clinical-detail-panel animate-fade-up">
+    {% if historia.borrador %}<div class="clinical-state-banner clinical-state-draft animate-fade-up" role="status">{% include "includes/icon.html" with name="edit" %}<div><strong>Borrador editable</strong><span>Cada modificación crea una versión. Finalizalo cuando el registro esté completo.</span></div></div>{% else %}<div class="clinical-state-banner clinical-state-final animate-fade-up" role="status">{% include "includes/icon.html" with name="lock" %}<div><strong>Registro finalizado e inmutable</strong><span>Las correcciones posteriores se agregan como enmiendas sin alterar el original.</span></div></div>{% endif %}
+
+    {% if historia.migrada_desde_legacy and not integridad_inicializada %}<div class="clinical-integrity-warning animate-fade-up" role="alert">{% include "includes/icon.html" with name="alert" %}<div><strong>Registro migrado pendiente de integridad</strong><span>No existe trazabilidad anterior a la migración. Ejecutá la inicialización técnica antes de agregar enmiendas.</span></div></div>{% endif %}
+
+    <section class="detail-panel clinical-detail-panel animate-fade-up" aria-labelledby="original-title">
+        <div class="section-heading"><div><h2 id="original-title">Asiento original</h2><p>Contenido clínico vigente del registro principal.</p></div><span class="status-badge {% if historia.borrador %}status-pending{% else %}status-sync-ok{% endif %}">{{ historia.estado_display }}</span></div>
         <dl class="detail-grid">
-            <div>
-                <dt>Paciente</dt>
-                <dd>{{ historia.paciente }}</dd>
-            </div>
-            <div>
-                <dt>Odontólogo</dt>
-                <dd>{{ historia.odontologo }}</dd>
-            </div>
-            <div>
-                <dt>Fecha</dt>
-                <dd>{{ historia.fecha|date:"d/m/Y" }}</dd>
-            </div>
-            <div>
-                <dt>Pieza dental</dt>
-                <dd>{{ historia.pieza_dental|default:"-" }}</dd>
-            </div>
-            <div>
-                <dt>Próximo control</dt>
-                <dd>{{ historia.proximo_control|date:"d/m/Y"|default:"-" }}</dd>
-            </div>
-            <div>
-                <dt>Última actualización</dt>
-                <dd>{{ historia.actualizado_en|date:"d/m/Y H:i" }}</dd>
-            </div>
-            <div>
-                <dt>Cargado por</dt>
-                <dd>
-                    {% if historia.creado_por %}
-                        {{ historia.creado_por.get_full_name|default:historia.creado_por.username }}
-                    {% else %}
-                        -
-                    {% endif %}
-                </dd>
-            </div>
-            <div>
-                <dt>Modificado por</dt>
-                <dd>
-                    {% if historia.actualizado_por %}
-                        {{ historia.actualizado_por.get_full_name|default:historia.actualizado_por.username }}
-                    {% else %}
-                        -
-                    {% endif %}
-                </dd>
-            </div>
-            <div class="field-full">
-                <dt>Motivo de consulta</dt>
-                <dd>{{ historia.motivo_consulta|linebreaksbr }}</dd>
-            </div>
-            <div class="field-full">
-                <dt>Diagnóstico</dt>
-                <dd>{{ historia.diagnostico|linebreaksbr|default:"-" }}</dd>
-            </div>
-            <div class="field-full">
-                <dt>Tratamiento realizado</dt>
-                <dd>{{ historia.tratamiento_realizado|linebreaksbr|default:"-" }}</dd>
-            </div>
-            <div class="field-full">
-                <dt>Observaciones</dt>
-                <dd>{{ historia.observaciones|linebreaksbr|default:"-" }}</dd>
-            </div>
+            <div><dt>Paciente</dt><dd>{{ historia.paciente }}</dd></div>
+            <div><dt>Odontólogo</dt><dd>{{ historia.odontologo }} · Matrícula {{ historia.odontologo.matricula }}</dd></div>
+            <div><dt>Fecha y hora de atención</dt><dd>{% if historia.migrada_desde_legacy %}{{ historia.fecha|date:"d/m/Y" }} · Hora histórica no disponible{% else %}{{ historia.fecha_hora_atencion|date:"d/m/Y H:i" }}{% endif %}</dd></div>
+            <div><dt>Pieza dental</dt><dd>{{ historia.pieza_dental|default:"-" }}</dd></div>
+            <div><dt>Próximo control</dt><dd>{{ historia.proximo_control|date:"d/m/Y"|default:"-" }}</dd></div>
+            <div><dt>Última actualización</dt><dd>{{ historia.actualizado_en|date:"d/m/Y H:i" }}</dd></div>
+            <div><dt>Cargado por</dt><dd>{% if historia.creado_por %}{{ historia.creado_por.get_full_name|default:historia.creado_por.username }}{% else %}-{% endif %}</dd></div>
+            <div><dt>Finalizado por</dt><dd>{% if historia.finalizada_por %}{{ historia.finalizada_por.get_full_name|default:historia.finalizada_por.username }} · {{ historia.finalizada_en|date:"d/m/Y H:i" }}{% elif historia.migrada_desde_legacy %}Sin dato histórico verificable{% else %}-{% endif %}</dd></div>
+            <div class="field-full"><dt>Motivo de consulta</dt><dd>{{ historia.motivo_consulta|linebreaksbr }}</dd></div>
+            <div class="field-full"><dt>Diagnóstico</dt><dd>{{ historia.diagnostico|linebreaksbr|default:"-" }}</dd></div>
+            <div class="field-full"><dt>Tratamiento realizado</dt><dd>{{ historia.tratamiento_realizado|linebreaksbr|default:"-" }}</dd></div>
+            <div class="field-full"><dt>Observaciones</dt><dd>{{ historia.observaciones|linebreaksbr|default:"-" }}</dd></div>
         </dl>
     </section>
 
-    {% if mostrar_odontograma %}
-    <section class="panel-section animate-fade-up">
-        <div class="section-heading">
-            <div>
-                <h2>Odontograma de esta entrada</h2>
-                <p>Estados dentales registrados al guardar esta atención.</p>
-            </div>
-        </div>
+    <section class="panel-section animate-fade-up" aria-labelledby="attachments-title"><div class="section-heading"><div><h2 id="attachments-title">Adjuntos</h2><p>Archivos incorporados antes de la finalización.</p></div></div>{% if historia.adjuntos.exists %}<div class="compact-list stagger-list">{% for adjunto in historia.adjuntos.all %}<article class="compact-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};"><div><strong>{{ adjunto.nombre_archivo }}</strong><span>{{ adjunto.tamano_legible }} · {{ adjunto.creado_en|date:"d/m/Y H:i" }} · SHA-256 {% if adjunto.sha256 %}{{ adjunto.sha256|slice:":12" }}…{% else %}pendiente{% endif %}</span></div><a class="button button-secondary button-small" href="{% url 'historias:descargar_adjunto' adjunto.pk %}" target="_blank" rel="noopener">{% include "includes/icon.html" with name="attachment" %} Abrir</a></article>{% endfor %}</div>{% else %}{% include "includes/empty_state.html" with icon_name="attachment" title="Sin adjuntos" description="No hay archivos asociados a esta entrada." compact=True %}{% endif %}</section>
 
-        {% if historia.estados_dentales.exists %}
-            <div class="odontograma-history-list">
-                {% for estado in historia.estados_dentales.all %}
-                    {% include "odontogramas/includes/historial_item.html" with estado=estado %}
-                {% endfor %}
-            </div>
-        {% else %}
-            {% include "includes/empty_state.html" with icon_name="clinical" title="Sin cambios dentales" description="No hay cambios de odontograma asociados a esta entrada." compact=True %}
-        {% endif %}
-    </section>
+    <div class="clinical-trace-grid">
+        <section class="panel-section animate-fade-up" aria-labelledby="versions-title"><div class="section-heading"><div><h2 id="versions-title">Versiones del borrador</h2><p>Registro cronológico de cada contenido guardado.</p></div></div>{% if historia.versiones.exists %}<div class="compact-list">{% for version in historia.versiones.all %}<article class="compact-item"><div><strong>Versión {{ version.numero_version }}</strong><span>{{ version.creado_en|date:"d/m/Y H:i:s" }} · {{ version.motivo }} · Sello {{ version.hash_integridad|slice:":12" }}…</span></div><a class="button button-secondary button-small" href="{% url 'historias:detalle_version' version.pk %}">Ver versión</a></article>{% endfor %}</div>{% else %}{% include "includes/empty_state.html" with icon_name="history" title="Sin versiones" description="La integridad inicial todavía no fue creada." compact=True %}{% endif %}</section>
 
-    {% endif %}
+        <section class="panel-section animate-fade-up" aria-labelledby="amendments-title"><div class="section-heading"><div><h2 id="amendments-title">Enmiendas posteriores</h2><p>Aclaraciones agregadas sin modificar el asiento original.</p></div></div>{% if historia.enmiendas.exists %}<div class="compact-list">{% for enmienda in historia.enmiendas.all %}<article class="compact-item"><div><strong>Enmienda {{ enmienda.numero_enmienda }}</strong><span>{{ enmienda.creado_en|date:"d/m/Y H:i:s" }} · {{ enmienda.odontologo }} · {{ enmienda.motivo }}</span></div><a class="button button-secondary button-small" href="{% url 'historias:detalle_enmienda' enmienda.pk %}">Ver enmienda</a></article>{% endfor %}</div>{% else %}{% include "includes/empty_state.html" with icon_name="history" title="Sin enmiendas" description="No se registraron correcciones posteriores." compact=True %}{% endif %}</section>
+    </div>
 
-    <section class="panel-section animate-fade-up">
-        <div class="section-heading">
-            <div>
-                <h2>Adjuntos</h2>
-                <p>Radiografías, imágenes o documentos asociados a esta entrada.</p>
-            </div>
-        </div>
+    <section class="panel-section clinical-integrity-panel animate-fade-up" aria-labelledby="integrity-title"><div class="section-heading"><div><h2 id="integrity-title">Información de integridad</h2><p>Comprobación del encadenamiento de versiones, enmiendas y, opcionalmente, archivos.</p></div>{% if integridad_inicializada %}<span class="status-badge status-sync-ok">Integridad inicializada</span>{% else %}<span class="status-badge status-warning">Requiere revisión</span>{% endif %}</div>{% if integridad_inicializada %}<form method="post" action="{% url 'historias:verificar_integridad' historia.pk %}">{% csrf_token %}<label class="checkbox-row"><input type="checkbox" name="verificar_adjuntos" value="1"><span>Verificar también el contenido de los adjuntos</span></label><button class="button button-secondary" type="submit">{% include "includes/icon.html" with name="check" %} Verificar integridad</button></form>{% else %}<p class="muted">El comando de inicialización legacy debe ejecutarse con una clave clínica configurada y, preferentemente, después del backfill de hashes de adjuntos.</p>{% endif %}</section>
 
-        {% if historia.adjuntos.exists %}
-            <div class="compact-list stagger-list">
-                {% for adjunto in historia.adjuntos.all %}
-                    <article class="compact-item animate-fade-up card-hover" style="--stagger-index: {{ forloop.counter0 }};">
-                        <div>
-                            <strong>{{ adjunto.nombre_archivo }}</strong>
-                            <span>
-                                {{ adjunto.tamano_legible }}
-                                - Subido el {{ adjunto.creado_en|date:"d/m/Y H:i" }}
-                                {% if adjunto.subido_por %}
-                                    por {{ adjunto.subido_por.get_full_name|default:adjunto.subido_por.username }}
-                                {% endif %}
-                            </span>
-                        </div>
-                        <a class="button button-secondary button-small" href="{% url 'historias:descargar_adjunto' adjunto.pk %}" target="_blank" rel="noopener">{% include "includes/icon.html" with name="attachment" %} Abrir</a>
-                    </article>
-                {% endfor %}
-            </div>
-        {% else %}
-            {% include "includes/empty_state.html" with icon_name="attachment" title="Sin adjuntos" description="No hay archivos cargados para esta entrada." compact=True %}
-        {% endif %}
-    </section>
+    {% if mostrar_odontograma %}<section class="panel-section animate-fade-up"><div class="section-heading"><div><h2>Odontograma de esta entrada</h2><p>Estados dentales registrados al guardar esta atención.</p></div></div>{% if historia.estados_dentales.exists %}<div class="odontograma-history-list">{% for estado in historia.estados_dentales.all %}{% include "odontogramas/includes/historial_item.html" with estado=estado %}{% endfor %}</div>{% else %}{% include "includes/empty_state.html" with icon_name="clinical" title="Sin cambios dentales" description="No hay cambios de odontograma asociados a esta entrada." compact=True %}{% endif %}</section>{% endif %}
+
+    {% if puede_finalizar_historia %}<dialog class="clinical-confirm-dialog" data-finalize-dialog aria-labelledby="finalize-dialog-title"><form method="post" action="{% url 'historias:finalizar' historia.pk %}">{% csrf_token %}<div class="dialog-icon">{% include "includes/icon.html" with name="lock" %}</div><h2 id="finalize-dialog-title">Finalizar entrada clínica</h2><p>Una vez finalizada, esta entrada no podrá editarse ni eliminarse. Las correcciones posteriores deberán registrarse mediante una enmienda.</p><label class="checkbox-row"><input type="checkbox" name="confirmar" required><span>Confirmo que revisé el contenido y deseo bloquearlo.</span></label><div class="form-actions"><button class="button" type="submit">Finalizar y bloquear</button><button class="button button-secondary" type="button" data-finalize-close>Volver</button></div></form></dialog>{% endif %}
 {% endblock %}
+
+{% block extra_scripts %}{% if puede_finalizar_historia %}<script>document.addEventListener("DOMContentLoaded",()=>{const d=document.querySelector("[data-finalize-dialog]");const o=document.querySelector("[data-finalize-open]");const c=document.querySelector("[data-finalize-close]");if(d&&o&&c){o.addEventListener("click",()=>d.showModal());c.addEventListener("click",()=>d.close());}});</script>{% endif %}{% endblock %}

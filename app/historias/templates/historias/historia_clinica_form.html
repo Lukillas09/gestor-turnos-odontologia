@@ -7,13 +7,15 @@
 {% block content %}
     <header class="internal-page-heading animate-fade-up"><div><p class="eyebrow">Historia clínica</p><h1>{{ titulo }}</h1><p class="subtitle">{{ subtitulo }}</p></div><a class="button button-secondary" href="{{ url_cancelar }}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a></header>
 
+    <div class="clinical-state-banner clinical-state-draft animate-fade-up" role="status">{% include "includes/icon.html" with name="edit" %}<div><strong>Estado: Borrador</strong><span>Los cambios quedan versionados. Al finalizar, el asiento se bloquea.</span></div></div>
+
     <form class="form-panel internal-form-v2 clinical-entry-form animate-fade-up" method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}{% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
         {% if form.non_field_errors %}<div class="form-error-panel" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 
         <section class="form-section" aria-labelledby="clinical-visit-title">
-            <header><span>{% include "includes/icon.html" with name="calendar" %}</span><div><h2 id="clinical-visit-title">Atención</h2><p>Fecha, motivo y pieza vinculada a esta evolución.</p></div></header>
-            <div class="form-grid">{% include "includes/form_field.html" with field=form.fecha short=True %}{% include "includes/form_field.html" with field=form.pieza_dental short=True %}{% include "includes/form_field.html" with field=form.motivo_consulta full=True %}</div>
+            <header><span>{% include "includes/icon.html" with name="calendar" %}</span><div><h2 id="clinical-visit-title">Atención</h2><p>Momento, motivo y pieza vinculada a esta evolución.</p></div></header>
+            <div class="form-grid">{% include "includes/form_field.html" with field=form.fecha_hora_atencion short=True %}{% include "includes/form_field.html" with field=form.pieza_dental short=True %}{% include "includes/form_field.html" with field=form.motivo_consulta full=True %}</div>
         </section>
 
         <section class="form-section" aria-labelledby="clinical-evolution-title">
@@ -25,6 +27,8 @@
             <header><span>{% include "includes/icon.html" with name="attachment" %}</span><div><h2 id="clinical-files-title">Archivos</h2><p>Radiografías, imágenes o documentos relacionados.</p></div></header>
             <div class="form-grid">{% include "includes/form_field.html" with field=form.adjuntos full=True %}</div>
         </section>
+
+        {% if form.motivo_cambio %}<section class="form-section clinical-change-reason" aria-labelledby="clinical-reason-title"><header><span>{% include "includes/icon.html" with name="history" %}</span><div><h2 id="clinical-reason-title">Motivo de la modificación</h2><p>Este texto acompañará la nueva versión y no reemplaza el contenido anterior.</p></div></header><div class="form-grid">{% include "includes/form_field.html" with field=form.motivo_cambio full=True %}</div></section>{% endif %}
 
         {% if mostrar_odontograma_en_form %}<section class="form-section form-clinical-section"><header><span>{% include "includes/icon.html" with name="clinical" %}</span><div><h2>Odontograma de la entrada</h2><p>Registrá los cambios dentales de esta atención antes de guardar.</p></div></header>{% include "odontogramas/includes/odontograma_editor.html" %}</section>{% endif %}
 

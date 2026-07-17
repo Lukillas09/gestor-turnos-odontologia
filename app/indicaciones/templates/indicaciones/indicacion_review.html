@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Revisar indicación | Gestor de Turnos{% endblock %}
+{% block content %}
+<header class="internal-page-heading animate-fade-up"><div><p class="eyebrow">Documento clínico</p><h1>Revisar indicación</h1><p class="subtitle">Comprobá el contenido antes de emitirlo.</p></div><a class="button button-secondary" href="{% url 'indicaciones:detalle' paciente.pk indicacion.uuid %}">{% include "includes/icon.html" with name="arrow-left" %} Volver</a></header>
+<div class="indication-review-layout">
+    <section class="panel-section animate-fade-up">{% include "indicaciones/includes/documento.html" %}</section>
+    <aside class="indication-review-action animate-fade-up">
+        <form class="form-panel internal-form-v2" method="post" action="{% url 'indicaciones:emitir' paciente.pk indicacion.uuid %}" novalidate>
+            {% csrf_token %}
+            <div class="clinical-lock-warning" role="alert">{% include "includes/icon.html" with name="lock" %}<div><h2>La emisión es permanente</h2><p>Una vez emitida, esta indicación no podrá modificarse. Para corregirla deberás anularla y crear un nuevo documento.</p></div></div>
+            {% if form.non_field_errors %}<div class="form-error-panel" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            {% include "includes/form_field.html" with field=form.confirmar full=True %}
+            <div class="form-actions"><button class="button" type="submit">{% include "includes/icon.html" with name="send" %} Emitir y enviar</button><a class="button button-secondary" href="{% url 'indicaciones:editar' paciente.pk indicacion.uuid %}">Volver a editar</a></div>
+        </form>
+    </aside>
+</div>
+{% endblock %}

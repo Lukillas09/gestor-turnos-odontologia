@@ -23,6 +23,12 @@ from historias.permissions import (
     puede_crear_historia_de_paciente,
     puede_ver_historia_de_paciente,
 )
+from indicaciones.permissions import (
+    indicaciones_habilitadas,
+    puede_crear_indicacion,
+    puede_ver_indicaciones,
+)
+from indicaciones.selectors import indicaciones_del_paciente
 from turnos.models import Turno
 from usuarios.mixins import (
     ArchivarPacientesRequeridoMixin,
@@ -260,6 +266,17 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
         alertas_clinicas = []
         indicadores_ficha = []
         detalle_ficha = []
+        indicaciones_recientes = []
+        cantidad_indicaciones = 0
+        puede_ver_indicaciones_postoperatorias = puede_ver_indicaciones(
+            self.request.user,
+            paciente,
+            request=self.request,
+        )
+        puede_crear_indicacion_postoperatoria = puede_crear_indicacion(
+            self.request.user,
+            paciente,
+        )
 
         if puede_ver_historia:
             ficha_odontologica = self._obtener_ficha_odontologica(paciente)
@@ -289,6 +306,15 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 motivo="Detalle de paciente con datos clinicos consultado.",
             )
 
+        if puede_ver_indicaciones_postoperatorias:
+            indicaciones_visibles = indicaciones_del_paciente(
+                paciente,
+                self.request.user,
+                request=self.request,
+            )
+            cantidad_indicaciones = indicaciones_visibles.count()
+            indicaciones_recientes = list(indicaciones_visibles[:3])
+
         context.update(
             {
                 "edad_paciente": self._calcular_edad(paciente.fecha_nacimiento, hoy),
@@ -315,6 +341,11 @@ class PacienteDetailView(VerPacientesRequeridoMixin, DetailView):
                 "ultima_historia_clinica": ultima_historia,
                 "cantidad_historias_clinicas": cantidad_historias,
                 "cantidad_adjuntos_clinicos": cantidad_adjuntos,
+                "indicaciones_postoperatorias_enabled": indicaciones_habilitadas(),
+                "puede_ver_indicaciones_postoperatorias": (puede_ver_indicaciones_postoperatorias),
+                "puede_crear_indicacion_postoperatoria": (puede_crear_indicacion_postoperatoria),
+                "indicaciones_postoperatorias_recientes": indicaciones_recientes,
+                "cantidad_indicaciones_postoperatorias": cantidad_indicaciones,
                 "resumen_rapido": self._obtener_resumen_rapido(
                     cantidad_turnos_activos,
                     proximo_turno,

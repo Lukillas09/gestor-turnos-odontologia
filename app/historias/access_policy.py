@@ -91,6 +91,18 @@ def puede_crear_historia_de_paciente(usuario, paciente):
 
 
 def puede_editar_historia_clinica(usuario, historia):
+    return historia.puede_editarse and _puede_escribir_historia(usuario, historia)
+
+
+def puede_enmendar_historia_clinica(usuario, historia):
+    return (
+        not historia.borrador
+        and historia.bloqueada_para_edicion
+        and _puede_escribir_historia(usuario, historia)
+    )
+
+
+def _puede_escribir_historia(usuario, historia):
     if not usuario.is_authenticated:
         return False
 

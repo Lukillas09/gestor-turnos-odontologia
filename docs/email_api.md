@@ -72,6 +72,21 @@ DEFAULT_FROM_EMAIL=Consultorio <turnos@tu-dominio.com>
 
 No subir `EMAIL_API_KEY` al repositorio.
 
+## Adjuntos de indicaciones
+
+El cliente de Resend soporta adjuntos de `EmailMessage` sin cambiar el payload de correos
+simples. Para cada adjunto valida nombre, MIME, contenido binario y tamaño; luego transmite
+el contenido Base64 en memoria con `filename` y `content_type`. El PDF no se guarda como
+Base64 ni se registra en logs.
+
+Las indicaciones usan `Idempotency-Key` validado, `application/pdf` y el límite
+`INDICACIONES_PDF_MAX_BYTES`. Brevo conserva el comportamiento anterior y rechaza adjuntos
+en esta versión para evitar una implementación parcial silenciosa.
+
+Un error del proveedor se transforma en `EmailApiError`. La app `indicaciones` registra
+solo el tipo de excepción y mantiene el documento emitido para reintento; no registra API
+keys, cuerpo del PDF, Base64 ni la respuesta completa en los mensajes clínicos.
+
 ## GitHub Actions
 
 Para recordatorios programados, cargar estos secrets:

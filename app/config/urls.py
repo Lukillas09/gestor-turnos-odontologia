@@ -32,6 +32,10 @@ urlpatterns = [
     path("perfil/", PerfilUsuarioView.as_view(), name="perfil"),
     path("admin/", admin.site.urls),
     path("pacientes/", include("pacientes.urls")),
+    path(
+        "pacientes/<int:paciente_pk>/indicaciones/",
+        include("indicaciones.urls"),
+    ),
     path("turnos/", include("turnos.urls")),
     path("historias/", include("historias.urls")),
     path("odontogramas/", include("odontogramas.urls")),

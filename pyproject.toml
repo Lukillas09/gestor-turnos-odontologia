@@ -37,6 +37,7 @@ source = [
     "config",
     "consultorio",
     "historias",
+    "indicaciones",
     "odontogramas",
     "pacientes",
     "turnos",

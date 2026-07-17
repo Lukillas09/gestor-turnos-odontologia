@@ -5,8 +5,8 @@
 {% block content %}
     <div class="patient-backline animate-fade-up"><a class="button button-secondary button-small button-subtle" href="{% url 'pacientes:detalle' paciente.pk %}">{% include "includes/icon.html" with name="arrow-left" %} Volver a la ficha</a></div>
     <header class="internal-page-heading clinical-history-heading animate-fade-up">
-        <div class="clinical-history-patient"><span class="patient-avatar">{{ paciente.apellido|default:paciente.nombre|first|upper }}</span><div><p class="eyebrow">Historia clínica</p><h1>{{ paciente.nombre_completo }}</h1><p class="subtitle">DNI {{ paciente.documento|default:"-" }} · {{ page_obj.paginator.count }} entrada{% if page_obj.paginator.count != 1 %}s{% endif %}</p></div></div>
-        {% if puede_crear_historia_clinica %}<a class="button" href="{% url 'historias:crear' paciente.pk %}">{% include "includes/icon.html" with name="plus" %} Nueva entrada</a>{% endif %}
+        <div class="clinical-history-patient"><span class="patient-avatar">{{ paciente.apellido|default:paciente.nombre|first|upper }}</span><div><p class="eyebrow">Historia clínica</p><h1>{{ paciente.nombre_completo }}</h1><p class="subtitle">DNI {{ paciente.documento|default:"-" }} · {{ page_obj.paginator.count }} asiento{% if page_obj.paginator.count != 1 %}s{% endif %}</p></div></div>
+        {% if puede_crear_historia_clinica %}<a class="button" href="{% url 'historias:crear' paciente.pk %}">{% include "includes/icon.html" with name="plus" %} Nuevo borrador</a>{% endif %}
     </header>
 
     <details class="list-filters-panel history-filters-panel animate-fade-up" open>
@@ -21,20 +21,35 @@
     </details>
 
     {% if historias %}
-        <section class="clinical-history-timeline stagger-list" aria-label="Evoluciones clínicas">
+        <section class="clinical-history-timeline stagger-list" aria-label="Asientos clínicos">
             {% for historia in historias %}
                 <article class="clinical-history-row animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
-                    <div class="clinical-history-date"><time datetime="{{ historia.fecha|date:'Y-m-d' }}"><strong>{{ historia.fecha|date:"d" }}</strong><span>{{ historia.fecha|date:"M Y" }}</span></time><span class="clinical-history-dot" aria-hidden="true"></span></div>
+                    <div class="clinical-history-date">
+                        <time datetime="{{ historia.fecha_hora_atencion|date:'c' }}"><strong>{{ historia.fecha_hora_atencion|date:"d" }}</strong><span>{{ historia.fecha_hora_atencion|date:"M Y" }}</span><small>{% if historia.migrada_desde_legacy %}Sin hora{% else %}{{ historia.fecha_hora_atencion|date:"H:i" }}{% endif %}</small></time>
+                        <span class="clinical-history-dot" aria-hidden="true"></span>
+                    </div>
                     <div class="clinical-history-entry">
-                        <header><div><p>{{ historia.odontologo }}</p><h2>{{ historia.motivo_consulta|truncatechars:110 }}</h2></div>{% if historia.proximo_control %}<span class="status-badge status-sync-ok">Control {{ historia.proximo_control|date:"d/m/Y" }}</span>{% endif %}</header>
+                        <header>
+                            <div><p>{% if historia.numero_asiento %}Asiento {{ historia.numero_asiento }}{% else %}Sin folio · Borrador{% endif %} · {{ historia.odontologo }}</p><h2>{{ historia.motivo_consulta|truncatechars:110 }}</h2></div>
+                            <div class="clinical-status-group">
+                                {% if historia.borrador %}<span class="status-badge status-pending">Borrador</span>{% else %}<span class="status-badge status-sync-ok">Finalizada</span>{% endif %}
+                                {% if historia.migrada_desde_legacy %}<span class="status-badge">Migrada</span>{% endif %}
+                                {% if historia.cantidad_versiones %}<span class="status-badge status-sync-ok">Integridad inicializada</span>{% else %}<span class="status-badge status-warning">Requiere revisión de integridad</span>{% endif %}
+                            </div>
+                        </header>
                         <div class="clinical-history-summary"><div><span>Diagnóstico</span><p>{{ historia.diagnostico|truncatechars:140|default:"Sin diagnóstico cargado" }}</p></div><div><span>Pieza</span><p>{{ historia.pieza_dental|default:"-" }}</p></div></div>
-                        <footer><span>{% include "includes/icon.html" with name="attachment" %} {{ historia.cantidad_adjuntos }} adjunto{% if historia.cantidad_adjuntos != 1 %}s{% endif %}</span><span>{% if historia.creado_por %}Cargado por {{ historia.creado_por.get_full_name|default:historia.creado_por.username }}{% else %}Cargado por -{% endif %}</span><a class="button button-secondary button-small" href="{% url 'historias:detalle' historia.pk %}">Ver detalle</a>{% if historia.odontologo.usuario_id == request.user.id %}<a class="button button-tertiary button-small" href="{% url 'historias:editar' historia.pk %}">{% include "includes/icon.html" with name="edit" %} Editar</a>{% endif %}</footer>
+                        <footer>
+                            <span>{% include "includes/icon.html" with name="attachment" %} {{ historia.cantidad_adjuntos }} adjunto{% if historia.cantidad_adjuntos != 1 %}s{% endif %}</span>
+                            <span>{{ historia.cantidad_versiones }} versi{% if historia.cantidad_versiones == 1 %}ón{% else %}ones{% endif %} · {{ historia.cantidad_enmiendas }} enmienda{% if historia.cantidad_enmiendas != 1 %}s{% endif %}</span>
+                            <a class="button button-secondary button-small" href="{% url 'historias:detalle' historia.pk %}">Ver detalle</a>
+                            {% if historia.puede_editarse and historia.odontologo.usuario_id == request.user.id %}<a class="button button-tertiary button-small" href="{% url 'historias:editar' historia.pk %}">{% include "includes/icon.html" with name="edit" %} Editar borrador</a>{% endif %}
+                        </footer>
                     </div>
                 </article>
             {% endfor %}
         </section>
     {% else %}
-        {% url 'historias:crear' paciente.pk as crear_historia_url %}{% if puede_crear_historia_clinica %}{% include "includes/empty_state.html" with icon_name="clinical" title="Sin entradas clínicas" description="Registrá la primera evolución de este paciente." action_url=crear_historia_url action_label="Nueva entrada" %}{% else %}{% include "includes/empty_state.html" with icon_name="clinical" title="Sin entradas clínicas" description="No hay evoluciones registradas para este paciente." %}{% endif %}
+        {% url 'historias:crear' paciente.pk as crear_historia_url %}{% if puede_crear_historia_clinica %}{% include "includes/empty_state.html" with icon_name="clinical" title="Sin asientos clínicos" description="Registrá el primer borrador clínico de este paciente." action_url=crear_historia_url action_label="Nuevo borrador" %}{% else %}{% include "includes/empty_state.html" with icon_name="clinical" title="Sin asientos clínicos" description="No hay registros clínicos para este paciente." %}{% endif %}
     {% endif %}
 
     {% if is_paginated %}<nav class="pagination-actions animate-fade-up" aria-label="Paginación de historia clínica">{% if page_obj.has_previous %}<a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">{% include "includes/icon.html" with name="arrow-left" %} Anterior</a>{% endif %}<span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="button button-secondary" href="?{% if filtros_querystring %}{{ filtros_querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Siguiente {% include "includes/icon.html" with name="arrow-right" %}</a>{% endif %}</nav>{% endif %}
