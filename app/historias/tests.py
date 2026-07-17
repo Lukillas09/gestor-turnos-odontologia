@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -267,7 +267,9 @@ class HistoriaClinicaAccessTests(TestCase):
         self.assertNotContains(response, "Historia clínica")
 
 
-class HistoriaClinicaViewsTests(TestCase):
+class HistoriaClinicaViewsTests(TransactionTestCase):
+    """Aísla los FileResponse que cierran la conexión al finalizar el streaming."""
+
     def setUp(self):
         self.media_dir = tempfile.TemporaryDirectory()
         self.media_override = override_settings(
