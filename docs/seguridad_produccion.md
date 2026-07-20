@@ -33,7 +33,8 @@ Estado actual:
 - La solicitud publica de turno exige DNI, guarda una fotografia en `SolicitudTurnoPublica` y no sobrescribe datos de un `Paciente` existente.
 - La creación pública de turnos aplica rate limit separado por IP y DNI hasheados, idempotencia por formulario, deduplicación exacta y máximo configurable de pendientes por DNI.
 - Turnstile puede exigirse de forma progresiva después de varios intentos, pero no reemplaza los límites duros ni los reinicia.
-- Si Redis/cache no está disponible cuando es obligatorio, la creación pública falla cerrada con HTTP 503 y mensaje genérico.
+- PostgreSQL conserva ventanas de rate limit e idempotencia con lease; sleeping, reinicios y varios workers no reinician las protecciones.
+- Si la base no puede garantizar una protección, la operación falla cerrada con HTTP 503, `Retry-After` y mensaje genérico.
 - El email es obligatorio para pacientes nuevos y para pacientes existentes activos sin email registrado, pero un email propuesto publicamente nunca se considera identidad verificada.
 - Si el DNI ya existe y el formulario trae telefono/email diferentes, el turno queda marcado como `Datos por revisar` y se notifica solo al contacto almacenado previamente.
 - Los codigos OTP se envian exclusivamente a `Paciente.email`; `SolicitudTurnoPublica.email_enviado` no se usa como fallback antes de una revision interna explicita.
@@ -46,11 +47,12 @@ Estado actual:
 
 Antes de produccion real:
 
-- Configurar `REDIS_URL` para rate limiting distribuido.
-- Mantener `TURNOS_PUBLIC_REDIS_REQUIRED=True` fuera de desarrollo.
+- Mantener PostgreSQL como base obligatoria y aplicar la migración de protecciones públicas.
+- Dejar `TURNOS_PUBLIC_REDIS_REQUIRED=False`; configurar Redis sólo si se desea acelerar cálculos no críticos.
 - Verificar límites de solicitud, OTP, reenvío, acciones públicas, creación pública por IP/DNI y máximo de pendientes según el tráfico real.
 - Evaluar `TURNSTILE_ENABLED=True` y cargar `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`.
 - Programar `python manage.py limpiar_desafios_acceso_publico` para limpiar OTP vencidos y permisos inactivos.
+- Ejecutar periódicamente `python manage.py limpiar_protecciones_publicas` con lotes acotados para rate limits e idempotencias vencidas.
 - Capacitar a recepcion para actualizar el email del paciente desde el panel interno si no tiene contacto utilizable.
 - Revisar periodicamente los turnos filtrados por `Datos por revisar` y aplicar cambios solo campo por campo.
 - Revisar `/turnos/alertas-administrativas/` cuando Inicio avise que hay solicitudes sin turno.
@@ -243,10 +245,12 @@ No activar `DJANGO_SECURE_HSTS_PRELOAD=True` hasta estar seguro de que todos los
 - `DEBUG=False`.
 - `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` sin comodines inseguros.
 - Tokens OAuth no visibles en admin ni templates.
-- `REDIS_URL` configurado y `TURNOS_PUBLIC_REDIS_REQUIRED=True`.
+- PostgreSQL configurado, migraciones aplicadas y concurrencia de protecciones validada.
+- `TURNOS_PUBLIC_REDIS_REQUIRED=False`; cualquier Redis configurado se usa sólo como caché opcional.
 - Variables `TURNOS_PUBLIC_BOOKING_*` revisadas para el tráfico esperado.
-- Turnstile configurado o decisión documentada para mantenerlo apagado; Redis igualmente activo.
+- Turnstile configurado o decisión documentada para mantenerlo apagado.
 - Limpieza de desafios OTP y acciones publicas agendada.
+- Limpieza por lotes de rate limits e idempotencias expiradas agendada o incorporada al mantenimiento existente.
 - Logs sin secretos ni datos clinicos sensibles.
 - `CLINICAL_INTEGRITY_HMAC_KEY` independiente, estable y custodiada fuera de la base.
 - Migraciones clínicas `0005` a `0007` aplicadas y triggers verificados en PostgreSQL.

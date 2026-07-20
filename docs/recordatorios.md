@@ -93,7 +93,7 @@ STAGING_EMAIL_USE_SSL
 
 Con `config.email_backends.EmailApiBackend`, el workflow exige que `STAGING_EMAIL_API_PROVIDER` y `STAGING_EMAIL_API_KEY` no estén vacíos. También rechaza explícitamente los backends de consola, memoria, dummy y archivos para evitar ejecuciones exitosas que no envíen emails reales.
 
-El job configura `TURNOS_PUBLIC_REDIS_REQUIRED=False` y deja `REDIS_URL` vacío únicamente durante la ejecución programada. Este proceso no atiende tráfico público ni necesita el rate limiting distribuido; la aplicación web en Railway conserva su configuración y política de Redis independientes.
+El job configura `TURNOS_PUBLIC_REDIS_REQUIRED=False` y deja `REDIS_URL` vacío. Redis también es opcional para la aplicación web: las protecciones públicas compartidas viven en PostgreSQL y la caché sólo acelera horarios cuando se habilita un TTL.
 
 Antes de enviar recordatorios, el workflow valida los Secrets requeridos y ejecuta `python manage.py check` con `DJANGO_DEBUG=False`. No ejecuta migraciones ni `collectstatic`.
 

@@ -108,16 +108,19 @@ Con el flag activo:
    y recién entonces crea el turno y sus snapshots.
 
 La protección contra rate limiting, Turnstile, idempotencia, máximo de pendientes y mensajes
-neutrales sigue siendo la misma. Dos procesos no pueden confirmar el mismo intervalo en
-PostgreSQL porque comparten el bloqueo técnico por odontólogo/fecha y revalidan dentro de la
-transacción.
+neutrales sigue siendo la misma y usa PostgreSQL como autoridad compartida. Dos procesos no
+pueden confirmar el mismo intervalo porque comparten el bloqueo técnico por odontólogo/fecha
+y revalidan dentro de la transacción.
 
 ## Caché
 
-La caché corta incluye odontólogo, fecha, configuración de servicio, timestamps del tipo,
+Cuando su TTL es mayor a cero, la caché corta incluye odontólogo, fecha, configuración de servicio, timestamps del tipo,
 servicio y agenda, versión del algoritmo y bucket temporal. Una caída de caché no impide
 calcular horarios; se registra únicamente etapa, clase de caché y tipo de error. La caché nunca
 es autoridad al guardar: la validación definitiva siempre es transaccional y sin caché.
+
+El valor recomendado sin Redis es `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS=0`.
+`LocMemCache` puede usarse con un TTL mayor sólo como optimización local por worker.
 
 Una cancelación deja de ocupar inmediatamente. El bucket corto limita la antigüedad visual y
 el POST recalcula de todos modos.
@@ -170,7 +173,7 @@ ni información clínica.
 2. Crear tipos globales neutros y configurar duraciones por odontólogo.
 3. Mantener `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=False` en producción.
 4. Activarlo primero en staging y probar mañana/tarde, excepciones, cancelación,
-   reprogramación, emails, Calendar, Redis disponible y Redis caído.
+   reprogramación, emails, Calendar, caché deshabilitada y Redis opcional si se configura.
 5. Revisar logs y tiempos habituales, con objetivo inferior a 200 ms sin cold start.
 6. Activar el flag en producción solo después de validar todos los odontólogos publicados.
 

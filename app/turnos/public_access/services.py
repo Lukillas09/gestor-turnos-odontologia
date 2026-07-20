@@ -65,11 +65,10 @@ class ResultadoValidacionOTP:
     desafio_id: str | None = None
 
 
-def solicitar_acceso_publico_turnos(request, documento):
+def registrar_intento_solicitud_acceso(request, documento):
     documento = normalizar_documento(documento)
     ip_hash = hash_valor_publico(obtener_ip_cliente(request), "ip")
     dni_hash = hash_valor_publico(documento, "dni")
-
     limite_ip = incrementar_limite(
         "solicitud_ip",
         ip_hash,
@@ -82,6 +81,14 @@ def solicitar_acceso_publico_turnos(request, documento):
         settings.TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT,
         settings.TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS,
     )
+    return limite_ip, limite_dni
+
+
+def solicitar_acceso_publico_turnos(request, documento, *, limites=None):
+    documento = normalizar_documento(documento)
+    ip_hash = hash_valor_publico(obtener_ip_cliente(request), "ip")
+    dni_hash = hash_valor_publico(documento, "dni")
+    limite_ip, limite_dni = limites or registrar_intento_solicitud_acceso(request, documento)
 
     desafio = _crear_desafio(documento, ip_hash, dni_hash)
     request.session[PUBLIC_ACCESS_PENDING_CHALLENGE_KEY] = str(desafio.id)
@@ -180,7 +187,7 @@ def reenviar_codigo_acceso_publico(request):
     )
     limite_dni = incrementar_limite(
         "reenvio_dni",
-        desafio.dni_hash or "sin-dni",
+        desafio.dni_hash or hash_valor_publico("sin-dni", "dni"),
         settings.TURNOS_PUBLIC_RESEND_LIMIT,
         settings.TURNOS_PUBLIC_RESEND_WINDOW_SECONDS,
     )

@@ -5,12 +5,13 @@
 El flujo público selecciona odontólogo, fecha y hora, y crea un `Turno` pendiente con una
 duración fija de 30 minutos. La disponibilidad se calcula con `DisponibilidadOdontologo`,
 turnos pendientes/confirmados y `ExcepcionAgenda`. Los resultados públicos se cachean por
-odontólogo, fecha, duración y bucket temporal; Redis tiene fallback tolerante a fallos.
+odontólogo, fecha, duración y bucket temporal cuando el TTL es mayor a cero; Redis o
+`LocMemCache` son aceleradores opcionales con fallback tolerante a fallos.
 
 La confirmación definitiva ya usa transacciones y un bloqueo estable por
 `(odontologo_id, fecha)` mediante `bloquear_agendas_de_turnos()`. La reserva pública vuelve a
 consultar disponibilidad después de adquirir ese bloqueo. OTP, rate limits, Turnstile e
-idempotencia son capas independientes que deben conservarse.
+idempotencia son capas independientes; rate limits e idempotencia usan PostgreSQL.
 
 La reprogramación pública conserva actualmente `Turno.duracion_minutos`, Google Calendar usa
 `fecha_hora_fin` y las agendas interna diaria/semanal también derivan el final desde esa
@@ -135,8 +136,8 @@ registran con datos personales.
 
 La clave `turnos:public_booking:smart:v1` incluirá odontólogo, fecha, configuración de tipo,
 timestamps de tipo/configuración/agenda, versión y bucket. Se serializarán solamente datos
-públicos mínimos. Una caída de Redis registrará un warning neutro y calculará el resultado sin
-caché.
+públicos mínimos. Una caída de la caché configurada registrará un warning neutro y calculará
+el resultado sin caché.
 
 El resultado cacheado nunca se usará como validación final.
 

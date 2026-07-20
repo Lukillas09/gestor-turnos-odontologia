@@ -141,7 +141,8 @@ Capas internas:
 - `google_calendar_oauth.py`: guardado/desconexión OAuth.
 - `google_calendar_sync.py`: coordinación entre turnos y Google Calendar.
 - `solicitudes_publicas/`: caso de uso transaccional de solicitud pública, comparación de datos, selectores y permisos de revisión.
-- `public_access/`: OTP público, sesión temporal, rate limiting y acciones públicas de un solo uso.
+- `public_access/`: OTP público, sesión temporal, rate limiting transaccional en PostgreSQL y acciones públicas de un solo uso.
+- `LimitePublico` e `IdempotenciaSolicitudPublica`: estado compartido entre workers; Redis y `LocMemCache` quedan fuera de las garantías de seguridad.
 
 `turnos/models.py` no se divide todavía para evitar riesgos de imports circulares y cambios accidentales en migraciones. El plan técnico está documentado en `docs/refactor_modelos_turnos.md`.
 

@@ -46,7 +46,9 @@ env:
   TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS: "3"
   TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI: "2"
   TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS: "3600"
+  TURNOS_PUBLIC_BOOKING_PROCESSING_SECONDS: "120"
   TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS: "86400"
+  TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS: "0"
   TURNSTILE_ENABLED: "False"
   TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
@@ -161,6 +163,7 @@ jobs:
           turnos.tests
           turnos.tests_email_api
           turnos.tests_google_calendar
+          turnos.tests_public_protection
           turnos.tests_smart_scheduling
           --verbosity 2
 
@@ -179,7 +182,7 @@ jobs:
           path: app/coverage.xml
 
   clinical-postgresql:
-    name: Clinical integrity on PostgreSQL
+    name: PostgreSQL guarantees
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -230,6 +233,7 @@ jobs:
           python manage.py test
           historias
           indicaciones.tests
+          turnos.tests_public_protection.ProteccionesPublicasPostgreSQLTests
           turnos.tests_smart_scheduling.AgendaInteligentePostgreSQLTests
           --verbosity 2
 

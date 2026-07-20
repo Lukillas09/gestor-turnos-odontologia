@@ -727,6 +727,7 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
         self.assertEqual(reprogramado.margen_posterior_minutos_snapshot, 15)
         self.assertEqual(reprogramado.tipo_turno_nombre_snapshot, "Control")
 
+    @override_settings(TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS=60)
     def test_cache_distingue_configuracion_y_tolera_falla(self):
         cache.clear()
         with patch(

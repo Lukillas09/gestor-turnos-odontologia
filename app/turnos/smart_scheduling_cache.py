@@ -24,7 +24,7 @@ def obtener_horarios_inteligentes_cacheados(*, configuracion_tipo, fecha, ahora=
     try:
         ttl = max(0, int(settings.TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS))
     except (TypeError, ValueError):
-        ttl = 60
+        ttl = 0
     momento = timezone.localtime(ahora or timezone.now())
 
     if ttl <= 0:
