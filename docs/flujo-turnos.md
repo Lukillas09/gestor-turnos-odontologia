@@ -58,16 +58,16 @@ Flujo:
    - DNI obligatorio;
    - email condicional: obligatorio para pacientes nuevos y para pacientes existentes activos sin email registrado;
    - motivo breve opcional en legacy o comentario adicional opcional en el modo inteligente.
-5. El POST final se cuenta una sola vez para rate limit por IP y DNI hasheados.
+5. Cada POST final incrementa primero ventanas fijas de rate limit por IP y DNI hasheados en PostgreSQL, incluso si una validación posterior falla.
 6. Si corresponde por umbral, se exige Turnstile antes de procesar la solicitud.
-7. Se valida el token de idempotencia del formulario para evitar doble clic, recarga o reenvío del POST.
+7. Se adquiere en PostgreSQL el hash del token de idempotencia. Un lease permite recuperar el procesamiento si el worker se interrumpe.
 8. El DNI se normaliza con una función centralizada para evitar duplicados por formato.
 9. Si el DNI no existe, el email es obligatorio y se crea un paciente nuevo con `origen_alta=solicitud_publica`, `estado_validacion_datos=pendiente` y `email_verificado_en=None`.
 10. Si el DNI ya existe, el paciente se reutiliza sin modificar nombre, apellido, teléfono ni email. Si el paciente activo no tiene email registrado, debe enviar uno como propuesta para revisión.
 11. Se valida ventana pública de reserva, anticipación mínima, disponibilidad, excepciones y superposición.
 12. Dentro de la transacción se detectan duplicados exactos y se aplica el máximo de pendientes por DNI.
 13. Se crea un turno pendiente. El modo legacy usa 30 minutos; el modo inteligente deriva atención+margen, recalcula bajo bloqueo y guarda snapshots.
-14. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados.
+14. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados y se marca la idempotencia como completada dentro del mismo commit.
 15. Si hay diferencias contra el paciente existente, la solicitud queda pendiente de revisión para recepción.
 16. La respuesta pública es neutral y no revela si el paciente existía, si se creó, si hubo diferencias ni si se reutilizó una solicitud previa.
 
@@ -86,7 +86,7 @@ Reglas:
 - No permite horarios ocupados.
 - No permite horarios dentro de excepciones de agenda.
 - No pide datos clínicos ni administrativos extensos.
-- No crea registros si se supera el rate limit por IP/DNI o si la protección de cache no está disponible.
+- No crea registros si se supera el rate limit por IP/DNI o si PostgreSQL no puede garantizar la protección; en ese caso responde 503 de forma neutral.
 - El máximo de pendientes cuenta solo solicitudes públicas futuras con turno pendiente, no turnos internos, confirmados, cancelados, pasados ni solicitudes rechazadas.
 - Un duplicado exacto activo del mismo DNI, odontólogo, fecha, hora y servicio cuando aplica se trata como operación ya registrada y redirige a la confirmación genérica sin reenviar emails.
 - Las alertas administrativas sin turno para pacientes archivados se reutilizan dentro de la ventana configurada para no generar pendientes ilimitados.
@@ -217,7 +217,7 @@ La reprogramacion publica:
 - rechaza horarios dentro de excepciones de agenda;
 - conserva el turno en estado `pendiente`.
 
-El flujo aplica rate limiting por IP y DNI hasheados. En produccion debe usar Redis mediante `REDIS_URL`; Turnstile puede activarse como desafio adicional despues de varios intentos.
+El flujo aplica rate limiting por IP y DNI hasheados en PostgreSQL. Redis es opcional y sólo acelera horarios; Turnstile puede activarse como desafío adicional después de varios intentos.
 ## Creación Interna
 
 Ruta:

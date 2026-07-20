@@ -34,6 +34,7 @@ from turnos.models import (
     DisponibilidadOdontologo,
     ExcepcionAgenda,
     GoogleCalendarConexion,
+    LimitePublico,
     Odontologo,
     SolicitudTurnoPublica,
     Turno,
@@ -42,7 +43,7 @@ from turnos.notifications import (
     notificar_recordatorio_turno,
     notificar_turno_confirmado,
 )
-from turnos.public_access.rate_limit import construir_clave
+from turnos.public_access.exceptions import ProteccionPublicaNoDisponible
 from turnos.public_access.tokens import (
     PUBLIC_ACCESS_PENDING_CHALLENGE_KEY,
     PUBLIC_ACCESS_SESSION_KEY,
@@ -101,9 +102,10 @@ def obtener_fecha_laboral_futura():
 
 def crear_idempotency_token_para_cliente(client):
     token = token_urlsafe(32)
+    token_hash = hash_valor_publico(token, "booking_idempotency")
     session = client.session
     tokens = session.get(SESSION_IDEMPOTENCY_KEY, {})
-    tokens[token] = int(timezone.now().timestamp())
+    tokens[token_hash] = int(timezone.now().timestamp())
     session[SESSION_IDEMPOTENCY_KEY] = tokens
     session.save()
     return token
@@ -1240,6 +1242,12 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertFalse(
             SolicitudTurnoPublica.objects.filter(documento_enviado="80111222").exists()
         )
+        self.assertEqual(
+            LimitePublico.objects.filter(
+                ambito__in=["reserva_creacion_ip", "reserva_creacion_dni"]
+            ).count(),
+            2,
+        )
 
     def test_formulario_publico_permite_paciente_nuevo_con_email_valido(self):
         form = SolicitudTurnoPublicaForm(data=self._datos_solicitud_publica(documento="80111223"))
@@ -1684,7 +1692,7 @@ class SolicitudTurnoPublicaTests(TestCase):
     def test_fallo_de_cache_devuelve_503_sin_crear_registros(self):
         with patch(
             "turnos.solicitudes_publicas.proteccion.incrementar_limite",
-            side_effect=RuntimeError("cache caido"),
+            side_effect=ProteccionPublicaNoDisponible(),
         ):
             response = self.client.post(
                 reverse("turnos:solicitud_publica_datos"),
@@ -1702,16 +1710,17 @@ class SolicitudTurnoPublicaTests(TestCase):
             status_code=503,
         )
 
-    def test_claves_de_rate_limit_no_guardan_ip_ni_dni_en_texto_plano(self):
+    def test_rate_limit_no_guarda_ip_ni_dni_en_texto_plano(self):
         self.client.post(
             reverse("turnos:solicitud_publica_datos"),
             self._datos_solicitud_publica(documento="84.111.241"),
             REMOTE_ADDR="203.0.113.15",
         )
-        claves = " ".join(str(clave) for clave in getattr(cache, "_cache", {}).keys())
+        limites = list(LimitePublico.objects.values_list("sujeto_hash", flat=True))
 
-        self.assertNotIn("84111241", claves)
-        self.assertNotIn("203.0.113.15", claves)
+        self.assertTrue(limites)
+        self.assertNotIn("84111241", limites)
+        self.assertNotIn("203.0.113.15", limites)
 
     def test_formulario_publico_inicia_sin_odontologo_seleccionado(self):
         self._configurar_contacto_publico()
@@ -3600,6 +3609,37 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertRedirects(response, reverse("turnos:mis_turnos_publico"))
         self.assertEqual(turno.motivo_cancelacion_paciente, "No puedo asistir.")
 
+    @override_settings(
+        TURNOS_PUBLIC_ACTION_LIMIT=1,
+        TURNOS_PUBLIC_ACTION_WINDOW_SECONDS=600,
+    )
+    def test_cancelacion_consume_limite_antes_de_validar_formulario(self):
+        paciente = self._crear_paciente_publico()
+        turno = self._crear_turno_publico(paciente, estado=Turno.Estado.CONFIRMADO)
+        self._solicitar_y_validar_acceso_publico(paciente)
+        accion, token = self._generar_permiso_publico(
+            turno,
+            AccionPublicaTurno.TipoAccion.CANCELAR,
+        )
+        url = reverse("turnos:mis_turnos_cancelar", kwargs={"accion_id": accion.id})
+
+        primera = self.client.post(url, {"accion_token": "", "motivo_cancelacion": ""})
+        segunda = self.client.post(
+            url,
+            {
+                "accion_token": token,
+                "motivo_cancelacion": "No puedo asistir.",
+            },
+        )
+
+        turno.refresh_from_db()
+        limite = LimitePublico.objects.get(ambito="cancelar")
+        self.assertRedirects(primera, reverse("turnos:mis_turnos_publico"))
+        self.assertEqual(segunda.status_code, 429)
+        self.assertIn("Retry-After", segunda.headers)
+        self.assertEqual(limite.contador, 2)
+        self.assertEqual(turno.estado, Turno.Estado.CONFIRMADO)
+
     def test_permiso_publico_no_autoriza_turno_de_otro_paciente(self):
         paciente = self._crear_paciente_publico()
         otro_paciente = self._crear_paciente_publico(documento="39111222", email="otro@example.com")
@@ -3695,6 +3735,38 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertNotEqual(turno.version_publica, version_anterior)
         self.assertIsNotNone(accion.utilizado_en)
 
+    @override_settings(
+        TURNOS_PUBLIC_ACTION_LIMIT=1,
+        TURNOS_PUBLIC_ACTION_WINDOW_SECONDS=600,
+    )
+    def test_reprogramacion_consume_limite_antes_de_validar_formulario(self):
+        paciente = self._crear_paciente_publico()
+        turno = self._crear_turno_publico(paciente, estado=Turno.Estado.PENDIENTE)
+        self._solicitar_y_validar_acceso_publico(paciente)
+        accion, token = self._generar_permiso_publico(
+            turno,
+            AccionPublicaTurno.TipoAccion.REPROGRAMAR,
+        )
+        url = reverse("turnos:mis_turnos_reprogramar", kwargs={"accion_id": accion.id})
+
+        primera = self.client.post(url, {"accion_token": token})
+        segunda = self.client.post(
+            url,
+            {
+                "accion_token": token,
+                "fecha": self.fecha_turno.isoformat(),
+                "hora_inicio": "12:00",
+            },
+        )
+
+        turno.refresh_from_db()
+        limite = LimitePublico.objects.get(ambito="reprogramar")
+        self.assertEqual(primera.status_code, 200)
+        self.assertEqual(segunda.status_code, 429)
+        self.assertIn("Retry-After", segunda.headers)
+        self.assertEqual(limite.contador, 2)
+        self.assertEqual(turno.hora_inicio, time(9, 0))
+
     def test_permiso_publico_caduca_si_el_turno_cambia(self):
         paciente = self._crear_paciente_publico()
         turno = self._crear_turno_publico(paciente, estado=Turno.Estado.PENDIENTE)
@@ -3724,8 +3796,32 @@ class SolicitudTurnoPublicaTests(TestCase):
         TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT=1,
         TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS=600,
     )
+    def test_fallo_db_en_rate_limit_otp_devuelve_503_neutral(self):
+        paciente = self._crear_paciente_publico()
+
+        with patch(
+            "turnos.public_access.services.incrementar_limite",
+            side_effect=ProteccionPublicaNoDisponible(),
+        ):
+            response = self.client.post(
+                reverse("turnos:acceso_publico_solicitar"),
+                {"documento": paciente.documento},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("Retry-After", response.headers)
+        self.assertContains(
+            response,
+            "No pudimos completar la operación en este momento",
+            status_code=503,
+        )
+        self.assertFalse(DesafioAccesoPublicoTurnos.objects.exists())
+
+    @override_settings(
+        TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT=1,
+        TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS=600,
+    )
     def test_solicitud_acceso_publico_aplica_rate_limit_con_hashes(self):
-        cache.clear()
         paciente = self._crear_paciente_publico()
 
         with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
@@ -3739,10 +3835,10 @@ class SolicitudTurnoPublicaTests(TestCase):
             )
 
         dni_hash = hash_valor_publico(paciente.documento, "dni")
-        cache_key = construir_clave("solicitud_dni", dni_hash)
+        limite = LimitePublico.objects.get(ambito="solicitud_dni", sujeto_hash=dni_hash)
 
-        self.assertEqual(cache.get(cache_key), 2)
-        self.assertNotIn(paciente.documento, cache_key)
+        self.assertEqual(limite.contador, 2)
+        self.assertNotEqual(limite.sujeto_hash, paciente.documento)
         self.assertEqual(len(mail.outbox), 1)
 
     @override_settings(
@@ -3750,7 +3846,6 @@ class SolicitudTurnoPublicaTests(TestCase):
         TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS=600,
     )
     def test_solicitud_acceso_publico_aplica_rate_limit_por_ip(self):
-        cache.clear()
         paciente = self._crear_paciente_publico()
         otro_paciente = self._crear_paciente_publico(documento="39111222", email="otro@example.com")
 
@@ -3767,10 +3862,10 @@ class SolicitudTurnoPublicaTests(TestCase):
             )
 
         ip_hash = hash_valor_publico("203.0.113.10", "ip")
-        cache_key = construir_clave("solicitud_ip", ip_hash)
+        limite = LimitePublico.objects.get(ambito="solicitud_ip", sujeto_hash=ip_hash)
 
-        self.assertEqual(cache.get(cache_key), 2)
-        self.assertNotIn("203.0.113.10", cache_key)
+        self.assertEqual(limite.contador, 2)
+        self.assertNotEqual(limite.sujeto_hash, "203.0.113.10")
         self.assertEqual(len(mail.outbox), 1)
 
     @override_settings(

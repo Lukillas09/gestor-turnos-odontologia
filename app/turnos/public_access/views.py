@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.utils.dateparse import parse_date
 from django.utils.formats import date_format
@@ -21,6 +21,11 @@ from turnos.forms import (
 from turnos.integrations.turnstile import validar_turnstile
 from turnos.mixins import PublicShellMixin
 from turnos.models import AccionPublicaTurno
+from turnos.public_access.exceptions import (
+    MENSAJE_PROTECCION_PUBLICA_NO_DISPONIBLE,
+    RETRY_AFTER_PROTECCION_PUBLICA_SECONDS,
+    ProteccionPublicaNoDisponible,
+)
 from turnos.smart_scheduling import calcular_horarios_inteligentes
 
 from .permissions import AccesoPublicoTurnosRequeridoMixin
@@ -38,6 +43,7 @@ from .services import (
     generar_permisos_para_turnos,
     obtener_token_accion_desde_session,
     reenviar_codigo_acceso_publico,
+    registrar_intento_solicitud_acceso,
     reprogramar_turno_publico_seguro,
     solicitar_acceso_publico_turnos,
     validar_accion_publica_sin_consumir,
@@ -51,10 +57,54 @@ from .tokens import (
 )
 
 
-class SolicitarAccesoPublicoTurnosView(PublicShellMixin, FormView):
+def _respuesta_proteccion_no_disponible():
+    response = HttpResponse(
+        MENSAJE_PROTECCION_PUBLICA_NO_DISPONIBLE,
+        status=503,
+        content_type="text/plain; charset=utf-8",
+    )
+    response["Retry-After"] = str(RETRY_AFTER_PROTECCION_PUBLICA_SECONDS)
+    return response
+
+
+def _respuesta_accion_limitada():
+    response = HttpResponse(
+        MENSAJE_ACCION_INVALIDA,
+        status=429,
+        content_type="text/plain; charset=utf-8",
+    )
+    response["Retry-After"] = str(settings.TURNOS_PUBLIC_ACTION_WINDOW_SECONDS)
+    return response
+
+
+def _permitir_operacion_publica(request, nombre):
+    ip_hash = hash_valor_publico(obtener_ip_cliente(request), "ip")
+    return incrementar_limite(
+        nombre,
+        ip_hash,
+        settings.TURNOS_PUBLIC_ACTION_LIMIT,
+        settings.TURNOS_PUBLIC_ACTION_WINDOW_SECONDS,
+    ).permitido
+
+
+class ProteccionPublicaDisponibleMixin:
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except ProteccionPublicaNoDisponible:
+            return _respuesta_proteccion_no_disponible()
+
+
+class SolicitarAccesoPublicoTurnosView(
+    ProteccionPublicaDisponibleMixin,
+    PublicShellMixin,
+    FormView,
+):
     form_class = SolicitudAccesoPublicoTurnosForm
     template_name = "turnos/public_access/solicitar_acceso.html"
     success_url = "turnos:acceso_publico_verificar"
+    turnstile_requerido = False
+    limites_solicitud = None
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -68,14 +118,24 @@ class SolicitarAccesoPublicoTurnosView(PublicShellMixin, FormView):
         if self.request.method == "POST":
             documento = normalizar_documento(self.request.POST.get("documento"))
 
-        context["turnstile_requerido"] = self._requiere_turnstile(documento)
+        context["turnstile_requerido"] = (
+            self.turnstile_requerido
+            if self.request.method == "POST"
+            else self._requiere_turnstile(documento)
+        )
         context["turnstile_site_key"] = settings.TURNSTILE_SITE_KEY
         return context
+
+    def post(self, request, *args, **kwargs):
+        documento = normalizar_documento(request.POST.get("documento"))
+        self.turnstile_requerido = self._requiere_turnstile(documento)
+        self.limites_solicitud = registrar_intento_solicitud_acceso(request, documento)
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         documento = form.cleaned_data["documento"]
 
-        if self._requiere_turnstile(documento):
+        if self.turnstile_requerido:
             resultado_turnstile = validar_turnstile(
                 self.request.POST.get("cf-turnstile-response")
                 or form.cleaned_data["turnstile_token"],
@@ -86,7 +146,11 @@ class SolicitarAccesoPublicoTurnosView(PublicShellMixin, FormView):
                 form.add_error(None, MENSAJE_SOLICITUD_GENERICA)
                 return self.form_invalid(form)
 
-        solicitar_acceso_publico_turnos(self.request, documento)
+        solicitar_acceso_publico_turnos(
+            self.request,
+            documento,
+            limites=self.limites_solicitud,
+        )
         messages.success(self.request, MENSAJE_SOLICITUD_GENERICA)
         return redirect(self.success_url)
 
@@ -94,9 +158,20 @@ class SolicitarAccesoPublicoTurnosView(PublicShellMixin, FormView):
         if not settings.TURNSTILE_ENABLED:
             return False
 
+        if settings.TURNSTILE_REQUIRED_AFTER_ATTEMPTS <= 0:
+            return True
+
+        if settings.TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT <= 0:
+            return False
+
         ip_hash = hash_valor_publico(obtener_ip_cliente(self.request), "ip")
         requiere_por_ip = (
-            leer_contador("solicitud_ip", ip_hash) >= settings.TURNSTILE_REQUIRED_AFTER_ATTEMPTS
+            leer_contador(
+                "solicitud_ip",
+                ip_hash,
+                settings.TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS,
+            )
+            >= settings.TURNSTILE_REQUIRED_AFTER_ATTEMPTS
         )
 
         if not documento:
@@ -104,12 +179,21 @@ class SolicitarAccesoPublicoTurnosView(PublicShellMixin, FormView):
 
         dni_hash = hash_valor_publico(documento, "dni")
         requiere_por_dni = (
-            leer_contador("solicitud_dni", dni_hash) >= settings.TURNSTILE_REQUIRED_AFTER_ATTEMPTS
+            leer_contador(
+                "solicitud_dni",
+                dni_hash,
+                settings.TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS,
+            )
+            >= settings.TURNSTILE_REQUIRED_AFTER_ATTEMPTS
         )
         return requiere_por_ip or requiere_por_dni
 
 
-class VerificarAccesoPublicoTurnosView(PublicShellMixin, FormView):
+class VerificarAccesoPublicoTurnosView(
+    ProteccionPublicaDisponibleMixin,
+    PublicShellMixin,
+    FormView,
+):
     form_class = VerificacionAccesoPublicoTurnosForm
     template_name = "turnos/public_access/verificar.html"
 
@@ -183,13 +267,16 @@ class CerrarAccesoPublicoTurnosView(View):
         return redirect("turnos:acceso_publico_solicitar")
 
 
-class CancelarTurnoPublicoSeguroView(AccesoPublicoTurnosRequeridoMixin, View):
+class CancelarTurnoPublicoSeguroView(
+    ProteccionPublicaDisponibleMixin,
+    AccesoPublicoTurnosRequeridoMixin,
+    View,
+):
     http_method_names = ["post"]
 
     def post(self, request, accion_id):
-        if not self._permitir_operacion(request, "cancelar"):
-            messages.error(request, MENSAJE_ACCION_INVALIDA)
-            return redirect("turnos:mis_turnos_publico")
+        if not _permitir_operacion_publica(request, "cancelar"):
+            return _respuesta_accion_limitada()
 
         form = CancelacionAccesoPublicoTurnoForm(request.POST)
 
@@ -208,15 +295,6 @@ class CancelarTurnoPublicoSeguroView(AccesoPublicoTurnosRequeridoMixin, View):
             request, "Tu turno fue cancelado correctamente." if ok else MENSAJE_ACCION_INVALIDA
         )
         return redirect("turnos:mis_turnos_publico")
-
-    def _permitir_operacion(self, request, nombre):
-        ip_hash = hash_valor_publico(obtener_ip_cliente(request), "ip")
-        return incrementar_limite(
-            nombre,
-            ip_hash,
-            settings.TURNOS_PUBLIC_ACTION_LIMIT,
-            settings.TURNOS_PUBLIC_ACTION_WINDOW_SECONDS,
-        ).permitido
 
 
 class HorariosReprogramacionPublicaJsonView(AccesoPublicoTurnosRequeridoMixin, View):
@@ -308,6 +386,7 @@ class HorariosReprogramacionPublicaJsonView(AccesoPublicoTurnosRequeridoMixin, V
 
 
 class ReprogramarTurnoPublicoSeguroView(
+    ProteccionPublicaDisponibleMixin,
     PublicShellMixin,
     AccesoPublicoTurnosRequeridoMixin,
     FormView,
@@ -336,6 +415,12 @@ class ReprogramarTurnoPublicoSeguroView(
             return redirect("turnos:mis_turnos_publico")
 
         return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        if not _permitir_operacion_publica(request, "reprogramar"):
+            return _respuesta_accion_limitada()
+
+        return super().post(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

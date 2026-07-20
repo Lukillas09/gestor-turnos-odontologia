@@ -1036,6 +1036,71 @@ class AccionPublicaTurno(models.Model):
         return f"{self.get_tipo_accion_display()} - {self.turno_id}"
 
 
+class LimitePublico(models.Model):
+    ambito = models.CharField(max_length=64)
+    sujeto_hash = models.CharField(max_length=64)
+    ventana_inicio = models.DateTimeField()
+    contador = models.PositiveIntegerField(default=1)
+    expira_en = models.DateTimeField()
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Límite público"
+        verbose_name_plural = "Límites públicos"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ambito", "sujeto_hash", "ventana_inicio"],
+                name="turnos_limite_ventana_unica",
+            ),
+            models.CheckConstraint(
+                condition=Q(contador__gte=0),
+                name="turnos_limite_contador_gte_0",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["expira_en"], name="turnos_limite_expira_idx"),
+            models.Index(
+                fields=["ambito", "sujeto_hash", "ventana_inicio"],
+                name="turnos_limite_busqueda_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.ambito} - {self.ventana_inicio.isoformat()}"
+
+
+class IdempotenciaSolicitudPublica(models.Model):
+    class Estado(models.TextChoices):
+        PROCESSING = "processing", "Procesando"
+        COMPLETED = "completed", "Completada"
+
+    token_hash = models.CharField(max_length=64, unique=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.PROCESSING,
+    )
+    procesamiento_expira_en = models.DateTimeField(null=True, blank=True)
+    expira_en = models.DateTimeField()
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Idempotencia de solicitud pública"
+        verbose_name_plural = "Idempotencias de solicitudes públicas"
+        indexes = [
+            models.Index(fields=["expira_en"], name="turnos_idemp_expira_idx"),
+            models.Index(
+                fields=["estado", "procesamiento_expira_en"],
+                name="turnos_idemp_lease_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return self.get_estado_display()
+
+
 class SolicitudTurnoPublica(models.Model):
     class EstadoRevision(models.TextChoices):
         SIN_DIFERENCIAS = "sin_diferencias", "Sin diferencias"

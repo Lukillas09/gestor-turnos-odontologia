@@ -80,13 +80,13 @@ DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=
 
 La URL debe venir de Supabase y debe incluir `sslmode=require`.
 
-### Redis para rate limiting publico
+### Protecciones públicas en PostgreSQL
 
-Agregar un servicio Redis al proyecto de Railway o usar un proveedor Redis externo compatible. Si Redis está dentro del mismo proyecto, en el servicio web de Django puede referenciarse así:
+Rate limiting e idempotencia se almacenan en la misma base PostgreSQL/Supabase que usa Django. Redis no es necesario para iniciar la aplicación ni para compartir límites entre workers. Configuración recomendada en Railway:
 
 ```env
-REDIS_URL=${{Redis.REDIS_URL}}
-TURNOS_PUBLIC_REDIS_REQUIRED=True
+REDIS_URL=
+TURNOS_PUBLIC_REDIS_REQUIRED=False
 TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT=5
 TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS=900
 TURNOS_PUBLIC_OTP_ATTEMPTS=5
@@ -105,12 +105,25 @@ TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS=3600
 TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=3
 TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI=2
 TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS=3600
+TURNOS_PUBLIC_BOOKING_PROCESSING_SECONDS=120
 TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS=86400
 TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT=14
-TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS=60
+TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS=0
+WEB_CONCURRENCY=2
 ```
 
-Sin `REDIS_URL`, la app debe fallar en deploy con `TURNOS_PUBLIC_REDIS_REQUIRED=True`. Esto evita rate limits locales por proceso en producción. `LocMemCache` sirve solo para desarrollo y tests porque no comparte contadores entre workers o instancias.
+La migración crea `LimitePublico` e `IdempotenciaSolicitudPublica`; `scripts/release.sh` la aplica con el resto antes de iniciar el servicio. Las ventanas de rate limit son fijas y la idempotencia usa un lease corto para recuperar operaciones si Railway detiene un worker.
+
+Redis puede agregarse en el futuro como acelerador configurando `REDIS_URL` y un TTL de horarios mayor a cero. Sin Redis, Django usa `LocMemCache` únicamente para esa optimización. Ninguna caché interviene en OTP, acciones, rate limiting, idempotencia o la validación final de una reserva.
+
+Para limpiar filas expiradas durante mantenimiento:
+
+```bash
+python manage.py limpiar_protecciones_publicas --dry-run
+python manage.py limpiar_protecciones_publicas --batch-size 500 --max-batches 20
+```
+
+El comando puede ejecutarse manualmente o desde el mecanismo periódico ya disponible. No se deben agregar pings para mantener Railway despierto.
 
 ### Turnstile opcional
 
@@ -126,7 +139,7 @@ TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS=3
 TURNSTILE_TIMEOUT_SECONDS=5
 ```
 
-Puede mantenerse apagado en staging inicial con `TURNSTILE_ENABLED=False`, pero Redis debe quedar activo para los límites. Turnstile es complementario: un token válido no reinicia contadores ni permite superar el límite duro por IP, DNI o máximo de pendientes.
+Puede mantenerse apagado en staging inicial con `TURNSTILE_ENABLED=False`. Turnstile es complementario: un token válido no reinicia los contadores persistidos en PostgreSQL ni permite superar el límite duro por IP, DNI o máximo de pendientes.
 
 ### Deploy
 

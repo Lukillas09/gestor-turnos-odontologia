@@ -27,7 +27,6 @@ from turnos.notifications import (
     notificar_solicitud_turno_contacto_existente,
     notificar_solicitud_turno_recibida,
 )
-from turnos.public_access.tokens import hash_valor_publico
 from turnos.smart_scheduling import (
     ALGORITMO_HORARIO_VERSION,
     buscar_candidato,
@@ -341,10 +340,8 @@ def _validar_maximo_pendientes_publicos(paciente, datos):
     )
 
     if pendientes >= limite:
-        dni_hash = hash_valor_publico(datos["documento"], "booking_dni")
         logger.warning(
-            "Maximo de solicitudes publicas pendientes alcanzado. reason=max_pending dni_hash=%s",
-            dni_hash,
+            "Máximo de solicitudes públicas pendientes alcanzado. reason=max_pending",
         )
         raise MaximoSolicitudesPendientesError()
 

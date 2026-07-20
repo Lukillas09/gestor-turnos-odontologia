@@ -166,7 +166,7 @@ Estas reglas aplican a selección pública, endpoint JSON de horarios, formulari
 
 ## Seguridad del Flujo Publico de Turnos
 
-El flujo publico de autogestion usa un desafio OTP por email, sesion temporal verificada, permisos persistentes de un solo uso por turno y rate limiting en cache. En produccion `REDIS_URL` debe apuntar a Redis para que los limites funcionen entre procesos/instancias.
+El flujo público de autogestión usa un desafío OTP por email, sesión temporal verificada y permisos persistentes de un solo uso por turno. PostgreSQL guarda los rate limits y la idempotencia, por lo que sleeping, reinicios, despliegues y varios workers comparten exactamente la misma protección.
 
 La solicitud publica de un turno crea un `Turno` pendiente y conserva una `SolicitudTurnoPublica` asociada como auditoria. El email es obligatorio para pacientes nuevos y para pacientes existentes activos sin email registrado. En pacientes existentes, el email enviado desde la web no sobrescribe automaticamente `Paciente.email`: queda como propuesta en `SolicitudTurnoPublica.email_enviado` y se aplica solo si un usuario autorizado selecciona ese campo durante la revision.
 
@@ -176,8 +176,8 @@ El OTP publico consulta exclusivamente el email persistido en `Paciente.email`. 
 
 | Variable | Default | Uso |
 | --- | --- | --- |
-| `REDIS_URL` | vacio | URL de Redis para cache y rate limiting distribuido. |
-| `TURNOS_PUBLIC_REDIS_REQUIRED` | `not DEBUG` | Exige Redis cuando la app corre fuera de desarrollo. |
+| `REDIS_URL` | vacío | URL opcional de Redis, exclusivamente para caché de rendimiento. |
+| `TURNOS_PUBLIC_REDIS_REQUIRED` | `False` | Compatibilidad operativa: si se activa explícitamente exige `REDIS_URL`, pero no mejora las garantías de seguridad almacenadas en PostgreSQL. |
 | `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT` | `5` | Cantidad maxima de solicitudes de acceso por IP/DNI hasheados dentro de la ventana. |
 | `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS` | `900` | Ventana de rate limit para solicitudes de acceso. |
 | `TURNOS_PUBLIC_OTP_ATTEMPTS` | `5` | Intentos maximos antes de invalidar un desafio OTP. |
@@ -196,9 +196,10 @@ El OTP publico consulta exclusivamente el email persistido en `Paciente.email`. 
 | `TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS` | `3` | Intentos previos desde los que se exige Turnstile en la creación pública cuando `TURNSTILE_ENABLED=True`. `0` lo exige desde el primer POST. |
 | `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI` | `2` | Máximo de solicitudes públicas futuras con turno pendiente para el mismo DNI. `0` lo deshabilita y no se recomienda en producción. |
 | `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS` | `3600` | Vigencia del token de idempotencia usado para evitar doble click, recarga o reenvío del POST. |
+| `TURNOS_PUBLIC_BOOKING_PROCESSING_SECONDS` | `120` | Lease del worker que procesa un token. Al vencer, otro worker puede recuperar una operación interrumpida. Debe ser positivo y no superar la vigencia total. |
 | `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS` | `86400` | Ventana para reutilizar alertas administrativas sin turno y evitar duplicados repetidos. Los turnos activos exactos se deduplican mientras sigan pendientes o confirmados. |
 | `TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT` | `14` | Cantidad maxima de chips de dias cercanos calculados de forma liviana en el selector publico. No cambia la ventana real de reserva. |
-| `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS` | `60` | TTL del cache corto para horarios publicos exactos por odontologo, fecha y duracion. `0` deshabilita el cache. |
+| `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS` | `0` | TTL opcional del caché de horarios por odontólogo, fecha y duración. `0` lo deshabilita; un valor obsoleto nunca evita la revalidación transaccional del POST. |
 | `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED` | `False` | Habilita motivo de visita, duración por odontólogo y ordenamiento determinístico. Mantener apagado hasta configurar servicios y validar staging. |
 | `TURNSTILE_ENABLED` | `False` | Activa Cloudflare Turnstile como desafío complementario; no reemplaza rate limiting ni máximos duros. |
 | `TURNSTILE_SITE_KEY` | vacio | Site key publica de Turnstile. |
@@ -206,7 +207,18 @@ El OTP publico consulta exclusivamente el email persistido en `Paciente.email`. 
 | `TURNSTILE_REQUIRED_AFTER_ATTEMPTS` | `3` | Umbral de intentos desde el cual se exige Turnstile en el flujo OTP de autogestion. |
 | `TURNSTILE_TIMEOUT_SECONDS` | `5` | Timeout para verificar Turnstile. |
 
-En desarrollo y tests puede usarse `LocMemCache`; en producción debe usarse Redis compartido y `TURNOS_PUBLIC_REDIS_REQUIRED=True`. Si Redis falla con esa configuración, la creación pública responde 503 con un mensaje genérico para evitar solicitudes ilimitadas por proceso. Si Turnstile está apagado, siguen activos los límites por IP/DNI, idempotencia, deduplicación y máximo de pendientes.
+`LimitePublico` usa ventanas fijas calculadas desde epoch y una clave única por ámbito, hash y comienzo de ventana. `IdempotenciaSolicitudPublica` conserva sólo el hash del token, un estado y un lease recuperable. Ante un error de base, la operación protegida falla cerrada con HTTP 503, `Retry-After` y un mensaje neutral.
+
+`LocMemCache` y Redis son opcionales y no autoritativos. Sólo almacenan cálculos de horarios cuando el TTL es mayor a cero; el POST final siempre bloquea y revalida en PostgreSQL. La aplicación puede usar `WEB_CONCURRENCY=2` sin `REDIS_URL`.
+
+Los registros expirados se eliminan de forma manual o periódica, sin imprimir hashes:
+
+```bash
+python manage.py limpiar_protecciones_publicas --dry-run
+python manage.py limpiar_protecciones_publicas --batch-size 500 --max-batches 20
+```
+
+El comando es idempotente y acotado. No requiere mantener Railway despierto ni hacer pings. SQLite sirve para desarrollo funcional; las garantías concurrentes se validan con PostgreSQL real.
 
 ## Agenda inteligente
 
@@ -220,7 +232,7 @@ Antes de habilitarlo en Railway:
 1. aplicar `python manage.py migrate`;
 2. crear el catálogo, manualmente o con `crear_tipos_turno_iniciales`;
 3. definir duración de atención y margen por odontólogo;
-4. probar el flujo completo en staging con Redis y PostgreSQL;
+4. probar el flujo completo y la concurrencia en staging con PostgreSQL;
 5. agregar `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=True` y redesplegar.
 
 No se configura duración en variables de entorno ni en parámetros públicos. El detalle del

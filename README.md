@@ -185,7 +185,7 @@ Variables principales:
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
 | Feature flags | `ODONTOGRAMA_FEATURE_ENABLED`, `INDICACIONES_POSTOPERATORIAS_ENABLED`, `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED`, `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS`, `ACCESO_CLINICO_EMERGENCIA_SECONDS` |
 | Integridad clínica | `CLINICAL_INTEGRITY_ENABLED`, `CLINICAL_INTEGRITY_HMAC_KEY` |
-| Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_IP_LIMIT`, `TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_DNI_LIMIT`, `TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS`, `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI`, `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS`, `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT`, `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
+| Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_IP_LIMIT`, `TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_DNI_LIMIT`, `TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS`, `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI`, `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS`, `TURNOS_PUBLIC_BOOKING_PROCESSING_SECONDS`, `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT`, `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Cifrado OAuth | `OAUTH_TOKEN_ENCRYPTION_KEY` |
 | Seguridad HTTPS | `DJANGO_SECURE_SSL_REDIRECT`, `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE`, `DJANGO_SECURE_PROXY_SSL_HEADER`, `DJANGO_SECURE_HSTS_SECONDS`, `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SECURE_HSTS_PRELOAD` |
 | Base de datos | `DATABASE_URL` |
@@ -196,6 +196,10 @@ Variables principales:
 | Deploy | `WEB_CONCURRENCY` |
 
 Detalle completo: [docs/configuracion.md](docs/configuracion.md).
+
+PostgreSQL es la autoridad para rate limiting e idempotencia pública. Redis es opcional y sólo
+se usa como caché de horarios cuando el TTL es mayor a cero. La limpieza acotada de registros
+expirados se ejecuta con `python manage.py limpiar_protecciones_publicas`.
 
 ## Flujos Principales
 
@@ -239,7 +243,8 @@ Más detalle: [docs/flujo-turnos.md](docs/flujo-turnos.md).
 - Las solicitudes públicas se crean pendientes y duran 30 minutos inicialmente.
 - Las reservas públicas visibles y reservables se limitan por configuración del consultorio: ventana en días, reserva el mismo día y anticipación mínima.
 - Una solicitud pública nunca reemplaza por sí sola nombre, apellido, teléfono o email de un paciente existente.
-- El POST final de solicitud pública está protegido contra automatización y duplicados con Redis/cache, idempotencia por formulario, límite por IP, límite por DNI y máximo de pendientes por DNI.
+- El POST final de solicitud pública usa PostgreSQL para idempotencia, límite por IP y límite por DNI; sleeping, reinicios y múltiples workers conservan el mismo estado.
+- Redis es opcional y, al igual que `LocMemCache`, sólo puede acelerar cálculos de horarios. Ninguna caché autoriza una reserva ni protege acciones públicas.
 - Turnstile es progresivo y complementario; si está desactivado, los límites duros siguen aplicando.
 - Los pacientes nuevos creados desde la web quedan con `origen_alta=solicitud_publica` y `estado_validacion_datos=pendiente`.
 - La confirmación interna permite elegir duración real y, para solicitudes públicas pendientes, resolver la revisión de datos en el mismo flujo.
@@ -407,12 +412,13 @@ Se ejecuta en `push`, `pull_request` y `workflow_dispatch`, sin tareas programad
 
 - `quality`: validación de codificación, Black, Ruff y Mypy incremental.
 - `django-tests`: `pip check`, `manage.py check`, migraciones, tests con Coverage, `coverage.xml` y `collectstatic`.
+- `clinical-postgresql`: integridad clínica, concurrencia de agenda y protecciones públicas sobre PostgreSQL real.
 - `security`: Bandit y `pip-audit` sobre dependencias de producción.
 - `e2e`: Playwright con Chromium para smoke tests públicos e internos.
 
 La cobertura inicial queda protegida con umbral `83%` en `pyproject.toml`, midiendo el código de aplicación y excluyendo tests/migraciones. Railway sigue instalando solo `requirements.txt`; `requirements-dev.txt` es para desarrollo y CI.
 
-La ejecución de CI usa SQLite, email en memoria, filesystem storage y flags seguros para pruebas. No requiere Redis, Turnstile, Google Calendar, Supabase ni secretos reales.
+La suite general de CI usa SQLite, email en memoria, filesystem storage y flags seguros. Un job separado usa PostgreSQL temporal para las garantías concurrentes. Ningún job requiere Redis, Turnstile, Google Calendar, Supabase ni secretos reales.
 
 ## Seguridad y Privacidad
 
