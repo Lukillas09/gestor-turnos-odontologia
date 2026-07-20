@@ -35,6 +35,7 @@ from ..models import (
     GoogleCalendarConexion,
     Odontologo,
     SolicitudTurnoPublica,
+    TipoTurnoOdontologo,
     Turno,
     normalizar_error_google_calendar_para_usuario,
 )
@@ -67,9 +68,17 @@ class HorariosDisponiblesJsonView(View):
                 }
             )
 
-        duracion_minutos = self._obtener_duracion_minutos(
-            request.GET.get("duracion_minutos"),
+        configuracion_tipo = self._obtener_configuracion_tipo(
             odontologo,
+            request.GET.get("tipo_turno"),
+        )
+        duracion_minutos = (
+            configuracion_tipo.duracion_bloqueada_minutos
+            if configuracion_tipo
+            else self._obtener_duracion_minutos(
+                request.GET.get("duracion_minutos"),
+                odontologo,
+            )
         )
         turno_excluido = self._obtener_turno_excluido(
             request.GET.get("turno_id"),
@@ -87,6 +96,7 @@ class HorariosDisponiblesJsonView(View):
                 {
                     "horarios": [],
                     "mensaje": "No hay horarios libres para esa fecha.",
+                    **self._serializar_duracion_configurada(configuracion_tipo),
                 }
             )
 
@@ -97,8 +107,32 @@ class HorariosDisponiblesJsonView(View):
                     for horario in horarios
                 ],
                 "mensaje": "Solo se muestran horarios libres.",
+                **self._serializar_duracion_configurada(configuracion_tipo),
             }
         )
+
+    @staticmethod
+    def _obtener_configuracion_tipo(odontologo, tipo_turno_id):
+        if not tipo_turno_id:
+            return None
+        try:
+            return TipoTurnoOdontologo.objects.filter(
+                odontologo=odontologo,
+                tipo_turno_id=tipo_turno_id,
+                activo=True,
+                tipo_turno__activo=True,
+            ).first()
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _serializar_duracion_configurada(configuracion_tipo):
+        if not configuracion_tipo:
+            return {}
+        return {
+            "duracion_sugerida": configuracion_tipo.duracion_bloqueada_minutos,
+            "duracion_atencion": configuracion_tipo.duracion_atencion_minutos,
+        }
 
     def _obtener_odontologo(self, odontologo_id):
         if not odontologo_id:
@@ -529,6 +563,8 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
+        kwargs["duracion_original"] = self.turno.duracion_minutos
+        kwargs["requiere_confirmacion_cambio"] = bool(self.turno.tipo_turno_id)
 
         if self._requiere_revision_publica():
             kwargs["solicitud"] = self.solicitud_publica
@@ -539,9 +575,11 @@ class TurnoConfirmView(VerTurnosRequeridoMixin, FormView):
     def get_initial(self):
         initial = super().get_initial()
         duraciones_rapidas = {30, 45, 60, 90, 120}
-        initial["duracion_rapida"] = (
-            self.turno.duracion_minutos if self.turno.duracion_minutos in duraciones_rapidas else 30
-        )
+        if self.turno.duracion_minutos in duraciones_rapidas:
+            initial["duracion_rapida"] = self.turno.duracion_minutos
+        else:
+            initial["duracion_rapida"] = ""
+            initial["duracion_personalizada"] = self.turno.duracion_minutos
         return initial
 
     def get_success_url(self):

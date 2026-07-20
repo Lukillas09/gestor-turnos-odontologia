@@ -57,6 +57,7 @@ env:
   GOOGLE_CALENDAR_SCOPES: "https://www.googleapis.com/auth/calendar.events"
   OAUTH_TOKEN_ENCRYPTION_KEY: ""
   ODONTOGRAMA_FEATURE_ENABLED: "False"
+  TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED: "False"
   DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS: "False"
   ACCESO_CLINICO_EMERGENCIA_SECONDS: "900"
   CLINICAL_INTEGRITY_ENABLED: "True"
@@ -160,6 +161,7 @@ jobs:
           turnos.tests
           turnos.tests_email_api
           turnos.tests_google_calendar
+          turnos.tests_smart_scheduling
           --verbosity 2
 
       - name: Reportar cobertura
@@ -224,7 +226,12 @@ jobs:
 
       - name: Ejecutar tests clinicos sobre PostgreSQL
         working-directory: app
-        run: python manage.py test historias indicaciones.tests --verbosity 2
+        run: >
+          python manage.py test
+          historias
+          indicaciones.tests
+          turnos.tests_smart_scheduling.AgendaInteligentePostgreSQLTests
+          --verbosity 2
 
   security:
     name: Security

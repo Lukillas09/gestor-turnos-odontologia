@@ -9,15 +9,25 @@
     <header class="public-booking-heading animate-fade-up">
         <p class="eyebrow">Reserva online</p>
         <h1>Elegí tu turno</h1>
-        <p>Seleccioná un profesional, una fecha y el horario que mejor te quede.</p>
+        <p>
+            {% if smart_scheduling_enabled %}
+                Seleccioná un profesional, el motivo de la visita y el horario que mejor te quede.
+            {% else %}
+                Seleccioná un profesional, una fecha y el horario que mejor te quede.
+            {% endif %}
+        </p>
     </header>
 
     <section
         class="public-booking-shell"
         data-public-availability
         data-availability-url="{% url 'turnos:solicitud_publica_horarios' %}"
+        {% if smart_scheduling_enabled %}
+            data-smart-scheduling="true"
+            data-types-url="{% url 'turnos:solicitud_publica_tipos' %}"
+        {% endif %}
     >
-        <form class="public-search-panel public-search-panel-v2 animate-fade-up" method="get" novalidate data-public-search-form>
+        <form class="public-search-panel public-search-panel-v2{% if smart_scheduling_enabled %} is-smart{% endif %} animate-fade-up" method="get" novalidate data-public-search-form>
             <section class="public-booking-control public-professional-control" aria-labelledby="professional-title">
                 <div class="public-booking-control-header">
                     <span class="public-booking-control-number">1</span>
@@ -58,9 +68,63 @@
                 </div>
             </section>
 
+            {% if smart_scheduling_enabled %}
+                <section class="public-booking-control public-service-control" aria-labelledby="service-title">
+                    <div class="public-booking-control-header">
+                        <span class="public-booking-control-number">2</span>
+                        <div>
+                            <h2 id="service-title">¿Cuál es el motivo de la visita?</h2>
+                            <p>La duración depende del profesional seleccionado.</p>
+                        </div>
+                    </div>
+
+                    <div
+                        class="public-service-picker"
+                        data-public-service-picker
+                        role="radiogroup"
+                        aria-labelledby="service-title"
+                        aria-live="polite"
+                    >
+                        {% for configuracion in configuraciones_tipos_iniciales %}
+                            <button
+                                class="public-service-option{% if tipo_turno and tipo_turno.pk == configuracion.tipo_turno_id %} is-selected{% endif %}"
+                                type="button"
+                                role="radio"
+                                data-public-service="{{ configuracion.tipo_turno_id }}"
+                                aria-checked="{% if tipo_turno and tipo_turno.pk == configuracion.tipo_turno_id %}true{% else %}false{% endif %}"
+                            >
+                                <span class="public-service-option-icon" aria-hidden="true">
+                                    {% include "includes/icon.html" with name=configuracion.tipo_turno.icono|default:"calendar" %}
+                                </span>
+                                <span class="public-service-option-copy">
+                                    <strong>{{ configuracion.tipo_turno.nombre }}</strong>
+                                    {% if configuracion.tipo_turno.descripcion_publica %}<small>{{ configuracion.tipo_turno.descripcion_publica }}</small>{% endif %}
+                                    <span>Aproximadamente {{ configuracion.duracion_atencion_minutos }} min</span>
+                                </span>
+                                <span class="public-service-option-arrow" aria-hidden="true">
+                                    {% include "includes/icon.html" with name="arrow-right" %}
+                                </span>
+                            </button>
+                        {% empty %}
+                            {% if odontologo %}
+                                <p class="muted public-service-empty">Este profesional no tiene turnos disponibles para reserva online en este momento.</p>
+                            {% else %}
+                                <p class="muted public-service-empty">Primero elegí un profesional.</p>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="public-select-fallback">
+                        <label for="{{ busqueda_form.tipo_turno.id_for_label }}">{{ busqueda_form.tipo_turno.label }}</label>
+                        {{ busqueda_form.tipo_turno }}
+                        {% if busqueda_form.tipo_turno.errors %}<div class="field-error">{{ busqueda_form.tipo_turno.errors }}</div>{% endif %}
+                    </div>
+                </section>
+            {% endif %}
+
             <section class="public-booking-control booking-date-control" aria-labelledby="date-title">
                 <div class="public-booking-control-header">
-                    <span class="public-booking-control-number">2</span>
+                    <span class="public-booking-control-number">{% if smart_scheduling_enabled %}3{% else %}2{% endif %}</span>
                     <div><h2 id="date-title">Fecha</h2><p>La agenda muestra únicamente días dentro de la ventana habilitada.</p></div>
                 </div>
                 <div>
@@ -79,7 +143,7 @@
 
         <section class="public-booking-results" aria-labelledby="schedule-title">
             <div class="public-booking-control-header public-schedule-heading">
-                <span class="public-booking-control-number">3</span>
+                <span class="public-booking-control-number">{% if smart_scheduling_enabled %}4{% else %}3{% endif %}</span>
                 <div><h2 id="schedule-title">Opciones de turnos disponibles</h2><p>Elegí un horario para continuar.</p></div>
             </div>
 
@@ -100,9 +164,48 @@
                         <div class="public-selected-professional-photo">
                             {% if odontologo.foto_perfil_url %}<img src="{{ odontologo.foto_perfil_url }}" alt="" style="object-position: {{ odontologo.foto_object_position }};">{% else %}<span>{{ odontologo.nombre_completo|first|upper }}</span>{% endif %}
                         </div>
-                        <div><span>{{ odontologo.especialidad|default:"Odontología general" }}</span><strong>{{ odontologo.nombre_completo }}</strong><small>{{ fecha|date:"l d/m/Y" }}</small></div>
+                        <div>
+                            <span>{{ odontologo.especialidad|default:"Odontología general" }}</span>
+                            <strong>{{ odontologo.nombre_completo }}</strong>
+                            <small>
+                                {% if tipo_turno %}{{ tipo_turno.nombre }} · {{ duracion_atencion_minutos }} min · {% endif %}{{ fecha|date:"l d/m/Y" }}
+                            </small>
+                        </div>
                     </div>
 
+                    {% if smart_scheduling_enabled %}
+                        {% if horarios_recomendados_manana or horarios_recomendados_tarde or horarios_alternativos_manana or horarios_alternativos_tarde %}
+                            <div class="public-smart-schedule-intro">
+                                <div>
+                                    <p class="eyebrow">Agenda inteligente</p>
+                                    <h3>Horarios recomendados</h3>
+                                </div>
+                                <p>Te mostramos primero los horarios que mejor encajan con la disponibilidad. También podés consultar otras opciones.</p>
+                            </div>
+                            <div class="public-slot-grid stagger-list">
+                                {% include "turnos/includes/public_slot_card.html" with titulo="Mañana" horarios=horarios_recomendados_manana indice=0 icono="calendar" %}
+                                {% include "turnos/includes/public_slot_card.html" with titulo="Tarde" horarios=horarios_recomendados_tarde indice=1 icono="clock" %}
+                            </div>
+
+                            {% if horarios_alternativos_manana or horarios_alternativos_tarde %}
+                                <details class="public-more-slots" data-public-more-slots>
+                                    <summary aria-expanded="false">
+                                        <span>Ver más horarios</span>
+                                        {% include "includes/icon.html" with name="chevron-down" %}
+                                    </summary>
+                                    <div class="public-slot-grid stagger-list">
+                                        {% include "turnos/includes/public_slot_card.html" with titulo="Otras opciones de mañana" horarios=horarios_alternativos_manana indice=0 icono="calendar" %}
+                                        {% include "turnos/includes/public_slot_card.html" with titulo="Otras opciones de tarde" horarios=horarios_alternativos_tarde indice=1 icono="clock" %}
+                                    </div>
+                                </details>
+                            {% endif %}
+                        {% else %}
+                            <div class="empty-state public-booking-empty">
+                                <h3>Sin horarios para este día</h3>
+                                <p>Probá con otra fecha disponible.</p>
+                            </div>
+                        {% endif %}
+                    {% else %}
                     <div class="public-slot-grid stagger-list">
                         <section class="public-slot-card animate-fade-up" style="--stagger-index: 0;">
                             <div class="public-slot-card-header"><div>{% include "includes/icon.html" with name="calendar" %}<h3>Mañana</h3></div><span>{{ horarios_manana|length }} opciones</span></div>
@@ -126,11 +229,18 @@
                             {% else %}<p class="muted public-slot-empty">No hay horarios por la tarde para esta fecha.</p>{% endif %}
                         </section>
                     </div>
+                    {% endif %}
                 {% elif not busqueda_form.errors %}
                     <div class="empty-state public-booking-empty animate-fade-up">
                         <img class="empty-state-visual" src="{% static 'images/calendar-empty.svg' %}" width="420" height="300" alt="">
                         <h3>{% if hay_odontologos %}Tu agenda empieza acá{% else %}No hay profesionales disponibles{% endif %}</h3>
-                        <p>{% if hay_odontologos %}Elegí un odontólogo para ver los horarios disponibles.{% else %}El consultorio todavía no habilitó odontólogos para turnos online.{% endif %}</p>
+                        <p>
+                            {% if hay_odontologos %}
+                                {% if smart_scheduling_enabled %}Elegí un profesional y un motivo para ver los horarios disponibles.{% else %}Elegí un odontólogo para ver los horarios disponibles.{% endif %}
+                            {% else %}
+                                El consultorio todavía no habilitó odontólogos para turnos online.
+                            {% endif %}
+                        </p>
                     </div>
                 {% endif %}
             </div>

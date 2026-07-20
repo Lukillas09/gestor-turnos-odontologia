@@ -49,6 +49,12 @@
                     <dt>Duración actual</dt>
                     <dd>{{ turno.duracion_minutos }} minutos</dd>
                 </div>
+                {% if turno.tipo_turno_nombre_snapshot %}
+                <div>
+                    <dt>Tipo y atención</dt>
+                    <dd>{{ turno.tipo_turno_nombre_snapshot }} · {{ turno.duracion_atencion_minutos }} minutos aproximados</dd>
+                </div>
+                {% endif %}
                 <div>
                     <dt>Odontólogo</dt>
                     <dd>{{ turno.odontologo }}</dd>
@@ -92,6 +98,13 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if form.confirmar_cambio_duracion %}
+            <div class="field-group">
+                <label class="checkbox-label" for="{{ form.confirmar_cambio_duracion.id_for_label }}">{{ form.confirmar_cambio_duracion }} {{ form.confirmar_cambio_duracion.label }}</label>
+                {% if form.confirmar_cambio_duracion.errors %}<div class="field-error">{{ form.confirmar_cambio_duracion.errors }}</div>{% endif %}
+            </div>
+        {% endif %}
 
         <div class="form-actions">
             <button class="button-success" type="submit">Confirmar turno</button>

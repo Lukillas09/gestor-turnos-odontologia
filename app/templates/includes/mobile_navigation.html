@@ -27,6 +27,7 @@
             <div class="mobile-more-title"><h2 id="mobile-more-title">Más opciones</h2><button class="button button-icon button-secondary" type="button" data-mobile-more-close aria-label="Cerrar menú">{% include "includes/icon.html" with name="close" %}</button></div>
             <div class="mobile-more-links">
                 {% if puede_ver_excepciones_agenda %}<a class="mobile-more-link" href="{% url 'turnos:excepciones' %}">{% include "includes/icon.html" with name="block" %} Bloqueos y excepciones</a>{% endif %}
+                {% if puede_ver_configuracion_servicios %}<a class="mobile-more-link" href="{% url 'turnos:configuracion_servicios' %}">{% include "includes/icon.html" with name="appointments" %} Servicios y agenda</a>{% endif %}
                 {% if puede_configurar_consultorio %}<a class="mobile-more-link" href="{% url 'consultorio:configuracion' %}">{% include "includes/icon.html" with name="settings" %} Perfil del consultorio</a>{% endif %}
                 {% if puede_conectar_google_calendar %}<a class="mobile-more-link" href="{% url 'turnos:google_calendar' %}">{% include "includes/icon.html" with name="google" %} Google Calendar</a>{% endif %}
                 <a class="mobile-more-link" href="{% url 'perfil' %}">{% include "includes/icon.html" with name="user" %} Mi perfil</a>

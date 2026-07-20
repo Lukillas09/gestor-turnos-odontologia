@@ -151,6 +151,12 @@
             </div>
         </div>
         <dl class="turno-notes-grid">
+            {% if turno.tipo_turno_nombre_snapshot %}
+            <div>
+                <dt>Tipo de turno</dt>
+                <dd>{{ turno.tipo_turno_nombre_snapshot }}{% if turno.duracion_atencion_minutos %} · {{ turno.duracion_atencion_minutos }} minutos de atención{% endif %}</dd>
+            </div>
+            {% endif %}
             <div>
                 <dt>Motivo</dt>
                 <dd>{{ turno.motivo|linebreaksbr|default:"-" }}</dd>

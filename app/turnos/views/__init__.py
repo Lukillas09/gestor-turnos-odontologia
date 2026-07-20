@@ -25,12 +25,21 @@ from .public_booking import (
     SolicitudTurnoPublicaDisponibilidadMixin,
     SolicitudTurnoPublicaHorariosView,
     SolicitudTurnoPublicaOkView,
+    SolicitudTurnoPublicaTiposView,
     SolicitudTurnoPublicaView,
 )
 from .solicitudes_publicas import (
     AlertasAdministrativasPublicasView,
     SolicitudTurnoPublicaListView,
     SolicitudTurnoPublicaRevisionView,
+)
+from .tipos_turno import (
+    ConfiguracionAgendaUpdateView,
+    ConfiguracionServiciosView,
+    TipoTurnoCreateView,
+    TipoTurnoOdontologoCreateView,
+    TipoTurnoOdontologoUpdateView,
+    TipoTurnoUpdateView,
 )
 from .turnos import (
     HorariosDisponiblesJsonView,
@@ -49,6 +58,8 @@ __all__ = [
     "AgendaDiaView",
     "AgendaSemanaView",
     "AlertasAdministrativasPublicasView",
+    "ConfiguracionAgendaUpdateView",
+    "ConfiguracionServiciosView",
     "ExcepcionAgendaCreateView",
     "ExcepcionAgendaDeactivateView",
     "ExcepcionAgendaFormMixin",
@@ -69,8 +80,13 @@ __all__ = [
     "SolicitudTurnoPublicaHorariosView",
     "SolicitudTurnoPublicaListView",
     "SolicitudTurnoPublicaOkView",
+    "SolicitudTurnoPublicaTiposView",
     "SolicitudTurnoPublicaRevisionView",
     "SolicitudTurnoPublicaView",
+    "TipoTurnoCreateView",
+    "TipoTurnoOdontologoCreateView",
+    "TipoTurnoOdontologoUpdateView",
+    "TipoTurnoUpdateView",
     "TurnoCancelView",
     "TurnoConfirmView",
     "TurnoCreateView",

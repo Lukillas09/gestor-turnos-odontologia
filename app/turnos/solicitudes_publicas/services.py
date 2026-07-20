@@ -17,12 +17,23 @@ from turnos.excepciones import (
     obtener_horarios_publicos_disponibles,
     validar_intervalo_reserva_publica,
 )
-from turnos.models import SolicitudTurnoPublica, Turno, bloquear_agendas_de_turnos
+from turnos.models import (
+    ConfiguracionAgendaInteligente,
+    SolicitudTurnoPublica,
+    Turno,
+    bloquear_agendas_de_turnos,
+)
 from turnos.notifications import (
     notificar_solicitud_turno_contacto_existente,
     notificar_solicitud_turno_recibida,
 )
 from turnos.public_access.tokens import hash_valor_publico
+from turnos.smart_scheduling import (
+    ALGORITMO_HORARIO_VERSION,
+    buscar_candidato,
+    calcular_horarios_inteligentes,
+)
+from turnos.tipos_turno import aplicar_snapshot_publico, obtener_configuracion_tipo_publica
 
 from .comparaciones import construir_fotografia_solicitud, detectar_diferencias_datos_paciente
 
@@ -62,19 +73,9 @@ def crear_solicitud_publica_de_turno(datos):
             "documento": documento,
             "email": (datos.get("email") or "").strip(),
         }
-        validar_intervalo_reserva_publica(
-            datos["fecha"],
-            datos["hora_inicio"],
-            30,
-        )
-        horarios = obtener_horarios_publicos_disponibles(
-            odontologo=datos["odontologo"],
-            fecha=datos["fecha"],
-            duracion_minutos=30,
-        )
-
-        if datos["hora_inicio"] not in horarios:
-            raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+        configuracion_tipo, candidato = _validar_reserva_publica_bloqueada(datos)
+        datos["configuracion_tipo_turno"] = configuracion_tipo
+        datos["candidato_horario"] = candidato
 
         paciente, paciente_creado = _obtener_o_crear_paciente_publico(datos)
 
@@ -107,25 +108,48 @@ def crear_solicitud_publica_de_turno(datos):
         else:
             odontologo = datos["odontologo"]
             _validar_maximo_pendientes_publicos(paciente, datos)
-            bloquear_agendas_de_turnos([(odontologo.id, datos["fecha"])])
-            horarios = obtener_horarios_publicos_disponibles(
-                odontologo=odontologo,
-                fecha=datos["fecha"],
-                duracion_minutos=30,
-            )
-
-            if datos["hora_inicio"] not in horarios:
-                raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
-
-            turno = Turno.objects.create(
-                paciente=paciente,
-                odontologo=odontologo,
-                fecha=datos["fecha"],
-                hora_inicio=datos["hora_inicio"],
-                duracion_minutos=30,
-                motivo=datos.get("motivo", ""),
-                estado=Turno.Estado.PENDIENTE,
-            )
+            campos_turno = {
+                "paciente": paciente,
+                "odontologo": odontologo,
+                "fecha": datos["fecha"],
+                "hora_inicio": datos["hora_inicio"],
+                "motivo": datos.get("motivo", ""),
+                "estado": Turno.Estado.PENDIENTE,
+            }
+            if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+                turno_snapshot = aplicar_snapshot_publico(
+                    Turno(**campos_turno),
+                    configuracion_tipo,
+                    candidato,
+                )
+                campos_turno.update(
+                    {
+                        "tipo_turno": turno_snapshot.tipo_turno,
+                        "tipo_turno_nombre_snapshot": (turno_snapshot.tipo_turno_nombre_snapshot),
+                        "duracion_minutos": turno_snapshot.duracion_minutos,
+                        "duracion_atencion_minutos": (turno_snapshot.duracion_atencion_minutos),
+                        "margen_posterior_minutos_snapshot": (
+                            turno_snapshot.margen_posterior_minutos_snapshot
+                        ),
+                        "algoritmo_horario_version": (turno_snapshot.algoritmo_horario_version),
+                        "clasificacion_horario": turno_snapshot.clasificacion_horario,
+                        "puntaje_horario": turno_snapshot.puntaje_horario,
+                        "motivo": _construir_motivo_turno(
+                            configuracion_tipo.tipo_turno.nombre,
+                            datos.get("motivo"),
+                        ),
+                    }
+                )
+            else:
+                campos_turno.update(
+                    {
+                        "duracion_minutos": 30,
+                        "duracion_atencion_minutos": 30,
+                        "margen_posterior_minutos_snapshot": 0,
+                        "clasificacion_horario": Turno.ClasificacionHorario.LEGACY,
+                    }
+                )
+            turno = Turno.objects.create(**campos_turno)
             asegurar_paciente_asociado_a_odontologo(
                 paciente,
                 odontologo,
@@ -150,6 +174,65 @@ def crear_solicitud_publica_de_turno(datos):
         requiere_revision=solicitud.requiere_revision,
         duplicada=duplicada,
     )
+
+
+def _validar_reserva_publica_bloqueada(datos):
+    odontologo = datos["odontologo"]
+    fecha = datos["fecha"]
+    hora_inicio = datos["hora_inicio"]
+
+    bloquear_agendas_de_turnos([(odontologo.id, fecha)])
+
+    if not settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+        validar_intervalo_reserva_publica(fecha, hora_inicio, 30)
+        horarios = obtener_horarios_publicos_disponibles(
+            odontologo=odontologo,
+            fecha=fecha,
+            duracion_minutos=30,
+        )
+        if hora_inicio not in horarios:
+            raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+        return None, None
+
+    configuracion_tipo = obtener_configuracion_tipo_publica(
+        odontologo,
+        datos.get("tipo_turno"),
+        bloquear=True,
+    )
+    if not configuracion_tipo:
+        raise ValidationError(
+            {"tipo_turno": "El motivo elegido ya no está disponible para este profesional."}
+        )
+
+    configuracion_agenda, _ = ConfiguracionAgendaInteligente.objects.get_or_create(
+        odontologo=odontologo
+    )
+    configuracion_agenda = ConfiguracionAgendaInteligente.objects.select_for_update().get(
+        pk=configuracion_agenda.pk
+    )
+    validar_intervalo_reserva_publica(
+        fecha,
+        hora_inicio,
+        configuracion_tipo.duracion_bloqueada_minutos,
+    )
+    resultado = calcular_horarios_inteligentes(
+        odontologo=odontologo,
+        fecha=fecha,
+        duracion_atencion_minutos=configuracion_tipo.duracion_atencion_minutos,
+        margen_posterior_minutos=configuracion_tipo.margen_posterior_minutos,
+        configuracion=configuracion_agenda,
+    )
+    candidato = buscar_candidato(resultado, hora_inicio)
+    if not candidato:
+        raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+    return configuracion_tipo, candidato
+
+
+def _construir_motivo_turno(tipo_nombre, comentario):
+    comentario = (comentario or "").strip()
+    if not comentario:
+        return tipo_nombre
+    return f"{tipo_nombre} - {comentario}"[:200]
 
 
 def _obtener_o_crear_paciente_publico(datos):
@@ -201,7 +284,7 @@ def _validar_email_publico_para_paciente(email, paciente):
 
 
 def _obtener_solicitud_duplicada_exacta(paciente, datos):
-    return (
+    queryset = (
         SolicitudTurnoPublica.objects.select_related("turno", "paciente")
         .filter(
             paciente=paciente,
@@ -211,9 +294,13 @@ def _obtener_solicitud_duplicada_exacta(paciente, datos):
             turno__estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
         )
         .exclude(estado_revision=SolicitudTurnoPublica.EstadoRevision.RECHAZADA)
-        .order_by("-creado_en")
-        .first()
     )
+    if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+        configuracion_tipo = datos.get("configuracion_tipo_turno")
+        queryset = queryset.filter(
+            turno__tipo_turno_id=(configuracion_tipo.tipo_turno_id if configuracion_tipo else None)
+        )
+    return queryset.order_by("-creado_en").first()
 
 
 def _obtener_alerta_administrativa_duplicada(paciente):
@@ -290,6 +377,7 @@ def _crear_fotografia_solicitud(
             "enviado": "solicitud_publica",
         }
 
+    snapshot = _construir_snapshot_solicitud(datos)
     return SolicitudTurnoPublica.objects.create(
         paciente=paciente,
         turno=turno,
@@ -306,8 +394,31 @@ def _crear_fotografia_solicitud(
                 else ""
             )
         ),
+        **snapshot,
         **fotografia,
     )
+
+
+def _construir_snapshot_solicitud(datos):
+    configuracion_tipo = datos.get("configuracion_tipo_turno")
+    candidato = datos.get("candidato_horario")
+    if configuracion_tipo and candidato:
+        return {
+            "tipo_turno": configuracion_tipo.tipo_turno,
+            "tipo_turno_nombre_snapshot": configuracion_tipo.tipo_turno.nombre,
+            "duracion_atencion_snapshot": configuracion_tipo.duracion_atencion_minutos,
+            "duracion_bloqueada_snapshot": configuracion_tipo.duracion_bloqueada_minutos,
+            "margen_posterior_snapshot": configuracion_tipo.margen_posterior_minutos,
+            "algoritmo_version": ALGORITMO_HORARIO_VERSION,
+            "horario_clasificacion": candidato.clasificacion,
+            "horario_puntaje": candidato.puntaje,
+        }
+    return {
+        "duracion_atencion_snapshot": 30,
+        "duracion_bloqueada_snapshot": 30,
+        "margen_posterior_snapshot": 0,
+        "horario_clasificacion": Turno.ClasificacionHorario.LEGACY,
+    }
 
 
 def _notificar_solicitud(solicitud_id):
@@ -429,9 +540,30 @@ def revisar_y_confirmar_solicitud_publica(
             observaciones=observaciones,
         )
 
+        update_fields = ["duracion_minutos", "estado", "actualizado_en"]
+        if turno.duracion_minutos != duracion and (
+            turno.tipo_turno_id or turno.duracion_atencion_minutos is not None
+        ):
+            margen = turno.margen_posterior_minutos_snapshot
+            if margen >= duracion:
+                margen = 0
+            turno.duracion_atencion_minutos = duracion - margen
+            turno.margen_posterior_minutos_snapshot = margen
+            turno.algoritmo_horario_version = ""
+            turno.clasificacion_horario = Turno.ClasificacionHorario.INTERNO
+            turno.puntaje_horario = None
+            update_fields.extend(
+                [
+                    "duracion_atencion_minutos",
+                    "margen_posterior_minutos_snapshot",
+                    "algoritmo_horario_version",
+                    "clasificacion_horario",
+                    "puntaje_horario",
+                ]
+            )
         turno.duracion_minutos = duracion
         turno.estado = Turno.Estado.CONFIRMADO
-        turno.save(update_fields=["duracion_minutos", "estado", "actualizado_en"])
+        turno.save(update_fields=update_fields)
 
     from turnos.google_calendar_sync import sincronizar_turno_actualizado
     from turnos.notifications import notificar_turno_confirmado

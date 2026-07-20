@@ -103,6 +103,13 @@
                         {% endif %}
                     </div>
                 </div>
+
+                {% if form.confirmar_cambio_duracion %}
+                    <div class="field-group field-full">
+                        <label class="checkbox-label" for="{{ form.confirmar_cambio_duracion.id_for_label }}">{{ form.confirmar_cambio_duracion }} {{ form.confirmar_cambio_duracion.label }}</label>
+                        {% if form.confirmar_cambio_duracion.errors %}<div class="field-error">{{ form.confirmar_cambio_duracion.errors }}</div>{% endif %}
+                    </div>
+                {% endif %}
             </section>
 
             <section aria-labelledby="comparacion-title">

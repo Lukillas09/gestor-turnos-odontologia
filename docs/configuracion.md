@@ -199,6 +199,7 @@ El OTP publico consulta exclusivamente el email persistido en `Paciente.email`. 
 | `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS` | `86400` | Ventana para reutilizar alertas administrativas sin turno y evitar duplicados repetidos. Los turnos activos exactos se deduplican mientras sigan pendientes o confirmados. |
 | `TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT` | `14` | Cantidad maxima de chips de dias cercanos calculados de forma liviana en el selector publico. No cambia la ventana real de reserva. |
 | `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS` | `60` | TTL del cache corto para horarios publicos exactos por odontologo, fecha y duracion. `0` deshabilita el cache. |
+| `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED` | `False` | Habilita motivo de visita, duración por odontólogo y ordenamiento determinístico. Mantener apagado hasta configurar servicios y validar staging. |
 | `TURNSTILE_ENABLED` | `False` | Activa Cloudflare Turnstile como desafío complementario; no reemplaza rate limiting ni máximos duros. |
 | `TURNSTILE_SITE_KEY` | vacio | Site key publica de Turnstile. |
 | `TURNSTILE_SECRET_KEY` | vacio | Secret key privada de Turnstile. |
@@ -206,6 +207,25 @@ El OTP publico consulta exclusivamente el email persistido en `Paciente.email`. 
 | `TURNSTILE_TIMEOUT_SECONDS` | `5` | Timeout para verificar Turnstile. |
 
 En desarrollo y tests puede usarse `LocMemCache`; en producción debe usarse Redis compartido y `TURNOS_PUBLIC_REDIS_REQUIRED=True`. Si Redis falla con esa configuración, la creación pública responde 503 con un mensaje genérico para evitar solicitudes ilimitadas por proceso. Si Turnstile está apagado, siguen activos los límites por IP/DNI, idempotencia, deduplicación y máximo de pendientes.
+
+## Agenda inteligente
+
+El flag `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=False` conserva exactamente el selector público
+legacy y sus turnos de 30 minutos. Al activarlo, cada odontólogo debe tener al menos un
+`TipoTurnoOdontologo` activo, público y asociado a un `TipoTurno` visible. La configuración se
+administra en `/turnos/configuracion/servicios/` según rol.
+
+Antes de habilitarlo en Railway:
+
+1. aplicar `python manage.py migrate`;
+2. crear el catálogo, manualmente o con `crear_tipos_turno_iniciales`;
+3. definir duración de atención y margen por odontólogo;
+4. probar el flujo completo en staging con Redis y PostgreSQL;
+5. agregar `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=True` y redesplegar.
+
+No se configura duración en variables de entorno ni en parámetros públicos. El detalle del
+algoritmo, snapshots, caché, monitoreo y rollback está en
+[`agenda_inteligente.md`](agenda_inteligente.md).
 
 ## Cifrado de Tokens OAuth
 

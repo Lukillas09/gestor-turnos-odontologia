@@ -32,6 +32,8 @@ from ..forms import (
 from ..mixins import PublicShellMixin
 from ..models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
 from ..services import crear_solicitud_turno_publica_resultado
+from ..smart_scheduling import buscar_candidato, calcular_horarios_inteligentes
+from ..smart_scheduling_cache import obtener_horarios_inteligentes_cacheados
 from ..solicitudes_publicas.proteccion import (
     IdempotenciaSolicitudPublicaInvalida,
     ProteccionSolicitudPublicaError,
@@ -44,6 +46,7 @@ from ..solicitudes_publicas.proteccion import (
     turnstile_requerido_para_request,
 )
 from ..solicitudes_publicas.services import MaximoSolicitudesPendientesError
+from ..tipos_turno import configuraciones_tipos_publicos, obtener_configuracion_tipo_publica
 
 SOLICITUD_PUBLICA_CONFIRMADA_SESSION_KEY = "solicitud_turno_publica_confirmada"
 PUBLIC_BOOKING_NEARBY_DAYS_LIMIT_DEFAULT = 14
@@ -146,7 +149,14 @@ class LandingPublicaPacientesView(PublicShellMixin, TemplateView):
 
 
 class SolicitudTurnoPublicaDisponibilidadMixin:
-    def _crear_disponibilidad_publica(self, odontologo, fecha):
+    def _crear_disponibilidad_publica(self, odontologo, fecha, configuracion_tipo=None):
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            return self._crear_disponibilidad_inteligente(
+                odontologo,
+                fecha,
+                configuracion_tipo,
+            )
+
         horarios, cache_hit = obtener_horarios_publicos_disponibles_cacheados(
             odontologo=odontologo,
             fecha=fecha,
@@ -170,6 +180,76 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
             "cache_hit": cache_hit,
         }
 
+    def _crear_disponibilidad_inteligente(self, odontologo, fecha, configuracion_tipo):
+        if not configuracion_tipo:
+            return {
+                "odontologo": odontologo,
+                "fecha": fecha,
+                "configuracion_tipo": None,
+                "horarios_recomendados_manana": [],
+                "horarios_recomendados_tarde": [],
+                "horarios_alternativos_manana": [],
+                "horarios_alternativos_tarde": [],
+                "dias_cercanos": [],
+                "cache_hit": False,
+                "resultado_inteligente": None,
+            }
+
+        resultado, cache_hit = obtener_horarios_inteligentes_cacheados(
+            configuracion_tipo=configuracion_tipo,
+            fecha=fecha,
+        )
+        return {
+            "odontologo": odontologo,
+            "fecha": fecha,
+            "configuracion_tipo": configuracion_tipo,
+            "tipo_turno": configuracion_tipo.tipo_turno,
+            "duracion_atencion_minutos": configuracion_tipo.duracion_atencion_minutos,
+            "horarios_recomendados_manana": self._crear_opciones_candidatos(
+                configuracion_tipo,
+                fecha,
+                [
+                    candidato
+                    for candidato in resultado.recomendados
+                    if candidato.hora_inicio.hour < 13
+                ],
+            ),
+            "horarios_recomendados_tarde": self._crear_opciones_candidatos(
+                configuracion_tipo,
+                fecha,
+                [
+                    candidato
+                    for candidato in resultado.recomendados
+                    if candidato.hora_inicio.hour >= 13
+                ],
+            ),
+            "horarios_alternativos_manana": self._crear_opciones_candidatos(
+                configuracion_tipo,
+                fecha,
+                [
+                    candidato
+                    for candidato in resultado.alternativos
+                    if candidato.hora_inicio.hour < 13
+                ],
+            ),
+            "horarios_alternativos_tarde": self._crear_opciones_candidatos(
+                configuracion_tipo,
+                fecha,
+                [
+                    candidato
+                    for candidato in resultado.alternativos
+                    if candidato.hora_inicio.hour >= 13
+                ],
+            ),
+            "dias_cercanos": self._obtener_dias_cercanos(
+                odontologo,
+                fecha,
+                configuracion_tipo,
+            ),
+            "cache_hit": cache_hit,
+            "resultado_inteligente": resultado,
+        }
+
     def _crear_opciones_horarias(self, odontologo, fecha, horarios):
         if not odontologo or not fecha:
             return []
@@ -183,7 +263,24 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
             for horario in horarios
         ]
 
-    def _obtener_dias_cercanos(self, odontologo, fecha):
+    def _crear_opciones_candidatos(self, configuracion_tipo, fecha, candidatos):
+        return [
+            {
+                "hora": candidato.hora_inicio,
+                "label": candidato.hora_inicio.strftime("%H:%M"),
+                "url": self._crear_url_reserva(
+                    configuracion_tipo.odontologo,
+                    fecha,
+                    candidato.hora_inicio,
+                    configuracion_tipo=configuracion_tipo,
+                    clasificacion=candidato.clasificacion,
+                ),
+                "clasificacion": candidato.clasificacion,
+            }
+            for candidato in candidatos
+        ]
+
+    def _obtener_dias_cercanos(self, odontologo, fecha, configuracion_tipo=None):
         if not odontologo or not fecha:
             return []
 
@@ -226,7 +323,7 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
                     "fecha": dia,
                     "cantidad": None,
                     "seleccionado": dia == fecha,
-                    "url": self._crear_url_seleccion(odontologo, dia),
+                    "url": self._crear_url_seleccion(odontologo, dia, configuracion_tipo),
                 }
             )
 
@@ -254,24 +351,33 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
         )
 
     @staticmethod
-    def _crear_url_seleccion(odontologo, fecha):
-        querystring = urlencode(
-            {
-                "odontologo": odontologo.pk,
-                "fecha": fecha.isoformat(),
-            }
-        )
+    def _crear_url_seleccion(odontologo, fecha, configuracion_tipo=None):
+        parametros = {
+            "odontologo": odontologo.pk,
+            "fecha": fecha.isoformat(),
+        }
+        if configuracion_tipo:
+            parametros["tipo_turno"] = configuracion_tipo.tipo_turno_id
+        querystring = urlencode(parametros)
         return f"{reverse('turnos:solicitud_publica')}?{querystring}"
 
     @staticmethod
-    def _crear_url_reserva(odontologo, fecha, hora):
-        querystring = urlencode(
-            {
-                "odontologo": odontologo.pk,
-                "fecha": fecha.isoformat(),
-                "hora_inicio": hora.strftime("%H:%M"),
-            }
-        )
+    def _crear_url_reserva(
+        odontologo,
+        fecha,
+        hora,
+        configuracion_tipo=None,
+        clasificacion="",
+    ):
+        parametros = {
+            "odontologo": odontologo.pk,
+            "fecha": fecha.isoformat(),
+            "hora_inicio": hora.strftime("%H:%M"),
+        }
+        if configuracion_tipo:
+            parametros["tipo_turno"] = configuracion_tipo.tipo_turno_id
+            parametros["clasificacion"] = clasificacion
+        querystring = urlencode(parametros)
         return f"{reverse('turnos:solicitud_publica_datos')}?{querystring}"
 
 
@@ -288,19 +394,38 @@ class SolicitudTurnoPublicaView(
         disponibilidad = {}
 
         if busqueda_form.is_valid():
+            configuracion_tipo = None
+            if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+                configuracion_tipo = obtener_configuracion_tipo_publica(
+                    busqueda_form.cleaned_data["odontologo"],
+                    busqueda_form.cleaned_data["tipo_turno"],
+                )
             disponibilidad = self._crear_disponibilidad_publica(
                 busqueda_form.cleaned_data["odontologo"],
                 busqueda_form.cleaned_data["fecha"],
+                configuracion_tipo,
             )
 
         context["busqueda_form"] = busqueda_form
         context["hay_odontologos"] = Odontologo.objects.filter(activo=True).exists()
+        context["smart_scheduling_enabled"] = settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
+        context["configuraciones_tipos_iniciales"] = (
+            list(configuraciones_tipos_publicos(disponibilidad.get("odontologo")))
+            if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED and disponibilidad.get("odontologo")
+            else []
+        )
         context.update(
             {
                 "odontologo": None,
+                "tipo_turno": None,
+                "configuracion_tipo": None,
                 "fecha": None,
                 "horarios_manana": [],
                 "horarios_tarde": [],
+                "horarios_recomendados_manana": [],
+                "horarios_recomendados_tarde": [],
+                "horarios_alternativos_manana": [],
+                "horarios_alternativos_tarde": [],
                 "dias_cercanos": [],
                 **disponibilidad,
             }
@@ -313,6 +438,60 @@ class SolicitudTurnoPublicaView(
             data,
             initial={"fecha": obtener_rango_reserva_publica().fecha_minima},
             auto_id="id_busqueda_%s",
+        )
+
+
+class SolicitudTurnoPublicaTiposView(View):
+    http_method_names = ["get"]
+
+    def get(self, request):
+        if not settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            return JsonResponse(
+                {"ok": False, "tipos": [], "codigo": "feature_disabled"},
+                status=404,
+            )
+
+        odontologo = SolicitudTurnoPublicaHorariosView._obtener_odontologo(
+            request.GET.get("odontologo")
+        )
+        if not odontologo:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "tipos": [],
+                    "codigo": "odontologo_invalido",
+                    "mensaje": "No se encontró el profesional seleccionado.",
+                }
+            )
+
+        configuraciones = list(configuraciones_tipos_publicos(odontologo))
+        return JsonResponse(
+            {
+                "ok": True,
+                "odontologo": {
+                    "id": odontologo.pk,
+                    "nombre": odontologo.nombre_completo,
+                },
+                "tipos": [
+                    {
+                        "configuracion_id": configuracion.pk,
+                        "tipo_turno_id": configuracion.tipo_turno_id,
+                        "nombre": configuracion.tipo_turno.nombre,
+                        "descripcion": configuracion.tipo_turno.descripcion_publica,
+                        "icono": configuracion.tipo_turno.icono or "calendar",
+                        "duracion_aproximada": configuracion.duracion_atencion_minutos,
+                    }
+                    for configuracion in configuraciones
+                ],
+                "mensaje": (
+                    "Elegí el motivo de la visita."
+                    if configuraciones
+                    else (
+                        "Este profesional no tiene turnos disponibles para reserva online "
+                        "en este momento."
+                    )
+                ),
+            }
         )
 
 
@@ -339,6 +518,32 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
                     "mensaje": "No se encontró el odontólogo seleccionado.",
                 }
             )
+
+        configuracion_tipo = None
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            tipo_turno_id = request.GET.get("tipo_turno")
+            if not tipo_turno_id:
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "codigo": "sin_tipo_turno",
+                        "mensaje": "Elegí el motivo de la visita para ver horarios.",
+                        "odontologo": self._serializar_odontologo(odontologo),
+                    }
+                )
+            configuracion_tipo = obtener_configuracion_tipo_publica(
+                odontologo,
+                tipo_turno_id,
+            )
+            if not configuracion_tipo:
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "codigo": "tipo_turno_invalido",
+                        "mensaje": "El motivo elegido ya no está disponible para este profesional.",
+                        "odontologo": self._serializar_odontologo(odontologo),
+                    }
+                )
 
         if not request.GET.get("fecha"):
             return JsonResponse(
@@ -373,7 +578,11 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
             )
 
         try:
-            disponibilidad = self._crear_disponibilidad_publica(odontologo, fecha)
+            disponibilidad = self._crear_disponibilidad_publica(
+                odontologo,
+                fecha,
+                configuracion_tipo,
+            )
         except Exception:
             duracion_ms = round((perf_counter() - inicio) * 1000)
             logger.exception(
@@ -389,6 +598,12 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
                     "mensaje": "No se pudieron cargar los horarios. Intenta nuevamente.",
                 },
                 status=500,
+            )
+
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            return self._respuesta_horarios_inteligentes(
+                disponibilidad,
+                inicio,
             )
 
         horarios_manana = disponibilidad["horarios_manana"]
@@ -427,6 +642,71 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
             }
         )
 
+    def _respuesta_horarios_inteligentes(self, disponibilidad, inicio):
+        resultado = disponibilidad["resultado_inteligente"]
+        configuracion_tipo = disponibilidad["configuracion_tipo"]
+        recomendados_manana = disponibilidad["horarios_recomendados_manana"]
+        recomendados_tarde = disponibilidad["horarios_recomendados_tarde"]
+        alternativos_manana = disponibilidad["horarios_alternativos_manana"]
+        alternativos_tarde = disponibilidad["horarios_alternativos_tarde"]
+        total = sum(
+            len(grupo)
+            for grupo in (
+                recomendados_manana,
+                recomendados_tarde,
+                alternativos_manana,
+                alternativos_tarde,
+            )
+        )
+        duracion_ms = round((perf_counter() - inicio) * 1000)
+        logger.info(
+            (
+                "Horarios inteligentes servidos. odontologo_id=%s tipo_turno_id=%s fecha=%s "
+                "cantidad_candidatos=%s cantidad_recomendados=%s cantidad_alternativos=%s "
+                "cantidad_descartados_fragmentacion=%s cache_hit=%s duracion_ms=%s "
+                "algoritmo_version=%s"
+            ),
+            disponibilidad["odontologo"].pk,
+            configuracion_tipo.tipo_turno_id,
+            disponibilidad["fecha"].isoformat(),
+            resultado.total_candidatos_validos,
+            len(resultado.recomendados),
+            len(resultado.alternativos),
+            resultado.descartados_por_fragmentacion,
+            disponibilidad.get("cache_hit", False),
+            duracion_ms,
+            resultado.algoritmo_version,
+        )
+        return JsonResponse(
+            {
+                "ok": True,
+                "mensaje": (
+                    "Te mostramos primero los horarios que mejor encajan con la disponibilidad."
+                    if total
+                    else "No hay horarios disponibles para esa fecha. Probá con otro día."
+                ),
+                "odontologo": self._serializar_odontologo(disponibilidad["odontologo"]),
+                "tipo_turno": {
+                    "id": configuracion_tipo.tipo_turno_id,
+                    "nombre": configuracion_tipo.tipo_turno.nombre,
+                    "duracion_aproximada": configuracion_tipo.duracion_atencion_minutos,
+                },
+                "fecha": self._serializar_fecha(disponibilidad["fecha"]),
+                "dias_cercanos": [
+                    self._serializar_dia_cercano(dia) for dia in disponibilidad["dias_cercanos"]
+                ],
+                "horarios_recomendados": {
+                    "manana": self._serializar_horarios(recomendados_manana),
+                    "tarde": self._serializar_horarios(recomendados_tarde),
+                },
+                "horarios_alternativos": {
+                    "manana": self._serializar_horarios(alternativos_manana),
+                    "tarde": self._serializar_horarios(alternativos_tarde),
+                },
+                "algoritmo_version": resultado.algoritmo_version,
+            }
+        )
+
     @staticmethod
     def _obtener_odontologo(odontologo_id):
         if not odontologo_id:
@@ -457,7 +737,11 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
             "id": odontologo.pk,
             "nombre": odontologo.nombre_completo,
             "especialidad": odontologo.especialidad or "Odontología general",
-            "duracion": DURACION_SOLICITUD_PUBLICA_MINUTOS,
+            "duracion": (
+                None
+                if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
+                else DURACION_SOLICITUD_PUBLICA_MINUTOS
+            ),
             "matricula": odontologo.matricula,
             "celular": odontologo.celular,
             "foto_url": odontologo.foto_perfil_url,
@@ -532,11 +816,16 @@ class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
             else turnstile_requerido_para_request(self.request, documento)
         )
         context["turnstile_site_key"] = settings.TURNSTILE_SITE_KEY
+        context["smart_scheduling_enabled"] = settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
 
         if reserva:
+            duracion_visible = reserva.get(
+                "duracion_atencion_minutos",
+                DURACION_SOLICITUD_PUBLICA_MINUTOS,
+            )
             context["hora_fin"] = (
                 datetime.combine(reserva["fecha"], reserva["hora_inicio"])
-                + timedelta(minutes=DURACION_SOLICITUD_PUBLICA_MINUTOS)
+                + timedelta(minutes=duracion_visible)
             ).time()
 
         return context
@@ -646,19 +935,21 @@ class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
         except (TypeError, ValueError):
             return False
 
-        return (
-            SolicitudTurnoPublica.objects.filter(
-                paciente__documento=documento,
-                turno__odontologo_id=odontologo_pk,
-                turno__fecha=fecha,
-                turno__hora_inicio=hora_inicio,
-                turno__estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
-            )
-            .exclude(
-                estado_revision=SolicitudTurnoPublica.EstadoRevision.RECHAZADA,
-            )
-            .exists()
+        solicitudes = SolicitudTurnoPublica.objects.filter(
+            paciente__documento=documento,
+            turno__odontologo_id=odontologo_pk,
+            turno__fecha=fecha,
+            turno__hora_inicio=hora_inicio,
+            turno__estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
         )
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            tipo_turno_id = self.request.POST.get("tipo_turno")
+            if not tipo_turno_id:
+                return False
+            solicitudes = solicitudes.filter(turno__tipo_turno_id=tipo_turno_id)
+        return solicitudes.exclude(
+            estado_revision=SolicitudTurnoPublica.EstadoRevision.RECHAZADA,
+        ).exists()
 
     def _obtener_reserva_desde_get(self):
         return self._obtener_reserva(self.request.GET, validar_disponibilidad=True)
@@ -669,6 +960,7 @@ class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
     @staticmethod
     def _obtener_reserva(data, validar_disponibilidad):
         odontologo_id = data.get("odontologo")
+        tipo_turno_id = data.get("tipo_turno")
         fecha = parse_date(data.get("fecha") or "")
         hora_inicio = parse_time(data.get("hora_inicio") or "")
 
@@ -690,6 +982,33 @@ class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
 
         if not odontologo:
             return None
+
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            configuracion_tipo = obtener_configuracion_tipo_publica(
+                odontologo,
+                tipo_turno_id,
+            )
+            if not configuracion_tipo:
+                return None
+            resultado = calcular_horarios_inteligentes(
+                odontologo=odontologo,
+                fecha=fecha,
+                duracion_atencion_minutos=configuracion_tipo.duracion_atencion_minutos,
+                margen_posterior_minutos=configuracion_tipo.margen_posterior_minutos,
+            )
+            candidato = buscar_candidato(resultado, hora_inicio)
+            if validar_disponibilidad and not candidato:
+                return None
+            return {
+                "odontologo": odontologo,
+                "tipo_turno": configuracion_tipo.tipo_turno,
+                "configuracion_tipo": configuracion_tipo,
+                "duracion_atencion_minutos": configuracion_tipo.duracion_atencion_minutos,
+                "duracion_bloqueada_minutos": configuracion_tipo.duracion_bloqueada_minutos,
+                "clasificacion": candidato.clasificacion if candidato else "",
+                "fecha": fecha,
+                "hora_inicio": hora_inicio,
+            }
 
         if validar_disponibilidad:
             horarios = obtener_horarios_publicos_disponibles(
@@ -719,6 +1038,7 @@ class SolicitudTurnoPublicaOkView(PublicShellMixin, TemplateView):
             Turno.objects.select_related(
                 "odontologo",
                 "odontologo__usuario",
+                "tipo_turno",
             )
             .filter(pk=turno_id)
             .first()

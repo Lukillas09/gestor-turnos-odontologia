@@ -48,16 +48,16 @@ Ruta:
 
 Flujo:
 
-1. El paciente elige odontólogo y fecha.
-2. La pantalla consulta horarios disponibles.
-3. El paciente elige un horario.
+1. El paciente elige odontólogo. Con la agenda inteligente activa también elige un motivo configurado antes de la fecha.
+2. La pantalla consulta horarios disponibles; el modo inteligente separa recomendados y alternativas.
+3. El paciente elige cualquier horario válido.
 4. Completa datos mínimos:
    - nombre;
    - apellido;
    - teléfono;
    - DNI obligatorio;
    - email condicional: obligatorio para pacientes nuevos y para pacientes existentes activos sin email registrado;
-   - motivo breve opcional.
+   - motivo breve opcional en legacy o comentario adicional opcional en el modo inteligente.
 5. El POST final se cuenta una sola vez para rate limit por IP y DNI hasheados.
 6. Si corresponde por umbral, se exige Turnstile antes de procesar la solicitud.
 7. Se valida el token de idempotencia del formulario para evitar doble clic, recarga o reenvío del POST.
@@ -66,7 +66,7 @@ Flujo:
 10. Si el DNI ya existe, el paciente se reutiliza sin modificar nombre, apellido, teléfono ni email. Si el paciente activo no tiene email registrado, debe enviar uno como propuesta para revisión.
 11. Se valida ventana pública de reserva, anticipación mínima, disponibilidad, excepciones y superposición.
 12. Dentro de la transacción se detectan duplicados exactos y se aplica el máximo de pendientes por DNI.
-13. Se crea un turno pendiente con duración inicial de 30 minutos.
+13. Se crea un turno pendiente. El modo legacy usa 30 minutos; el modo inteligente deriva atención+margen, recalcula bajo bloqueo y guarda snapshots.
 14. Se crea una `SolicitudTurnoPublica` con la fotografía inmutable de los datos enviados.
 15. Si hay diferencias contra el paciente existente, la solicitud queda pendiente de revisión para recepción.
 16. La respuesta pública es neutral y no revela si el paciente existía, si se creó, si hubo diferencias ni si se reutilizó una solicitud previa.
@@ -88,7 +88,7 @@ Reglas:
 - No pide datos clínicos ni administrativos extensos.
 - No crea registros si se supera el rate limit por IP/DNI o si la protección de cache no está disponible.
 - El máximo de pendientes cuenta solo solicitudes públicas futuras con turno pendiente, no turnos internos, confirmados, cancelados, pasados ni solicitudes rechazadas.
-- Un duplicado exacto activo del mismo DNI, odontólogo, fecha y hora se trata como operación ya registrada y redirige a la confirmación genérica sin reenviar emails.
+- Un duplicado exacto activo del mismo DNI, odontólogo, fecha, hora y servicio cuando aplica se trata como operación ya registrada y redirige a la confirmación genérica sin reenviar emails.
 - Las alertas administrativas sin turno para pacientes archivados se reutilizan dentro de la ventana configurada para no generar pendientes ilimitados.
 - Crea asociación paciente-odontólogo.
 - No usa el email enviado para notificar a un paciente ya registrado si difiere del email persistido.
@@ -97,6 +97,18 @@ Reglas:
 - Para pacientes nuevos, se puede enviar confirmación al email enviado, pero ese contacto no queda verificado automáticamente.
 - El primer OTP validado correctamente marca `Paciente.email_verificado_en`; crear la solicitud, enviar emails o confirmar el turno no verifican el correo.
 - Las diferencias se guardan en `diferencias_detectadas` y solo se muestran a usuarios internos autorizados.
+
+### Agenda inteligente por motivo
+
+Con `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=True`, el navegador recibe solo servicios públicos
+habilitados para el odontólogo. La duración, margen, puntaje y snapshot nunca se aceptan desde
+el cliente. El servidor genera candidatos por grilla, descarta fragmentos inferiores al mínimo
+útil, puntúa encajes y extremos, y presenta una selección diversa más alternativas.
+
+Al confirmar, `crear_solicitud_publica_de_turno()` bloquea odontólogo/fecha, bloquea la
+configuración, recalcula sin caché y verifica que el candidato siga vigente. La reprogramación
+aplica el mismo proceso usando los snapshots del turno original. Cancelar vuelve a liberar el
+intervalo. Ver [`agenda_inteligente.md`](agenda_inteligente.md).
 
 ## Revisión Integrada de Solicitudes Públicas
 

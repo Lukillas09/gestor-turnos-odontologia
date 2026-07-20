@@ -6,8 +6,9 @@ from config.form_widgets import HtmlDateInput
 from pacientes.models import Paciente
 from usuarios.roles import obtener_odontologo_del_usuario, puede_gestionar_consultorio
 
-from ..models import Odontologo, Turno
+from ..models import Odontologo, TipoTurno, TipoTurnoOdontologo, Turno
 from ..selectors import obtener_horarios_disponibles
+from ..tipos_turno import aplicar_snapshot_interno
 from .fields import HorarioDisponibleChoiceField, convertir_a_hora
 
 DURACIONES_CONFIRMACION_TURNO = (
@@ -20,11 +21,23 @@ DURACIONES_CONFIRMACION_TURNO = (
 
 
 class TurnoForm(forms.ModelForm):
+    tipo_turno = forms.ModelChoiceField(
+        queryset=TipoTurno.objects.none(),
+        required=False,
+        empty_label="Sin tipo preconfigurado",
+        label="Tipo de turno (opcional)",
+        help_text=(
+            "Al elegir un tipo se aplica la duración configurada para el profesional. "
+            "Dejalo vacío para cargar una duración manual."
+        ),
+    )
+
     class Meta:
         model = Turno
         fields = (
             "paciente",
             "odontologo",
+            "tipo_turno",
             "fecha",
             "hora_inicio",
             "duracion_minutos",
@@ -45,6 +58,9 @@ class TurnoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._tipo_original_id = self.instance.tipo_turno_id if self.instance.pk else None
+        self._odontologo_original_id = self.instance.odontologo_id if self.instance.pk else None
+        self._duracion_original = self.instance.duracion_minutos if self.instance.pk else None
         self.fields["paciente"].empty_label = "Seleccionar paciente"
         pacientes = Paciente.objects.activos()
 
@@ -61,6 +77,89 @@ class TurnoForm(forms.ModelForm):
 
         self.fields["odontologo"].queryset = odontologos
         self.fields["odontologo"].empty_label = "Seleccionar odontólogo"
+        self._configurar_tipos_turno()
+
+    def _configurar_tipos_turno(self):
+        odontologo = self._obtener_odontologo_para_tipo()
+        if not odontologo:
+            return
+        tipos = TipoTurno.objects.filter(
+            configuraciones_odontologos__odontologo=odontologo,
+            configuraciones_odontologos__activo=True,
+            activo=True,
+        )
+        if self.instance.pk and self.instance.tipo_turno_id:
+            tipos = TipoTurno.objects.filter(
+                Q(pk=self.instance.tipo_turno_id)
+                | Q(
+                    configuraciones_odontologos__odontologo=odontologo,
+                    configuraciones_odontologos__activo=True,
+                    activo=True,
+                )
+            )
+        self.fields["tipo_turno"].queryset = tipos.distinct().order_by(
+            "orden_publico", "nombre", "pk"
+        )
+
+    def _obtener_odontologo_para_tipo(self):
+        valor = self.data.get("odontologo") if self.is_bound else self.initial.get("odontologo")
+        if not valor and self.instance.odontologo_id:
+            return self.instance.odontologo
+        if isinstance(valor, Odontologo):
+            return valor
+        try:
+            return Odontologo.objects.filter(pk=valor).first() if valor else None
+        except (TypeError, ValueError):
+            return None
+
+    def clean(self):
+        cleaned_data = super().clean() or {}
+        odontologo = cleaned_data.get("odontologo")
+        tipo_turno = cleaned_data.get("tipo_turno")
+        if tipo_turno and odontologo:
+            configuracion = TipoTurnoOdontologo.objects.filter(
+                odontologo=odontologo,
+                tipo_turno=tipo_turno,
+                activo=True,
+                tipo_turno__activo=True,
+            ).first()
+            conserva_snapshot = (
+                self.instance.pk
+                and self._tipo_original_id == tipo_turno.pk
+                and self._odontologo_original_id == odontologo.pk
+            )
+            if not conserva_snapshot:
+                if not configuracion:
+                    self.add_error(
+                        "tipo_turno",
+                        "Este tipo no está configurado para el profesional seleccionado.",
+                    )
+                    return cleaned_data
+                cleaned_data["configuracion_tipo_turno"] = configuracion
+                cleaned_data["duracion_minutos"] = configuracion.duracion_bloqueada_minutos
+        return cleaned_data
+
+    def save(self, commit=True):
+        turno = super().save(commit=False)
+        configuracion = self.cleaned_data.get("configuracion_tipo_turno")
+        tipo_cambio = self._tipo_original_id != turno.tipo_turno_id
+
+        if not turno.pk or tipo_cambio:
+            aplicar_snapshot_interno(turno, configuracion)
+        elif self._duracion_original != turno.duracion_minutos:
+            margen = turno.margen_posterior_minutos_snapshot
+            if margen >= turno.duracion_minutos:
+                margen = 0
+            turno.margen_posterior_minutos_snapshot = margen
+            turno.duracion_atencion_minutos = turno.duracion_minutos - margen
+            turno.algoritmo_horario_version = ""
+            turno.clasificacion_horario = Turno.ClasificacionHorario.INTERNO
+            turno.puntaje_horario = None
+
+        if commit:
+            turno.save()
+            self.save_m2m()
+        return turno
 
 
 class HorariosDisponiblesFormMixin:
@@ -162,6 +261,19 @@ class TurnoCreateForm(HorariosDisponiblesFormMixin, TurnoForm):
         self.fields.pop("estado", None)
         self._configurar_horarios_disponibles()
 
+    def _obtener_duracion_minutos(self, odontologo):
+        tipo_turno = self._obtener_valor("tipo_turno")
+        if tipo_turno:
+            configuracion = TipoTurnoOdontologo.objects.filter(
+                odontologo=odontologo,
+                tipo_turno_id=getattr(tipo_turno, "pk", tipo_turno),
+                activo=True,
+                tipo_turno__activo=True,
+            ).first()
+            if configuracion:
+                return configuracion.duracion_bloqueada_minutos
+        return super()._obtener_duracion_minutos(odontologo)
+
 
 class TurnoReprogramacionForm(HorariosDisponiblesFormMixin, forms.ModelForm):
     hora_inicio = HorarioDisponibleChoiceField(
@@ -241,6 +353,25 @@ class ConfirmacionTurnoForm(forms.Form):
         },
     )
 
+    def __init__(
+        self,
+        *args,
+        duracion_original=None,
+        requiere_confirmacion_cambio=False,
+        **kwargs,
+    ):
+        self.duracion_original = duracion_original
+        self.requiere_confirmacion_cambio = requiere_confirmacion_cambio
+        super().__init__(*args, **kwargs)
+        if requiere_confirmacion_cambio:
+            self.fields["confirmar_cambio_duracion"] = forms.BooleanField(
+                required=False,
+                label=(
+                    "Confirmo que quiero cambiar la duración bloqueada y que se volverá "
+                    "a comprobar la agenda."
+                ),
+            )
+
     def clean(self):
         cleaned_data = super().clean() or {}
 
@@ -252,15 +383,24 @@ class ConfirmacionTurnoForm(forms.Form):
 
         if duracion_personalizada is not None:
             cleaned_data["duracion_minutos"] = duracion_personalizada
-            return cleaned_data
-
-        if duracion_rapida:
+        elif duracion_rapida:
             cleaned_data["duracion_minutos"] = duracion_rapida
-            return cleaned_data
+        else:
+            raise forms.ValidationError(
+                "Elegí una duración rápida o ingresá una duración personalizada."
+            )
 
-        raise forms.ValidationError(
-            "Elegí una duración rápida o ingresá una duración personalizada."
-        )
+        if (
+            self.requiere_confirmacion_cambio
+            and self.duracion_original is not None
+            and cleaned_data["duracion_minutos"] != self.duracion_original
+            and not cleaned_data.get("confirmar_cambio_duracion")
+        ):
+            self.add_error(
+                "confirmar_cambio_duracion",
+                "Confirmá explícitamente el cambio de duración.",
+            )
+        return cleaned_data
 
 
 class TurnoFiltroForm(forms.Form):

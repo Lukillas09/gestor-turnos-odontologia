@@ -103,6 +103,9 @@ Modelos:
 - `DesafioAccesoPublicoTurnos`
 - `AccionPublicaTurno`
 - `GoogleCalendarConexion`
+- `TipoTurno`
+- `TipoTurnoOdontologo`
+- `ConfiguracionAgendaInteligente`
 
 `SolicitudTurnoPublica` separa lo enviado desde la web pública del registro principal del paciente. Guarda documento, nombre, apellido, teléfono, email y motivo enviados como fotografía de auditoría, junto con diferencias detectadas, estado de revisión, usuario revisor y campos aceptados/descartados. Esa fotografía no debe usarse como fuente confiable para datos clínicos ni reemplaza automáticamente a `Paciente`.
 
@@ -114,6 +117,7 @@ Capas internas:
   - `turnos.py`: formularios internos de turno, confirmación, filtros y búsqueda de horarios.
   - `solicitudes_publicas.py`: solicitud pública inicial y revisión interna de datos enviados.
   - `public_access.py`: formularios OTP, cancelación y reprogramación pública segura.
+  - `tipos_turno.py`: catálogo, configuración por odontólogo y parámetros del algoritmo.
   - `agenda.py`: filtros de agenda.
   - `excepciones.py`: formulario de bloqueos/excepciones de agenda.
 - `views/`: paquete de vistas por dominio. `__init__.py` reexporta las clases usadas por URLs y tests para mantener compatibilidad.
@@ -123,10 +127,14 @@ Capas internas:
   - `agenda.py`: agenda diaria y semanal.
   - `excepciones.py`: ABM operativo de excepciones.
   - `google_calendar.py`: OAuth y conexión de Google Calendar.
+  - `tipos_turno.py`: gestión interna de servicios y agenda inteligente según rol.
   - `helpers.py`: helpers de presentación compartidos.
 - `services.py`: casos de uso que modifican datos.
 - `selectors.py`: consultas reutilizables y cálculo de disponibilidad.
 - `excepciones.py`: ventana pública de reserva, bloqueos operativos, detección de turnos afectados y locks técnicos por agenda.
+- `smart_scheduling.py`: motor puro y adaptador de disponibilidad para reglas determinísticas.
+- `smart_scheduling_cache.py`: caché corta versionada, nunca usada como validación definitiva.
+- `tipos_turno.py`: consultas y aplicación centralizada de snapshots públicos/internos.
 - `excepcion_permissions.py`: permisos de excepciones por rol y por odontólogo.
 - `notifications.py`: notificaciones de email.
 - `integrations/google_calendar.py`: cliente HTTP de Google Calendar.
@@ -221,6 +229,7 @@ URLs públicas:
 ```text
 /                                      landing pública
 /turnos/solicitar/                     selección pública de turno
+/turnos/solicitar/tipos/               servicios públicos del odontólogo
 /turnos/solicitar/horarios/            endpoint JSON de horarios públicos
 /turnos/solicitar/datos/               formulario público de datos mínimos
 /turnos/solicitar/gracias/             confirmación pública
@@ -244,6 +253,7 @@ URLs internas:
 /turnos/excepciones/
 /turnos/excepciones/nueva/
 /turnos/excepciones/<id>/editar/
+/turnos/configuracion/servicios/
 /turnos/alertas-administrativas/
 /turnos/solicitudes-publicas/       # compatibilidad: redirige a Turnos o Alertas
 /turnos/solicitudes-publicas/<uuid>/ # compatibilidad: redirige al turno si existe
@@ -286,7 +296,7 @@ Estados válidos:
 Reglas:
 
 - Turnos internos: se crean como `confirmado`.
-- Turnos públicos: se crean como `pendiente` y `duracion_minutos=30`.
+- Turnos públicos: se crean como `pendiente`; usan 30 minutos con el flag legacy o el bloque atención+margen derivado y revalidado con la agenda inteligente.
 - Solicitudes públicas normales: crean un `Turno` y una `SolicitudTurnoPublica`; el turno aparece directamente en Turnos y Agenda.
 - `SolicitudTurnoPublica` se conserva como auditoría de los datos enviados, diferencias, revisor, fecha de revisión y campos aceptados/descartados.
 - Si el DNI ya existe, los datos enviados no modifican automáticamente el `Paciente`; sólo se aplican campos seleccionados desde la revisión interna.
@@ -303,6 +313,11 @@ Reglas:
 - Si la duración real genera conflicto, el turno no cambia de estado.
 - Crear o actualizar una excepción que afecta turnos existentes requiere confirmación explícita en dos pasos; esos turnos no se cancelan automáticamente.
 - Las excepciones de agenda no se sincronizan con Google Calendar.
+
+La agenda inteligente está aislada por feature flag. Sus snapshots hacen que editar o
+desactivar un tipo no cambie turnos existentes. El POST final bloquea la agenda y recalcula sin
+caché; la reprogramación usa la duración histórica del turno. La especificación está en
+[`agenda_inteligente.md`](agenda_inteligente.md).
 
 ## Permisos y Alcance de Datos
 

@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from config.form_widgets import HtmlDateInput
@@ -11,6 +12,7 @@ from ..excepciones import (
     validar_intervalo_reserva_publica,
 )
 from ..models import Turno
+from ..smart_scheduling import calcular_horarios_inteligentes
 from .fields import HorarioDisponibleChoiceField, convertir_a_hora
 from .solicitudes_publicas import DURACION_SOLICITUD_PUBLICA_MINUTOS
 from .turnos import HorariosDisponiblesFormMixin
@@ -125,6 +127,17 @@ class TurnoReprogramacionAccesoPublicoForm(HorariosDisponiblesFormMixin, forms.M
         return self.instance
 
     def _obtener_horarios_disponibles(self, **kwargs):
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED and self.instance.tipo_turno_id:
+            resultado = calcular_horarios_inteligentes(
+                odontologo=kwargs["odontologo"],
+                fecha=kwargs["fecha"],
+                duracion_atencion_minutos=(
+                    self.instance.duracion_atencion_minutos or self.instance.duracion_minutos
+                ),
+                margen_posterior_minutos=(self.instance.margen_posterior_minutos_snapshot),
+                turno_excluido=self.instance,
+            )
+            return [candidato.hora_inicio for candidato in resultado.todos]
         return obtener_horarios_publicos_disponibles(**kwargs)
 
     def clean_accion_token(self):

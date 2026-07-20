@@ -16,6 +16,7 @@
             {% csrf_token %}
 
             {{ form.odontologo.as_hidden }}
+            {% if smart_scheduling_enabled %}{{ form.tipo_turno.as_hidden }}{% endif %}
             {{ form.fecha.as_hidden }}
             {{ form.hora_inicio.as_hidden }}
             {{ form.idempotency_token }}
@@ -36,10 +37,10 @@
                 </div>
             {% endif %}
 
-            {% if form.odontologo.errors or form.fecha.errors or form.hora_inicio.errors %}
+            {% if form.odontologo.errors or form.tipo_turno.errors or form.fecha.errors or form.hora_inicio.errors %}
                 <div class="form-error-summary field-full" role="alert">
                     {% include "includes/icon.html" with name="alert" %}
-                    <div>{{ form.odontologo.errors }}{{ form.fecha.errors }}{{ form.hora_inicio.errors }}</div>
+                    <div>{{ form.odontologo.errors }}{{ form.tipo_turno.errors }}{{ form.fecha.errors }}{{ form.hora_inicio.errors }}</div>
                 </div>
             {% endif %}
 
@@ -115,11 +116,12 @@
                     <div><strong>{{ odontologo }}</strong><span>{{ odontologo.especialidad|default:"Odontología general" }}</span></div>
                 </div>
                 <dl class="public-booking-summary-details">
+                    {% if tipo_turno %}<div><dt>{% include "includes/icon.html" with name="appointments" %} Motivo</dt><dd>{{ tipo_turno.nombre }}</dd></div>{% endif %}
                     <div><dt>{% include "includes/icon.html" with name="calendar" %} Fecha</dt><dd>{{ fecha|date:"l d/m/Y" }}</dd></div>
                     <div><dt>{% include "includes/icon.html" with name="clock" %} Horario</dt><dd>{{ hora_inicio|time:"H:i" }} a {{ hora_fin|time:"H:i" }}</dd></div>
-                    <div><dt>{% include "includes/icon.html" with name="appointments" %} Duración</dt><dd>30 minutos</dd></div>
+                    <div><dt>{% include "includes/icon.html" with name="appointments" %} Duración aproximada</dt><dd>{{ duracion_atencion_minutos|default:30 }} minutos</dd></div>
                 </dl>
-                <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ odontologo.pk }}&fecha={{ fecha|date:'Y-m-d' }}">{% include "includes/icon.html" with name="arrow-left" %} Cambiar horario</a>
+                <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ odontologo.pk }}{% if tipo_turno %}&amp;tipo_turno={{ tipo_turno.pk }}{% endif %}&amp;fecha={{ fecha|date:'Y-m-d' }}">{% include "includes/icon.html" with name="arrow-left" %} Cambiar horario</a>
             </aside>
         {% endif %}
     </div>

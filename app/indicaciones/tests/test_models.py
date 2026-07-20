@@ -14,6 +14,26 @@ from .base import IndicacionesTestCase
 
 
 class IndicacionModelTests(IndicacionesTestCase):
+    def test_modelo_rechaza_turno_e_historia_de_otro_paciente(self):
+        turno = self.crear_turno(paciente=self.paciente_fuera_de_alcance)
+        historia = self.crear_historia(paciente=self.paciente_fuera_de_alcance)
+        indicacion = IndicacionPaciente(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            turno=turno,
+            historia_clinica=historia,
+            titulo="Indicaciones de prueba",
+            contenido="Contenido clinico ficticio definido por el profesional.",
+            creado_por=self.usuario,
+            actualizado_por=self.usuario,
+        )
+
+        with self.assertRaises(ValidationError) as contexto:
+            indicacion.full_clean()
+
+        self.assertIn("turno", contexto.exception.error_dict)
+        self.assertIn("historia_clinica", contexto.exception.error_dict)
+
     def test_borrador_se_crea_sin_datos_definitivos(self):
         indicacion = self.crear_borrador()
 

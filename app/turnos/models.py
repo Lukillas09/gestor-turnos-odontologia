@@ -9,7 +9,8 @@ from django.db import models, transaction
 from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
-from django.utils.text import get_valid_filename
+from django.utils.html import strip_tags
+from django.utils.text import get_valid_filename, slugify
 
 from .fields import EncryptedTextField
 
@@ -114,6 +115,220 @@ class Odontologo(models.Model):
 
     def __str__(self):
         return self.nombre_completo
+
+
+class TipoTurno(models.Model):
+    class Icono(models.TextChoices):
+        CALENDARIO = "calendar", "Calendario"
+        CONTROL = "check", "Control"
+        CONSULTA = "info", "Consulta"
+        CLINICO = "clinical", "Clínico"
+        TURNO = "appointments", "Turno"
+        RELOJ = "clock", "Reloj"
+
+    nombre = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120, unique=True)
+    descripcion_publica = models.CharField(max_length=240, blank=True)
+    icono = models.CharField(max_length=50, blank=True, choices=Icono.choices)
+    orden_publico = models.PositiveSmallIntegerField(default=0)
+    activo = models.BooleanField(default=True)
+    visible_publicamente = models.BooleanField(default=False)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tipos_turno_creados",
+    )
+    actualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tipos_turno_actualizados",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["orden_publico", "nombre", "pk"]
+        verbose_name = "Tipo de turno"
+        verbose_name_plural = "Tipos de turno"
+        indexes = [
+            models.Index(fields=["activo", "visible_publicamente", "orden_publico"]),
+        ]
+
+    def clean(self):
+        errors = {}
+        self.nombre = (self.nombre or "").strip()
+        self.descripcion_publica = (self.descripcion_publica or "").strip()
+
+        if not self.nombre:
+            errors["nombre"] = "Ingresá un nombre para el tipo de turno."
+
+        for campo in ("nombre", "descripcion_publica"):
+            valor = getattr(self, campo)
+            if valor and strip_tags(valor) != valor:
+                errors[campo] = "No se permite HTML en este campo."
+
+        if not self.slug and self.nombre:
+            self.slug = slugify(self.nombre)
+
+        if self.icono and self.icono not in self.Icono.values:
+            errors["icono"] = "Seleccioná un icono permitido."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nombre
+
+
+class TipoTurnoOdontologo(models.Model):
+    odontologo = models.ForeignKey(
+        Odontologo,
+        on_delete=models.CASCADE,
+        related_name="configuraciones_tipos_turno",
+    )
+    tipo_turno = models.ForeignKey(
+        TipoTurno,
+        on_delete=models.PROTECT,
+        related_name="configuraciones_odontologos",
+    )
+    duracion_atencion_minutos = models.PositiveSmallIntegerField()
+    margen_posterior_minutos = models.PositiveSmallIntegerField(default=0)
+    reserva_publica = models.BooleanField(default=False)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["odontologo", "tipo_turno__orden_publico", "tipo_turno__nombre"]
+        verbose_name = "Configuración de tipo por odontólogo"
+        verbose_name_plural = "Configuraciones de tipos por odontólogo"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["odontologo", "tipo_turno"],
+                name="uniq_tipo_turno_por_odontologo",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["odontologo", "activo", "reserva_publica"]),
+        ]
+
+    @property
+    def duracion_bloqueada_minutos(self):
+        return self.duracion_atencion_minutos + self.margen_posterior_minutos
+
+    def clean(self):
+        errors = {}
+        duracion = self.duracion_atencion_minutos
+        margen = self.margen_posterior_minutos
+
+        if duracion is None or not 10 <= duracion <= 240:
+            errors["duracion_atencion_minutos"] = "La duración debe estar entre 10 y 240 minutos."
+        elif duracion % 5:
+            errors["duracion_atencion_minutos"] = "La duración debe ser múltiplo de 5 minutos."
+
+        if margen is None or not 0 <= margen <= 60:
+            errors["margen_posterior_minutos"] = "El margen debe estar entre 0 y 60 minutos."
+        elif margen % 5:
+            errors["margen_posterior_minutos"] = "El margen debe ser múltiplo de 5 minutos."
+
+        if duracion is not None and margen is not None and duracion + margen > 240:
+            errors["margen_posterior_minutos"] = (
+                "La duración total bloqueada no puede superar los 240 minutos."
+            )
+
+        if self.reserva_publica:
+            if not self.activo:
+                errors["reserva_publica"] = "La configuración debe estar activa para publicarse."
+            if self.odontologo_id and not self.odontologo.activo:
+                errors["odontologo"] = "El odontólogo debe estar activo para publicar el servicio."
+            if self.tipo_turno_id and (
+                not self.tipo_turno.activo or not self.tipo_turno.visible_publicamente
+            ):
+                errors["tipo_turno"] = "El tipo debe estar activo y visible públicamente."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.odontologo} - {self.tipo_turno}"
+
+
+class ConfiguracionAgendaInteligente(models.Model):
+    class ModoCompactacion(models.TextChoices):
+        EQUILIBRADO = "equilibrado", "Equilibrado"
+        INICIO = "inicio", "Priorizar comienzo de bloque"
+        FINAL = "final", "Priorizar final de bloque"
+
+    odontologo = models.OneToOneField(
+        Odontologo,
+        on_delete=models.CASCADE,
+        related_name="configuracion_agenda_inteligente",
+    )
+    activa = models.BooleanField(default=True)
+    intervalo_inicio_minutos = models.PositiveSmallIntegerField(default=15)
+    hueco_minimo_util_minutos = models.PositiveSmallIntegerField(default=30)
+    cantidad_horarios_recomendados = models.PositiveSmallIntegerField(default=4)
+    cantidad_horarios_alternativos = models.PositiveSmallIntegerField(default=8)
+    preservar_bloques_largos = models.BooleanField(default=True)
+    bloque_largo_minutos = models.PositiveSmallIntegerField(default=90)
+    modo_compactacion = models.CharField(
+        max_length=20,
+        choices=ModoCompactacion.choices,
+        default=ModoCompactacion.EQUILIBRADO,
+    )
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuración de agenda inteligente"
+        verbose_name_plural = "Configuraciones de agenda inteligente"
+
+    def clean(self):
+        errors = {}
+
+        if self.intervalo_inicio_minutos not in {5, 10, 15, 20, 30}:
+            errors["intervalo_inicio_minutos"] = "La grilla debe ser de 5, 10, 15, 20 o 30 minutos."
+        if self.hueco_minimo_util_minutos is None or not 10 <= self.hueco_minimo_util_minutos <= 60:
+            errors["hueco_minimo_util_minutos"] = (
+                "El hueco mínimo debe estar entre 10 y 60 minutos."
+            )
+        if (
+            self.cantidad_horarios_recomendados is None
+            or not 2 <= self.cantidad_horarios_recomendados <= 8
+        ):
+            errors["cantidad_horarios_recomendados"] = (
+                "La cantidad recomendada debe estar entre 2 y 8."
+            )
+        if (
+            self.cantidad_horarios_alternativos is None
+            or not 0 <= self.cantidad_horarios_alternativos <= 20
+        ):
+            errors["cantidad_horarios_alternativos"] = (
+                "La cantidad alternativa debe estar entre 0 y 20."
+            )
+        if self.bloque_largo_minutos is None or not 60 <= self.bloque_largo_minutos <= 240:
+            errors["bloque_largo_minutos"] = "El bloque largo debe estar entre 60 y 240 minutos."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Agenda inteligente de {self.odontologo}"
 
 
 class DisponibilidadOdontologo(models.Model):
@@ -432,6 +647,12 @@ class Turno(models.Model):
         CONFIRMADO = "confirmado", "Confirmado"
         CANCELADO = "cancelado", "Cancelado"
 
+    class ClasificacionHorario(models.TextChoices):
+        RECOMENDADO = "recomendado", "Recomendado"
+        ALTERNATIVO = "alternativo", "Alternativo"
+        INTERNO = "interno", "Creación interna"
+        LEGACY = "legacy", "Turno anterior"
+
     paciente = models.ForeignKey(
         "pacientes.Paciente",
         on_delete=models.PROTECT,
@@ -442,9 +663,26 @@ class Turno(models.Model):
         on_delete=models.PROTECT,
         related_name="turnos",
     )
+    tipo_turno = models.ForeignKey(
+        TipoTurno,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="turnos",
+    )
+    tipo_turno_nombre_snapshot = models.CharField(max_length=100, blank=True)
     fecha = models.DateField()
     hora_inicio = models.TimeField()
     duracion_minutos = models.PositiveSmallIntegerField(default=30)
+    duracion_atencion_minutos = models.PositiveSmallIntegerField(null=True, blank=True)
+    margen_posterior_minutos_snapshot = models.PositiveSmallIntegerField(default=0)
+    algoritmo_horario_version = models.CharField(max_length=30, blank=True)
+    clasificacion_horario = models.CharField(
+        max_length=20,
+        blank=True,
+        choices=ClasificacionHorario.choices,
+    )
+    puntaje_horario = models.IntegerField(null=True, blank=True)
     motivo = models.CharField(max_length=200, blank=True)
     estado = models.CharField(
         max_length=20,
@@ -521,6 +759,15 @@ class Turno(models.Model):
         if self.duracion_minutos <= 0:
             errors["duracion_minutos"] = "La duración debe ser mayor a 0."
 
+        if self.duracion_atencion_minutos is not None:
+            duracion_bloqueada = (
+                self.duracion_atencion_minutos + self.margen_posterior_minutos_snapshot
+            )
+            if duracion_bloqueada != self.duracion_minutos:
+                errors["duracion_atencion_minutos"] = (
+                    "La duración de atención más el margen debe coincidir con el tiempo bloqueado."
+                )
+
         if not errors and self.fecha and self.hora_inicio and self.odontologo_id:
             if self.estado != self.Estado.CANCELADO:
                 self._validar_paciente_activo(errors)
@@ -551,6 +798,9 @@ class Turno(models.Model):
             "fecha",
             "hora_inicio",
             "duracion_minutos",
+            "duracion_atencion_minutos",
+            "margen_posterior_minutos_snapshot",
+            "tipo_turno_id",
             "estado",
         }
         turno_original = Turno.objects.filter(pk=self.pk).values(*campos_relevantes).first()
@@ -802,6 +1052,20 @@ class SolicitudTurnoPublica(models.Model):
         null=True,
         blank=True,
     )
+    tipo_turno = models.ForeignKey(
+        TipoTurno,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="solicitudes_publicas",
+    )
+    tipo_turno_nombre_snapshot = models.CharField(max_length=100, blank=True)
+    duracion_atencion_snapshot = models.PositiveSmallIntegerField(null=True, blank=True)
+    duracion_bloqueada_snapshot = models.PositiveSmallIntegerField(null=True, blank=True)
+    margen_posterior_snapshot = models.PositiveSmallIntegerField(default=0)
+    algoritmo_version = models.CharField(max_length=30, blank=True)
+    horario_clasificacion = models.CharField(max_length=20, blank=True)
+    horario_puntaje = models.IntegerField(null=True, blank=True)
     paciente = models.ForeignKey(
         "pacientes.Paciente",
         on_delete=models.PROTECT,

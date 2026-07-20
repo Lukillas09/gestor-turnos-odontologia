@@ -19,6 +19,7 @@
                             <div class="public-turno-status-row"><span class="status-badge status-{{ item.turno.estado }}">{{ item.estado }}</span></div>
                             <div class="public-turno-date"><strong>{{ item.fecha }}</strong><span>{{ item.hora }}</span></div>
                             <p>{% include "includes/icon.html" with name="user" %} {{ item.odontologo }}</p>
+                            {% if item.tipo_turno %}<p>{% include "includes/icon.html" with name="appointments" %} {{ item.tipo_turno }}{% if item.duracion_atencion %} · {{ item.duracion_atencion }} min{% endif %}</p>{% endif %}
                         </div>
                         <div class="public-turno-actions">
                             {% if item.reprogramar_accion %}<a class="button button-soft-primary" href="{% url 'turnos:mis_turnos_reprogramar' item.reprogramar_accion.id %}">{% include "includes/icon.html" with name="refresh" %} Reprogramar</a>{% endif %}

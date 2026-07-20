@@ -3,11 +3,14 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import (
+    ConfiguracionAgendaInteligente,
     DisponibilidadOdontologo,
     ExcepcionAgenda,
     GoogleCalendarConexion,
     Odontologo,
     SolicitudTurnoPublica,
+    TipoTurno,
+    TipoTurnoOdontologo,
     Turno,
 )
 
@@ -32,9 +35,33 @@ class GoogleCalendarConexionInline(admin.StackedInline):
     readonly_fields = ("sincronizado_en",)
 
 
+class TipoTurnoOdontologoInline(admin.TabularInline):
+    model = TipoTurnoOdontologo
+    extra = 0
+    fields = (
+        "tipo_turno",
+        "duracion_atencion_minutos",
+        "margen_posterior_minutos",
+        "duracion_bloqueada_display",
+        "reserva_publica",
+        "activo",
+    )
+    readonly_fields = ("duracion_bloqueada_display",)
+    autocomplete_fields = ("tipo_turno",)
+    can_delete = False
+
+    @admin.display(description="Total bloqueado")
+    def duracion_bloqueada_display(self, obj):
+        return f"{obj.duracion_bloqueada_minutos} min" if obj.pk else "-"
+
+
 @admin.register(Odontologo)
 class OdontologoAdmin(admin.ModelAdmin):
-    inlines = (DisponibilidadOdontologoInline, GoogleCalendarConexionInline)
+    inlines = (
+        DisponibilidadOdontologoInline,
+        TipoTurnoOdontologoInline,
+        GoogleCalendarConexionInline,
+    )
     list_display = (
         "nombre",
         "apellido",
@@ -166,6 +193,82 @@ class ExcepcionAgendaAdmin(admin.ModelAdmin):
     ordering = ("-activo", "fecha_desde", "hora_inicio")
 
 
+@admin.register(TipoTurno)
+class TipoTurnoAdmin(admin.ModelAdmin):
+    list_display = (
+        "nombre",
+        "slug",
+        "orden_publico",
+        "activo",
+        "visible_publicamente",
+    )
+    list_filter = ("activo", "visible_publicamente", "icono")
+    search_fields = ("nombre", "slug", "descripcion_publica")
+    readonly_fields = ("creado_por", "actualizado_por", "creado_en", "actualizado_en")
+    ordering = ("orden_publico", "nombre")
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:
+            obj.creado_por = request.user
+        obj.actualizado_por = request.user
+        super().save_model(request, obj, form, change)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(TipoTurnoOdontologo)
+class TipoTurnoOdontologoAdmin(admin.ModelAdmin):
+    list_display = (
+        "odontologo",
+        "tipo_turno",
+        "duracion_atencion_minutos",
+        "margen_posterior_minutos",
+        "duracion_bloqueada_display",
+        "reserva_publica",
+        "activo",
+    )
+    list_filter = ("activo", "reserva_publica", "tipo_turno", "odontologo")
+    search_fields = (
+        "tipo_turno__nombre",
+        "odontologo__usuario__first_name",
+        "odontologo__usuario__last_name",
+        "odontologo__matricula",
+    )
+    autocomplete_fields = ("odontologo", "tipo_turno")
+    list_select_related = ("odontologo", "odontologo__usuario", "tipo_turno")
+
+    @admin.display(description="Total bloqueado")
+    def duracion_bloqueada_display(self, obj):
+        return f"{obj.duracion_bloqueada_minutos} min"
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ConfiguracionAgendaInteligente)
+class ConfiguracionAgendaInteligenteAdmin(admin.ModelAdmin):
+    list_display = (
+        "odontologo",
+        "activa",
+        "intervalo_inicio_minutos",
+        "hueco_minimo_util_minutos",
+        "cantidad_horarios_recomendados",
+        "modo_compactacion",
+    )
+    list_filter = ("activa", "modo_compactacion", "preservar_bloques_largos")
+    search_fields = (
+        "odontologo__usuario__first_name",
+        "odontologo__usuario__last_name",
+        "odontologo__matricula",
+    )
+    autocomplete_fields = ("odontologo",)
+    readonly_fields = ("actualizado_en",)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(GoogleCalendarConexion)
 class GoogleCalendarConexionAdmin(admin.ModelAdmin):
     list_display = (
@@ -274,6 +377,7 @@ class TurnoAdmin(admin.ModelAdmin):
         "fecha",
         "hora_inicio",
         "hora_fin_display",
+        "tipo_turno",
         "estado",
         "recordatorio_email_enviado_en",
     )
@@ -293,7 +397,7 @@ class TurnoAdmin(admin.ModelAdmin):
         "odontologo__matricula",
         "motivo",
     )
-    autocomplete_fields = ("paciente", "odontologo")
+    autocomplete_fields = ("paciente", "odontologo", "tipo_turno")
     list_select_related = (
         "paciente",
         "odontologo",
@@ -315,9 +419,13 @@ class TurnoAdmin(admin.ModelAdmin):
                 "fields": (
                     "paciente",
                     "odontologo",
+                    "tipo_turno",
+                    "tipo_turno_nombre_snapshot",
                     "fecha",
                     "hora_inicio",
                     "duracion_minutos",
+                    "duracion_atencion_minutos",
+                    "margen_posterior_minutos_snapshot",
                     "estado",
                 )
             },
@@ -396,6 +504,14 @@ class SolicitudTurnoPublicaAdmin(admin.ModelAdmin):
         "telefono_enviado",
         "email_enviado",
         "motivo_enviado",
+        "tipo_turno",
+        "tipo_turno_nombre_snapshot",
+        "duracion_atencion_snapshot",
+        "duracion_bloqueada_snapshot",
+        "margen_posterior_snapshot",
+        "algoritmo_version",
+        "horario_clasificacion",
+        "horario_puntaje",
         "diferencias_detectadas",
         "paciente_existente",
         "requiere_revision",

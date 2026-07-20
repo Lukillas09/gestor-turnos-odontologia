@@ -80,8 +80,40 @@ def reprogramar_turno(turno, datos):
 
     turno.fecha = datos["fecha"]
     turno.hora_inicio = datos["hora_inicio"]
-    turno.duracion_minutos = datos["duracion_minutos"]
-    turno.save(update_fields=["fecha", "hora_inicio", "duracion_minutos", "actualizado_en"])
+    update_fields = ["fecha", "hora_inicio", "actualizado_en"]
+    if "duracion_minutos" in datos:
+        duracion_anterior = turno.duracion_minutos
+        turno.duracion_minutos = datos["duracion_minutos"]
+        update_fields.append("duracion_minutos")
+        if turno.duracion_minutos != duracion_anterior and (
+            turno.tipo_turno_id or turno.duracion_atencion_minutos is not None
+        ):
+            margen = turno.margen_posterior_minutos_snapshot
+            if margen >= turno.duracion_minutos:
+                margen = 0
+            turno.duracion_atencion_minutos = turno.duracion_minutos - margen
+            turno.margen_posterior_minutos_snapshot = margen
+            turno.algoritmo_horario_version = ""
+            turno.clasificacion_horario = Turno.ClasificacionHorario.INTERNO
+            turno.puntaje_horario = None
+            update_fields.extend(
+                [
+                    "duracion_atencion_minutos",
+                    "margen_posterior_minutos_snapshot",
+                    "algoritmo_horario_version",
+                    "clasificacion_horario",
+                    "puntaje_horario",
+                ]
+            )
+    for campo in (
+        "algoritmo_horario_version",
+        "clasificacion_horario",
+        "puntaje_horario",
+    ):
+        if campo in datos:
+            setattr(turno, campo, datos[campo])
+            update_fields.append(campo)
+    turno.save(update_fields=update_fields)
     sincronizar_turno_actualizado(turno)
     notificar_turno_reprogramado(turno)
     return turno
@@ -150,9 +182,30 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
                     ),
                 )
 
+            update_fields = ["duracion_minutos", "estado", "actualizado_en"]
+            if turno.duracion_minutos != duracion and (
+                turno.tipo_turno_id or turno.duracion_atencion_minutos is not None
+            ):
+                margen = turno.margen_posterior_minutos_snapshot
+                if margen >= duracion:
+                    margen = 0
+                turno.duracion_atencion_minutos = duracion - margen
+                turno.margen_posterior_minutos_snapshot = margen
+                turno.algoritmo_horario_version = ""
+                turno.clasificacion_horario = Turno.ClasificacionHorario.INTERNO
+                turno.puntaje_horario = None
+                update_fields.extend(
+                    [
+                        "duracion_atencion_minutos",
+                        "margen_posterior_minutos_snapshot",
+                        "algoritmo_horario_version",
+                        "clasificacion_horario",
+                        "puntaje_horario",
+                    ]
+                )
             turno.duracion_minutos = duracion
             turno.estado = Turno.Estado.CONFIRMADO
-            turno.save(update_fields=["duracion_minutos", "estado", "actualizado_en"])
+            turno.save(update_fields=update_fields)
     except ValidationError as error:
         return ResultadoConfirmacionTurno(
             confirmado=False,

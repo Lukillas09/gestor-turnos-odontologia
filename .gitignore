@@ -68,6 +68,8 @@ app/staticfiles/
 app/private_media/
 media/
 app/media/
+/app/db.backup-*.sqlite3
+/app/media-backup-*/
 
 # Flask stuff:
 instance/

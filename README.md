@@ -41,7 +41,7 @@ El sistema ya cuenta con una base funcional para uso controlado en staging:
   desactivado por defecto hasta completar la validación del entorno.
 - Turnos con estados `Pendiente`, `Confirmado` y `Cancelado`.
 - Turnos internos confirmados automáticamente.
-- Solicitudes públicas que crean turnos `Pendiente` con duración inicial de 30 minutos y quedan visibles directamente en Turnos y Agenda.
+- Solicitudes públicas que crean turnos `Pendiente` y quedan visibles directamente en Turnos y Agenda. El flujo legacy usa 30 minutos; la agenda inteligente opcional deriva el servicio y la duración configurada por odontólogo.
 - Las solicitudes públicas conservan una fotografía independiente de los datos enviados como auditoría y no actualizan automáticamente pacientes existentes.
 - Revisión integrada en el detalle/confirmación del turno para conservar datos, aplicar campos seleccionados, validar pacientes nuevos o rechazar la solicitud.
 - Alertas administrativas separadas para solicitudes públicas excepcionales que no generan turno, por ejemplo pacientes archivados.
@@ -96,6 +96,7 @@ Documentación técnica principal:
 - [Historia clínica versionada e inmutable](docs/historia_clinica_inmutable.md)
 - [Indicaciones postoperatorias](docs/indicaciones_postoperatorias.md)
 - [Flujo de turnos](docs/flujo-turnos.md)
+- [Agenda inteligente determinística](docs/agenda_inteligente.md)
 - [Deploy en Railway usando Supabase](docs/deploy.md)
 - [Recordatorios automáticos](docs/recordatorios.md)
 - [Supabase Storage](docs/supabase_storage.md)
@@ -182,7 +183,7 @@ Variables principales:
 | Grupo | Variables |
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_LOG_LEVEL` |
-| Feature flags | `ODONTOGRAMA_FEATURE_ENABLED`, `INDICACIONES_POSTOPERATORIAS_ENABLED`, `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS`, `ACCESO_CLINICO_EMERGENCIA_SECONDS` |
+| Feature flags | `ODONTOGRAMA_FEATURE_ENABLED`, `INDICACIONES_POSTOPERATORIAS_ENABLED`, `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED`, `DATOS_CLINICOS_COMPARTIDOS_ENTRE_ODONTOLOGOS`, `ACCESO_CLINICO_EMERGENCIA_SECONDS` |
 | Integridad clínica | `CLINICAL_INTEGRITY_ENABLED`, `CLINICAL_INTEGRITY_HMAC_KEY` |
 | Seguridad pública de turnos | `REDIS_URL`, `TURNOS_PUBLIC_REDIS_REQUIRED`, `TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT`, `TURNOS_PUBLIC_ACCESS_REQUEST_WINDOW_SECONDS`, `TURNOS_PUBLIC_OTP_ATTEMPTS`, `TURNOS_PUBLIC_OTP_SECONDS`, `TURNOS_PUBLIC_SESSION_SECONDS`, `TURNOS_PUBLIC_RESEND_SECONDS`, `TURNOS_PUBLIC_RESEND_LIMIT`, `TURNOS_PUBLIC_RESEND_WINDOW_SECONDS`, `TURNOS_PUBLIC_ACTION_TOKEN_SECONDS`, `TURNOS_PUBLIC_ACTION_LIMIT`, `TURNOS_PUBLIC_ACTION_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_IP_LIMIT`, `TURNOS_PUBLIC_BOOKING_IP_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_DNI_LIMIT`, `TURNOS_PUBLIC_BOOKING_DNI_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_TURNSTILE_AFTER_ATTEMPTS`, `TURNOS_PUBLIC_BOOKING_MAX_PENDING_PER_DNI`, `TURNOS_PUBLIC_BOOKING_IDEMPOTENCY_SECONDS`, `TURNOS_PUBLIC_BOOKING_DUPLICATE_WINDOW_SECONDS`, `TURNOS_PUBLIC_BOOKING_NEARBY_DAYS_LIMIT`, `TURNOS_PUBLIC_BOOKING_HORARIOS_CACHE_SECONDS`, `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Cifrado OAuth | `OAUTH_TOKEN_ENCRYPTION_KEY` |
@@ -202,11 +203,11 @@ Detalle completo: [docs/configuracion.md](docs/configuracion.md).
 
 1. Ingresa a `/`.
 2. Solicita turno desde `/turnos/solicitar/`.
-3. Elige odontólogo, fecha y horario disponible.
-4. Completa nombre, apellido, DNI obligatorio, teléfono, email y motivo opcional. El email es obligatorio para pacientes nuevos y para pacientes existentes que todavía no tienen email registrado.
+3. Elige odontólogo, fecha y horario disponible. Con la agenda inteligente activa, primero elige un motivo configurado y ve horarios recomendados y alternativas compatibles con su duración.
+4. Completa nombre, apellido, DNI obligatorio, teléfono, email y comentario opcional. El email es obligatorio para pacientes nuevos y para pacientes existentes que todavía no tienen email registrado.
 5. El sistema aplica protecciones de creación: rate limit por IP y DNI hasheados, token de idempotencia, deduplicación exacta, máximo de pendientes por DNI y Turnstile progresivo si está habilitado.
 6. El sistema valida ventana pública, anticipación mínima, disponibilidad, excepciones de agenda y superposición.
-7. El sistema normaliza el DNI, crea un turno `Pendiente` con duración inicial de 30 minutos y guarda una `SolicitudTurnoPublica` con la fotografía de lo enviado.
+7. El sistema normaliza el DNI, crea un turno `Pendiente` y guarda una `SolicitudTurnoPublica` con la fotografía de lo enviado. El modo legacy bloquea 30 minutos; el modo inteligente vuelve a derivar y bloquear la duración configurada dentro de la transacción.
 8. Si el DNI ya pertenecía a un paciente, los datos principales no se modifican desde la web; el email propuesto queda en la solicitud pública y las diferencias se revisan al abrir/confirmar el turno pendiente.
 9. Solicita acceso temporal desde `/turnos/mis-turnos/solicitar-acceso/`; si el DNI coincide con un paciente activo con email persistido, recibe un código OTP en ese contacto. Los emails propuestos desde la web no se usan para OTP hasta que un usuario interno los aplique explícitamente.
 10. Puede cancelar turnos pendientes/confirmados.

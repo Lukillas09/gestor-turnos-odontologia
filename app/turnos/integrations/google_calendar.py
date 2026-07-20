@@ -335,7 +335,18 @@ def _construir_descripcion(turno):
         f"Estado: {turno.get_estado_display()}",
     ]
 
-    if turno.motivo:
+    if turno.tipo_turno_nombre_snapshot:
+        lineas.append(f"Tipo: {turno.tipo_turno_nombre_snapshot}")
+
+    if turno.duracion_atencion_minutos:
+        lineas.append(f"Duración aproximada de atención: {turno.duracion_atencion_minutos} minutos")
+
+    if turno.margen_posterior_minutos_snapshot:
+        lineas.append(
+            f"Margen operativo posterior: {turno.margen_posterior_minutos_snapshot} minutos"
+        )
+
+    if turno.motivo and turno.motivo != turno.tipo_turno_nombre_snapshot:
         lineas.append(f"Motivo: {turno.motivo}")
 
     if turno.notas:

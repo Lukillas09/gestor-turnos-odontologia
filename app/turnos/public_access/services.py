@@ -16,10 +16,17 @@ from turnos.excepciones import (
     obtener_horarios_publicos_disponibles,
     validar_intervalo_reserva_publica,
 )
+from turnos.models import bloquear_agendas_de_turnos
 from turnos.notifications import notificar_codigo_acceso_publico_turnos
 from turnos.services import cancelar_turno, reprogramar_turno
+from turnos.smart_scheduling import buscar_candidato, calcular_horarios_inteligentes
 
-from ..models import AccionPublicaTurno, DesafioAccesoPublicoTurnos, Turno
+from ..models import (
+    AccionPublicaTurno,
+    ConfiguracionAgendaInteligente,
+    DesafioAccesoPublicoTurnos,
+    Turno,
+)
 from .rate_limit import incrementar_limite
 from .tokens import (
     PUBLIC_ACCESS_PENDING_CHALLENGE_KEY,
@@ -359,20 +366,54 @@ def reprogramar_turno_publico_seguro(accion_id, token, paciente_id, datos):
         if turno.estado != Turno.Estado.PENDIENTE:
             return False, None
 
+        datos = {**datos, "duracion_minutos": turno.duracion_minutos}
+        bloquear_agendas_de_turnos(
+            [
+                (turno.odontologo_id, turno.fecha),
+                (turno.odontologo_id, datos["fecha"]),
+            ]
+        )
         validar_intervalo_reserva_publica(
             datos["fecha"],
             datos["hora_inicio"],
-            datos["duracion_minutos"],
+            turno.duracion_minutos,
         )
-        horarios = obtener_horarios_publicos_disponibles(
-            odontologo=turno.odontologo,
-            fecha=datos["fecha"],
-            duracion_minutos=datos["duracion_minutos"],
-            turno_excluido=turno,
-        )
-
-        if datos["hora_inicio"] not in horarios:
-            raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED and turno.tipo_turno_id:
+            configuracion_agenda, _ = ConfiguracionAgendaInteligente.objects.get_or_create(
+                odontologo=turno.odontologo
+            )
+            configuracion_agenda = ConfiguracionAgendaInteligente.objects.select_for_update().get(
+                pk=configuracion_agenda.pk
+            )
+            resultado = calcular_horarios_inteligentes(
+                odontologo=turno.odontologo,
+                fecha=datos["fecha"],
+                duracion_atencion_minutos=(
+                    turno.duracion_atencion_minutos or turno.duracion_minutos
+                ),
+                margen_posterior_minutos=turno.margen_posterior_minutos_snapshot,
+                turno_excluido=turno,
+                configuracion=configuracion_agenda,
+            )
+            candidato = buscar_candidato(resultado, datos["hora_inicio"])
+            if not candidato:
+                raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+            datos.update(
+                {
+                    "algoritmo_horario_version": resultado.algoritmo_version,
+                    "clasificacion_horario": candidato.clasificacion,
+                    "puntaje_horario": candidato.puntaje,
+                }
+            )
+        else:
+            horarios = obtener_horarios_publicos_disponibles(
+                odontologo=turno.odontologo,
+                fecha=datos["fecha"],
+                duracion_minutos=turno.duracion_minutos,
+                turno_excluido=turno,
+            )
+            if datos["hora_inicio"] not in horarios:
+                raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
 
         turno = reprogramar_turno(turno, datos)
         _consumir_accion(accion)

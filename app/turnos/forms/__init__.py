@@ -16,6 +16,11 @@ from .solicitudes_publicas import (
     SolicitudTurnoBusquedaPublicaForm,
     SolicitudTurnoPublicaForm,
 )
+from .tipos_turno import (
+    ConfiguracionAgendaInteligenteForm,
+    TipoTurnoForm,
+    TipoTurnoOdontologoForm,
+)
 from .turnos import (
     DURACIONES_CONFIRMACION_TURNO,
     ConfirmacionTurnoForm,
@@ -32,6 +37,7 @@ __all__ = [
     "AgendaFiltroForm",
     "CancelacionAccesoPublicoTurnoForm",
     "ConfirmacionTurnoForm",
+    "ConfiguracionAgendaInteligenteForm",
     "DURACION_SOLICITUD_PUBLICA_MINUTOS",
     "DURACIONES_CONFIRMACION_TURNO",
     "ExcepcionAgendaForm",
@@ -50,6 +56,8 @@ __all__ = [
     "TurnoHorarioBusquedaForm",
     "TurnoReprogramacionAccesoPublicoForm",
     "TurnoReprogramacionForm",
+    "TipoTurnoForm",
+    "TipoTurnoOdontologoForm",
     "VerificacionAccesoPublicoTurnosForm",
     "convertir_a_hora",
     "limitar_odontologos_por_usuario",

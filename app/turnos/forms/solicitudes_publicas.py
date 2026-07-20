@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from config.form_widgets import HtmlDateInput
@@ -11,7 +12,9 @@ from ..excepciones import (
     validar_fecha_reserva_publica,
     validar_intervalo_reserva_publica,
 )
-from ..models import Odontologo, SolicitudTurnoPublica
+from ..models import Odontologo, SolicitudTurnoPublica, TipoTurno
+from ..smart_scheduling import buscar_candidato, calcular_horarios_inteligentes
+from ..tipos_turno import obtener_configuracion_tipo_publica
 from .fields import HorarioDisponibleChoiceField, convertir_a_hora
 from .turnos import ConfirmacionTurnoForm, HorariosDisponiblesFormMixin, TurnoHorarioBusquedaForm
 
@@ -20,6 +23,12 @@ MENSAJE_EMAIL_PUBLICO_REQUERIDO = "Ingresá un email para poder consultar y admi
 
 
 class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
+    tipo_turno = forms.ModelChoiceField(
+        queryset=TipoTurno.objects.none(),
+        empty_label="Seleccionar motivo",
+        label="Motivo de la visita",
+        error_messages={"required": "Elegí el motivo de la visita."},
+    )
     fecha = forms.DateField(
         error_messages={
             "required": "Elegí una fecha para ver horarios.",
@@ -30,6 +39,10 @@ class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            self.fields.pop("tipo_turno", None)
+        else:
+            self._configurar_tipos_disponibles()
         rango = obtener_rango_reserva_publica()
         self.fields["fecha"].widget.attrs.update(
             {
@@ -37,6 +50,27 @@ class SolicitudTurnoBusquedaPublicaForm(TurnoHorarioBusquedaForm):
                 "max": rango.fecha_maxima.isoformat(),
             }
         )
+
+    def _configurar_tipos_disponibles(self):
+        odontologo = self._obtener_odontologo_seleccionado()
+        if not odontologo:
+            return
+        self.fields["tipo_turno"].queryset = TipoTurno.objects.filter(
+            configuraciones_odontologos__odontologo=odontologo,
+            configuraciones_odontologos__activo=True,
+            configuraciones_odontologos__reserva_publica=True,
+            activo=True,
+            visible_publicamente=True,
+        ).distinct()
+
+    def _obtener_odontologo_seleccionado(self):
+        valor = self.data.get("odontologo") if self.is_bound else self.initial.get("odontologo")
+        if isinstance(valor, Odontologo):
+            return valor if valor.activo else None
+        try:
+            return Odontologo.objects.filter(pk=valor, activo=True).first() if valor else None
+        except (TypeError, ValueError):
+            return None
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
@@ -117,6 +151,14 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         empty_label="Seleccionar odontólogo",
         error_messages={"required": "Elegí un odontólogo."},
     )
+    tipo_turno = forms.ModelChoiceField(
+        queryset=TipoTurno.objects.none(),
+        label="Motivo de la visita",
+        error_messages={
+            "required": "Elegí el motivo de la visita.",
+            "invalid_choice": "El motivo elegido ya no está disponible para este profesional.",
+        },
+    )
     fecha = forms.DateField(
         error_messages={
             "required": "Elegí una fecha.",
@@ -154,13 +196,57 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
                 "max": rango.fecha_maxima.isoformat(),
             }
         )
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            self._configurar_tipos_disponibles()
+            self.fields["motivo"].label = "Comentario adicional"
+            self.fields["motivo"].widget.attrs[
+                "placeholder"
+            ] = "Información breve que quieras agregar"
+        else:
+            self.fields.pop("tipo_turno", None)
         self._configurar_horarios_disponibles()
 
     def _obtener_duracion_minutos(self, odontologo):
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            configuracion = self._obtener_configuracion_tipo(odontologo)
+            return configuracion.duracion_bloqueada_minutos if configuracion else 0
         return DURACION_SOLICITUD_PUBLICA_MINUTOS
 
     def _obtener_horarios_disponibles(self, **kwargs):
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+            configuracion = self._obtener_configuracion_tipo(kwargs["odontologo"])
+            if not configuracion:
+                return []
+            resultado = calcular_horarios_inteligentes(
+                odontologo=kwargs["odontologo"],
+                fecha=kwargs["fecha"],
+                duracion_atencion_minutos=configuracion.duracion_atencion_minutos,
+                margen_posterior_minutos=configuracion.margen_posterior_minutos,
+            )
+            return [candidato.hora_inicio for candidato in resultado.todos]
         return obtener_horarios_publicos_disponibles(**kwargs)
+
+    def _configurar_tipos_disponibles(self):
+        odontologo = self._obtener_odontologo_seleccionado()
+        if not odontologo:
+            return
+        self.fields["tipo_turno"].queryset = TipoTurno.objects.filter(
+            configuraciones_odontologos__odontologo=odontologo,
+            configuraciones_odontologos__activo=True,
+            configuraciones_odontologos__reserva_publica=True,
+            activo=True,
+            visible_publicamente=True,
+        ).distinct()
+
+    def _obtener_configuracion_tipo(self, odontologo):
+        if not odontologo:
+            return None
+        tipo = None
+        if hasattr(self, "cleaned_data"):
+            tipo = self.cleaned_data.get("tipo_turno")
+        if not tipo:
+            tipo = self._obtener_valor("tipo_turno")
+        return obtener_configuracion_tipo_publica(odontologo, tipo)
 
     def clean_documento(self):
         documento = normalizar_documento(self.cleaned_data["documento"])
@@ -189,12 +275,13 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         return fecha
 
     def clean(self):
-        cleaned_data = super().clean()
+        cleaned_data = super().clean() or {}
         documento = cleaned_data.get("documento")
         email = (cleaned_data.get("email") or "").strip()
         odontologo = cleaned_data.get("odontologo")
         fecha = cleaned_data.get("fecha")
         hora_inicio = cleaned_data.get("hora_inicio")
+        tipo_turno = cleaned_data.get("tipo_turno")
 
         if "email" not in self.errors and documento:
             paciente = self._obtener_paciente_por_documento(documento)
@@ -205,7 +292,41 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
             if (paciente is None or paciente_activo_sin_email) and not email:
                 self.add_error("email", MENSAJE_EMAIL_PUBLICO_REQUERIDO)
 
-        if odontologo and fecha and hora_inicio:
+        if (
+            settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
+            and odontologo
+            and tipo_turno
+            and fecha
+            and hora_inicio
+        ):
+            configuracion = obtener_configuracion_tipo_publica(odontologo, tipo_turno)
+            if not configuracion:
+                self.add_error(
+                    "tipo_turno",
+                    "El motivo elegido ya no está disponible para este profesional.",
+                )
+                return cleaned_data
+            resultado = calcular_horarios_inteligentes(
+                odontologo=odontologo,
+                fecha=fecha,
+                duracion_atencion_minutos=configuracion.duracion_atencion_minutos,
+                margen_posterior_minutos=configuracion.margen_posterior_minutos,
+            )
+            candidato = buscar_candidato(resultado, hora_inicio)
+            if not candidato:
+                self.add_error(
+                    "hora_inicio",
+                    "Ese horario ya no está disponible. Volvé a buscar horarios.",
+                )
+                return cleaned_data
+            cleaned_data["configuracion_tipo_turno"] = configuracion
+            cleaned_data["candidato_horario"] = candidato
+        elif (
+            not settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
+            and odontologo
+            and fecha
+            and hora_inicio
+        ):
             try:
                 validar_intervalo_reserva_publica(
                     fecha,

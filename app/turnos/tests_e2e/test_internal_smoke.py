@@ -27,7 +27,8 @@ def _fecha_laboral_futura():
 
 
 def _crear_disponibilidad(odontologo):
-    for dia_semana in range(5):
+    dias_semana = {*range(5), timezone.localdate().weekday()}
+    for dia_semana in sorted(dias_semana):
         DisponibilidadOdontologo.objects.create(
             odontologo=odontologo,
             dia_semana=dia_semana,

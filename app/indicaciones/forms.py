@@ -53,6 +53,16 @@ class IndicacionBorradorForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.paciente = paciente
         self.odontologo = odontologo
+        if self.instance._state.adding:
+            self.instance.paciente = paciente
+            self.instance.odontologo = odontologo
+        else:
+            if self.instance.paciente_id != paciente.pk:
+                raise ValueError("La instancia de la indicación no pertenece al paciente indicado.")
+            if self.instance.odontologo_id != odontologo.pk:
+                raise ValueError(
+                    "La instancia de la indicación no pertenece al odontólogo indicado."
+                )
         self.fields["turno"].queryset = Turno.objects.filter(
             paciente=paciente,
             odontologo=odontologo,

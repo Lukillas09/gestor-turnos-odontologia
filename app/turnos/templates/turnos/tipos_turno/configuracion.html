@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Servicios y agenda | Gestor de Turnos{% endblock %}
+
+{% block content %}
+    <div class="internal-page-heading animate-fade-up">
+        <div>
+            <p class="eyebrow">Configuración</p>
+            <h1>Servicios y agenda</h1>
+            <p class="subtitle">Duraciones por profesional y reglas determinísticas para la reserva online.</p>
+        </div>
+        {% if puede_gestionar_catalogo %}
+            <a class="button" href="{% url 'turnos:tipo_turno_crear' %}">{% include "includes/icon.html" with name="plus" %} Nuevo tipo</a>
+        {% endif %}
+    </div>
+
+    {% if odontologos|length > 1 %}
+        <form class="filter-panel animate-fade-up" method="get">
+            <div>
+                <label for="odontologo-configuracion">Profesional</label>
+                <select id="odontologo-configuracion" name="odontologo">
+                    {% for odontologo in odontologos %}
+                        <option value="{{ odontologo.pk }}"{% if odontologo_seleccionado.pk == odontologo.pk %} selected{% endif %}>{{ odontologo.nombre_completo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-actions"><button type="submit">Ver configuración</button></div>
+        </form>
+    {% endif %}
+
+    {% if odontologo_seleccionado %}
+        <section class="section-panel animate-fade-up">
+            <div class="section-heading-row">
+                <div>
+                    <h2>{{ odontologo_seleccionado.nombre_completo }}</h2>
+                    <p>La duración aproximada se muestra al paciente; el margen posterior solo bloquea la agenda.</p>
+                </div>
+                {% if puede_editar_servicios %}
+                    <a class="button button-secondary" href="{% url 'turnos:servicio_odontologo_crear' odontologo_seleccionado.pk %}">{% include "includes/icon.html" with name="plus" %} Agregar servicio</a>
+                {% endif %}
+            </div>
+
+            {% if not configuraciones %}
+                <div class="empty-state">
+                    <h3>Configurá al menos un motivo de visita</h3>
+                    <p>Hasta entonces este profesional no ofrecerá horarios en el nuevo flujo de reserva online.</p>
+                </div>
+            {% else %}
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th>Servicio</th><th>Atención</th><th>Margen</th><th>Total bloqueado</th><th>Reserva online</th>{% if puede_editar_servicios %}<th><span class="sr-only">Acciones</span></th>{% endif %}</tr></thead>
+                        <tbody>
+                            {% for configuracion in configuraciones %}
+                                <tr>
+                                    <td><strong>{{ configuracion.tipo_turno.nombre }}</strong>{% if not configuracion.activo %}<br><span class="muted">Desactivado</span>{% endif %}</td>
+                                    <td>{{ configuracion.duracion_atencion_minutos }} min</td>
+                                    <td>{{ configuracion.margen_posterior_minutos }} min</td>
+                                    <td>{{ configuracion.duracion_bloqueada_minutos }} min</td>
+                                    <td>{% if configuracion.reserva_publica and configuracion.activo %}<span class="status-badge status-confirmado">Activa</span>{% else %}<span class="status-badge">No disponible</span>{% endif %}</td>
+                                    {% if puede_editar_servicios %}<td><a class="button button-secondary button-small" href="{% url 'turnos:servicio_odontologo_editar' configuracion.pk %}">Editar</a></td>{% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="section-panel animate-fade-up">
+            <div class="section-heading-row">
+                <div><h2>Agenda inteligente</h2><p>Reglas de compactación, diversidad y preservación de bloques.</p></div>
+                {% if puede_editar_servicios %}<a class="button button-secondary" href="{% url 'turnos:configuracion_agenda_editar' odontologo_seleccionado.pk %}">Configurar</a>{% endif %}
+            </div>
+            {% if configuracion_agenda %}
+                <div class="detail-grid">
+                    <div><span>Estado</span><strong>{% if configuracion_agenda.activa %}Activa{% else %}Desactivada{% endif %}</strong></div>
+                    <div><span>Grilla</span><strong>{{ configuracion_agenda.intervalo_inicio_minutos }} min</strong></div>
+                    <div><span>Hueco mínimo</span><strong>{{ configuracion_agenda.hueco_minimo_util_minutos }} min</strong></div>
+                    <div><span>Modo</span><strong>{{ configuracion_agenda.get_modo_compactacion_display }}</strong></div>
+                </div>
+            {% else %}
+                <p class="muted">Se usarán los valores predeterminados cuando se habilite esta agenda.</p>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    {% if puede_gestionar_catalogo %}
+        <section class="section-panel animate-fade-up">
+            <div class="section-heading-row"><div><h2>Catálogo global</h2><p>Los tipos se desactivan en lugar de eliminarse para conservar el historial.</p></div></div>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>Nombre</th><th>Visible</th><th>Estado</th><th>Orden</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+                    <tbody>
+                        {% for tipo in tipos_globales %}
+                            <tr><td><strong>{{ tipo.nombre }}</strong><br><span class="muted">{{ tipo.descripcion_publica|default:"Sin descripción" }}</span></td><td>{% if tipo.visible_publicamente %}Sí{% else %}No{% endif %}</td><td>{% if tipo.activo %}Activo{% else %}Desactivado{% endif %}</td><td>{{ tipo.orden_publico }}</td><td><a class="button button-secondary button-small" href="{% url 'turnos:tipo_turno_editar' tipo.pk %}">Editar</a></td></tr>
+                        {% empty %}<tr><td colspan="5">Todavía no hay tipos cargados.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

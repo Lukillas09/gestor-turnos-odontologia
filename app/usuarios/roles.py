@@ -63,6 +63,24 @@ def puede_ver_turnos(usuario):
     )
 
 
+def puede_ver_configuracion_servicios(usuario):
+    return puede_ver_turnos(usuario)
+
+
+def puede_configurar_servicios(usuario, odontologo=None):
+    if puede_configurar_disponibilidad(usuario):
+        return True
+
+    odontologo_usuario = obtener_odontologo_del_usuario(usuario)
+    if not odontologo_usuario:
+        return False
+    return odontologo is None or odontologo.pk == odontologo_usuario.pk
+
+
+def puede_gestionar_catalogo_servicios(usuario):
+    return puede_configurar_disponibilidad(usuario)
+
+
 def puede_configurar_disponibilidad(usuario):
     return usuario.is_authenticated and (
         usuario.is_superuser or pertenece_a_rol(usuario, ROL_ADMINISTRADOR)

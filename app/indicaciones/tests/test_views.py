@@ -1,3 +1,5 @@
+from datetime import time
+
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
@@ -17,6 +19,20 @@ class IndicacionViewTests(IndicacionesTestCase):
     def setUp(self):
         super().setUp()
         self.client.force_login(self.usuario)
+
+    def datos_formulario_post(self, *, turno=None, historia=None, titulo=None):
+        return {
+            "plantilla": "",
+            "turno": str(turno.pk) if turno else "",
+            "historia_clinica": str(historia.pk) if historia else "",
+            "titulo": titulo or "Documento ficticio desde vista",
+            "procedimiento": "Procedimiento de prueba",
+            "contenido": "Contenido ficticio revisado por el profesional de prueba.",
+            "pautas_alarma": "Pauta ficticia.",
+            "recomendaciones_control": "Control ficticio.",
+            "observaciones_personalizadas": "Observación ficticia.",
+            "proximo_control_en": "",
+        }
 
     def test_ficha_paciente_muestra_modulo_y_accion_al_odontologo_asociado(self):
         response = self.client.get(reverse("pacientes:detalle", args=[self.paciente.pk]))
@@ -49,6 +65,114 @@ class IndicacionViewTests(IndicacionesTestCase):
         response = self.client.get(reverse("indicaciones:lista", args=[self.paciente.pk]))
 
         self.assertEqual(response.status_code, 404)
+
+    def test_crear_borrador_con_turno_e_historia_validos_desde_vista(self):
+        turno = self.crear_turno()
+        historia = self.crear_historia()
+
+        response = self.client.post(
+            reverse("indicaciones:crear", args=[self.paciente.pk]),
+            self.datos_formulario_post(turno=turno, historia=historia),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        indicacion = IndicacionPaciente.objects.get()
+        self.assertEqual(indicacion.paciente_id, self.paciente.pk)
+        self.assertEqual(indicacion.odontologo_id, self.odontologo.pk)
+        self.assertEqual(indicacion.turno_id, turno.pk)
+        self.assertEqual(indicacion.historia_clinica_id, historia.pk)
+        self.assertEqual(indicacion.estado, IndicacionPaciente.Estado.BORRADOR)
+        self.assertTrue(
+            AccesoClinicoAuditoria.objects.filter(
+                accion=AccesoClinicoAuditoria.Accion.CREAR_BORRADOR_INDICACION,
+                paciente=self.paciente,
+                identificador_solicitado=str(indicacion.uuid),
+                resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+            ).exists()
+        )
+        detalle = self.client.get(response["Location"])
+        self.assertNotContains(detalle, "El turno debe pertenecer al paciente.")
+        self.assertNotContains(detalle, "La historia debe pertenecer al paciente.")
+
+    def test_post_manipulado_con_relaciones_ajenas_es_rechazado(self):
+        turno_otro_paciente = self.crear_turno(
+            paciente=self.paciente_fuera_de_alcance,
+        )
+        historia_otro_paciente = self.crear_historia(
+            paciente=self.paciente_fuera_de_alcance,
+        )
+        turno_otro_odontologo = self.crear_turno(
+            odontologo=self.otro_odontologo,
+        )
+        historia_otro_odontologo = self.crear_historia(
+            odontologo=self.otro_odontologo,
+        )
+        casos = (
+            {"turno": turno_otro_paciente},
+            {"historia": historia_otro_paciente},
+            {"turno": turno_otro_odontologo},
+            {"historia": historia_otro_odontologo},
+        )
+        url = reverse("indicaciones:crear", args=[self.paciente.pk])
+
+        for caso in casos:
+            with self.subTest(caso=caso):
+                response = self.client.post(url, self.datos_formulario_post(**caso))
+
+                self.assertEqual(response.status_code, 400)
+                self.assertContains(response, "Seleccione una opción válida", status_code=400)
+                self.assertNotContains(
+                    response,
+                    self.paciente_fuera_de_alcance.documento,
+                    status_code=400,
+                )
+                self.assertNotContains(
+                    response,
+                    self.otro_usuario.username,
+                    status_code=400,
+                )
+                self.assertFalse(IndicacionPaciente.objects.exists())
+                self.assertFalse(
+                    AccesoClinicoAuditoria.objects.filter(
+                        accion=AccesoClinicoAuditoria.Accion.CREAR_BORRADOR_INDICACION,
+                        resultado=AccesoClinicoAuditoria.Resultado.PERMITIDO,
+                    ).exists()
+                )
+
+    def test_editar_borrador_actualiza_relaciones_sin_cambiar_contexto(self):
+        turno_original = self.crear_turno()
+        historia_original = self.crear_historia()
+        borrador = self.crear_borrador(
+            turno=turno_original,
+            historia_clinica=historia_original,
+        )
+        turno_nuevo = self.crear_turno(
+            hora_inicio=time(10, 0),
+            motivo="Consulta alternativa ficticia",
+        )
+        historia_nueva = self.crear_historia(
+            motivo="Historia alternativa ficticia para la prueba.",
+        )
+
+        response = self.client.post(
+            reverse(
+                "indicaciones:editar",
+                args=[self.paciente.pk, borrador.uuid],
+            ),
+            self.datos_formulario_post(
+                turno=turno_nuevo,
+                historia=historia_nueva,
+                titulo="Documento ficticio editado",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        borrador.refresh_from_db()
+        self.assertEqual(borrador.paciente_id, self.paciente.pk)
+        self.assertEqual(borrador.odontologo_id, self.odontologo.pk)
+        self.assertEqual(borrador.turno_id, turno_nuevo.pk)
+        self.assertEqual(borrador.historia_clinica_id, historia_nueva.pk)
+        self.assertEqual(borrador.estado, IndicacionPaciente.Estado.BORRADOR)
 
     def test_flujo_crear_editar_revisar_emitir_y_descargar(self):
         crear_url = reverse("indicaciones:crear", args=[self.paciente.pk])

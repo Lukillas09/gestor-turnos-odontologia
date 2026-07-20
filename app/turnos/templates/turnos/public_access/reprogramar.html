@@ -69,8 +69,10 @@
                 <div><small>Turno actual</small><strong>{{ turno.odontologo }}</strong><span>{{ turno.odontologo.especialidad|default:"Odontología general" }}</span></div>
             </div>
             <dl class="public-summary-list">
+                {% if turno.tipo_turno_nombre_snapshot %}<div><dt>Motivo</dt><dd>{{ turno.tipo_turno_nombre_snapshot }}</dd></div>{% endif %}
                 <div><dt>{% include "includes/icon.html" with name="calendar" %} Fecha</dt><dd>{{ turno.fecha|date:"d/m/Y" }}</dd></div>
                 <div><dt>{% include "includes/icon.html" with name="clock" %} Horario</dt><dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd></div>
+                {% if turno.duracion_atencion_minutos %}<div><dt>Duración aproximada</dt><dd>{{ turno.duracion_atencion_minutos }} minutos</dd></div>{% endif %}
                 <div><dt>Estado</dt><dd><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></dd></div>
             </dl>
             <p class="public-summary-note">El horario anterior se reemplazará únicamente si el nuevo continúa disponible al confirmar.</p>

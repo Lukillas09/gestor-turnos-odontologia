@@ -1,0 +1,20 @@
+<section class="public-slot-card animate-fade-up" style="--stagger-index: {{ indice }};">
+    <div class="public-slot-card-header">
+        <div>{% include "includes/icon.html" with name=icono %}<h3>{{ titulo }}</h3></div>
+        <span>{{ horarios|length }} opciones</span>
+    </div>
+    {% if horarios %}
+        <div class="public-slot-list public-time-grid">
+            {% for opcion in horarios %}
+                <a
+                    class="public-slot-button"
+                    href="{{ opcion.url }}"
+                    data-public-slot="{{ opcion.label }}"
+                    aria-label="Seleccionar horario {{ opcion.label }}"
+                ><span>{{ opcion.label }}</span></a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted public-slot-empty">No hay opciones en esta franja.</p>
+    {% endif %}
+</section>

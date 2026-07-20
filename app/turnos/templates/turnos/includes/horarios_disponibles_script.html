@@ -17,7 +17,9 @@
         const odontologoControl = turnoForm.elements.namedItem("odontologo");
         const fechaControl = turnoForm.elements.namedItem("fecha");
         const duracionControl = turnoForm.elements.namedItem("duracion_minutos");
+        const tipoTurnoControl = turnoForm.elements.namedItem("tipo_turno");
         const status = obtenerEstadoHorarios();
+        const moreSlots = obtenerMasHorarios();
         let ultimoAbortController = null;
         let sincronizando = false;
 
@@ -33,6 +35,46 @@
             elemento.dataset.horariosStatus = "true";
             horaControl.insertAdjacentElement("afterend", elemento);
             return elemento;
+        }
+
+        function obtenerMasHorarios() {
+            let elemento = turnoForm.querySelector("[data-horarios-alternativos]");
+
+            if (elemento) {
+                return elemento;
+            }
+
+            elemento = document.createElement("details");
+            elemento.className = "public-more-slots";
+            elemento.dataset.horariosAlternativos = "true";
+            elemento.hidden = true;
+            elemento.innerHTML = '<summary aria-expanded="false">Ver más horarios</summary><div class="public-time-grid" data-horarios-alternativos-lista></div>';
+            status.insertAdjacentElement("afterend", elemento);
+            elemento.addEventListener("toggle", function () {
+                elemento.querySelector("summary").setAttribute(
+                    "aria-expanded",
+                    elemento.open ? "true" : "false"
+                );
+            });
+            return elemento;
+        }
+
+        function mostrarAlternativos(opciones) {
+            const lista = moreSlots.querySelector("[data-horarios-alternativos-lista]");
+            lista.replaceChildren();
+            moreSlots.hidden = !opciones || opciones.length === 0;
+
+            (opciones || []).forEach((horario) => {
+                const boton = document.createElement("button");
+                boton.type = "button";
+                boton.className = "public-slot-button";
+                boton.textContent = horario.label;
+                boton.addEventListener("click", function () {
+                    horaControl.value = horario.value;
+                    horaControl.focus();
+                });
+                lista.append(boton);
+            });
         }
 
         function obtenerCampo(formulario, nombre) {
@@ -74,6 +116,7 @@
 
         function marcarSinDatos(mensaje) {
             setOpciones([], "Elegir odontólogo y fecha", "");
+            mostrarAlternativos([]);
             status.textContent = mensaje;
         }
 
@@ -135,6 +178,10 @@
                 duracion_minutos: obtenerDuracion(),
             });
 
+            if (tipoTurnoControl && tipoTurnoControl.value) {
+                parametros.set("tipo_turno", tipoTurnoControl.value);
+            }
+
             if (turnoForm.dataset.turnoId) {
                 parametros.set("turno_id", turnoForm.dataset.turnoId);
             }
@@ -155,13 +202,19 @@
                 });
                 const datos = await respuesta.json();
 
+                if (duracionControl && datos.duracion_sugerida) {
+                    duracionControl.value = datos.duracion_sugerida;
+                }
+
                 if (!datos.horarios || datos.horarios.length === 0) {
                     setOpciones([], "Sin horarios disponibles", "");
+                    mostrarAlternativos([]);
                     status.textContent = datos.mensaje || "No hay horarios libres para esa fecha.";
                     return;
                 }
 
                 setOpciones(datos.horarios, "Seleccionar horario", valorActual);
+                mostrarAlternativos(datos.horarios_alternativos || []);
                 status.textContent = datos.mensaje || "Solo se muestran horarios libres.";
             } catch (error) {
                 if (error.name === "AbortError") {
@@ -169,6 +222,7 @@
                 }
 
                 setOpciones([], "No se pudieron cargar horarios", "");
+                mostrarAlternativos([]);
                 status.textContent = "No se pudieron cargar los horarios. Probá nuevamente.";
             } finally {
                 horaControl.disabled = false;
@@ -190,7 +244,7 @@
             copiarBusquedaAlFormulario();
         }
 
-        [odontologoControl, fechaControl, duracionControl].forEach((campo) => {
+        [odontologoControl, tipoTurnoControl, fechaControl, duracionControl].forEach((campo) => {
             if (campo) {
                 campo.addEventListener("change", function () {
                     copiarFormularioABusqueda();

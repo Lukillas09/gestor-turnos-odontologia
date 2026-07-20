@@ -12,7 +12,15 @@ from django.utils import timezone
 from playwright.sync_api import sync_playwright
 
 from consultorio.services import obtener_configuracion_consultorio
-from turnos.models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
+from turnos.models import (
+    ConfiguracionAgendaInteligente,
+    DisponibilidadOdontologo,
+    Odontologo,
+    SolicitudTurnoPublica,
+    TipoTurno,
+    TipoTurnoOdontologo,
+    Turno,
+)
 
 SCREENSHOT_DIR = Path(__file__).resolve().parents[3] / "docs" / "screenshots"
 RESPONSIVE_VIEWPORTS = (
@@ -198,6 +206,116 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         turno = Turno.objects.get(motivo="Control E2E")
         self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
         self.assertEqual(SolicitudTurnoPublica.objects.filter(turno=turno).count(), 1)
+
+    @override_settings(TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=True)
+    def test_flujo_publico_por_motivo_muestra_recomendados_y_alternativas(self):
+        control = TipoTurno.objects.create(
+            nombre="Control",
+            slug="control-e2e",
+            descripcion_publica="Revisión periódica.",
+            icono=TipoTurno.Icono.CONTROL,
+            orden_publico=10,
+            visible_publicamente=True,
+        )
+        limpieza = TipoTurno.objects.create(
+            nombre="Limpieza",
+            slug="limpieza-e2e",
+            descripcion_publica="Higiene profesional.",
+            icono=TipoTurno.Icono.CLINICO,
+            orden_publico=20,
+            visible_publicamente=True,
+        )
+        TipoTurnoOdontologo.objects.create(
+            odontologo=self.odontologo,
+            tipo_turno=control,
+            duracion_atencion_minutos=20,
+            reserva_publica=True,
+        )
+        TipoTurnoOdontologo.objects.create(
+            odontologo=self.odontologo,
+            tipo_turno=limpieza,
+            duracion_atencion_minutos=45,
+            margen_posterior_minutos=15,
+            reserva_publica=True,
+        )
+        ConfiguracionAgendaInteligente.objects.create(odontologo=self.odontologo)
+
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
+        self.page.get_by_role("link", name="Solicitar turno").first.click()
+        self.page.locator(".public-search-panel-v2.is-enhanced").wait_for()
+        self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
+
+        opcion_limpieza = self.page.locator(f"[data-public-service='{limpieza.pk}']")
+        opcion_limpieza.wait_for()
+        opcion_limpieza.focus()
+        self.page.keyboard.press("Enter")
+        self.assertEqual(opcion_limpieza.get_attribute("aria-checked"), "true")
+        self.page.get_by_text("Aproximadamente 45 min").first.wait_for()
+
+        self.page.fill("input[name='fecha']", self.fecha.isoformat())
+        self.page.dispatch_event("input[name='fecha']", "change")
+        self.page.locator(
+            f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
+        ).wait_for()
+        self.page.get_by_text("Horarios recomendados", exact=True).wait_for()
+        self.page.wait_for_load_state("networkidle")
+        horarios_limpieza = self.page.locator("[data-public-slot]").all_inner_texts()
+        self.assertGreaterEqual(len(horarios_limpieza), 3)
+
+        mas_horarios = self.page.locator("[data-public-more-slots]")
+        mas_horarios.locator("summary").focus()
+        self.page.keyboard.press("Enter")
+        self.page.wait_for_function("""() => {
+                const details = document.querySelector('[data-public-more-slots]');
+                return details.open
+                    && details.querySelector('summary').getAttribute('aria-expanded') === 'true';
+            }""")
+        self.assertEqual(mas_horarios.locator("summary").get_attribute("aria-expanded"), "true")
+
+        alternativa = mas_horarios.locator("[data-public-slot]").first
+        alternativa.wait_for()
+        alternativa.click()
+        self.page.locator("[data-public-slot-continue]").click()
+
+        self.page.get_by_role("heading", name="Completar datos").wait_for()
+        self.page.get_by_text("Limpieza", exact=True).first.wait_for()
+        self.page.get_by_text("45 minutos", exact=True).wait_for()
+        self.page.fill("input[name='nombre']", "Lucia")
+        self.page.fill("input[name='apellido']", "Agenda")
+        self.page.fill("input[name='telefono']", "1122334455")
+        self.page.fill("input[name='documento']", "45111222")
+        self.page.fill("input[name='email']", "lucia.agenda@example.com")
+        self.page.fill("[name='motivo']", "Comentario E2E")
+        self._assert_no_horizontal_overflow()
+        self.page.get_by_role("button", name="Enviar solicitud").click()
+
+        self.page.wait_for_url(f"**{reverse('landing_publica')}")
+        self.page.get_by_text("Tu solicitud fue registrada").wait_for()
+        turno = Turno.objects.get(paciente__documento="45111222")
+        self.assertEqual(turno.tipo_turno, limpieza)
+        self.assertEqual(turno.tipo_turno_nombre_snapshot, "Limpieza")
+        self.assertEqual(turno.duracion_atencion_minutos, 45)
+        self.assertEqual(turno.duracion_minutos, 60)
+        self.assertEqual(turno.clasificacion_horario, Turno.ClasificacionHorario.ALTERNATIVO)
+
+        self.page.set_viewport_size({"width": 1440, "height": 900})
+        self.page.goto(f"{self.live_server_url}{reverse('turnos:solicitud_publica')}")
+        self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
+        opcion_control = self.page.locator(f"[data-public-service='{control.pk}']")
+        opcion_control.wait_for()
+        opcion_control.click()
+        self.page.get_by_text("Aproximadamente 20 min").first.wait_for()
+        self.page.fill("input[name='fecha']", self.fecha.isoformat())
+        self.page.dispatch_event("input[name='fecha']", "change")
+        self.page.locator(
+            f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
+        ).wait_for()
+        self.page.get_by_text("Horarios recomendados", exact=True).wait_for()
+        self.page.wait_for_load_state("networkidle")
+        horarios_control = self.page.locator("[data-public-slot]").all_inner_texts()
+        self.assertNotEqual(horarios_control, horarios_limpieza)
+        self._assert_no_horizontal_overflow()
 
     def test_landing_publica_mobile_sin_scroll_horizontal(self):
         for width, height in RESPONSIVE_VIEWPORTS:

@@ -1,5 +1,4 @@
 import hashlib
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core import mail
@@ -214,15 +213,39 @@ class IndicacionServiceTests(IndicacionesTestCase):
             )
 
     def test_relacion_clinica_de_otro_paciente_es_rechazada(self):
-        datos = self.datos_borrador()
-        datos["turno"] = SimpleNamespace(
-            paciente_id=self.paciente_fuera_de_alcance.pk,
-            odontologo_id=self.otro_odontologo.pk,
+        datos = self.datos_borrador(
+            turno=self.crear_turno(paciente=self.paciente_fuera_de_alcance),
+            historia_clinica=self.crear_historia(
+                paciente=self.paciente_fuera_de_alcance,
+            ),
         )
 
-        with self.assertRaisesMessage(ValidationError, "turno"):
+        with self.assertRaises(ValidationError) as contexto:
             crear_borrador_indicacion(
                 paciente=self.paciente,
                 usuario=self.usuario,
                 datos=datos,
             )
+
+        self.assertIn("turno", contexto.exception.error_dict)
+        self.assertIn("historia_clinica", contexto.exception.error_dict)
+        self.assertFalse(IndicacionPaciente.objects.exists())
+
+    def test_relacion_clinica_de_otro_odontologo_es_rechazada(self):
+        datos = self.datos_borrador(
+            turno=self.crear_turno(odontologo=self.otro_odontologo),
+            historia_clinica=self.crear_historia(
+                odontologo=self.otro_odontologo,
+            ),
+        )
+
+        with self.assertRaises(ValidationError) as contexto:
+            crear_borrador_indicacion(
+                paciente=self.paciente,
+                usuario=self.usuario,
+                datos=datos,
+            )
+
+        self.assertIn("turno", contexto.exception.error_dict)
+        self.assertIn("historia_clinica", contexto.exception.error_dict)
+        self.assertFalse(IndicacionPaciente.objects.exists())

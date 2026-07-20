@@ -1279,6 +1279,11 @@
         border-bottom: 1px solid var(--line);
     }
 
+    .public-service-control {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
     .public-professional-picker,
     .public-search-panel-v2.is-enhanced .public-professional-picker {
         width: 100%;
@@ -1305,6 +1310,11 @@
 
     .public-selected-professional {
         align-items: flex-start;
+    }
+
+    .public-smart-schedule-intro {
+        grid-template-columns: 1fr;
+        align-items: start;
     }
 
     .public-time-grid {

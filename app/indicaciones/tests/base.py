@@ -1,4 +1,5 @@
 import tempfile
+from datetime import time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -6,10 +7,11 @@ from django.core.files.storage import FileSystemStorage
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from historias.models import HistoriaClinica
 from indicaciones.models import IndicacionPaciente, PlantillaIndicacion
 from indicaciones.services import crear_borrador_indicacion, emitir_indicacion
 from pacientes.models import Paciente, PacienteOdontologo
-from turnos.models import Odontologo
+from turnos.models import DisponibilidadOdontologo, Odontologo, Turno
 from usuarios.roles import ROL_ODONTOLOGO, ROL_RECEPCIONISTA
 
 
@@ -132,6 +134,46 @@ class IndicacionesTestCase(TestCase):
             paciente=self.paciente,
             usuario=self.usuario,
             datos=self.datos_borrador(**cambios),
+        )
+
+    def crear_turno(
+        self,
+        *,
+        paciente=None,
+        odontologo=None,
+        hora_inicio=time(9, 0),
+        motivo="Control ficticio",
+    ):
+        paciente = paciente or self.paciente
+        odontologo = odontologo or self.odontologo
+        hoy = timezone.localdate()
+        dias_hasta_lunes = (7 - hoy.weekday()) % 7 or 7
+        fecha = hoy + timedelta(days=dias_hasta_lunes)
+        DisponibilidadOdontologo.objects.get_or_create(
+            odontologo=odontologo,
+            dia_semana=fecha.weekday(),
+            hora_inicio=time(8, 0),
+            hora_fin=time(18, 0),
+        )
+        return Turno.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            duracion_minutos=30,
+            motivo=motivo,
+            estado=Turno.Estado.CONFIRMADO,
+        )
+
+    def crear_historia(self, *, paciente=None, odontologo=None, motivo=None):
+        paciente = paciente or self.paciente
+        odontologo = odontologo or self.odontologo
+        return HistoriaClinica.objects.create(
+            paciente=paciente,
+            odontologo=odontologo,
+            creado_por=odontologo.usuario,
+            actualizado_por=odontologo.usuario,
+            motivo_consulta=motivo or "Motivo clinico ficticio para la prueba.",
         )
 
     def emitir(self, indicacion=None, *, ejecutar_callback=False):

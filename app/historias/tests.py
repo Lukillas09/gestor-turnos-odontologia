@@ -61,7 +61,7 @@ def crear_turno_de_atencion(paciente, odontologo, fecha=date(2026, 5, 8)):
 
 
 def fecha_hora_form(fecha=None):
-    if fecha is None:
+    if fecha is None or fecha == timezone.localdate():
         instante = timezone.localtime().replace(second=0, microsecond=0)
     else:
         instante = timezone.make_aware(

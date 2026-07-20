@@ -55,6 +55,12 @@
                 <span class="app-sidebar-link-text">Perfil del consultorio</span>
             </a>
         {% endif %}
+        {% if puede_ver_configuracion_servicios %}
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'configuracion_servicios' or request.resolver_match.url_name == 'servicio_odontologo_crear' or request.resolver_match.url_name == 'servicio_odontologo_editar' or request.resolver_match.url_name == 'configuracion_agenda_editar' or request.resolver_match.url_name == 'tipo_turno_crear' or request.resolver_match.url_name == 'tipo_turno_editar' %}is-active{% endif %}" href="{% url 'turnos:configuracion_servicios' %}">
+                <span class="app-sidebar-link-icon">{% include "includes/icon.html" with name="appointments" %}</span>
+                <span class="app-sidebar-link-text">Servicios y agenda</span>
+            </a>
+        {% endif %}
         {% if puede_conectar_google_calendar %}
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'google_calendar' %}is-active{% endif %}" href="{% url 'turnos:google_calendar' %}">
                 <span class="app-sidebar-link-icon">{% include "includes/icon.html" with name="google" %}</span>

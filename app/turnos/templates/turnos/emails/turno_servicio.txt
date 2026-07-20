@@ -1,0 +1,4 @@
+{% if turno.tipo_turno_nombre_snapshot %}Motivo: {{ turno.tipo_turno_nombre_snapshot }}
+{% elif turno.motivo %}Motivo: {{ turno.motivo }}
+{% endif %}{% if turno.duracion_atencion_minutos %}Duración aproximada: {{ turno.duracion_atencion_minutos }} minutos
+{% endif %}

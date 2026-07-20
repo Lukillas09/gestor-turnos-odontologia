@@ -17,6 +17,8 @@
         {% if turno %}
             <dl class="public-success-summary">
                 <div><dt>Odontólogo</dt><dd>{{ turno.odontologo }}</dd></div>
+                {% if turno.tipo_turno_nombre_snapshot %}<div><dt>Motivo</dt><dd>{{ turno.tipo_turno_nombre_snapshot }}</dd></div>{% endif %}
+                {% if turno.duracion_atencion_minutos %}<div><dt>Duración aproximada</dt><dd>{{ turno.duracion_atencion_minutos }} minutos</dd></div>{% endif %}
                 <div><dt>Fecha</dt><dd>{{ turno.fecha|date:"d/m/Y" }}</dd></div>
                 <div><dt>Horario</dt><dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin|time:"H:i" }}</dd></div>
                 <div><dt>Estado</dt><dd><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></dd></div>

@@ -39,6 +39,10 @@ Estado actual:
 - Los codigos OTP se envian exclusivamente a `Paciente.email`; `SolicitudTurnoPublica.email_enviado` no se usa como fallback antes de una revision interna explicita.
 - Aplicar un email nuevo desde revision deja `email_verificado_en=None`; el primer OTP correcto verifica la posesion del correo.
 - Los pacientes nuevos creados desde la web quedan pendientes de validacion administrativa; esto no verifica automaticamente email ni telefono.
+- La agenda inteligente no confía en duración, margen o puntaje enviados por el navegador: deriva la configuración y recalcula el candidato bajo bloqueo transaccional.
+- Los endpoints de horarios no exponen puntajes, razones técnicas, turnos ocupados ni datos de pacientes.
+- La caché de horarios es solo una optimización de lectura; nunca autoriza la creación definitiva.
+- Los logs operativos de agenda usan identificadores técnicos y cantidades, sin DNI, contacto, comentario ni datos clínicos.
 
 Antes de produccion real:
 
@@ -51,6 +55,7 @@ Antes de produccion real:
 - Revisar periodicamente los turnos filtrados por `Datos por revisar` y aplicar cambios solo campo por campo.
 - Revisar `/turnos/alertas-administrativas/` cuando Inicio avise que hay solicitudes sin turno.
 - No pedir ni aceptar emails nuevos como prueba de identidad dentro del flujo publico.
+- Activar `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED` solo después de configurar servicios, aplicar migraciones y validar concurrencia en PostgreSQL de staging.
 
 ## 3. Autorizacion interna por objeto
 

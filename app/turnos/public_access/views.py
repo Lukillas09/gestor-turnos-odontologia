@@ -21,6 +21,7 @@ from turnos.forms import (
 from turnos.integrations.turnstile import validar_turnstile
 from turnos.mixins import PublicShellMixin
 from turnos.models import AccionPublicaTurno
+from turnos.smart_scheduling import calcular_horarios_inteligentes
 
 from .permissions import AccesoPublicoTurnosRequeridoMixin
 from .rate_limit import incrementar_limite, leer_contador
@@ -163,6 +164,8 @@ class MisTurnosPublicoView(
             "hora": f"{turno.hora_inicio:%H:%M} a {turno.hora_fin:%H:%M}",
             "estado": turno.get_estado_display(),
             "odontologo": turno.odontologo.nombre_completo,
+            "tipo_turno": turno.tipo_turno_nombre_snapshot,
+            "duracion_atencion": turno.duracion_atencion_minutos,
             "cancelar_accion": cancelar,
             "cancelar_token": (
                 obtener_token_accion_desde_session(self.request, cancelar.id) if cancelar else ""
@@ -246,12 +249,36 @@ class HorariosReprogramacionPublicaJsonView(AccesoPublicoTurnosRequeridoMixin, V
         except ValidationError as error:
             return JsonResponse({"horarios": [], "mensaje": error.messages[0]})
 
-        horarios = obtener_horarios_publicos_disponibles(
-            odontologo=accion.turno.odontologo,
-            fecha=fecha,
-            duracion_minutos=accion.turno.duracion_minutos,
-            turno_excluido=accion.turno,
-        )
+        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED and accion.turno.tipo_turno_id:
+            resultado = calcular_horarios_inteligentes(
+                odontologo=accion.turno.odontologo,
+                fecha=fecha,
+                duracion_atencion_minutos=(
+                    accion.turno.duracion_atencion_minutos or accion.turno.duracion_minutos
+                ),
+                margen_posterior_minutos=(accion.turno.margen_posterior_minutos_snapshot),
+                turno_excluido=accion.turno,
+            )
+            recomendados = [
+                self._serializar_candidato(candidato) for candidato in resultado.recomendados
+            ]
+            alternativos = [
+                self._serializar_candidato(candidato) for candidato in resultado.alternativos
+            ]
+            horarios = recomendados + alternativos
+        else:
+            horarios_legacy = obtener_horarios_publicos_disponibles(
+                odontologo=accion.turno.odontologo,
+                fecha=fecha,
+                duracion_minutos=accion.turno.duracion_minutos,
+                turno_excluido=accion.turno,
+            )
+            recomendados = []
+            alternativos = []
+            horarios = [
+                {"value": horario.strftime("%H:%M"), "label": horario.strftime("%H:%M")}
+                for horario in horarios_legacy
+            ]
 
         if not horarios:
             return JsonResponse(
@@ -263,13 +290,21 @@ class HorariosReprogramacionPublicaJsonView(AccesoPublicoTurnosRequeridoMixin, V
 
         return JsonResponse(
             {
-                "horarios": [
-                    {"value": horario.strftime("%H:%M"), "label": horario.strftime("%H:%M")}
-                    for horario in horarios
-                ],
-                "mensaje": "Solo se muestran horarios libres.",
+                "horarios": horarios,
+                "horarios_recomendados": recomendados,
+                "horarios_alternativos": alternativos,
+                "mensaje": (
+                    "Te mostramos primero los horarios que mejor encajan con la disponibilidad."
+                    if recomendados
+                    else "Solo se muestran horarios libres."
+                ),
             }
         )
+
+    @staticmethod
+    def _serializar_candidato(candidato):
+        valor = candidato.hora_inicio.strftime("%H:%M")
+        return {"value": valor, "label": valor}
 
 
 class ReprogramarTurnoPublicoSeguroView(

@@ -78,6 +78,12 @@
                             <dt>Odontólogo</dt>
                             <dd>{{ solicitud.turno.odontologo }}</dd>
                         </div>
+                        {% if solicitud.tipo_turno_nombre_snapshot %}
+                        <div>
+                            <dt>Motivo y duración</dt>
+                            <dd>{{ solicitud.tipo_turno_nombre_snapshot }} · {{ solicitud.duracion_atencion_snapshot }} minutos aproximados</dd>
+                        </div>
+                        {% endif %}
                         <div>
                             <dt>Estado del turno</dt>
                             <dd><span class="status-badge status-{{ solicitud.turno.estado }}">{{ solicitud.turno.get_estado_display }}</span></dd>
