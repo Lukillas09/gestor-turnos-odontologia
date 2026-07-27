@@ -1,4 +1,4 @@
-asgiref==3.11.1
+asgiref==3.12.1
 cryptography==49.0.0
 Django==6.0.7
 gunicorn==25.3.0
@@ -7,5 +7,5 @@ psycopg[binary]==3.3.4
 redis==7.1.0
 reportlab==5.0.0
 sqlparse==0.5.5
-tzdata==2026.2
+tzdata==2026.3
 whitenoise==6.12.0

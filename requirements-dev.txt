@@ -2,9 +2,9 @@
 
 bandit==1.9.4
 black==26.5.1
-coverage==7.15.0
-django-stubs==6.0.6
-mypy==2.2.0
+coverage==7.15.2
+django-stubs==6.0.7
+mypy==2.3.0
 pip-audit==2.10.1
 playwright==1.61.0
-ruff==0.15.21
+ruff==0.16.0
