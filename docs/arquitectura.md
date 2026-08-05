@@ -138,6 +138,7 @@ Capas internas:
 - `excepcion_permissions.py`: permisos de excepciones por rol y por odontólogo.
 - `notifications.py`: notificaciones de email.
 - `integrations/google_calendar.py`: cliente HTTP de Google Calendar.
+- `integrations/post_commit.py`: recarga el turno y ejecuta Calendar/email después del commit.
 - `google_calendar_oauth.py`: guardado/desconexión OAuth.
 - `google_calendar_sync.py`: coordinación entre turnos y Google Calendar.
 - `solicitudes_publicas/`: caso de uso transaccional de solicitud pública, comparación de datos, selectores y permisos de revisión.
@@ -314,6 +315,14 @@ Reglas:
 - Si la duración real genera conflicto, el turno no cambia de estado.
 - Crear o actualizar una excepción que afecta turnos existentes requiere confirmación explícita en dos pasos; esos turnos no se cancelan automáticamente.
 - Las excepciones de agenda no se sincronizan con Google Calendar.
+- Las superficies del paciente usan `hora_fin_atencion`; agenda, solapamientos y Calendar usan
+  `hora_fin_bloqueada`.
+
+El orden canónico de locks para mutaciones concurrentes es: agendas por
+`(odontologo_id, fecha)`, turnos por `pk`, solicitudes por `pk` y acciones públicas por `pk`.
+Las referencias leídas antes de la transacción se revalidan después de adquirir esos locks.
+PostgreSQL es la referencia para estas garantías; SQLite permite pruebas funcionales, pero no
+equivale a `select_for_update()`.
 
 La agenda inteligente está aislada por feature flag. Sus snapshots hacen que editar o
 desactivar un tipo no cambie turnos existentes. El POST final bloquea la agenda y recalcula sin
@@ -381,6 +390,8 @@ Interfaz pública:
 - Opera con desafio OTP por email, respuesta generica para evitar enumeracion y permisos de accion atados a paciente, turno, tipo de accion, version del turno y vencimiento.
 - La solicitud pública de turno usa respuesta neutral: no revela si el DNI existe, si hubo diferencias ni a qué contacto se notificó.
 - La revisión de diferencias queda restringida a usuarios con permiso de gestión del consultorio, principalmente recepción.
+- El endpoint JSON interno de horarios exige autenticación y permiso para ver turnos. Un
+  odontólogo sólo consulta su agenda y una reprogramación valida también el alcance del turno.
 
 ## Integraciones
 
@@ -397,9 +408,15 @@ El sistema guarda:
 - `scopes`
 - `ultimo_error`
 
-El turno guarda `google_calendar_event_id`.
+El turno guarda `google_calendar_event_id`. Los eventos nuevos usan un ID determinista derivado
+con SHA-256 de un namespace estable y el identificador interno; no expone ese identificador ni
+PII. Los IDs legacy ya persistidos se conservan.
 
-Si Google Calendar falla, la operación del dominio se mantiene y el error queda registrado.
+El payload contiene sólo resumen genérico, inicio, fin bloqueado, zona horaria y metadata privada
+técnica. No incluye paciente, contacto, motivo ni datos clínicos. Calendar y las notificaciones
+se ejecutan mediante `transaction.on_commit()` y cada proveedor falla de forma independiente;
+si uno falla, la operación del dominio se mantiene y se registra sólo proveedor, operación y
+tipo de error.
 
 ### Email
 
@@ -410,6 +427,10 @@ Backends soportados:
 - Consola de Django para desarrollo.
 - SMTP estándar.
 - `config.email_backends.EmailApiBackend` para Resend o Brevo.
+
+Resend y Brevo soportan PDF en memoria. El envío de indicaciones reclama y finaliza el estado en
+transacciones cortas, mientras que la lectura del archivo y la llamada HTTP ocurren fuera de
+ellas.
 
 ### Storage
 

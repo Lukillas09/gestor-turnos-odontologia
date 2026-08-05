@@ -427,6 +427,11 @@ class BloqueoAgendaOdontologo(models.Model):
 
 
 def bloquear_agendas_de_turnos(claves_agenda):
+    """Bloquea agendas en el orden canónico (odontólogo, fecha).
+
+    Los flujos concurrentes deben adquirir primero estas filas, luego los turnos
+    por PK y finalmente las acciones o solicitudes secundarias por PK.
+    """
     claves = sorted(
         {
             (odontologo_id, fecha)
@@ -720,12 +725,36 @@ class Turno(models.Model):
         )
 
     @property
-    def fecha_hora_fin(self):
+    def duracion_atencion_efectiva_minutos(self):
+        if self.duracion_atencion_minutos is not None:
+            return self.duracion_atencion_minutos
+        return self.duracion_minutos
+
+    @property
+    def fecha_hora_fin_atencion(self):
+        return self.fecha_hora_inicio + timedelta(minutes=self.duracion_atencion_efectiva_minutos)
+
+    @property
+    def hora_fin_atencion(self):
+        return self.fecha_hora_fin_atencion.time()
+
+    @property
+    def fecha_hora_fin_bloqueada(self):
         return self.fecha_hora_inicio + timedelta(minutes=self.duracion_minutos)
 
     @property
+    def hora_fin_bloqueada(self):
+        return self.fecha_hora_fin_bloqueada.time()
+
+    @property
+    def fecha_hora_fin(self):
+        """Alias histórico del final bloqueado usado por agenda y solapamientos."""
+        return self.fecha_hora_fin_bloqueada
+
+    @property
     def hora_fin(self):
-        return self.fecha_hora_fin.time()
+        """Alias histórico del final bloqueado usado por consumidores internos."""
+        return self.hora_fin_bloqueada
 
     @property
     def sincronizado_con_google_calendar(self):
@@ -780,8 +809,10 @@ class Turno(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        agenda_ya_bloqueada = kwargs.pop("_agenda_ya_bloqueada", False)
         with transaction.atomic():
-            bloquear_agendas_de_turnos(self._obtener_claves_bloqueo_agenda())
+            if not agenda_ya_bloqueada:
+                bloquear_agendas_de_turnos(self._obtener_claves_bloqueo_agenda())
             self._rotar_version_publica_si_corresponde(kwargs)
             self.full_clean()
             super().save(*args, **kwargs)

@@ -1,6 +1,8 @@
 import logging
 from dataclasses import dataclass
 
+from django.utils import timezone
+
 from .integrations.google_calendar import (
     GoogleCalendarError,
     crear_cliente_desde_conexion,
@@ -11,6 +13,7 @@ ACCION_CREAR = "crear"
 ACCION_ACTUALIZAR = "actualizar"
 ACCION_CANCELAR = "cancelar"
 MENSAJE_ERROR_INESPERADO = "Error inesperado al sincronizar con Google Calendar."
+MENSAJE_ERROR_PROVEEDOR = "No se pudo completar la sincronización con Google Calendar."
 
 logger = logging.getLogger(__name__)
 
@@ -94,16 +97,22 @@ def _sincronizar(turno, accion, operacion, cliente_factory):
         cliente = cliente_factory(conexion)
         event_id = operacion(cliente, turno)
     except GoogleCalendarError as error:
-        conexion.registrar_error(str(error))
+        logger.warning(
+            "Sincronización de Google Calendar fallida. action=%s error_type=%s",
+            accion,
+            error.__class__.__name__,
+        )
+        conexion.registrar_error(MENSAJE_ERROR_PROVEEDOR)
         return ResultadoSincronizacionGoogleCalendar(
             realizada=False,
             accion=accion,
-            mensaje=str(error),
+            mensaje=MENSAJE_ERROR_PROVEEDOR,
         )
-    except Exception:
-        logger.exception(
-            "Error inesperado al sincronizar el turno %s con Google Calendar.",
-            turno.pk,
+    except Exception as error:
+        logger.warning(
+            "Sincronización de Google Calendar fallida. action=%s error_type=%s",
+            accion,
+            error.__class__.__name__,
         )
         conexion.registrar_error(MENSAJE_ERROR_INESPERADO)
         return ResultadoSincronizacionGoogleCalendar(
@@ -131,8 +140,11 @@ def _crear_evento(cliente, turno):
     event_id = cliente.crear_evento(turno)
 
     if event_id:
+        Turno.objects.filter(pk=turno.pk).update(
+            google_calendar_event_id=event_id,
+            actualizado_en=timezone.now(),
+        )
         turno.google_calendar_event_id = event_id
-        turno.save(update_fields=["google_calendar_event_id", "actualizado_en"])
 
     return event_id
 
@@ -141,14 +153,20 @@ def _actualizar_evento(cliente, turno):
     event_id = cliente.actualizar_evento(turno)
 
     if event_id and event_id != turno.google_calendar_event_id:
+        Turno.objects.filter(pk=turno.pk).update(
+            google_calendar_event_id=event_id,
+            actualizado_en=timezone.now(),
+        )
         turno.google_calendar_event_id = event_id
-        turno.save(update_fields=["google_calendar_event_id", "actualizado_en"])
 
     return event_id
 
 
 def _cancelar_evento(cliente, turno):
     cliente.cancelar_evento(turno)
+    Turno.objects.filter(pk=turno.pk).update(
+        google_calendar_event_id="",
+        actualizado_en=timezone.now(),
+    )
     turno.google_calendar_event_id = ""
-    turno.save(update_fields=["google_calendar_event_id", "actualizado_en"])
     return ""

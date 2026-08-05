@@ -40,10 +40,11 @@ duracion_minutos (bloqueada)
     duracion_atencion_minutos + margen_posterior_minutos
 ```
 
-`hora_inicio` continúa siendo la hora de llegada. El margen no se muestra en emails ni en la
-interfaz pública. Google Calendar usa `Turno.duracion_minutos`, por lo que bloquea el intervalo
-completo. La descripción interna del evento puede indicar el margen sin incorporar datos
-clínicos adicionales.
+`hora_inicio` continúa siendo la hora de llegada. `Turno.hora_fin_atencion` suma la duración
+visible efectiva y es la propiedad usada en emails y superficies del paciente;
+`Turno.hora_fin_bloqueada` suma la duración total. En registros legacy sin snapshot de atención,
+la primera conserva compatibilidad usando `duracion_minutos`. Google Calendar y la agenda
+interna usan el fin bloqueado, pero el evento no revela el margen ni datos del paciente.
 
 ## Construcción de disponibilidad
 
@@ -135,6 +136,18 @@ El alta interna puede seleccionar un tipo y recibir la duración configurada, o 
 ninguno y cargar una duración manual para casos complejos. El algoritmo público no restringe
 la decisión profesional. Una modificación explícita de duración al confirmar vuelve a validar
 superposiciones y requiere la confirmación visible del usuario interno.
+
+## Concurrencia y orden de bloqueos
+
+Las mutaciones que pueden competir adquieren primero los bloqueos técnicos de agenda, ordenados
+por `(odontologo_id, fecha)`. Luego bloquean los turnos por clave primaria y, cuando corresponde,
+la solicitud y la acción pública por clave primaria. La disponibilidad se recalcula dentro de
+esa misma transacción; una caché nunca decide si el horario puede guardarse.
+
+Las pruebas concurrentes reales usan `TransactionTestCase`, conexiones independientes y
+timeouts de PostgreSQL. En SQLite se omiten explícitamente porque ese motor no ofrece una
+semántica equivalente para `select_for_update()`. Google Calendar y email se ejecutan después
+del commit y no mantienen los locks mientras esperan a un proveedor.
 
 ## Migración legacy
 

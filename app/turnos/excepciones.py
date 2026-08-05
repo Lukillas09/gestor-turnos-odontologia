@@ -1,3 +1,4 @@
+from copy import copy
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -220,16 +221,29 @@ def crear_excepcion_agenda(datos, usuario=None, confirmar_afectados=False):
 
 
 def actualizar_excepcion_agenda(excepcion, datos, usuario=None, confirmar_afectados=False):
+    referencia = _identidad_agenda_excepcion(excepcion)
+    propuesta = copy(excepcion)
+    for campo, valor in datos.items():
+        setattr(propuesta, campo, valor)
+    propuesta.full_clean()
+    claves_bloqueadas = {
+        *_obtener_claves_bloqueo_para_excepcion(excepcion),
+        *_obtener_claves_bloqueo_para_excepcion(propuesta),
+    }
+
     with transaction.atomic():
+        bloquear_agendas_de_turnos(claves_bloqueadas)
         original = ExcepcionAgenda.objects.select_for_update().get(pk=excepcion.pk)
-        _bloquear_agendas_para_excepcion(original)
+        if _identidad_agenda_excepcion(original) != referencia:
+            raise ValidationError("La excepción cambió mientras se procesaba. Volvé a intentar.")
 
         for campo, valor in datos.items():
             setattr(original, campo, valor)
 
         original.actualizada_por = usuario if getattr(usuario, "is_authenticated", False) else None
         original.full_clean()
-        _bloquear_agendas_para_excepcion(original)
+        if not set(_obtener_claves_bloqueo_para_excepcion(original)).issubset(claves_bloqueadas):
+            raise ValidationError("La agenda cambió mientras se procesaba. Volvé a intentar.")
         afectados = obtener_turnos_afectados_por_excepcion(original)
 
         if afectados and not confirmar_afectados:
@@ -240,9 +254,14 @@ def actualizar_excepcion_agenda(excepcion, datos, usuario=None, confirmar_afecta
 
 
 def desactivar_excepcion_agenda(excepcion, usuario=None):
+    referencia = _identidad_agenda_excepcion(excepcion)
+    claves_bloqueadas = _obtener_claves_bloqueo_para_excepcion(excepcion)
+
     with transaction.atomic():
+        bloquear_agendas_de_turnos(claves_bloqueadas)
         excepcion = ExcepcionAgenda.objects.select_for_update().get(pk=excepcion.pk)
-        _bloquear_agendas_para_excepcion(excepcion)
+        if _identidad_agenda_excepcion(excepcion) != referencia:
+            raise ValidationError("La excepción cambió mientras se procesaba. Volvé a intentar.")
         excepcion.activo = False
         excepcion.desactivada_en = timezone.now()
         excepcion.desactivada_por = usuario if getattr(usuario, "is_authenticated", False) else None
@@ -262,6 +281,14 @@ def desactivar_excepcion_agenda(excepcion, usuario=None):
 def _bloquear_agendas_para_excepcion(excepcion):
     claves = _obtener_claves_bloqueo_para_excepcion(excepcion)
     return bloquear_agendas_de_turnos(claves)
+
+
+def _identidad_agenda_excepcion(excepcion):
+    return (
+        excepcion.odontologo_id,
+        excepcion.fecha_desde,
+        excepcion.fecha_hasta,
+    )
 
 
 def _obtener_claves_bloqueo_para_excepcion(excepcion):

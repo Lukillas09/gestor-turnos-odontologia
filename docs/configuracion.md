@@ -295,6 +295,9 @@ Proveedores implementados:
 - `brevo`
 - `sendinblue` como alias de `brevo`
 
+Resend y Brevo admiten los PDF de indicaciones como adjuntos. Ambos validan nombre, MIME,
+contenido binario y tamaño antes de codificar el archivo en Base64 sólo en memoria.
+
 ### SMTP
 
 ```env
@@ -325,7 +328,8 @@ El comando `enviar_recordatorios_email` busca turnos confirmados dentro de esa v
 | --- | --- |
 | `GOOGLE_CALENDAR_CLIENT_ID` | Client ID OAuth web. |
 | `GOOGLE_CALENDAR_CLIENT_SECRET` | Client Secret OAuth web. |
-| `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE` | Alternativa local con JSON, opcional. |
+| `GOOGLE_CALENDAR_CLIENT_SECRET_FILE` | Alternativa con JSON OAuth web, opcional. |
+| `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE` | Alias legacy del nombre anterior. |
 | `GOOGLE_CALENDAR_REDIRECT_URI` | Callback exacto configurado en Google Cloud. |
 | `GOOGLE_CALENDAR_SCOPES` | Scopes separados por coma. |
 
@@ -346,6 +350,15 @@ Callback Railway:
 ```env
 GOOGLE_CALENDAR_REDIRECT_URI=https://tu-app.up.railway.app/turnos/google-calendar/callback/
 ```
+
+Las credenciales completas en `GOOGLE_CALENDAR_CLIENT_ID` y
+`GOOGLE_CALENDAR_CLIENT_SECRET` tienen prioridad. Si falta ese par, el resolvedor lee el archivo
+configurado, exige un objeto JSON `web` con `client_id` y `client_secret`, y mantiene fijos los
+endpoints OAuth del código. No registra la ruta ni el contenido del archivo.
+
+Los eventos se crean con un ID determinista sin PII y un payload mínimo: resumen genérico,
+inicio, fin bloqueado, zona horaria y propiedades privadas técnicas. Las operaciones de Calendar
+se ejecutan después del commit de la mutación del turno.
 
 ## Storage Clínico
 

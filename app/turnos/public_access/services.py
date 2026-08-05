@@ -6,7 +6,8 @@ from uuid import UUID
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import DatabaseError, transaction
+from django.db.models import F
 from django.utils import timezone
 
 from historias.access_policy import registrar_evento_acceso_clinico
@@ -25,8 +26,10 @@ from ..models import (
     AccionPublicaTurno,
     ConfiguracionAgendaInteligente,
     DesafioAccesoPublicoTurnos,
+    SolicitudTurnoPublica,
     Turno,
 )
+from .exceptions import ProteccionPublicaNoDisponible
 from .rate_limit import incrementar_limite
 from .tokens import (
     PUBLIC_ACCESS_PENDING_CHALLENGE_KEY,
@@ -65,6 +68,13 @@ class ResultadoValidacionOTP:
     desafio_id: str | None = None
 
 
+@dataclass(frozen=True)
+class ReferenciaAccionPublica:
+    turno_id: int
+    odontologo_id: int
+    fecha: object
+
+
 def registrar_intento_solicitud_acceso(request, documento):
     documento = normalizar_documento(documento)
     ip_hash = hash_valor_publico(obtener_ip_cliente(request), "ip")
@@ -90,18 +100,27 @@ def solicitar_acceso_publico_turnos(request, documento, *, limites=None):
     dni_hash = hash_valor_publico(documento, "dni")
     limite_ip, limite_dni = limites or registrar_intento_solicitud_acceso(request, documento)
 
-    desafio = _crear_desafio(documento, ip_hash, dni_hash)
+    desafio, codigo = _crear_desafio(documento, ip_hash, dni_hash)
     request.session[PUBLIC_ACCESS_PENDING_CHALLENGE_KEY] = str(desafio.id)
     request.session.modified = True
 
     if not limite_ip.permitido or not limite_dni.permitido:
         return ResultadoSolicitudAcceso(str(desafio.id), limitado=True)
 
-    _enviar_codigo_si_corresponde(desafio)
+    _programar_envio_codigo(desafio, codigo)
     return ResultadoSolicitudAcceso(str(desafio.id))
 
 
 def _crear_desafio(documento, ip_hash, dni_hash):
+    try:
+        with transaction.atomic():
+            return _crear_desafio_persistente(documento, ip_hash, dni_hash)
+    except DatabaseError as error:
+        _registrar_fallo_db("otp_create", error)
+        raise ProteccionPublicaNoDisponible() from error
+
+
+def _crear_desafio_persistente(documento, ip_hash, dni_hash):
     paciente = Paciente.objects.filter(documento=documento).first() if documento else None
     canal = DesafioAccesoPublicoTurnos.Canal.EMAIL
 
@@ -130,22 +149,49 @@ def _crear_desafio(documento, ip_hash, dni_hash):
         ).update(invalidado_en=ahora)
 
     codigo = generar_codigo_otp()
-    return DesafioAccesoPublicoTurnos.objects.create(
-        paciente=paciente,
-        canal=canal,
-        codigo_hash=make_password(codigo),
-        expira_en=ahora + timedelta(seconds=settings.TURNOS_PUBLIC_OTP_SECONDS),
-        cantidad_envios=0,
-        ip_hash=ip_hash,
-        dni_hash=dni_hash,
+    return (
+        DesafioAccesoPublicoTurnos.objects.create(
+            paciente=paciente,
+            canal=canal,
+            codigo_hash=make_password(codigo),
+            expira_en=ahora + timedelta(seconds=settings.TURNOS_PUBLIC_OTP_SECONDS),
+            cantidad_envios=0,
+            ip_hash=ip_hash,
+            dni_hash=dni_hash,
+        ),
+        codigo,
     )
 
 
-def _enviar_codigo_si_corresponde(desafio):
+def _programar_envio_codigo(desafio, codigo):
     if desafio.canal != DesafioAccesoPublicoTurnos.Canal.EMAIL or not desafio.paciente_id:
         return
 
-    codigo = _regenerar_codigo(desafio)
+    transaction.on_commit(
+        lambda desafio_id=desafio.pk, codigo=codigo: _enviar_codigo_post_commit(
+            desafio_id,
+            codigo,
+        )
+    )
+
+
+def _enviar_codigo_post_commit(desafio_id, codigo):
+    try:
+        desafio = DesafioAccesoPublicoTurnos.objects.select_related("paciente").get(pk=desafio_id)
+    except DesafioAccesoPublicoTurnos.DoesNotExist:
+        return
+    except DatabaseError as error:
+        _registrar_fallo_db("otp_post_commit_load", error)
+        return
+
+    if (
+        desafio.canal != DesafioAccesoPublicoTurnos.Canal.EMAIL
+        or not desafio.paciente_id
+        or not desafio.esta_activo
+        or not check_password(codigo, desafio.codigo_hash)
+    ):
+        return
+
     resultado = notificar_codigo_acceso_publico_turnos(
         paciente=desafio.paciente,
         codigo=codigo,
@@ -153,23 +199,42 @@ def _enviar_codigo_si_corresponde(desafio):
     )
 
     ahora = timezone.now()
-    desafio.cantidad_envios += 1
-    desafio.ultimo_envio_en = ahora
-    desafio.save(update_fields=["cantidad_envios", "ultimo_envio_en"])
+    try:
+        DesafioAccesoPublicoTurnos.objects.filter(pk=desafio.pk).update(
+            cantidad_envios=F("cantidad_envios") + 1,
+            ultimo_envio_en=ahora,
+        )
+    except DatabaseError as error:
+        _registrar_fallo_db("otp_post_commit_update", error)
 
     if not resultado.enviada:
-        logger.warning(
-            "No se pudo enviar OTP de acceso público. desafio_id=%s motivo=%s",
-            desafio.id,
-            resultado.motivo,
-        )
+        logger.warning("No se pudo enviar OTP de acceso público. provider=email")
 
 
-def _regenerar_codigo(desafio):
-    codigo = generar_codigo_otp()
-    desafio.codigo_hash = make_password(codigo)
-    desafio.save(update_fields=["codigo_hash"])
-    return codigo
+def _regenerar_y_programar_codigo(desafio_id):
+    try:
+        with transaction.atomic():
+            desafio = (
+                DesafioAccesoPublicoTurnos.objects.select_for_update()
+                .select_related("paciente")
+                .get(pk=desafio_id)
+            )
+            if (
+                desafio.canal != DesafioAccesoPublicoTurnos.Canal.EMAIL
+                or not desafio.paciente_id
+                or not desafio.esta_activo
+            ):
+                return
+
+            codigo = generar_codigo_otp()
+            desafio.codigo_hash = make_password(codigo)
+            desafio.save(update_fields=["codigo_hash"])
+            _programar_envio_codigo(desafio, codigo)
+    except DesafioAccesoPublicoTurnos.DoesNotExist:
+        return
+    except DatabaseError as error:
+        _registrar_fallo_db("otp_resend", error)
+        raise ProteccionPublicaNoDisponible() from error
 
 
 def reenviar_codigo_acceso_publico(request):
@@ -200,7 +265,7 @@ def reenviar_codigo_acceso_publico(request):
     if not limite_ip.permitido or not limite_dni.permitido or en_cooldown:
         return MENSAJE_SOLICITUD_GENERICA
 
-    _enviar_codigo_si_corresponde(desafio)
+    _regenerar_y_programar_codigo(desafio.pk)
     return MENSAJE_SOLICITUD_GENERICA
 
 
@@ -214,9 +279,21 @@ def obtener_desafio_pendiente(request):
         return DesafioAccesoPublicoTurnos.objects.select_related("paciente").get(pk=desafio_id)
     except (DesafioAccesoPublicoTurnos.DoesNotExist, ValueError, TypeError):
         return None
+    except DatabaseError as error:
+        _registrar_fallo_db("otp_read", error)
+        raise ProteccionPublicaNoDisponible() from error
 
 
 def validar_codigo_acceso_publico(request, codigo):
+    try:
+        with transaction.atomic():
+            return _validar_codigo_acceso_publico_persistente(request, codigo)
+    except DatabaseError as error:
+        _registrar_fallo_db("otp_verify", error)
+        raise ProteccionPublicaNoDisponible() from error
+
+
+def _validar_codigo_acceso_publico_persistente(request, codigo):
     desafio = obtener_desafio_pendiente(request)
 
     if not desafio or not desafio.esta_activo:
@@ -275,6 +352,22 @@ def cerrar_acceso_publico(request):
 
 
 def generar_permisos_para_turnos(request, paciente_id, turnos):
+    try:
+        with transaction.atomic():
+            acciones_por_turno, tokens_session = _generar_permisos_persistentes(
+                paciente_id,
+                turnos,
+            )
+    except DatabaseError as error:
+        _registrar_fallo_db("public_actions_create", error)
+        raise ProteccionPublicaNoDisponible() from error
+
+    request.session[PUBLIC_ACTION_TOKENS_SESSION_KEY] = tokens_session
+    request.session.modified = True
+    return acciones_por_turno
+
+
+def _generar_permisos_persistentes(paciente_id, turnos):
     ahora = timezone.now()
     acciones_por_turno: dict[int, dict[str, AccionPublicaTurno]] = {}
     tokens_session = {}
@@ -303,9 +396,7 @@ def generar_permisos_para_turnos(request, paciente_id, turnos):
             acciones_por_turno[turno.pk][tipo_accion] = accion
             tokens_session[str(accion.id)] = token
 
-    request.session[PUBLIC_ACTION_TOKENS_SESSION_KEY] = tokens_session
-    request.session.modified = True
-    return acciones_por_turno
+    return acciones_por_turno, tokens_session
 
 
 def _tipos_accion_para_turno(turno):
@@ -326,6 +417,9 @@ def validar_accion_publica_sin_consumir(accion_id, token, paciente_id, tipo_acci
         accion = AccionPublicaTurno.objects.select_related("turno", "paciente").get(pk=accion_id)
     except (AccionPublicaTurno.DoesNotExist, ValueError, TypeError, ValidationError):
         return None
+    except DatabaseError as error:
+        _registrar_fallo_db("public_action_read", error)
+        raise ProteccionPublicaNoDisponible() from error
 
     if not _accion_publica_valida(accion, token, paciente_id, tipo_accion):
         return None
@@ -334,110 +428,158 @@ def validar_accion_publica_sin_consumir(accion_id, token, paciente_id, tipo_acci
 
 
 def cancelar_turno_publico_seguro(accion_id, token, paciente_id, motivo_cancelacion):
-    with transaction.atomic():
-        accion = _obtener_accion_bloqueada(accion_id)
+    referencia = _obtener_referencia_accion(accion_id)
+    if referencia is None:
+        return False
 
-        if not _accion_publica_valida(
-            accion,
-            token,
-            paciente_id,
-            AccionPublicaTurno.TipoAccion.CANCELAR,
-        ):
-            return False
+    try:
+        with transaction.atomic():
+            bloquear_agendas_de_turnos([(referencia.odontologo_id, referencia.fecha)])
+            turno = (
+                Turno.objects.select_for_update()
+                .select_related("paciente", "odontologo", "odontologo__usuario")
+                .get(pk=referencia.turno_id)
+            )
+            if turno.odontologo_id != referencia.odontologo_id or turno.fecha != referencia.fecha:
+                return False
 
-        turno = Turno.objects.select_for_update().get(pk=accion.turno_id)
+            # Las solicitudes se bloquean antes que las acciones públicas en todos los flujos.
+            SolicitudTurnoPublica.objects.select_for_update().filter(turno_id=turno.pk).first()
+            accion = _obtener_accion_bloqueada(accion_id)
+            if accion is None or accion.turno_id != turno.pk:
+                return False
 
-        if turno.estado not in [Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO]:
-            return False
+            if not _accion_publica_valida(
+                accion,
+                token,
+                paciente_id,
+                AccionPublicaTurno.TipoAccion.CANCELAR,
+                turno=turno,
+            ):
+                return False
 
-        cancelar_turno(turno, motivo_cancelacion_paciente=motivo_cancelacion)
-        _consumir_accion(accion)
-        revocar_acciones_publicas_de_turno(turno)
-        return True
+            if turno.estado not in [Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO]:
+                return False
+
+            cancelar_turno(
+                turno,
+                motivo_cancelacion_paciente=motivo_cancelacion,
+                agenda_ya_bloqueada=True,
+            )
+            _consumir_accion(accion)
+            revocar_acciones_publicas_de_turno(turno)
+            return True
+    except DatabaseError as error:
+        _registrar_fallo_db("public_cancel", error)
+        raise ProteccionPublicaNoDisponible() from error
 
 
 def reprogramar_turno_publico_seguro(accion_id, token, paciente_id, datos):
-    with transaction.atomic():
-        accion = _obtener_accion_bloqueada(accion_id)
+    referencia = _obtener_referencia_accion(accion_id)
+    if referencia is None:
+        return False, None
 
-        if not _accion_publica_valida(
-            accion,
-            token,
-            paciente_id,
-            AccionPublicaTurno.TipoAccion.REPROGRAMAR,
-        ):
-            return False, None
+    try:
+        with transaction.atomic():
+            bloquear_agendas_de_turnos(
+                [
+                    (referencia.odontologo_id, referencia.fecha),
+                    (referencia.odontologo_id, datos["fecha"]),
+                ]
+            )
+            configuracion_agenda = None
+            if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+                configuracion_agenda, _ = ConfiguracionAgendaInteligente.objects.get_or_create(
+                    odontologo_id=referencia.odontologo_id
+                )
+                configuracion_agenda = (
+                    ConfiguracionAgendaInteligente.objects.select_for_update().get(
+                        pk=configuracion_agenda.pk
+                    )
+                )
 
-        turno = Turno.objects.select_for_update().get(pk=accion.turno_id)
+            turno = (
+                Turno.objects.select_for_update()
+                .select_related("paciente", "odontologo", "odontologo__usuario")
+                .get(pk=referencia.turno_id)
+            )
+            if turno.odontologo_id != referencia.odontologo_id or turno.fecha != referencia.fecha:
+                return False, None
 
-        if turno.estado != Turno.Estado.PENDIENTE:
-            return False, None
+            accion = _obtener_accion_bloqueada(accion_id)
+            if accion is None or accion.turno_id != turno.pk:
+                return False, None
 
-        datos = {**datos, "duracion_minutos": turno.duracion_minutos}
-        bloquear_agendas_de_turnos(
-            [
-                (turno.odontologo_id, turno.fecha),
-                (turno.odontologo_id, datos["fecha"]),
-            ]
-        )
-        validar_intervalo_reserva_publica(
-            datos["fecha"],
-            datos["hora_inicio"],
-            turno.duracion_minutos,
-        )
-        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED and turno.tipo_turno_id:
-            configuracion_agenda, _ = ConfiguracionAgendaInteligente.objects.get_or_create(
-                odontologo=turno.odontologo
-            )
-            configuracion_agenda = ConfiguracionAgendaInteligente.objects.select_for_update().get(
-                pk=configuracion_agenda.pk
-            )
-            resultado = calcular_horarios_inteligentes(
-                odontologo=turno.odontologo,
-                fecha=datos["fecha"],
-                duracion_atencion_minutos=(
-                    turno.duracion_atencion_minutos or turno.duracion_minutos
-                ),
-                margen_posterior_minutos=turno.margen_posterior_minutos_snapshot,
-                turno_excluido=turno,
-                configuracion=configuracion_agenda,
-            )
-            candidato = buscar_candidato(resultado, datos["hora_inicio"])
-            if not candidato:
-                raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
-            datos.update(
-                {
-                    "algoritmo_horario_version": resultado.algoritmo_version,
-                    "clasificacion_horario": candidato.clasificacion,
-                    "puntaje_horario": candidato.puntaje,
-                }
-            )
-        else:
-            horarios = obtener_horarios_publicos_disponibles(
-                odontologo=turno.odontologo,
-                fecha=datos["fecha"],
-                duracion_minutos=turno.duracion_minutos,
-                turno_excluido=turno,
-            )
-            if datos["hora_inicio"] not in horarios:
-                raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+            if not _accion_publica_valida(
+                accion,
+                token,
+                paciente_id,
+                AccionPublicaTurno.TipoAccion.REPROGRAMAR,
+                turno=turno,
+            ):
+                return False, None
 
-        turno = reprogramar_turno(turno, datos)
-        _consumir_accion(accion)
-        revocar_acciones_publicas_de_turno(turno)
-        return True, turno
+            if turno.estado != Turno.Estado.PENDIENTE:
+                return False, None
+
+            datos = {**datos, "duracion_minutos": turno.duracion_minutos}
+            validar_intervalo_reserva_publica(
+                datos["fecha"],
+                datos["hora_inicio"],
+                turno.duracion_minutos,
+            )
+            if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED and turno.tipo_turno_id:
+                resultado = calcular_horarios_inteligentes(
+                    odontologo=turno.odontologo,
+                    fecha=datos["fecha"],
+                    duracion_atencion_minutos=(
+                        turno.duracion_atencion_minutos or turno.duracion_minutos
+                    ),
+                    margen_posterior_minutos=turno.margen_posterior_minutos_snapshot,
+                    turno_excluido=turno,
+                    configuracion=configuracion_agenda,
+                )
+                candidato = buscar_candidato(resultado, datos["hora_inicio"])
+                if not candidato:
+                    raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+                datos.update(
+                    {
+                        "algoritmo_horario_version": resultado.algoritmo_version,
+                        "clasificacion_horario": candidato.clasificacion,
+                        "puntaje_horario": candidato.puntaje,
+                    }
+                )
+            else:
+                horarios = obtener_horarios_publicos_disponibles(
+                    odontologo=turno.odontologo,
+                    fecha=datos["fecha"],
+                    duracion_minutos=turno.duracion_minutos,
+                    turno_excluido=turno,
+                )
+                if datos["hora_inicio"] not in horarios:
+                    raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+
+            turno = reprogramar_turno(turno, datos, agenda_ya_bloqueada=True)
+            _consumir_accion(accion)
+            revocar_acciones_publicas_de_turno(turno)
+            return True, turno
+    except DatabaseError as error:
+        _registrar_fallo_db("public_reschedule", error)
+        raise ProteccionPublicaNoDisponible() from error
 
 
 def _obtener_accion_bloqueada(accion_id):
     try:
         return (
-            AccionPublicaTurno.objects.select_for_update().select_related("turno").get(pk=accion_id)
+            AccionPublicaTurno.objects.select_for_update()
+            .select_related("paciente")
+            .get(pk=accion_id)
         )
     except (AccionPublicaTurno.DoesNotExist, ValueError, TypeError):
         return None
 
 
-def _accion_publica_valida(accion, token, paciente_id, tipo_accion):
+def _accion_publica_valida(accion, token, paciente_id, tipo_accion, *, turno=None):
     if accion is None or not token:
         return False
 
@@ -450,10 +592,12 @@ def _accion_publica_valida(accion, token, paciente_id, tipo_accion):
     if not accion.paciente.activo:
         return False
 
-    if accion.turno.paciente_id != paciente_id:
+    turno = turno or accion.turno
+
+    if turno.paciente_id != paciente_id:
         return False
 
-    if accion.turno.version_publica != accion.version_turno:
+    if turno.version_publica != accion.version_turno:
         return False
 
     return check_password(token, accion.token_hash)
@@ -470,6 +614,37 @@ def revocar_acciones_publicas_de_turno(turno):
         utilizado_en__isnull=True,
         revocado_en__isnull=True,
     ).update(revocado_en=timezone.now())
+
+
+def _obtener_referencia_accion(accion_id):
+    try:
+        referencia = (
+            AccionPublicaTurno.objects.filter(pk=accion_id)
+            .values("turno_id", "turno__odontologo_id", "turno__fecha")
+            .first()
+        )
+    except (ValueError, TypeError, ValidationError):
+        return None
+    except DatabaseError as error:
+        _registrar_fallo_db("public_action_reference", error)
+        raise ProteccionPublicaNoDisponible() from error
+
+    if not referencia:
+        return None
+
+    return ReferenciaAccionPublica(
+        turno_id=referencia["turno_id"],
+        odontologo_id=referencia["turno__odontologo_id"],
+        fecha=referencia["turno__fecha"],
+    )
+
+
+def _registrar_fallo_db(operacion, error):
+    logger.warning(
+        "Protección pública no disponible. operation=%s error_type=%s",
+        operacion,
+        error.__class__.__name__,
+    )
 
 
 def obtener_uuid(valor):

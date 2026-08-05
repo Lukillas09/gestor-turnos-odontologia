@@ -757,19 +757,17 @@ class TurnoViewsTests(TestCase):
             motivo="Control confirmado",
         )
 
-        with patch("turnos.services.sincronizar_turno_actualizado") as sincronizar_mock:
-            with patch("turnos.services.notificar_turno_confirmado") as notificar_mock:
-                response = self.client.post(
-                    reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-                    {"duracion_rapida": 120},
-                )
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            response = self.client.post(
+                reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
+                {"duracion_rapida": 120},
+            )
 
         turno.refresh_from_db()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(turno.estado, Turno.Estado.PENDIENTE)
         self.assertEqual(turno.duracion_minutos, 30)
-        sincronizar_mock.assert_not_called()
-        notificar_mock.assert_not_called()
+        self.assertEqual(callbacks, [])
         self.assertContains(response, "se superpone")
         self.assertContains(response, "Control confirmado")
         self.assertContains(
@@ -3153,7 +3151,10 @@ class SolicitudTurnoPublicaTests(TestCase):
     def _solicitar_y_validar_acceso_publico(self, paciente, codigo="123456"):
         mail.outbox.clear()
 
-        with patch("turnos.public_access.services.generar_codigo_otp", return_value=codigo):
+        with (
+            patch("turnos.public_access.services.generar_codigo_otp", return_value=codigo),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
             response = self.client.post(
                 reverse("turnos:acceso_publico_solicitar"),
                 {"documento": paciente.documento},
@@ -3200,11 +3201,12 @@ class SolicitudTurnoPublicaTests(TestCase):
         self._crear_turno_publico(paciente, motivo="Motivo privado")
 
         with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
-            response_real = self.client.post(
-                reverse("turnos:acceso_publico_solicitar"),
-                {"documento": paciente.documento},
-                follow=True,
-            )
+            with self.captureOnCommitCallbacks(execute=True):
+                response_real = self.client.post(
+                    reverse("turnos:acceso_publico_solicitar"),
+                    {"documento": paciente.documento},
+                    follow=True,
+                )
             response_ficticia = self.client.post(
                 reverse("turnos:acceso_publico_solicitar"),
                 {"documento": "99999999"},
@@ -3338,7 +3340,10 @@ class SolicitudTurnoPublicaTests(TestCase):
     def test_codigo_incorrecto_invalida_desafio_al_superar_intentos(self):
         paciente = self._crear_paciente_publico()
 
-        with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
+        with (
+            patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
             self.client.post(
                 reverse("turnos:acceso_publico_solicitar"),
                 {"documento": paciente.documento},
@@ -3462,7 +3467,10 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
         mail.outbox.clear()
 
-        with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
+        with (
+            patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
             self.client.post(
                 reverse("turnos:acceso_publico_solicitar"),
                 {"documento": paciente.documento},
@@ -3537,14 +3545,16 @@ class SolicitudTurnoPublicaTests(TestCase):
         paciente = self._crear_paciente_publico()
 
         with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
-            self.client.post(
-                reverse("turnos:acceso_publico_solicitar"),
-                {"documento": paciente.documento},
-            )
-            response = self.client.post(
-                reverse("turnos:acceso_publico_verificar"),
-                {"accion": "reenviar"},
-            )
+            with self.captureOnCommitCallbacks(execute=True):
+                self.client.post(
+                    reverse("turnos:acceso_publico_solicitar"),
+                    {"documento": paciente.documento},
+                )
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    reverse("turnos:acceso_publico_verificar"),
+                    {"accion": "reenviar"},
+                )
 
         desafio = DesafioAccesoPublicoTurnos.objects.get(paciente=paciente)
 
@@ -3825,10 +3835,11 @@ class SolicitudTurnoPublicaTests(TestCase):
         paciente = self._crear_paciente_publico()
 
         with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
-            self.client.post(
-                reverse("turnos:acceso_publico_solicitar"),
-                {"documento": paciente.documento},
-            )
+            with self.captureOnCommitCallbacks(execute=True):
+                self.client.post(
+                    reverse("turnos:acceso_publico_solicitar"),
+                    {"documento": paciente.documento},
+                )
             self.client.post(
                 reverse("turnos:acceso_publico_solicitar"),
                 {"documento": paciente.documento},
@@ -3850,11 +3861,12 @@ class SolicitudTurnoPublicaTests(TestCase):
         otro_paciente = self._crear_paciente_publico(documento="39111222", email="otro@example.com")
 
         with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
-            self.client.post(
-                reverse("turnos:acceso_publico_solicitar"),
-                {"documento": paciente.documento},
-                REMOTE_ADDR="203.0.113.10",
-            )
+            with self.captureOnCommitCallbacks(execute=True):
+                self.client.post(
+                    reverse("turnos:acceso_publico_solicitar"),
+                    {"documento": paciente.documento},
+                    REMOTE_ADDR="203.0.113.10",
+                )
             self.client.post(
                 reverse("turnos:acceso_publico_solicitar"),
                 {"documento": otro_paciente.documento},
@@ -3999,10 +4011,11 @@ class TurnoEmailNotificationTests(TestCase):
             motivo="Control",
         )
 
-        response = self.client.post(
-            reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-            {"duracion_rapida": 30},
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
+                {"duracion_rapida": 30},
+            )
 
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
         self.assertEqual(len(mail.outbox), 1)
@@ -4021,7 +4034,8 @@ class TurnoEmailNotificationTests(TestCase):
             motivo="Control",
         )
 
-        response = self.client.post(reverse("turnos:cancelar", kwargs={"pk": turno.pk}))
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse("turnos:cancelar", kwargs={"pk": turno.pk}))
 
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
         self.assertEqual(len(mail.outbox), 1)
@@ -4040,15 +4054,16 @@ class TurnoEmailNotificationTests(TestCase):
             motivo="Control",
         )
 
-        with patch("turnos.services.sincronizar_turno_actualizado") as sincronizar_mock:
-            reprogramar_turno(
-                turno,
-                {
-                    "fecha": date(2026, 5, 8),
-                    "hora_inicio": time(11, 0),
-                    "duracion_minutos": 30,
-                },
-            )
+        with patch("turnos.google_calendar_sync.sincronizar_turno_actualizado") as sincronizar_mock:
+            with self.captureOnCommitCallbacks(execute=True):
+                reprogramar_turno(
+                    turno,
+                    {
+                        "fecha": date(2026, 5, 8),
+                        "hora_inicio": time(11, 0),
+                        "duracion_minutos": 30,
+                    },
+                )
 
         turno.refresh_from_db()
         self.assertEqual(turno.hora_inicio, time(11, 0))
@@ -4188,10 +4203,11 @@ class TurnoEmailNotificationTests(TestCase):
             estado=Turno.Estado.PENDIENTE,
         )
 
-        self.client.post(
-            reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-            {"duracion_rapida": 30},
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
+                {"duracion_rapida": 30},
+            )
 
         self.assertEqual(mail.outbox, [])
 
@@ -4205,12 +4221,13 @@ class TurnoEmailNotificationTests(TestCase):
             estado=Turno.Estado.PENDIENTE,
         )
 
-        with self.assertLogs("turnos.notifications", level="ERROR"):
+        with self.assertLogs("turnos.notifications", level="WARNING"):
             with patch("turnos.notifications.send_mail", side_effect=OSError("SMTP caido")):
-                response = self.client.post(
-                    reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
-                    {"duracion_rapida": 30},
-                )
+                with self.captureOnCommitCallbacks(execute=True):
+                    response = self.client.post(
+                        reverse("turnos:confirmar", kwargs={"pk": turno.pk}),
+                        {"duracion_rapida": 30},
+                    )
 
         turno.refresh_from_db()
         self.assertRedirects(response, reverse("turnos:detalle", kwargs={"pk": turno.pk}))
@@ -4226,7 +4243,7 @@ class TurnoEmailNotificationTests(TestCase):
             estado=Turno.Estado.CONFIRMADO,
         )
 
-        with self.assertLogs("turnos.notifications", level="ERROR"):
+        with self.assertLogs("turnos.notifications", level="WARNING"):
             with patch("turnos.notifications.send_mail", side_effect=OSError("SMTP caido")):
                 with self.assertRaises(OSError):
                     notificar_turno_confirmado(turno, fail_silently=False)
@@ -4351,7 +4368,7 @@ class EmailManagementCommandTests(TestCase):
         salida = StringIO()
 
         with patch("turnos.services.timezone.now", return_value=ahora):
-            with self.assertLogs("turnos.notifications", level="ERROR"):
+            with self.assertLogs("turnos.notifications", level="WARNING"):
                 with patch("turnos.notifications.send_mail", side_effect=OSError("SMTP caido")):
                     with self.assertRaises(CommandError):
                         call_command(

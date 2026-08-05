@@ -682,14 +682,12 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
             clasificacion_horario=Turno.ClasificacionHorario.RECOMENDADO,
             estado=Turno.Estado.CONFIRMADO,
         )
-        with (
-            patch("turnos.services.sincronizar_turno_actualizado"),
-            patch("turnos.services.notificar_turno_reprogramado"),
-        ):
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
             reprogramar_turno(
                 turno,
                 {"fecha": self.fecha, "hora_inicio": time(10, 30), "duracion_minutos": 75},
             )
+        self.assertEqual(len(callbacks), 1)
         turno.refresh_from_db()
         self.assertEqual(turno.duracion_minutos, 75)
         self.assertEqual(turno.duracion_atencion_minutos, 60)
@@ -711,16 +709,14 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
         self.configuracion_tipo.duracion_atencion_minutos = 90
         self.configuracion_tipo.margen_posterior_minutos = 0
         self.configuracion_tipo.save()
-        with (
-            patch("turnos.services.sincronizar_turno_actualizado"),
-            patch("turnos.services.notificar_turno_reprogramado"),
-        ):
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
             valida, reprogramado = reprogramar_turno_publico_seguro(
                 accion.id,
                 token,
                 turno.paciente_id,
                 {"fecha": self.fecha, "hora_inicio": time(11, 0)},
             )
+        self.assertEqual(len(callbacks), 1)
         self.assertTrue(valida)
         self.assertEqual(reprogramado.duracion_minutos, 60)
         self.assertEqual(reprogramado.duracion_atencion_minutos, 45)

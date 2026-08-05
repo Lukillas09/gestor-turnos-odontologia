@@ -96,7 +96,10 @@ def notificar_codigo_acceso_publico_turnos(paciente, codigo, expira_en, fail_sil
             fail_silently=False,
         )
     except Exception as error:
-        logger.exception("No se pudo enviar el código de acceso público.")
+        logger.warning(
+            "No se pudo enviar una notificación. operation=public_access_code " "error_type=%s",
+            error.__class__.__name__,
+        )
 
         if not fail_silently:
             raise
@@ -124,14 +127,17 @@ def _enviar_email_turno(turno, asunto, template_name, fail_silently=True):
             fail_silently=False,
         )
     except Exception as error:
-        logger.exception("No se pudo enviar el email '%s'.", asunto)
+        logger.warning(
+            "No se pudo enviar una notificación. operation=appointment_email " "error_type=%s",
+            error.__class__.__name__,
+        )
 
         if not fail_silently:
             raise
 
         return ResultadoNotificacionEmail(
             enviada=False,
-            motivo=str(error),
+            motivo=error.__class__.__name__,
         )
 
     return ResultadoNotificacionEmail(enviada=enviados > 0)

@@ -54,6 +54,7 @@ env:
   TURNSTILE_SECRET_KEY: ""
   GOOGLE_CALENDAR_CLIENT_ID: ""
   GOOGLE_CALENDAR_CLIENT_SECRET: ""
+  GOOGLE_CALENDAR_CLIENT_SECRET_FILE: ""
   GOOGLE_CALENDAR_CLIENT_SECRETS_FILE: ""
   GOOGLE_CALENDAR_REDIRECT_URI: "http://localhost/turnos/google-calendar/callback/"
   GOOGLE_CALENDAR_SCOPES: "https://www.googleapis.com/auth/calendar.events"
@@ -163,8 +164,12 @@ jobs:
           turnos.tests
           turnos.tests_email_api
           turnos.tests_google_calendar
+          turnos.tests_internal_availability_permissions
+          turnos.tests_patient_visible_end
+          turnos.tests_post_commit_integrations
           turnos.tests_public_protection
           turnos.tests_smart_scheduling
+          turnos.tests_concurrency
           --verbosity 2
 
       - name: Reportar cobertura
@@ -233,6 +238,7 @@ jobs:
           python manage.py test
           historias
           indicaciones.tests
+          turnos.tests_concurrency.AgendaConcurrentePostgreSQLTests
           turnos.tests_public_protection.ProteccionesPublicasPostgreSQLTests
           turnos.tests_smart_scheduling.AgendaInteligentePostgreSQLTests
           --verbosity 2

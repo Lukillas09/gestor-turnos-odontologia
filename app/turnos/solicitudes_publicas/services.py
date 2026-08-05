@@ -17,6 +17,13 @@ from turnos.excepciones import (
     obtener_horarios_publicos_disponibles,
     validar_intervalo_reserva_publica,
 )
+from turnos.integrations.post_commit import (
+    EMAIL_CANCELADO,
+    EMAIL_CONFIRMADO,
+    GOOGLE_ACTUALIZAR,
+    GOOGLE_CANCELAR,
+    programar_integraciones_turno,
+)
 from turnos.models import (
     ConfiguracionAgendaInteligente,
     SolicitudTurnoPublica,
@@ -504,22 +511,29 @@ def revisar_y_confirmar_solicitud_publica(
     if duracion <= 0:
         raise ValidationError("La duración debe ser mayor a cero.")
 
+    referencia = _obtener_referencia_solicitud_turno(solicitud_id)
+    if not referencia["turno_id"]:
+        raise ValidationError("Esta solicitud no tiene un turno asociado.")
+
     with transaction.atomic():
+        bloquear_agendas_de_turnos([(referencia["odontologo_id"], referencia["fecha"])])
+        turno = (
+            Turno.objects.select_for_update()
+            .select_related("paciente", "odontologo", "odontologo__usuario")
+            .get(pk=referencia["turno_id"])
+        )
         solicitud = (
             SolicitudTurnoPublica.objects.select_for_update()
             .select_related("paciente", "turno", "turno__odontologo", "turno__odontologo__usuario")
             .get(pk=solicitud_id)
         )
 
-        if not solicitud.turno_id:
-            raise ValidationError("Esta solicitud no tiene un turno asociado.")
-
-        bloquear_agendas_de_turnos([(solicitud.turno.odontologo_id, solicitud.turno.fecha)])
-        turno = (
-            Turno.objects.select_for_update()
-            .select_related("paciente", "odontologo", "odontologo__usuario")
-            .get(pk=solicitud.turno_id)
-        )
+        if (
+            solicitud.turno_id != turno.pk
+            or turno.odontologo_id != referencia["odontologo_id"]
+            or turno.fecha != referencia["fecha"]
+        ):
+            raise ValidationError("La solicitud cambió mientras se procesaba. Volvé a intentar.")
         paciente = Paciente.objects.select_for_update().get(pk=solicitud.paciente_id)
 
         if solicitud.estado_revision != SolicitudTurnoPublica.EstadoRevision.PENDIENTE:
@@ -560,13 +574,13 @@ def revisar_y_confirmar_solicitud_publica(
             )
         turno.duracion_minutos = duracion
         turno.estado = Turno.Estado.CONFIRMADO
-        turno.save(update_fields=update_fields)
+        turno.save(update_fields=update_fields, _agenda_ya_bloqueada=True)
 
-    from turnos.google_calendar_sync import sincronizar_turno_actualizado
-    from turnos.notifications import notificar_turno_confirmado
-
-    sincronizar_turno_actualizado(turno)
-    notificar_turno_confirmado(turno)
+    programar_integraciones_turno(
+        turno.pk,
+        google=GOOGLE_ACTUALIZAR,
+        email=EMAIL_CONFIRMADO,
+    )
     return turno, solicitud
 
 
@@ -576,12 +590,28 @@ def rechazar_solicitud_publica_y_cancelar_turno(solicitud_id, usuario, motivo):
     if not motivo:
         raise ValidationError("Indicá un motivo para rechazar la solicitud.")
 
+    referencia = _obtener_referencia_solicitud_turno(solicitud_id)
+
     with transaction.atomic():
+        turno = None
+        if referencia["turno_id"]:
+            bloquear_agendas_de_turnos([(referencia["odontologo_id"], referencia["fecha"])])
+            turno = Turno.objects.select_for_update().get(pk=referencia["turno_id"])
+
         solicitud = (
             SolicitudTurnoPublica.objects.select_for_update()
             .select_related("paciente", "turno", "turno__odontologo")
             .get(pk=solicitud_id)
         )
+
+        if solicitud.turno_id != referencia["turno_id"] or (
+            turno
+            and (
+                turno.odontologo_id != referencia["odontologo_id"]
+                or turno.fecha != referencia["fecha"]
+            )
+        ):
+            raise ValidationError("La solicitud cambió mientras se procesaba. Volvé a intentar.")
 
         if solicitud.estado_revision != SolicitudTurnoPublica.EstadoRevision.PENDIENTE:
             raise ValidationError("Esta solicitud ya fue revisada.")
@@ -608,28 +638,40 @@ def rechazar_solicitud_publica_y_cancelar_turno(solicitud_id, usuario, motivo):
             ]
         )
 
-        turno = None
-
-        if solicitud.turno_id:
-            bloquear_agendas_de_turnos([(solicitud.turno.odontologo_id, solicitud.turno.fecha)])
-            turno = Turno.objects.select_for_update().get(pk=solicitud.turno_id)
+        if turno:
             if turno.estado != Turno.Estado.CANCELADO:
                 turno.estado = Turno.Estado.CANCELADO
                 turno.motivo_cancelacion_paciente = motivo
                 turno.save(
-                    update_fields=["estado", "motivo_cancelacion_paciente", "actualizado_en"]
+                    update_fields=["estado", "motivo_cancelacion_paciente", "actualizado_en"],
+                    _agenda_ya_bloqueada=True,
                 )
 
-    if turno:
-        from turnos.google_calendar_sync import sincronizar_turno_cancelado
-        from turnos.notifications import notificar_turno_cancelado
-        from turnos.public_access.services import revocar_acciones_publicas_de_turno
+            from turnos.public_access.services import revocar_acciones_publicas_de_turno
 
-        revocar_acciones_publicas_de_turno(turno)
-        sincronizar_turno_cancelado(turno)
-        notificar_turno_cancelado(turno)
+            revocar_acciones_publicas_de_turno(turno)
+
+    if turno:
+        programar_integraciones_turno(
+            turno.pk,
+            google=GOOGLE_CANCELAR,
+            email=EMAIL_CANCELADO,
+        )
 
     return solicitud
+
+
+def _obtener_referencia_solicitud_turno(solicitud_id):
+    referencia = SolicitudTurnoPublica.objects.values(
+        "turno_id",
+        "turno__odontologo_id",
+        "turno__fecha",
+    ).get(pk=solicitud_id)
+    return {
+        "turno_id": referencia["turno_id"],
+        "odontologo_id": referencia["turno__odontologo_id"],
+        "fecha": referencia["turno__fecha"],
+    }
 
 
 def cerrar_revision_por_cancelacion_de_turno(turno, usuario=None, motivo=""):

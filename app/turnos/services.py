@@ -8,18 +8,18 @@ from django.utils import timezone
 
 from pacientes.services import asegurar_paciente_asociado_a_odontologo
 
-from .google_calendar_sync import (
-    sincronizar_turno_actualizado,
-    sincronizar_turno_cancelado,
-    sincronizar_turno_creado,
+from .google_calendar_sync import sincronizar_turno_actualizado
+from .integrations.post_commit import (
+    EMAIL_CANCELADO,
+    EMAIL_CONFIRMADO,
+    EMAIL_REPROGRAMADO,
+    GOOGLE_ACTUALIZAR,
+    GOOGLE_CANCELAR,
+    GOOGLE_CREAR,
+    programar_integraciones_turno,
 )
 from .models import Turno, bloquear_agendas_de_turnos
-from .notifications import (
-    notificar_recordatorio_turno,
-    notificar_turno_cancelado,
-    notificar_turno_confirmado,
-    notificar_turno_reprogramado,
-)
+from .notifications import notificar_recordatorio_turno
 from .selectors import obtener_turno_superpuesto
 from .solicitudes_publicas.services import crear_solicitud_publica_de_turno
 
@@ -51,7 +51,7 @@ def crear_turno_desde_formulario(form, usuario=None):
         usuario=usuario,
         motivo="Turno creado desde panel interno",
     )
-    sincronizar_turno_creado(turno)
+    programar_integraciones_turno(turno.pk, google=GOOGLE_CREAR)
     return turno
 
 
@@ -66,7 +66,7 @@ def actualizar_turno_desde_formulario(form, usuario=None):
         usuario=usuario,
         motivo="Turno actualizado desde panel interno",
     )
-    sincronizar_turno_actualizado(turno)
+    programar_integraciones_turno(turno.pk, google=GOOGLE_ACTUALIZAR)
     return turno
 
 
@@ -74,7 +74,7 @@ def reintentar_sincronizacion_google_calendar(turno):
     return sincronizar_turno_actualizado(turno)
 
 
-def reprogramar_turno(turno, datos):
+def reprogramar_turno(turno, datos, *, agenda_ya_bloqueada=False):
     if not turno.paciente.activo:
         raise ValidationError("No se pueden reprogramar turnos de pacientes archivados.")
 
@@ -113,9 +113,15 @@ def reprogramar_turno(turno, datos):
         if campo in datos:
             setattr(turno, campo, datos[campo])
             update_fields.append(campo)
-    turno.save(update_fields=update_fields)
-    sincronizar_turno_actualizado(turno)
-    notificar_turno_reprogramado(turno)
+    turno.save(
+        update_fields=update_fields,
+        _agenda_ya_bloqueada=agenda_ya_bloqueada,
+    )
+    programar_integraciones_turno(
+        turno.pk,
+        google=GOOGLE_ACTUALIZAR,
+        email=EMAIL_REPROGRAMADO,
+    )
     return turno
 
 
@@ -205,7 +211,7 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
                 )
             turno.duracion_minutos = duracion
             turno.estado = Turno.Estado.CONFIRMADO
-            turno.save(update_fields=update_fields)
+            turno.save(update_fields=update_fields, _agenda_ya_bloqueada=True)
     except ValidationError as error:
         return ResultadoConfirmacionTurno(
             confirmado=False,
@@ -213,8 +219,11 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
             mensaje=_mensaje_validacion(error),
         )
 
-    sincronizar_turno_actualizado(turno)
-    notificar_turno_confirmado(turno)
+    programar_integraciones_turno(
+        turno.pk,
+        google=GOOGLE_ACTUALIZAR,
+        email=EMAIL_CONFIRMADO,
+    )
     return ResultadoConfirmacionTurno(
         confirmado=True,
         turno=turno,
@@ -222,7 +231,13 @@ def confirmar_turno_con_duracion(turno, duracion_minutos):
     )
 
 
-def cancelar_turno(turno, motivo_cancelacion_paciente="", usuario=None):
+def cancelar_turno(
+    turno,
+    motivo_cancelacion_paciente="",
+    usuario=None,
+    *,
+    agenda_ya_bloqueada=False,
+):
     if turno.estado == Turno.Estado.CANCELADO:
         return turno
 
@@ -234,7 +249,10 @@ def cancelar_turno(turno, motivo_cancelacion_paciente="", usuario=None):
         turno.motivo_cancelacion_paciente = motivo_cancelacion_paciente.strip()
         update_fields.append("motivo_cancelacion_paciente")
 
-    turno.save(update_fields=update_fields)
+    turno.save(
+        update_fields=update_fields,
+        _agenda_ya_bloqueada=agenda_ya_bloqueada,
+    )
     from .solicitudes_publicas.services import cerrar_revision_por_cancelacion_de_turno
 
     cerrar_revision_por_cancelacion_de_turno(
@@ -242,8 +260,11 @@ def cancelar_turno(turno, motivo_cancelacion_paciente="", usuario=None):
         usuario=usuario,
         motivo=motivo_cancelacion_paciente or "Turno cancelado antes de revisar la solicitud.",
     )
-    sincronizar_turno_cancelado(turno)
-    notificar_turno_cancelado(turno)
+    programar_integraciones_turno(
+        turno.pk,
+        google=GOOGLE_CANCELAR,
+        email=EMAIL_CANCELADO,
+    )
     return turno
 
 

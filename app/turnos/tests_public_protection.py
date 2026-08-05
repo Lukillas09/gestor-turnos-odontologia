@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import time, timedelta
 from io import StringIO
 from secrets import token_urlsafe
 from threading import Barrier
@@ -7,20 +7,43 @@ from types import SimpleNamespace
 from unittest import skipUnless
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+from django.core import mail
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import OperationalError, close_old_connections, connection, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
-from turnos.models import IdempotenciaSolicitudPublica, LimitePublico
-from turnos.public_access.exceptions import ProteccionPublicaNoDisponible
+from pacientes.models import Paciente
+from turnos.models import (
+    AccionPublicaTurno,
+    DesafioAccesoPublicoTurnos,
+    DisponibilidadOdontologo,
+    IdempotenciaSolicitudPublica,
+    LimitePublico,
+    Odontologo,
+    SolicitudTurnoPublica,
+    Turno,
+)
+from turnos.public_access.exceptions import (
+    MENSAJE_PROTECCION_PUBLICA_NO_DISPONIBLE,
+    RETRY_AFTER_PROTECCION_PUBLICA_SECONDS,
+    ProteccionPublicaNoDisponible,
+)
 from turnos.public_access.rate_limit import (
     calcular_ventana_fija,
     incrementar_limite,
     leer_contador,
 )
-from turnos.public_access.tokens import hash_valor_publico
+from turnos.public_access.tokens import (
+    PUBLIC_ACCESS_PENDING_CHALLENGE_KEY,
+    PUBLIC_ACCESS_SESSION_KEY,
+    PUBLIC_ACTION_TOKENS_SESSION_KEY,
+    hash_valor_publico,
+)
 from turnos.solicitudes_publicas.proteccion import (
     SESSION_IDEMPOTENCY_KEY,
     IdempotenciaSolicitudPublicaInvalida,
@@ -134,6 +157,34 @@ class LimitePublicoTests(TestCase):
             side_effect=OperationalError("fallo simulado"),
         ):
             with self.assertRaises(ProteccionPublicaNoDisponible):
+                incrementar_limite("solicitud_ip", self.sujeto, 3, 60, self.ahora)
+
+    def test_error_db_en_lectura_se_convierte_en_excepcion_de_dominio(self):
+        detalle_sensible = "dni=30111222 ip=203.0.113.20 token=secreto"
+
+        with (
+            patch.object(
+                LimitePublico.objects,
+                "filter",
+                side_effect=OperationalError(detalle_sensible),
+            ),
+            self.assertLogs("turnos.public_access.rate_limit", level="WARNING") as logs,
+            self.assertRaises(ProteccionPublicaNoDisponible),
+        ):
+            leer_contador("solicitud_ip", self.sujeto, 60, self.ahora)
+
+        salida = " ".join(logs.output)
+        self.assertIn("operation=rate_limit_read", salida)
+        self.assertIn("error_type=OperationalError", salida)
+        self.assertNotIn(detalle_sensible, salida)
+        self.assertNotIn(self.sujeto, salida)
+
+    def test_error_de_programacion_no_se_convierte_en_503(self):
+        with patch(
+            "turnos.public_access.rate_limit._incrementar_contador_transaccional",
+            side_effect=ValueError("fallo de programación"),
+        ):
+            with self.assertRaisesRegex(ValueError, "fallo de programación"):
                 incrementar_limite("solicitud_ip", self.sujeto, 3, 60, self.ahora)
 
     def test_no_utiliza_cache_django(self):
@@ -302,6 +353,64 @@ class IdempotenciaSolicitudPublicaTests(TestCase):
             with self.assertRaises(ProteccionSolicitudPublicaNoDisponible):
                 adquirir_idempotencia(request, token)
 
+    def test_error_db_al_completar_se_convierte_en_503_de_dominio(self):
+        request, token = crear_request_idempotencia()
+        resultado = adquirir_idempotencia(request, token)
+
+        with patch.object(
+            IdempotenciaSolicitudPublica.objects,
+            "select_for_update",
+            side_effect=OperationalError("fallo simulado al completar"),
+        ):
+            with self.assertRaises(ProteccionSolicitudPublicaNoDisponible):
+                completar_idempotencia(resultado.token_hash)
+
+        idempotencia = IdempotenciaSolicitudPublica.objects.get()
+        self.assertEqual(idempotencia.estado, IdempotenciaSolicitudPublica.Estado.PROCESSING)
+
+    def test_error_db_al_liberar_se_convierte_en_503_de_dominio(self):
+        request, token = crear_request_idempotencia()
+        resultado = adquirir_idempotencia(request, token)
+
+        with patch.object(
+            IdempotenciaSolicitudPublica.objects,
+            "select_for_update",
+            side_effect=OperationalError("fallo simulado al liberar"),
+        ):
+            with self.assertRaises(ProteccionSolicitudPublicaNoDisponible):
+                liberar_idempotencia(resultado.token_hash)
+
+        self.assertTrue(
+            IdempotenciaSolicitudPublica.objects.filter(
+                token_hash=resultado.token_hash,
+                estado=IdempotenciaSolicitudPublica.Estado.PROCESSING,
+            ).exists()
+        )
+
+    def test_error_db_al_recuperar_lease_se_convierte_en_503(self):
+        request, token = crear_request_idempotencia()
+        resultado = adquirir_idempotencia(request, token)
+        IdempotenciaSolicitudPublica.objects.filter(token_hash=resultado.token_hash).update(
+            procesamiento_expira_en=timezone.now() - timedelta(seconds=1)
+        )
+
+        with patch(
+            "turnos.solicitudes_publicas.proteccion._reclamar_idempotencia",
+            side_effect=OperationalError("fallo simulado al recuperar lease"),
+        ):
+            with self.assertRaises(ProteccionSolicitudPublicaNoDisponible):
+                adquirir_idempotencia(request, token)
+
+    def test_value_error_de_idempotencia_no_se_convierte_en_503(self):
+        request, token = crear_request_idempotencia()
+
+        with patch(
+            "turnos.solicitudes_publicas.proteccion._adquirir_idempotencia_transaccional",
+            side_effect=ValueError("fallo de programación"),
+        ):
+            with self.assertRaisesRegex(ValueError, "fallo de programación"):
+                adquirir_idempotencia(request, token)
+
     def test_no_utiliza_cache_django(self):
         request, token = crear_request_idempotencia()
 
@@ -319,6 +428,339 @@ class IdempotenciaSolicitudPublicaTests(TestCase):
         cache_get.assert_not_called()
         cache_set.assert_not_called()
         cache_delete.assert_not_called()
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="turnos@example.test",
+    TURNSTILE_ENABLED=False,
+    TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=False,
+    TURNOS_PUBLIC_ACCESS_REQUEST_LIMIT=10,
+    TURNOS_PUBLIC_ACTION_LIMIT=10,
+    TURNOS_PUBLIC_RESEND_LIMIT=10,
+    TURNOS_PUBLIC_RESEND_SECONDS=0,
+)
+class ProteccionesPublicasFailClosedTests(TestCase):
+    def setUp(self):
+        mail.outbox.clear()
+        usuario = get_user_model().objects.create_user(username="protecciones.publicas")
+        self.odontologo = Odontologo.objects.create(
+            usuario=usuario,
+            matricula="PROT-PUB-001",
+        )
+        self.fecha = timezone.localdate() + timedelta(days=7)
+        DisponibilidadOdontologo.objects.create(
+            odontologo=self.odontologo,
+            dia_semana=self.fecha.weekday(),
+            hora_inicio=time(8, 0),
+            hora_fin=time(18, 0),
+        )
+        self.paciente = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Protegido",
+            documento="76543111",
+            telefono="1100001111",
+            email="paciente@example.test",
+            email_verificado_en=timezone.now(),
+        )
+        self.turno = Turno.objects.create(
+            paciente=self.paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha,
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+        )
+
+    def test_solicitud_otp_falla_cerrado_sin_enumerar_ni_enviar(self):
+        detalle_sensible = f"dni={self.paciente.documento} email={self.paciente.email}"
+        respuestas = []
+
+        for documento in (self.paciente.documento, "99999999"):
+            with (
+                patch(
+                    "turnos.public_access.services._crear_desafio_persistente",
+                    side_effect=OperationalError(detalle_sensible),
+                ),
+                self.assertLogs("turnos.public_access.services", level="WARNING") as logs,
+                self.captureOnCommitCallbacks(execute=False) as callbacks,
+            ):
+                respuesta = self.client.post(
+                    reverse("turnos:acceso_publico_solicitar"),
+                    {"documento": documento},
+                )
+
+            self._assert_respuesta_503(respuesta)
+            self.assertEqual(callbacks, [])
+            self.assertNotIn(detalle_sensible, " ".join(logs.output))
+            respuestas.append(respuesta.content)
+
+        self.assertEqual(respuestas[0], respuestas[1])
+        self.assertFalse(DesafioAccesoPublicoTurnos.objects.exists())
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_reenvio_otp_falla_cerrado_sin_cambiar_hash_ni_enviar(self):
+        desafio = self._crear_desafio_pendiente()
+        hash_anterior = desafio.codigo_hash
+
+        with (
+            patch.object(
+                DesafioAccesoPublicoTurnos.objects,
+                "select_for_update",
+                side_effect=OperationalError("otp=123456 token=secreto"),
+            ),
+            self.captureOnCommitCallbacks(execute=False) as callbacks,
+        ):
+            respuesta = self.client.post(
+                reverse("turnos:acceso_publico_verificar"),
+                {"accion": "reenviar"},
+            )
+
+        desafio.refresh_from_db()
+        self._assert_respuesta_503(respuesta)
+        self.assertEqual(desafio.codigo_hash, hash_anterior)
+        self.assertEqual(desafio.cantidad_envios, 0)
+        self.assertEqual(callbacks, [])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_verificacion_otp_falla_cerrado_sin_consumir_desafio(self):
+        desafio = self._crear_desafio_pendiente()
+
+        with patch(
+            "turnos.public_access.services._validar_codigo_acceso_publico_persistente",
+            side_effect=OperationalError("otp=123456"),
+        ):
+            respuesta = self.client.post(
+                reverse("turnos:acceso_publico_verificar"),
+                {"codigo": "123456"},
+            )
+
+        desafio.refresh_from_db()
+        self._assert_respuesta_503(respuesta)
+        self.assertIsNone(desafio.validado_en)
+        self.assertIsNone(desafio.invalidado_en)
+        self.assertEqual(desafio.intentos_fallidos, 0)
+        self.assertNotIn(PUBLIC_ACCESS_SESSION_KEY, self.client.session)
+
+    def test_generacion_de_acciones_falla_cerrado_sin_tocar_sesion(self):
+        self._habilitar_sesion_publica()
+
+        with patch(
+            "turnos.public_access.services._generar_permisos_persistentes",
+            side_effect=OperationalError("token_hash=secreto"),
+        ):
+            respuesta = self.client.get(reverse("turnos:mis_turnos_publico"))
+
+        self._assert_respuesta_503(respuesta)
+        self.assertFalse(AccionPublicaTurno.objects.exists())
+        self.assertNotIn(PUBLIC_ACTION_TOKENS_SESSION_KEY, self.client.session)
+
+    def test_cancelacion_falla_cerrado_sin_mutar_turno_accion_ni_callback(self):
+        accion, token = self._crear_accion(AccionPublicaTurno.TipoAccion.CANCELAR)
+
+        with (
+            patch(
+                "turnos.public_access.services.bloquear_agendas_de_turnos",
+                side_effect=OperationalError("dni=76543111 token=secreto"),
+            ),
+            self.captureOnCommitCallbacks(execute=False) as callbacks,
+        ):
+            respuesta = self.client.post(
+                reverse("turnos:mis_turnos_cancelar", kwargs={"accion_id": accion.pk}),
+                {
+                    "accion_token": token,
+                    "motivo_cancelacion": "No puedo asistir.",
+                },
+            )
+
+        self.turno.refresh_from_db()
+        accion.refresh_from_db()
+        self._assert_respuesta_503(respuesta)
+        self.assertEqual(self.turno.estado, Turno.Estado.PENDIENTE)
+        self.assertIsNone(accion.utilizado_en)
+        self.assertIsNone(accion.revocado_en)
+        self.assertEqual(callbacks, [])
+
+    def test_reprogramacion_falla_cerrado_sin_mutar_turno_accion_ni_callback(self):
+        accion, token = self._crear_accion(AccionPublicaTurno.TipoAccion.REPROGRAMAR)
+
+        with (
+            patch(
+                "turnos.public_access.services.bloquear_agendas_de_turnos",
+                side_effect=OperationalError("email=paciente@example.test"),
+            ),
+            self.captureOnCommitCallbacks(execute=False) as callbacks,
+        ):
+            respuesta = self.client.post(
+                reverse("turnos:mis_turnos_reprogramar", kwargs={"accion_id": accion.pk}),
+                {
+                    "accion_token": token,
+                    "fecha": self.fecha.isoformat(),
+                    "hora_inicio": "10:00",
+                },
+            )
+
+        self.turno.refresh_from_db()
+        accion.refresh_from_db()
+        self._assert_respuesta_503(respuesta)
+        self.assertEqual(self.turno.hora_inicio, time(9, 0))
+        self.assertIsNone(accion.utilizado_en)
+        self.assertIsNone(accion.revocado_en)
+        self.assertEqual(callbacks, [])
+
+    def test_horarios_reprogramacion_fallan_cerrado_con_respuesta_neutral(self):
+        accion, _token = self._crear_accion(AccionPublicaTurno.TipoAccion.REPROGRAMAR)
+
+        with patch(
+            "turnos.public_access.views.validar_accion_publica_sin_consumir",
+            side_effect=ProteccionPublicaNoDisponible(),
+        ):
+            respuesta = self.client.get(
+                reverse(
+                    "turnos:mis_turnos_reprogramar_horarios",
+                    kwargs={"accion_id": accion.pk},
+                ),
+                {"fecha": self.fecha.isoformat()},
+            )
+
+        self._assert_respuesta_503(respuesta)
+
+    def test_adquisicion_idempotencia_falla_sin_crear_solicitud_ni_callback(self):
+        datos = self._datos_reserva_publica()
+
+        with (
+            patch(
+                "turnos.solicitudes_publicas.proteccion._adquirir_idempotencia_transaccional",
+                side_effect=OperationalError("dni=88777111 token=secreto"),
+            ),
+            self.captureOnCommitCallbacks(execute=False) as callbacks,
+        ):
+            respuesta = self.client.post(
+                reverse("turnos:solicitud_publica_datos"),
+                datos,
+            )
+
+        self._assert_respuesta_booking_503(respuesta)
+        self.assertEqual(Turno.objects.count(), 1)
+        self.assertFalse(Paciente.objects.filter(documento="88777111").exists())
+        self.assertFalse(SolicitudTurnoPublica.objects.exists())
+        self.assertEqual(callbacks, [])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_fallo_al_completar_idempotencia_revierte_reserva_y_callback(self):
+        datos = self._datos_reserva_publica()
+
+        with (
+            patch(
+                "turnos.views.public_booking.completar_idempotencia",
+                side_effect=ProteccionSolicitudPublicaNoDisponible(
+                    retry_after=RETRY_AFTER_PROTECCION_PUBLICA_SECONDS
+                ),
+            ),
+            self.captureOnCommitCallbacks(execute=False) as callbacks,
+        ):
+            respuesta = self.client.post(
+                reverse("turnos:solicitud_publica_datos"),
+                datos,
+            )
+
+        self._assert_respuesta_booking_503(respuesta)
+        self.assertEqual(Turno.objects.count(), 1)
+        self.assertFalse(Paciente.objects.filter(documento="88777111").exists())
+        self.assertFalse(SolicitudTurnoPublica.objects.exists())
+        self.assertEqual(callbacks, [])
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(
+            IdempotenciaSolicitudPublica.objects.get().estado,
+            IdempotenciaSolicitudPublica.Estado.PROCESSING,
+        )
+
+    def _crear_desafio_pendiente(self):
+        desafio = DesafioAccesoPublicoTurnos.objects.create(
+            paciente=self.paciente,
+            canal=DesafioAccesoPublicoTurnos.Canal.EMAIL,
+            codigo_hash=make_password("123456"),
+            expira_en=timezone.now() + timedelta(minutes=10),
+            ip_hash="a" * 64,
+            dni_hash="b" * 64,
+        )
+        session = self.client.session
+        session[PUBLIC_ACCESS_PENDING_CHALLENGE_KEY] = str(desafio.pk)
+        session.save()
+        return desafio
+
+    def _habilitar_sesion_publica(self):
+        session = self.client.session
+        session[PUBLIC_ACCESS_SESSION_KEY] = {"paciente_id": self.paciente.pk}
+        session.save()
+
+    def _crear_accion(self, tipo_accion):
+        self._habilitar_sesion_publica()
+        token = token_urlsafe(32)
+        accion = AccionPublicaTurno.objects.create(
+            turno=self.turno,
+            paciente=self.paciente,
+            tipo_accion=tipo_accion,
+            token_hash=make_password(token),
+            version_turno=self.turno.version_publica,
+            expira_en=timezone.now() + timedelta(minutes=10),
+        )
+        session = self.client.session
+        session[PUBLIC_ACTION_TOKENS_SESSION_KEY] = {str(accion.pk): token}
+        session.save()
+        return accion, token
+
+    def _datos_reserva_publica(self):
+        request, token = crear_request_idempotencia()
+        session = self.client.session
+        session[SESSION_IDEMPOTENCY_KEY] = request.session[SESSION_IDEMPOTENCY_KEY]
+        session.save()
+        return {
+            "nombre": "Paciente",
+            "apellido": "Reserva",
+            "documento": "88777111",
+            "telefono": "1100002222",
+            "email": "reserva@example.test",
+            "odontologo": self.odontologo.pk,
+            "fecha": self.fecha.isoformat(),
+            "hora_inicio": "11:00",
+            "motivo": "Consulta de prueba",
+            "idempotency_token": token,
+        }
+
+    def _assert_respuesta_503(self, respuesta):
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertEqual(
+            respuesta.headers["Retry-After"],
+            str(RETRY_AFTER_PROTECCION_PUBLICA_SECONDS),
+        )
+        self.assertContains(
+            respuesta,
+            MENSAJE_PROTECCION_PUBLICA_NO_DISPONIBLE,
+            status_code=503,
+        )
+        self.assertNotContains(
+            respuesta,
+            self.paciente.documento,
+            status_code=503,
+        )
+        self.assertNotContains(
+            respuesta,
+            self.paciente.email,
+            status_code=503,
+        )
+
+    def _assert_respuesta_booking_503(self, respuesta):
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertEqual(
+            respuesta.headers["Retry-After"],
+            str(RETRY_AFTER_PROTECCION_PUBLICA_SECONDS),
+        )
+        self.assertContains(
+            respuesta,
+            "No pudimos registrar la solicitud en este momento",
+            status_code=503,
+        )
 
 
 class LimpiarProteccionesPublicasCommandTests(TestCase):

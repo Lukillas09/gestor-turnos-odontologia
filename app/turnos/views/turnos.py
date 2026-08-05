@@ -16,6 +16,8 @@ from usuarios.mixins import GestionConsultorioRequeridaMixin, VerTurnosRequerido
 from usuarios.roles import (
     limitar_turnos_por_usuario,
     obtener_odontologo_del_usuario,
+    puede_configurar_disponibilidad,
+    puede_gestionar_consultorio,
     puede_reintentar_sincronizacion_google_calendar,
     puede_reprogramar_turno,
     puede_revisar_solicitudes_publicas,
@@ -55,9 +57,12 @@ from ..solicitudes_publicas.services import (
 from .helpers import construir_filas_revision_solicitud_publica
 
 
-class HorariosDisponiblesJsonView(View):
+class HorariosDisponiblesJsonView(VerTurnosRequeridoMixin, View):
     def get(self, request):
-        odontologo = self._obtener_odontologo(request.GET.get("odontologo"))
+        odontologo = self._obtener_odontologo(
+            request.GET.get("odontologo"),
+            request.user,
+        )
         fecha = self._obtener_fecha(request.GET.get("fecha"))
 
         if not odontologo or not fecha:
@@ -84,6 +89,8 @@ class HorariosDisponiblesJsonView(View):
             request.GET.get("turno_id"),
             request.user,
         )
+        if turno_excluido and turno_excluido.odontologo_id != odontologo.pk:
+            raise PermissionDenied("No tenés permiso para consultar ese turno.")
         horarios = obtener_horarios_disponibles(
             odontologo=odontologo,
             fecha=fecha,
@@ -134,14 +141,28 @@ class HorariosDisponiblesJsonView(View):
             "duracion_atencion": configuracion_tipo.duracion_atencion_minutos,
         }
 
-    def _obtener_odontologo(self, odontologo_id):
+    def _obtener_odontologo(self, odontologo_id, usuario):
         if not odontologo_id:
             return None
 
         try:
-            return Odontologo.objects.filter(pk=odontologo_id, activo=True).first()
+            odontologo = Odontologo.objects.filter(pk=odontologo_id, activo=True).first()
         except (TypeError, ValueError):
             return None
+
+        if not odontologo:
+            return None
+
+        acceso_global = puede_gestionar_consultorio(usuario) or puede_configurar_disponibilidad(
+            usuario
+        )
+        odontologo_usuario = obtener_odontologo_del_usuario(usuario)
+        if not acceso_global and (
+            odontologo_usuario is None or odontologo_usuario.pk != odontologo.pk
+        ):
+            raise PermissionDenied("No tenés permiso para consultar esa agenda.")
+
+        return odontologo
 
     @staticmethod
     def _obtener_fecha(valor):
@@ -171,15 +192,14 @@ class HorariosDisponiblesJsonView(View):
             return None
 
         try:
-            return (
-                limitar_turnos_por_usuario(Turno.objects.all(), usuario)
-                .filter(
-                    pk=turno_id,
-                )
-                .first()
-            )
+            turno = Turno.objects.filter(pk=turno_id).first()
         except (TypeError, ValueError):
             return None
+
+        if turno and not puede_reprogramar_turno(usuario, turno):
+            raise PermissionDenied("No tenés permiso para consultar ese turno.")
+
+        return turno
 
 
 class TurnoListView(VerTurnosRequeridoMixin, ListView):

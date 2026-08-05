@@ -222,6 +222,7 @@ class VerificarAccesoPublicoTurnosView(
 
 
 class MisTurnosPublicoView(
+    ProteccionPublicaDisponibleMixin,
     PublicShellMixin,
     AccesoPublicoTurnosRequeridoMixin,
     TemplateView,
@@ -245,7 +246,7 @@ class MisTurnosPublicoView(
         return {
             "turno": turno,
             "fecha": date_format(turno.fecha, "d/m/Y"),
-            "hora": f"{turno.hora_inicio:%H:%M} a {turno.hora_fin:%H:%M}",
+            "hora": f"{turno.hora_inicio:%H:%M} a {turno.hora_fin_atencion:%H:%M}",
             "estado": turno.get_estado_display(),
             "odontologo": turno.odontologo.nombre_completo,
             "tipo_turno": turno.tipo_turno_nombre_snapshot,
@@ -297,7 +298,11 @@ class CancelarTurnoPublicoSeguroView(
         return redirect("turnos:mis_turnos_publico")
 
 
-class HorariosReprogramacionPublicaJsonView(AccesoPublicoTurnosRequeridoMixin, View):
+class HorariosReprogramacionPublicaJsonView(
+    ProteccionPublicaDisponibleMixin,
+    AccesoPublicoTurnosRequeridoMixin,
+    View,
+):
     http_method_names = ["get"]
 
     def get(self, request, accion_id):
