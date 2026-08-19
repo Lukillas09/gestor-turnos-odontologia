@@ -186,7 +186,9 @@ GOOGLE_CALENDAR_REDIRECT_URI=https://tu-app.up.railway.app/turnos/google-calenda
 GOOGLE_CALENDAR_SCOPES=https://www.googleapis.com/auth/calendar.events
 ```
 
-`GOOGLE_CALENDAR_CLIENT_SECRETS_FILE` existe para desarrollo alternativo con JSON, pero no es necesario si se usan `CLIENT_ID` y `CLIENT_SECRET`.
+`GOOGLE_CALENDAR_CLIENT_SECRET_FILE` permite usar como fallback un JSON OAuth web. El alias
+legacy `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE` sigue aceptado, pero no es necesario si se usan
+`CLIENT_ID` y `CLIENT_SECRET` completos.
 
 ## Google Cloud Console
 

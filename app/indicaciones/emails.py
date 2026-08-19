@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -22,6 +23,13 @@ class EntregaIndicacionError(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class EnvioIndicacionPreparado:
+    indicacion: IndicacionPaciente
+    destino: str
+    clave_idempotencia: str
+
+
 def enviar_indicacion_por_email(
     *,
     indicacion_id,
@@ -35,107 +43,178 @@ def enviar_indicacion_por_email(
         raise PermissionDenied("El módulo de indicaciones postoperatorias está deshabilitado.")
 
     with transaction.atomic():
+        preparacion = _preparar_envio(
+            indicacion_id=indicacion_id,
+            usuario=usuario,
+            forzar=forzar,
+            usar_email_actual=usar_email_actual,
+        )
+
+    if isinstance(preparacion, bool):
+        return preparacion
+
+    indicacion = preparacion.indicacion
+    try:
+        pdf_bytes = _leer_pdf(indicacion)
+        mensaje = EmailMessage(
+            subject="Indicaciones de tu atención odontológica",
+            body=_cuerpo_email(indicacion),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[preparacion.destino],
+            headers={"Idempotency-Key": preparacion.clave_idempotencia},
+        )
+        mensaje.attach(
+            _nombre_pdf(indicacion),
+            pdf_bytes,
+            "application/pdf",
+        )
+        enviados = mensaje.send(fail_silently=False)
+        if enviados != 1:
+            raise EntregaIndicacionError("El backend no confirmó el envío.")
+    except Exception as error:
+        _finalizar_envio(
+            indicacion_id=indicacion.pk,
+            clave_idempotencia=preparacion.clave_idempotencia,
+            exitoso=False,
+            usuario=usuario,
+            request=request,
+            automatico=automatico,
+        )
+        logger.warning(
+            "Falló el email de una indicación emitida. indicacion_id=%s error_type=%s",
+            indicacion.pk,
+            error.__class__.__name__,
+        )
+        return False
+
+    return _finalizar_envio(
+        indicacion_id=indicacion.pk,
+        clave_idempotencia=preparacion.clave_idempotencia,
+        exitoso=True,
+        usuario=usuario,
+        request=request,
+        automatico=automatico,
+    )
+
+
+def _preparar_envio(*, indicacion_id, usuario, forzar, usar_email_actual):
+    indicacion = (
+        IndicacionPaciente.objects.select_for_update(of=("self",))
+        .select_related(
+            "paciente",
+            "odontologo",
+            "odontologo__usuario",
+            "emitida_por",
+        )
+        .get(pk=indicacion_id)
+    )
+    if indicacion.estado != IndicacionPaciente.Estado.EMITIDA:
+        raise ValidationError("Solo se pueden enviar indicaciones emitidas y vigentes.")
+    if usuario is not None and not puede_reenviar_indicacion(usuario, indicacion):
+        raise PermissionDenied("No tenés permiso para reenviar esta indicación.")
+    if indicacion.email_estado == IndicacionPaciente.EstadoEmail.ENVIADO and not forzar:
+        return True
+    if indicacion.email_estado == IndicacionPaciente.EstadoEmail.ENVIANDO:
+        return False
+
+    destino = indicacion.email_destino
+    if usar_email_actual:
+        destino = _email_actual_verificado(indicacion)
+        if not destino:
+            raise ValidationError("El paciente no tiene un email actual verificado.")
+        indicacion.email_destino = destino
+        indicacion.email_clave_idempotencia = ""
+    if not destino:
+        indicacion.email_estado = IndicacionPaciente.EstadoEmail.SIN_DESTINO
+        indicacion.ultimo_error_email = ""
+        indicacion.save(permitir_actualizacion_email=True)
+        return False
+
+    if forzar and indicacion.email_estado == IndicacionPaciente.EstadoEmail.ENVIADO:
+        indicacion.email_clave_idempotencia = ""
+    if not indicacion.email_clave_idempotencia:
+        indicacion.email_clave_idempotencia = (
+            f"indicacion-{indicacion.uuid}-envio-{indicacion.email_intentos + 1}"
+        )
+
+    indicacion.email_intentos += 1
+    indicacion.email_ultimo_intento_en = timezone.now()
+    indicacion.email_estado = IndicacionPaciente.EstadoEmail.ENVIANDO
+    indicacion.ultimo_error_email = ""
+    indicacion.save(permitir_actualizacion_email=True)
+    return EnvioIndicacionPreparado(
+        indicacion=indicacion,
+        destino=destino,
+        clave_idempotencia=indicacion.email_clave_idempotencia,
+    )
+
+
+def _finalizar_envio(
+    *,
+    indicacion_id,
+    clave_idempotencia,
+    exitoso,
+    usuario,
+    request,
+    automatico,
+):
+    with transaction.atomic():
         indicacion = (
             IndicacionPaciente.objects.select_for_update(of=("self",))
-            .select_related(
-                "paciente",
-                "odontologo",
-                "odontologo__usuario",
-                "emitida_por",
-            )
+            .select_related("paciente", "emitida_por")
             .get(pk=indicacion_id)
         )
-        if indicacion.estado != IndicacionPaciente.Estado.EMITIDA:
-            raise ValidationError("Solo se pueden enviar indicaciones emitidas y vigentes.")
-        if usuario is not None and not puede_reenviar_indicacion(usuario, indicacion):
-            raise PermissionDenied("No tenés permiso para reenviar esta indicación.")
-        if indicacion.email_estado == IndicacionPaciente.EstadoEmail.ENVIADO and not forzar:
-            return True
-
-        destino = indicacion.email_destino
-        if usar_email_actual:
-            destino = _email_actual_verificado(indicacion)
-            if not destino:
-                raise ValidationError("El paciente no tiene un email actual verificado.")
-            indicacion.email_destino = destino
-            indicacion.email_clave_idempotencia = ""
-        if not destino:
-            indicacion.email_estado = IndicacionPaciente.EstadoEmail.SIN_DESTINO
-            indicacion.ultimo_error_email = ""
-            indicacion.save(permitir_actualizacion_email=True)
+        if (
+            indicacion.email_estado != IndicacionPaciente.EstadoEmail.ENVIANDO
+            or indicacion.email_clave_idempotencia != clave_idempotencia
+        ):
+            logger.warning(
+                "No se pudo finalizar el email de una indicación. "
+                "indicacion_id=%s estado_inesperado=%s",
+                indicacion.pk,
+                indicacion.email_estado,
+            )
             return False
 
-        if forzar and indicacion.email_estado == IndicacionPaciente.EstadoEmail.ENVIADO:
-            indicacion.email_clave_idempotencia = ""
-        if not indicacion.email_clave_idempotencia:
-            indicacion.email_clave_idempotencia = (
-                f"indicacion-{indicacion.uuid}-envio-{indicacion.email_intentos + 1}"
-            )
-
-        indicacion.email_intentos += 1
-        indicacion.email_ultimo_intento_en = timezone.now()
-        indicacion.email_estado = IndicacionPaciente.EstadoEmail.ENVIANDO
-        indicacion.ultimo_error_email = ""
-        indicacion.save(permitir_actualizacion_email=True)
-
-        try:
-            pdf_bytes = _leer_pdf(indicacion)
-            mensaje = EmailMessage(
-                subject="Indicaciones de tu atención odontológica",
-                body=_cuerpo_email(indicacion),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[destino],
-                headers={"Idempotency-Key": indicacion.email_clave_idempotencia},
-            )
-            mensaje.attach(
-                _nombre_pdf(indicacion),
-                pdf_bytes,
-                "application/pdf",
-            )
-            enviados = mensaje.send(fail_silently=False)
-            if enviados != 1:
-                raise EntregaIndicacionError("El backend no confirmó el envío.")
-        except Exception as error:
+        if exitoso:
+            indicacion.email_estado = IndicacionPaciente.EstadoEmail.ENVIADO
+            indicacion.email_enviado_en = timezone.now()
+            indicacion.ultimo_error_email = ""
+        else:
             indicacion.email_estado = IndicacionPaciente.EstadoEmail.ERROR
             indicacion.ultimo_error_email = ERROR_EMAIL_NEUTRAL
-            indicacion.save(permitir_actualizacion_email=True)
-            logger.warning(
-                "Falló el email de una indicación emitida. indicacion_id=%s error_type=%s",
-                indicacion.pk,
-                error.__class__.__name__,
-            )
-            registrar_evento_indicacion(
-                request=request,
-                usuario=usuario or indicacion.emitida_por,
-                accion=AccesoClinicoAuditoria.Accion.ERROR_EMAIL_INDICACION,
-                indicacion=indicacion,
-                resultado=AccesoClinicoAuditoria.Resultado.ERROR,
-                politica=_politica_email(indicacion, usuario, automatico),
-                motivo="El envío de email no pudo completarse.",
-            )
-            return False
-
-        indicacion.email_estado = IndicacionPaciente.EstadoEmail.ENVIADO
-        indicacion.email_enviado_en = timezone.now()
-        indicacion.ultimo_error_email = ""
         indicacion.save(permitir_actualizacion_email=True)
+
         registrar_evento_indicacion(
             request=request,
             usuario=usuario or indicacion.emitida_por,
             accion=(
-                AccesoClinicoAuditoria.Accion.ENVIAR_EMAIL_INDICACION
-                if automatico and indicacion.email_intentos == 1
-                else AccesoClinicoAuditoria.Accion.REENVIAR_EMAIL_INDICACION
+                (
+                    AccesoClinicoAuditoria.Accion.ENVIAR_EMAIL_INDICACION
+                    if automatico and indicacion.email_intentos == 1
+                    else AccesoClinicoAuditoria.Accion.REENVIAR_EMAIL_INDICACION
+                )
+                if exitoso
+                else AccesoClinicoAuditoria.Accion.ERROR_EMAIL_INDICACION
             ),
             indicacion=indicacion,
+            resultado=(
+                AccesoClinicoAuditoria.Resultado.PERMITIDO
+                if exitoso
+                else AccesoClinicoAuditoria.Resultado.ERROR
+            ),
             politica=_politica_email(indicacion, usuario, automatico),
             motivo=(
-                "Email de indicación enviado."
-                if automatico and indicacion.email_intentos == 1
-                else "Reenvío de indicación completado."
+                (
+                    "Email de indicación enviado."
+                    if automatico and indicacion.email_intentos == 1
+                    else "Reenvío de indicación completado."
+                )
+                if exitoso
+                else "El envío de email no pudo completarse."
             ),
         )
-        return True
+        return exitoso
 
 
 def reenviar_indicacion(

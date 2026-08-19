@@ -1,10 +1,13 @@
 from datetime import date, datetime, time
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -335,6 +338,475 @@ class PacienteAccessTests(TestCase):
             "ficha-problemas_cardiacos": "",
             "ficha-observaciones_generales": "",
         }
+
+
+class PacienteDirectoryTests(TestCase):
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_user(
+            username="recepcion.directorio",
+            password="Password123!",
+        )
+        asignar_rol(self.usuario, ROL_RECEPCIONISTA)
+        self.client.force_login(self.usuario)
+
+    def test_directorio_carga_estructura_y_acciones_reales(self):
+        paciente = Paciente.objects.create(
+            nombre="Ana",
+            apellido="Directorio",
+            documento="40111222",
+            telefono="3415551111",
+            email="ana.directorio@example.com",
+        )
+
+        response = self.client.get(reverse("pacientes:lista"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Directorio clínico")
+        self.assertContains(
+            response,
+            "Gestioná tu base de pacientes y accedé rápido a su información clínica.",
+        )
+        self.assertContains(response, "Pacientes activos")
+        self.assertContains(response, "Con próximo turno")
+        self.assertContains(response, "Sin obra social")
+        self.assertContains(response, "Filtros")
+        self.assertContains(response, "data-patient-directory-filters")
+        self.assertContains(response, 'aria-expanded="false"')
+        self.assertContains(response, "Nuevo paciente")
+        self.assertContains(response, "Nuevo turno")
+        self.assertContains(
+            response,
+            reverse("pacientes:detalle", kwargs={"pk": paciente.pk}),
+        )
+        self.assertNotContains(response, "Importar")
+        self.assertNotContains(response, ">Buscar</button>")
+
+    def test_tabs_activos_archivados_y_todos_respetan_permiso(self):
+        activo = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Activo visible",
+            documento="40111223",
+        )
+        archivado = self._crear_paciente_archivado(
+            nombre="Paciente",
+            apellido="Archivado visible",
+            documento="40111224",
+        )
+
+        response_activos = self.client.get(
+            reverse("pacientes:lista"),
+            {"estado": "activos"},
+        )
+        response_archivados = self.client.get(
+            reverse("pacientes:lista"),
+            {"estado": "archivados"},
+        )
+        response_todos = self.client.get(
+            reverse("pacientes:lista"),
+            {"estado": "todos"},
+        )
+
+        self.assertContains(response_activos, activo.apellido)
+        self.assertNotContains(response_activos, archivado.apellido)
+        self.assertContains(response_archivados, archivado.apellido)
+        self.assertNotContains(response_archivados, activo.apellido)
+        self.assertContains(response_todos, activo.apellido)
+        self.assertContains(response_todos, archivado.apellido)
+        self.assertContains(response_todos, "Todos")
+
+        usuario_odontologo = get_user_model().objects.create_user(
+            username="dr.directorio.tabs",
+        )
+        asignar_rol(usuario_odontologo, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(
+            usuario=usuario_odontologo,
+            matricula="DIR-TABS",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=activo,
+            odontologo=odontologo,
+            motivo="Atención activa",
+        )
+        self.client.force_login(usuario_odontologo)
+
+        response_restringida = self.client.get(
+            reverse("pacientes:lista"),
+            {"estado": "todos"},
+        )
+
+        self.assertEqual(response_restringida.status_code, 200)
+        self.assertEqual(response_restringida.context["estado_actual"], "activos")
+        self.assertEqual(len(response_restringida.context["tabs_pacientes"]), 1)
+        self.assertContains(response_restringida, activo.apellido)
+        self.assertNotContains(response_restringida, archivado.apellido)
+        self.assertNotContains(response_restringida, "Nuevo paciente")
+        self.assertNotContains(response_restringida, "Nuevo turno")
+
+    def test_metricas_globales_coinciden_para_recepcion_y_administracion(self):
+        Paciente.objects.create(
+            nombre="Uno",
+            apellido="Activo",
+            documento="40111225",
+        )
+        Paciente.objects.create(
+            nombre="Dos",
+            apellido="Activo",
+            documento="40111226",
+            obra_social="OSDE",
+        )
+        self._crear_paciente_archivado(
+            nombre="Tres",
+            apellido="Archivado",
+            documento="40111227",
+        )
+
+        for rol in (ROL_RECEPCIONISTA, ROL_ADMINISTRADOR):
+            with self.subTest(rol=rol):
+                usuario = get_user_model().objects.create_user(
+                    username=f"metricas.{rol.lower()}",
+                )
+                asignar_rol(usuario, rol)
+                self.client.force_login(usuario)
+
+                response = self.client.get(reverse("pacientes:lista"))
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["metricas_pacientes"]["activos"], 2)
+                self.assertEqual(
+                    response.context["metricas_pacientes"]["sin_obra_social"],
+                    1,
+                )
+
+    def test_metricas_respetan_scope_del_odontologo_sin_filtrar_totales(self):
+        usuario_odontologo = get_user_model().objects.create_user(
+            username="dr.metricas.scope",
+        )
+        asignar_rol(usuario_odontologo, ROL_ODONTOLOGO)
+        odontologo = Odontologo.objects.create(
+            usuario=usuario_odontologo,
+            matricula="DIR-SCOPE",
+        )
+        asociado = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Asociado métrica",
+            documento="40111228",
+            obra_social="   ",
+        )
+        externo = Paciente.objects.create(
+            nombre="Paciente",
+            apellido="Externo secreto",
+            documento="40111229",
+            obra_social="",
+        )
+        PacienteOdontologo.objects.create(
+            paciente=asociado,
+            odontologo=odontologo,
+            motivo="Tratamiento activo",
+        )
+        momento = timezone.make_aware(datetime(2026, 8, 19, 10, 0))
+        Turno.objects.bulk_create(
+            [
+                Turno(
+                    paciente=asociado,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 20),
+                    hora_inicio=time(9, 0),
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+                Turno(
+                    paciente=externo,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 21),
+                    hora_inicio=time(9, 0),
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+            ]
+        )
+        self.client.force_login(usuario_odontologo)
+
+        with patch("pacientes.views.timezone.localtime", return_value=momento):
+            response = self.client.get(reverse("pacientes:lista"))
+
+        metricas = response.context["metricas_pacientes"]
+        self.assertEqual(metricas["activos"], 1)
+        self.assertEqual(metricas["con_proximo_turno"], 1)
+        self.assertEqual(metricas["sin_obra_social"], 1)
+        self.assertContains(response, asociado.apellido)
+        self.assertNotContains(response, externo.apellido)
+
+    def test_metrica_proximos_siete_dias_cuenta_paciente_una_sola_vez(self):
+        odontologo = self._crear_odontologo("SIETE")
+        dentro = Paciente.objects.create(
+            nombre="Dentro",
+            apellido="Ventana",
+            documento="40111230",
+            obra_social="   ",
+        )
+        fuera = Paciente.objects.create(
+            nombre="Fuera",
+            apellido="Ventana",
+            documento="40111231",
+            obra_social="OSDE",
+        )
+        archivado = self._crear_paciente_archivado(
+            nombre="Archivado",
+            apellido="Ventana",
+            documento="40111232",
+        )
+        momento = timezone.make_aware(datetime(2026, 8, 19, 10, 0))
+        Turno.objects.bulk_create(
+            [
+                Turno(
+                    paciente=dentro,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 20),
+                    hora_inicio=time(9, 0),
+                    estado=Turno.Estado.PENDIENTE,
+                ),
+                Turno(
+                    paciente=dentro,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 22),
+                    hora_inicio=time(9, 0),
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+                Turno(
+                    paciente=fuera,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 27),
+                    hora_inicio=time(9, 0),
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+                Turno(
+                    paciente=fuera,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 20),
+                    hora_inicio=time(11, 0),
+                    estado=Turno.Estado.CANCELADO,
+                ),
+                Turno(
+                    paciente=archivado,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 20),
+                    hora_inicio=time(12, 0),
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+            ]
+        )
+
+        with patch("pacientes.views.timezone.localtime", return_value=momento):
+            response = self.client.get(reverse("pacientes:lista"))
+
+        metricas = response.context["metricas_pacientes"]
+        self.assertEqual(metricas["activos"], 2)
+        self.assertEqual(metricas["con_proximo_turno"], 1)
+        self.assertEqual(metricas["sin_obra_social"], 1)
+
+    def test_filtros_get_se_combinan_y_preservan_en_tabs(self):
+        odontologo = self._crear_odontologo("FILTROS")
+        coincide = Paciente.objects.create(
+            nombre="Ana",
+            apellido="Coincide filtros",
+            documento="40111233",
+            obra_social=" ",
+        )
+        sin_turno = Paciente.objects.create(
+            nombre="Brenda",
+            apellido="Sin turno filtros",
+            documento="40111234",
+            obra_social="",
+        )
+        con_cobertura = Paciente.objects.create(
+            nombre="Carla",
+            apellido="Con cobertura filtros",
+            documento="40111235",
+            obra_social="OSDE",
+        )
+        momento = timezone.make_aware(datetime(2026, 8, 19, 10, 0))
+        Turno.objects.bulk_create(
+            [
+                Turno(
+                    paciente=coincide,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 20),
+                    hora_inicio=time(9, 0),
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+                Turno(
+                    paciente=con_cobertura,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 21),
+                    hora_inicio=time(9, 0),
+                    estado=Turno.Estado.PENDIENTE,
+                ),
+            ]
+        )
+
+        with patch("pacientes.views.timezone.localtime", return_value=momento):
+            response = self.client.get(
+                reverse("pacientes:lista"),
+                {
+                    "estado": "activos",
+                    "q": "filtros",
+                    "con_proximo": "1",
+                    "sin_obra_social": "1",
+                },
+            )
+
+        self.assertContains(response, coincide.apellido)
+        self.assertNotContains(response, sin_turno.apellido)
+        self.assertNotContains(response, con_cobertura.apellido)
+        self.assertTrue(response.context["filtro_con_proximo_turno"])
+        self.assertTrue(response.context["filtro_sin_obra_social"])
+        for tab in response.context["tabs_pacientes"]:
+            parametros = parse_qs(urlsplit(tab["url"]).query)
+            self.assertEqual(parametros["q"], ["filtros"])
+            self.assertEqual(parametros["con_proximo"], ["1"])
+            self.assertEqual(parametros["sin_obra_social"], ["1"])
+
+    def test_listado_diferencia_proximo_y_ultimo_turno_con_detalle_real(self):
+        odontologo = self._crear_odontologo("RESUMEN")
+        paciente = Paciente.objects.create(
+            nombre="Turnos",
+            apellido="Resumen real",
+            documento="40111236",
+        )
+        momento = timezone.make_aware(datetime(2026, 8, 19, 12, 0))
+        Turno.objects.bulk_create(
+            [
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 17),
+                    hora_inicio=time(9, 0),
+                    motivo="Consulta anterior",
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 18),
+                    hora_inicio=time(10, 0),
+                    motivo="Control histórico",
+                    estado=Turno.Estado.CONFIRMADO,
+                ),
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 19),
+                    hora_inicio=time(11, 0),
+                    motivo="Turno cancelado",
+                    estado=Turno.Estado.CANCELADO,
+                ),
+                Turno(
+                    paciente=paciente,
+                    odontologo=odontologo,
+                    fecha=date(2026, 8, 20),
+                    hora_inicio=time(14, 30),
+                    tipo_turno_nombre_snapshot="Ortodoncia programada",
+                    motivo="Motivo legado",
+                    estado=Turno.Estado.PENDIENTE,
+                ),
+            ]
+        )
+
+        with patch("pacientes.views.timezone.localtime", return_value=momento):
+            response = self.client.get(reverse("pacientes:lista"))
+
+        paciente_listado = response.context["pacientes"][0]
+        self.assertEqual(
+            paciente_listado.proximo_turno_resumen["detalle"],
+            "Ortodoncia programada",
+        )
+        self.assertEqual(
+            paciente_listado.ultimo_turno_resumen["detalle"],
+            "Control histórico",
+        )
+        self.assertEqual(
+            paciente_listado.ultimo_turno_resumen["fecha"],
+            date(2026, 8, 18),
+        )
+        self.assertContains(response, "Ortodoncia programada")
+        self.assertContains(response, "Control histórico")
+        self.assertNotContains(response, "Turno cancelado")
+
+    def test_paginacion_preserva_busqueda_estado_y_filtros(self):
+        Paciente.objects.bulk_create(
+            [
+                Paciente(
+                    nombre=f"Paciente {indice}",
+                    apellido="Paginación",
+                    documento=f"40200{indice:03d}",
+                    obra_social="",
+                )
+                for indice in range(12)
+            ]
+        )
+
+        response = self.client.get(
+            reverse("pacientes:lista"),
+            {
+                "q": "Paciente",
+                "estado": "todos",
+                "sin_obra_social": "1",
+            },
+        )
+
+        self.assertTrue(response.context["is_paginated"])
+        parametros = parse_qs(response.context["paginacion_query"])
+        self.assertEqual(parametros["q"], ["Paciente"])
+        self.assertEqual(parametros["estado"], ["todos"])
+        self.assertEqual(parametros["sin_obra_social"], ["1"])
+        self.assertContains(response, "page=2")
+
+    def test_cantidad_de_queries_no_crece_con_las_filas(self):
+        Paciente.objects.create(
+            nombre="Base",
+            apellido="Consultas",
+            documento="40111237",
+        )
+
+        with CaptureQueriesContext(connection) as consultas_una_fila:
+            response_una_fila = self.client.get(reverse("pacientes:lista"))
+
+        self.assertEqual(response_una_fila.status_code, 200)
+        Paciente.objects.bulk_create(
+            [
+                Paciente(
+                    nombre=f"Adicional {indice}",
+                    apellido="Consultas",
+                    documento=f"40300{indice:03d}",
+                )
+                for indice in range(6)
+            ]
+        )
+
+        with CaptureQueriesContext(connection) as consultas_varias_filas:
+            response_varias_filas = self.client.get(reverse("pacientes:lista"))
+
+        self.assertEqual(response_varias_filas.status_code, 200)
+        self.assertLessEqual(
+            len(consultas_varias_filas),
+            len(consultas_una_fila) + 1,
+        )
+
+    @staticmethod
+    def _crear_paciente_archivado(**datos):
+        return Paciente.objects.create(
+            **datos,
+            activo=False,
+            archivado_en=timezone.now(),
+            motivo_archivado="Archivo de prueba",
+        )
+
+    def _crear_odontologo(self, sufijo):
+        usuario = get_user_model().objects.create_user(
+            username=f"dr.directorio.{sufijo.lower()}",
+        )
+        return Odontologo.objects.create(
+            usuario=usuario,
+            matricula=f"DIR-{sufijo}",
+        )
 
 
 class PacienteViewsTests(TestCase):

@@ -3,6 +3,7 @@
 {% block title %}Inicio | Gestor de Turnos{% endblock %}
 
 {% block content %}
+<div class="internal-dashboard">
     <header class="internal-page-heading dashboard-heading animate-fade-up">
         <div>
             <p class="dashboard-greeting">Buen día, {{ request.user.first_name|default:request.user.username }}</p>
@@ -89,7 +90,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                {% include "includes/empty_state.html" with icon_name="calendar" title="Agenda libre por ahora" description="Cuando haya turnos cargados para hoy, van a aparecer en esta línea de tiempo." compact=True %}
+                {% include "includes/empty_state.html" with icon_name="calendar" title="Agenda libre por ahora" description="Cuando haya turnos cargados para hoy, van a aparecer en esta línea de tiempo." compact=True extra_class="dashboard-empty-state" %}
             {% endif %}
         </section>
 
@@ -113,6 +114,10 @@
                 <strong>{{ turnos_semana }} turnos</strong>
                 <small>Del {{ inicio_semana|date:"d/m" }} al {{ fin_semana|date:"d/m" }}</small>
             </div>
+            <span class="dashboard-panel-ornament" aria-hidden="true"><i></i><i></i><i></i></span>
         </aside>
     </div>
+
+    {% include "includes/brand_footer.html" with footer_class="internal-dashboard-footer" %}
+</div>
 {% endblock %}

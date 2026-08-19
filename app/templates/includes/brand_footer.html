@@ -1,0 +1,17 @@
+{% load static %}
+<footer class="brand-footer{% if footer_class %} {{ footer_class }}{% endif %}">
+    {% if footer_icon == "shield" %}
+        <span class="brand-footer-security-icon" aria-hidden="true">{% include "includes/icon.html" with name="shield-check" %}</span>
+    {% else %}
+        <span class="brand-footer-logo" aria-hidden="true">
+            {% if configuracion_consultorio.logo_url %}
+                <img src="{{ configuracion_consultorio.logo_url }}" alt="">
+            {% else %}
+                <img src="{% static 'images/consultorio-abete-logo.png' %}" alt="">
+            {% endif %}
+        </span>
+    {% endif %}
+    <span>{{ configuracion_consultorio.nombre_visible|default:"Gestor de Turnos" }}</span>
+    <i aria-hidden="true">&middot;</i>
+    <span>Todos los derechos reservados.</span>
+</footer>

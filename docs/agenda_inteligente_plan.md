@@ -171,8 +171,8 @@ odontólogo/tipo/fecha. Puntajes, márgenes y razones no serán públicos.
 - Reprogramación pública: usa snapshots y excluye el turno actual.
 - Creación interna: tipo opcional; duración manual sigue disponible.
 - Confirmación: muestra duración visible/bloqueada y exige confirmación explícita si se altera.
-- Google Calendar: conserva `Turno.duracion_minutos` como final y agrega el tipo snapshot a la
-  descripción interna.
+- Google Calendar: conserva `Turno.duracion_minutos` como final bloqueado y usa un resumen
+  genérico sin tipo, paciente, motivo ni datos clínicos.
 - Emails: muestran tipo y duración aproximada, nunca margen, puntaje o clasificación.
 - Gestión interna: odontólogos configuran solo sus servicios; administradores pueden configurar
   cualquiera y el catálogo; recepción tiene lectura sin edición.

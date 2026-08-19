@@ -3,67 +3,208 @@
 {% block title %}Pacientes | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <header class="internal-page-heading animate-fade-up">
-        <div><p class="eyebrow">Pacientes</p><h1>Directorio clínico</h1><p class="subtitle">{{ paginator.count }} paciente{% if paginator.count != 1 %}s{% endif %} en esta vista.</p></div>
-        {% if puede_gestionar_pacientes %}<a class="button" href="{% url 'pacientes:crear' %}">{% include "includes/icon.html" with name="plus" %} Nuevo paciente</a>{% endif %}
-    </header>
+    <div class="patient-directory">
+        <span class="patient-directory-ornament" aria-hidden="true"><i></i><i></i><i></i></span>
 
-    <section class="patient-search-panel patient-search-v2 animate-fade-up" aria-label="Búsqueda de pacientes">
-        <form class="patient-search-form" method="get">
-            <input type="hidden" name="estado" value="{{ estado_actual }}">
-            <div class="patient-search-field">
-                <label class="visually-hidden" for="patient-search">Buscar paciente</label>
-                {% include "includes/icon.html" with name="search" %}
-                <input id="patient-search" type="search" name="q" value="{{ busqueda }}" placeholder="Nombre, DNI, teléfono, email u obra social" autocomplete="off">
+        <header class="patient-directory-heading animate-fade-up">
+            <div class="patient-directory-heading-copy">
+                <p class="patient-directory-eyebrow">Pacientes</p>
+                <h1>Directorio clínico</h1>
+                <p>Gestioná tu base de pacientes y accedé rápido a su información clínica.</p>
             </div>
-            <div class="patient-search-actions"><button type="submit">Buscar</button>{% if busqueda %}<a class="button button-secondary" href="{% url 'pacientes:lista' %}?estado={{ estado_actual }}">Limpiar</a>{% endif %}</div>
-        </form>
-        {% if puede_ver_archivados %}
-            <nav class="patient-state-tabs" aria-label="Estado de pacientes">
-                <a class="{% if estado_actual == 'activos' %}is-active{% endif %}" href="{% url 'pacientes:lista' %}?estado=activos{% if busqueda %}&amp;q={{ busqueda|urlencode }}{% endif %}"{% if estado_actual == 'activos' %} aria-current="page"{% endif %}>Activos</a>
-                <a class="{% if estado_actual == 'archivados' %}is-active{% endif %}" href="{% url 'pacientes:lista' %}?estado=archivados{% if busqueda %}&amp;q={{ busqueda|urlencode }}{% endif %}"{% if estado_actual == 'archivados' %} aria-current="page"{% endif %}>Archivados</a>
+            {% if puede_gestionar_pacientes %}
+                <a class="patient-directory-primary-action" href="{% url 'pacientes:crear' %}">
+                    {% include "includes/icon.html" with name="plus" %}
+                    Nuevo paciente
+                </a>
+            {% endif %}
+        </header>
+
+        <section class="patient-metric-grid animate-fade-up" aria-label="Resumen de pacientes">
+            <a class="patient-metric-card patient-metric-card-active" href="{{ metricas_pacientes.url_activos }}">
+                <span class="patient-metric-icon" aria-hidden="true">{% include "includes/icon.html" with name="patients" %}</span>
+                <span class="patient-metric-copy">
+                    <span>Pacientes activos</span>
+                    <strong>{{ metricas_pacientes.activos }}</strong>
+                    <small>Pacientes en tratamiento</small>
+                </span>
+                {% include "includes/icon.html" with name="arrow-right" %}
+            </a>
+            <a class="patient-metric-card patient-metric-card-upcoming" href="{{ metricas_pacientes.url_con_proximo_turno }}">
+                <span class="patient-metric-icon" aria-hidden="true">{% include "includes/icon.html" with name="calendar" %}</span>
+                <span class="patient-metric-copy">
+                    <span>Con próximo turno</span>
+                    <strong>{{ metricas_pacientes.con_proximo_turno }}</strong>
+                    <small>En los próximos 7 días</small>
+                </span>
+                {% include "includes/icon.html" with name="arrow-right" %}
+            </a>
+            <a class="patient-metric-card patient-metric-card-coverage" href="{{ metricas_pacientes.url_sin_obra_social }}">
+                <span class="patient-metric-icon" aria-hidden="true">{% include "includes/icon.html" with name="shield-check" %}</span>
+                <span class="patient-metric-copy">
+                    <span>Sin obra social</span>
+                    <strong>{{ metricas_pacientes.sin_obra_social }}</strong>
+                    <small>Pacientes registrados</small>
+                </span>
+                {% include "includes/icon.html" with name="arrow-right" %}
+            </a>
+        </section>
+
+        <section class="patient-directory-tools animate-fade-up" aria-label="Búsqueda y filtros de pacientes">
+            <div class="patient-directory-search-row">
+                <form class="patient-directory-search" method="get" role="search">
+                    <input type="hidden" name="estado" value="{{ estado_actual }}">
+                    {% if filtro_con_proximo_turno %}<input type="hidden" name="con_proximo" value="1">{% endif %}
+                    {% if filtro_sin_obra_social %}<input type="hidden" name="sin_obra_social" value="1">{% endif %}
+                    <label class="visually-hidden" for="patient-search">Buscar paciente</label>
+                    {% include "includes/icon.html" with name="search" %}
+                    <input
+                        id="patient-search"
+                        type="search"
+                        name="q"
+                        value="{{ busqueda }}"
+                        placeholder="Buscar por nombre, DNI, teléfono, email u obra social"
+                        autocomplete="off"
+                    >
+                </form>
+
+                <details class="patient-directory-filters" data-patient-directory-filters>
+                    <summary aria-expanded="false">
+                        {% include "includes/icon.html" with name="filter" %}
+                        <span>Filtros</span>
+                        {% if filtros_activos %}<b aria-label="{{ filtros_activos }} filtro{% if filtros_activos != 1 %}s{% endif %} activo{% if filtros_activos != 1 %}s{% endif %}">{{ filtros_activos }}</b>{% endif %}
+                        {% include "includes/icon.html" with name="chevron-down" %}
+                    </summary>
+                    <form class="patient-directory-filter-panel" method="get">
+                        <input type="hidden" name="estado" value="{{ estado_actual }}">
+                        {% if busqueda %}<input type="hidden" name="q" value="{{ busqueda }}">{% endif %}
+                        <fieldset>
+                            <legend>Mostrar pacientes</legend>
+                            <label>
+                                <input type="checkbox" name="con_proximo" value="1"{% if filtro_con_proximo_turno %} checked{% endif %}>
+                                <span><strong>Con próximo turno</strong><small>Pendiente o confirmado</small></span>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="sin_obra_social" value="1"{% if filtro_sin_obra_social %} checked{% endif %}>
+                                <span><strong>Sin obra social</strong><small>Campo de cobertura vacío</small></span>
+                            </label>
+                        </fieldset>
+                        <div class="patient-directory-filter-actions">
+                            <a href="{{ url_limpiar_filtros }}">Limpiar</a>
+                            <button type="submit">Aplicar filtros</button>
+                        </div>
+                    </form>
+                </details>
+            </div>
+
+            <nav class="patient-directory-tabs" aria-label="Estado de pacientes">
+                {% for tab in tabs_pacientes %}
+                    <a class="{% if tab.activo %}is-active{% endif %}" href="{{ tab.url }}"{% if tab.activo %} aria-current="page"{% endif %}>{{ tab.etiqueta }}</a>
+                {% endfor %}
+            </nav>
+        </section>
+
+        <section class="patient-directory-list" aria-label="Directorio de pacientes">
+            {% if pacientes %}
+                <div class="patient-directory-columns" aria-hidden="true">
+                    <span>Paciente</span>
+                    <span>Próximo turno</span>
+                    <span>Último turno</span>
+                    <span>Acciones</span>
+                </div>
+                <div class="patient-directory-rows stagger-list">
+                    {% for paciente in pacientes %}
+                        <article class="patient-directory-row animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
+                            <div class="patient-directory-identity">
+                                <div class="patient-directory-avatar" aria-hidden="true">{{ paciente.nombre|first|upper }}{{ paciente.apellido|first|upper }}</div>
+                                <div class="patient-directory-person">
+                                    <h2><a href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.nombre }} {{ paciente.apellido }}</a></h2>
+                                    <div class="patient-directory-badges">
+                                        <span>DNI {{ paciente.documento|default:"-" }}</span>
+                                        <span>{{ paciente.obra_social|default:"Sin obra social" }}</span>
+                                        {% if paciente.activo %}
+                                            <span class="patient-status patient-status-active"><i></i>Activo</span>
+                                        {% else %}
+                                            <span class="patient-status patient-status-archived"><i></i>Archivado</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="patient-directory-contact">
+                                        {% if paciente.telefono %}
+                                            <a href="tel:{{ paciente.telefono }}" aria-label="Llamar a {{ paciente.nombre }} {{ paciente.apellido }} al {{ paciente.telefono }}">{% include "includes/icon.html" with name="phone" %}<span>{{ paciente.telefono }}</span></a>
+                                        {% else %}
+                                            <span>{% include "includes/icon.html" with name="phone" %}<span>Sin teléfono</span></span>
+                                        {% endif %}
+                                        {% if paciente.email %}
+                                            <a href="mailto:{{ paciente.email }}" aria-label="Enviar email a {{ paciente.nombre }} {{ paciente.apellido }}">{% include "includes/icon.html" with name="mail" %}<span>{{ paciente.email }}</span></a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="patient-directory-appointment patient-directory-next">
+                                <span class="patient-directory-mobile-label">Próximo turno</span>
+                                {% if paciente.proximo_turno_resumen %}
+                                    <strong>{% include "includes/icon.html" with name="calendar" %}<span>{{ paciente.proximo_turno_resumen.fecha|date:"d/m/Y" }} · {{ paciente.proximo_turno_resumen.hora_inicio|time:"H:i" }}</span></strong>
+                                    <small>{{ paciente.proximo_turno_resumen.detalle }}</small>
+                                {% else %}
+                                    <strong class="patient-directory-no-appointment"><span aria-hidden="true">—</span></strong>
+                                    <small>Sin próximo turno</small>
+                                {% endif %}
+                            </div>
+
+                            <div class="patient-directory-appointment patient-directory-last">
+                                <span class="patient-directory-mobile-label">Último turno</span>
+                                {% if paciente.ultimo_turno_resumen %}
+                                    <strong>{% include "includes/icon.html" with name="calendar" %}<span>{{ paciente.ultimo_turno_resumen.fecha|date:"d/m/Y" }} · {{ paciente.ultimo_turno_resumen.hora_inicio|time:"H:i" }}</span></strong>
+                                    <small>{{ paciente.ultimo_turno_resumen.detalle }}</small>
+                                {% else %}
+                                    <strong class="patient-directory-no-appointment"><span aria-hidden="true">—</span></strong>
+                                    <small>Sin turnos anteriores</small>
+                                {% endif %}
+                            </div>
+
+                            <div class="patient-directory-actions">
+                                <a class="patient-directory-action-view" href="{% url 'pacientes:detalle' paciente.pk %}">Ver ficha</a>
+                                {% if puede_gestionar_turnos %}
+                                    <a class="patient-directory-action-new" href="{% url 'turnos:crear' %}?paciente={{ paciente.pk }}">{% include "includes/icon.html" with name="calendar" %}<span>Nuevo turno</span></a>
+                                {% endif %}
+                                {% if paciente.telefono %}
+                                    <a class="patient-directory-action-phone" href="tel:{{ paciente.telefono }}" aria-label="Llamar a {{ paciente.nombre }} {{ paciente.apellido }}">{% include "includes/icon.html" with name="phone" %}</a>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="patient-directory-empty">
+                    {% if busqueda or filtros_activos %}
+                        {% include "includes/empty_state.html" with illustration="images/no-results.svg" title="No encontramos pacientes" description="Probá con otros datos o limpiá los filtros aplicados." %}
+                    {% else %}
+                        {% url 'pacientes:crear' as crear_paciente_url %}
+                        {% if puede_gestionar_pacientes %}
+                            {% include "includes/empty_state.html" with icon_name="patients" title="Todavía no hay pacientes" description="Creá el primer perfil para comenzar a gestionar su atención." action_url=crear_paciente_url action_label="Crear paciente" %}
+                        {% else %}
+                            {% include "includes/empty_state.html" with icon_name="patients" title="No hay pacientes cargados" description="Los pacientes asociados aparecerán en este directorio." %}
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endif %}
+        </section>
+
+        {% if is_paginated %}
+            <nav class="patient-directory-pagination animate-fade-up" aria-label="Paginación de pacientes">
+                {% if page_obj.has_previous %}
+                    <a href="?{% if paginacion_query %}{{ paginacion_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">{% include "includes/icon.html" with name="arrow-left" %}Anterior</a>
+                {% else %}
+                    <span aria-disabled="true">{% include "includes/icon.html" with name="arrow-left" %}Anterior</span>
+                {% endif %}
+                <strong>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</strong>
+                {% if page_obj.has_next %}
+                    <a href="?{% if paginacion_query %}{{ paginacion_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Siguiente{% include "includes/icon.html" with name="arrow-right" %}</a>
+                {% else %}
+                    <span aria-disabled="true">Siguiente{% include "includes/icon.html" with name="arrow-right" %}</span>
+                {% endif %}
             </nav>
         {% endif %}
-    </section>
-
-    {% if pacientes %}
-        <section class="patient-card-list patient-list-v2 stagger-list" aria-label="Listado de pacientes">
-            {% for paciente in pacientes %}
-                <article class="patient-list-card animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
-                    <div class="patient-card-identity">
-                        <div class="patient-avatar" aria-hidden="true">{% if paciente.apellido %}{{ paciente.apellido|first|upper }}{% else %}{{ paciente.nombre|first|upper }}{% endif %}</div>
-                        <div class="patient-card-main">
-                            <h2><a class="patient-card-main-link" href="{% url 'pacientes:detalle' paciente.pk %}">{{ paciente.nombre }} {{ paciente.apellido }}</a></h2>
-                            <div class="patient-card-meta"><span>DNI {{ paciente.documento|default:"-" }}</span><span>{{ paciente.obra_social|default:"Sin obra social" }}</span>{% if not paciente.activo %}<span class="status-badge status-cancelado">Archivado</span>{% else %}<span class="status-badge status-confirmado">Activo</span>{% endif %}</div>
-                            <div class="patient-contact-row">
-                                {% if paciente.telefono %}<a href="tel:{{ paciente.telefono }}">{% include "includes/icon.html" with name="phone" %} {{ paciente.telefono }}</a>{% else %}<span>{% include "includes/icon.html" with name="phone" %} Sin teléfono</span>{% endif %}
-                                {% if paciente.email %}<a href="mailto:{{ paciente.email }}">{% include "includes/icon.html" with name="mail" %} {{ paciente.email }}</a>{% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="patient-appointments-summary">
-                        <div class="patient-next-appointment"><span>Próximo turno</span>{% if paciente.proximo_turno_resumen %}<strong>{{ paciente.proximo_turno_resumen.fecha|date:"d/m/Y" }} · {{ paciente.proximo_turno_resumen.hora_inicio|time:"H:i" }}</strong><small>{{ paciente.proximo_turno_resumen.estado_label }}</small>{% else %}<strong>Sin próximo turno</strong><small>Agenda disponible</small>{% endif %}</div>
-                        <div><span>Último turno</span>{% if paciente.ultimo_turno_resumen %}<strong>{{ paciente.ultimo_turno_resumen.fecha|date:"d/m/Y" }} · {{ paciente.ultimo_turno_resumen.hora_inicio|time:"H:i" }}</strong><small>{{ paciente.ultimo_turno_resumen.estado_label }}</small>{% else %}<strong>Sin turnos</strong>{% endif %}</div>
-                    </div>
-
-                    <div class="patient-card-actions">
-                        <a class="button button-small" href="{% url 'pacientes:detalle' paciente.pk %}">Ver ficha</a>
-                        {% if puede_gestionar_turnos %}<a class="button button-secondary button-small" href="{% url 'turnos:crear' %}?paciente={{ paciente.pk }}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
-                        {% if paciente.telefono %}<a class="button button-icon button-tertiary" href="tel:{{ paciente.telefono }}" aria-label="Llamar a {{ paciente.nombre }} {{ paciente.apellido }}">{% include "includes/icon.html" with name="phone" %}</a>{% endif %}
-                    </div>
-                </article>
-            {% endfor %}
-        </section>
-    {% else %}
-        {% if busqueda %}{% include "includes/empty_state.html" with illustration="images/no-results.svg" title="No encontramos pacientes" description="Probá con otro nombre, DNI, teléfono o email." %}{% else %}{% url 'pacientes:crear' as crear_paciente_url %}{% if puede_gestionar_pacientes %}{% include "includes/empty_state.html" with icon_name="patients" title="Todavía no hay pacientes" description="Creá el primer perfil para comenzar a gestionar su atención." action_url=crear_paciente_url action_label="Crear paciente" %}{% else %}{% include "includes/empty_state.html" with icon_name="patients" title="No hay pacientes cargados" description="Los pacientes asociados aparecerán en este directorio." %}{% endif %}{% endif %}
-    {% endif %}
-
-    {% if is_paginated %}
-        <nav class="pagination-actions animate-fade-up" aria-label="Paginación de pacientes">
-            {% if page_obj.has_previous %}<a class="button button-secondary" href="?page={{ page_obj.previous_page_number }}{% if busqueda %}&amp;q={{ busqueda|urlencode }}{% endif %}{% if estado_actual %}&amp;estado={{ estado_actual }}{% endif %}">{% include "includes/icon.html" with name="arrow-left" %} Anterior</a>{% endif %}
-            <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}<a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if busqueda %}&amp;q={{ busqueda|urlencode }}{% endif %}{% if estado_actual %}&amp;estado={{ estado_actual }}{% endif %}">Siguiente {% include "includes/icon.html" with name="arrow-right" %}</a>{% endif %}
-        </nav>
-    {% endif %}
+    </div>
 {% endblock %}

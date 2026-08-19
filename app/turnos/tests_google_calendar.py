@@ -1,11 +1,14 @@
+import json
 from datetime import date, time, timedelta
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured, ValidationError
-from django.db import connection
+from django.db import OperationalError, connection
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -22,12 +25,17 @@ from turnos.google_calendar_sync import (
 from turnos.integrations.google_calendar import (
     GoogleCalendarClient,
     GoogleCalendarClienteNoConfiguradoError,
+    GoogleCalendarCredencialesOAuthIncompletasError,
     GoogleCalendarError,
     GoogleCalendarEventoSinIdError,
+    GoogleCalendarHTTPError,
     GoogleOAuthTokens,
     construir_evento_desde_turno,
+    construir_google_calendar_event_id,
     construir_url_autorizacion_google_calendar,
+    intercambiar_codigo_por_tokens,
     obtener_configuracion_google_calendar,
+    renovar_access_token,
 )
 from turnos.models import (
     DisponibilidadOdontologo,
@@ -63,17 +71,90 @@ class GoogleCalendarConfigTests(SimpleTestCase):
 
         self.assertTrue(configuracion.esta_configurada)
 
-    @override_settings(
-        GOOGLE_CALENDAR_CLIENT_ID="",
-        GOOGLE_CALENDAR_CLIENT_SECRET="",
-        GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="secrets/google-client-secret.json",
-        GOOGLE_CALENDAR_REDIRECT_URI="http://127.0.0.1:8000/google/oauth2/callback/",
-        GOOGLE_CALENDAR_SCOPES=["https://www.googleapis.com/auth/calendar.events"],
-    )
     def test_configuracion_esta_lista_con_archivo_de_credenciales(self):
-        configuracion = obtener_configuracion_google_calendar()
+        with TemporaryDirectory() as directorio:
+            archivo = Path(directorio) / "oauth.json"
+            archivo.write_text(
+                json.dumps(
+                    {
+                        "web": {
+                            "client_id": "file-client-id",
+                            "client_secret": "file-client-secret",
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with override_settings(
+                GOOGLE_CALENDAR_CLIENT_ID="",
+                GOOGLE_CALENDAR_CLIENT_SECRET="",
+                GOOGLE_CALENDAR_CLIENT_SECRET_FILE=str(archivo),
+                GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="",
+            ):
+                configuracion = obtener_configuracion_google_calendar()
 
         self.assertTrue(configuracion.esta_configurada)
+        self.assertEqual(configuracion.client_id, "file-client-id")
+        self.assertEqual(configuracion.client_secret, "file-client-secret")
+
+    def test_variables_completas_tienen_prioridad_sobre_archivo(self):
+        with override_settings(
+            GOOGLE_CALENDAR_CLIENT_ID="env-client-id",
+            GOOGLE_CALENDAR_CLIENT_SECRET="env-client-secret",
+            GOOGLE_CALENDAR_CLIENT_SECRET_FILE="archivo-inexistente.json",
+            GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="",
+        ):
+            configuracion = obtener_configuracion_google_calendar()
+
+        self.assertEqual(configuracion.client_id, "env-client-id")
+        self.assertEqual(configuracion.client_secret, "env-client-secret")
+
+    def test_archivo_inexistente_no_expone_ruta(self):
+        ruta = "directorio-secreto/credenciales-super-secretas.json"
+        with override_settings(
+            GOOGLE_CALENDAR_CLIENT_ID="",
+            GOOGLE_CALENDAR_CLIENT_SECRET="",
+            GOOGLE_CALENDAR_CLIENT_SECRET_FILE=ruta,
+            GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="",
+        ):
+            with self.assertRaises(GoogleCalendarCredencialesOAuthIncompletasError) as contexto:
+                obtener_configuracion_google_calendar()
+
+        self.assertNotIn(ruta, str(contexto.exception))
+
+    def test_archivo_json_invalido(self):
+        self._assert_archivo_invalido("{no-json", "JSON válido")
+
+    def test_archivo_sin_web(self):
+        self._assert_archivo_invalido(json.dumps({"installed": {}}), "objeto web")
+
+    def test_archivo_sin_client_id(self):
+        self._assert_archivo_invalido(
+            json.dumps({"web": {"client_secret": "secret"}}),
+            "client_id",
+        )
+
+    def test_archivo_sin_client_secret(self):
+        self._assert_archivo_invalido(
+            json.dumps({"web": {"client_id": "client-id"}}),
+            "client_secret",
+        )
+
+    def _assert_archivo_invalido(self, contenido, mensaje):
+        with TemporaryDirectory() as directorio:
+            archivo = Path(directorio) / "oauth.json"
+            archivo.write_text(contenido, encoding="utf-8")
+            with override_settings(
+                GOOGLE_CALENDAR_CLIENT_ID="",
+                GOOGLE_CALENDAR_CLIENT_SECRET="",
+                GOOGLE_CALENDAR_CLIENT_SECRET_FILE=str(archivo),
+                GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="",
+            ):
+                with self.assertRaisesMessage(
+                    GoogleCalendarCredencialesOAuthIncompletasError,
+                    mensaje,
+                ):
+                    obtener_configuracion_google_calendar()
 
 
 class GoogleCalendarOAuthUrlTests(SimpleTestCase):
@@ -103,6 +184,86 @@ class GoogleCalendarOAuthUrlTests(SimpleTestCase):
         self.assertEqual(parametros["state"], ["estado-seguro"])
         self.assertEqual(parametros["login_hint"], ["odontologo@example.com"])
 
+    def test_autorizacion_usa_credenciales_de_archivo(self):
+        with TemporaryDirectory() as directorio:
+            archivo = Path(directorio) / "oauth.json"
+            archivo.write_text(
+                json.dumps({"web": {"client_id": "file-id", "client_secret": "file-secret"}}),
+                encoding="utf-8",
+            )
+            with override_settings(
+                GOOGLE_CALENDAR_CLIENT_ID="",
+                GOOGLE_CALENDAR_CLIENT_SECRET="",
+                GOOGLE_CALENDAR_CLIENT_SECRET_FILE=str(archivo),
+                GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="",
+            ):
+                url = construir_url_autorizacion_google_calendar("state")
+
+        self.assertEqual(parse_qs(urlparse(url).query)["client_id"], ["file-id"])
+
+
+class GoogleCalendarOAuthArchivoTests(TestCase):
+    def setUp(self):
+        usuario = get_user_model().objects.create_user(username="oauth.archivo")
+        self.odontologo = Odontologo.objects.create(usuario=usuario, matricula="OAUTH-FILE")
+
+    def _crear_archivo(self, directorio):
+        archivo = Path(directorio) / "oauth.json"
+        archivo.write_text(
+            json.dumps({"web": {"client_id": "file-id", "client_secret": "file-secret"}}),
+            encoding="utf-8",
+        )
+        return archivo
+
+    def test_intercambio_usa_credenciales_resueltas_del_archivo(self):
+        with TemporaryDirectory() as directorio:
+            archivo = self._crear_archivo(directorio)
+            with (
+                override_settings(
+                    GOOGLE_CALENDAR_CLIENT_ID="",
+                    GOOGLE_CALENDAR_CLIENT_SECRET="",
+                    GOOGLE_CALENDAR_CLIENT_SECRET_FILE=str(archivo),
+                    GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="",
+                ),
+                patch(
+                    "turnos.integrations.google_calendar._ejecutar_request_json",
+                    return_value={"access_token": "access"},
+                ) as ejecutar,
+            ):
+                tokens = intercambiar_codigo_por_tokens("codigo")
+
+        parametros = parse_qs(ejecutar.call_args.args[0].data.decode())
+        self.assertEqual(tokens.access_token, "access")
+        self.assertEqual(parametros["client_id"], ["file-id"])
+        self.assertEqual(parametros["client_secret"], ["file-secret"])
+
+    def test_refresh_usa_credenciales_resueltas_del_archivo(self):
+        conexion = GoogleCalendarConexion.objects.create(
+            odontologo=self.odontologo,
+            refresh_token="refresh",
+        )
+        with TemporaryDirectory() as directorio:
+            archivo = self._crear_archivo(directorio)
+            with (
+                override_settings(
+                    GOOGLE_CALENDAR_CLIENT_ID="",
+                    GOOGLE_CALENDAR_CLIENT_SECRET="",
+                    GOOGLE_CALENDAR_CLIENT_SECRET_FILE=str(archivo),
+                    GOOGLE_CALENDAR_CLIENT_SECRETS_FILE="",
+                ),
+                patch(
+                    "turnos.integrations.google_calendar._ejecutar_request_json",
+                    return_value={"access_token": "nuevo-access"},
+                ) as ejecutar,
+            ):
+                renovar_access_token(conexion)
+
+        parametros = parse_qs(ejecutar.call_args.args[0].data.decode())
+        conexion.refresh_from_db()
+        self.assertEqual(conexion.access_token, "nuevo-access")
+        self.assertEqual(parametros["client_id"], ["file-id"])
+        self.assertEqual(parametros["client_secret"], ["file-secret"])
+
 
 class GoogleCalendarPayloadTests(TestCase):
     def setUp(self):
@@ -127,6 +288,8 @@ class GoogleCalendarPayloadTests(TestCase):
             fecha=date(2026, 5, 8),
             hora_inicio=time(10, 0),
             duracion_minutos=45,
+            duracion_atencion_minutos=30,
+            margen_posterior_minutos_snapshot=15,
             motivo="Limpieza",
             estado=Turno.Estado.CONFIRMADO,
             notas="Primera visita",
@@ -136,38 +299,53 @@ class GoogleCalendarPayloadTests(TestCase):
         evento = construir_evento_desde_turno(self.turno)
         payload = evento.como_payload()
 
-        self.assertEqual(payload["summary"], "Turno odontológico - Paredes, Lucas")
+        self.assertEqual(set(payload), {"summary", "start", "end", "extendedProperties"})
+        self.assertEqual(payload["summary"], "Turno odontológico")
         self.assertEqual(payload["start"]["timeZone"], "America/Argentina/Buenos_Aires")
         self.assertEqual(payload["end"]["timeZone"], "America/Argentina/Buenos_Aires")
         self.assertIn("2026-05-08T10:00:00", payload["start"]["dateTime"])
         self.assertIn("2026-05-08T10:45:00", payload["end"]["dateTime"])
-        self.assertIn("Paciente: Paredes, Lucas", payload["description"])
-        self.assertIn("Odontólogo: Carla Calendar", payload["description"])
-        self.assertIn("Motivo: Limpieza", payload["description"])
-        self.assertEqual(payload["status"], "confirmed")
+        contenido = json.dumps(payload)
+        for dato_sensible in (
+            "Paredes",
+            "Lucas",
+            "Carla",
+            "Calendar",
+            "Limpieza",
+            "Primera visita",
+        ):
+            self.assertNotIn(dato_sensible, contenido)
+        for clave_sensible in ("turno_id", "paciente_id", "odontologo_id", "description"):
+            self.assertNotIn(clave_sensible, contenido)
         self.assertEqual(
             payload["extendedProperties"]["private"],
             {
-                "turno_id": "15",
-                "paciente_id": str(self.paciente.pk),
-                "odontologo_id": str(self.odontologo.pk),
-                "estado": Turno.Estado.CONFIRMADO,
+                "source": "gestor-turnos",
+                "appointment_ref": evento.event_id,
             },
         )
+        self.assertEqual(payload["end"]["dateTime"][11:19], "10:45:00")
 
-    def test_construye_evento_cancelado(self):
-        self.turno.estado = Turno.Estado.CANCELADO
+    def test_id_determinista_es_estable_opaco_y_valido(self):
+        event_id = construir_google_calendar_event_id(self.turno)
 
-        payload = construir_evento_desde_turno(self.turno).como_payload()
+        self.assertEqual(event_id, construir_google_calendar_event_id(self.turno))
+        self.assertRegex(event_id, r"^gt[0-9a-v]{64}$")
+        self.assertNotEqual(event_id, str(self.turno.pk))
 
-        self.assertEqual(payload["status"], "cancelled")
+    def test_create_agrega_id_y_update_lo_omite(self):
+        evento = construir_evento_desde_turno(self.turno)
 
-    def test_construye_evento_pendiente_como_tentativo(self):
-        self.turno.estado = Turno.Estado.PENDIENTE
+        self.assertEqual(evento.como_payload(incluir_id=True)["id"], evento.event_id)
+        self.assertNotIn("id", evento.como_payload())
 
-        payload = construir_evento_desde_turno(self.turno).como_payload()
+    def test_evento_legacy_conserva_id_existente(self):
+        self.turno.google_calendar_event_id = "evento-legacy"
 
-        self.assertEqual(payload["status"], "tentative")
+        self.assertEqual(
+            construir_google_calendar_event_id(self.turno),
+            "evento-legacy",
+        )
 
 
 class GoogleCalendarConexionModelTests(TestCase):
@@ -500,14 +678,15 @@ class GoogleCalendarSyncTests(TestCase):
         self.servicio = GoogleCalendarServiceFake()
 
     def test_sincronizar_turno_creado_crea_evento_y_guarda_event_id(self):
+        event_id_esperado = construir_google_calendar_event_id(self.turno)
         resultado = sincronizar_turno_creado(self.turno, self._cliente_factory)
 
         self.turno.refresh_from_db()
         self.conexion.refresh_from_db()
 
         self.assertTrue(resultado.realizada)
-        self.assertEqual(resultado.event_id, "evento-creado")
-        self.assertEqual(self.turno.google_calendar_event_id, "evento-creado")
+        self.assertEqual(resultado.event_id, event_id_esperado)
+        self.assertEqual(self.turno.google_calendar_event_id, event_id_esperado)
         self.assertIsNotNone(self.conexion.sincronizado_en)
         self.assertEqual(self.servicio.eventos.acciones[0]["accion"], "insert")
 
@@ -524,12 +703,13 @@ class GoogleCalendarSyncTests(TestCase):
         self.assertEqual(self.servicio.eventos.acciones[0]["eventId"], "evento-123")
 
     def test_sincronizar_turno_actualizado_crea_evento_si_no_tiene_event_id(self):
+        event_id_esperado = construir_google_calendar_event_id(self.turno)
         resultado = sincronizar_turno_actualizado(self.turno, self._cliente_factory)
 
         self.turno.refresh_from_db()
 
         self.assertTrue(resultado.realizada)
-        self.assertEqual(self.turno.google_calendar_event_id, "evento-creado")
+        self.assertEqual(self.turno.google_calendar_event_id, event_id_esperado)
         self.assertEqual(self.servicio.eventos.acciones[0]["accion"], "insert")
 
     def test_sincronizar_turno_cancelado_elimina_evento_y_limpia_event_id(self):
@@ -568,11 +748,14 @@ class GoogleCalendarSyncTests(TestCase):
 
         self.assertFalse(resultado.realizada)
         self.assertEqual(self.turno.google_calendar_event_id, "")
-        self.assertIn("Fallo simulado", self.conexion.ultimo_error)
+        self.assertEqual(
+            self.conexion.ultimo_error,
+            "No se pudo completar la sincronización con Google Calendar.",
+        )
         self.assertTrue(Turno.objects.filter(pk=self.turno.pk).exists())
 
     def test_sincronizacion_registra_error_inesperado_sin_romper_turno(self):
-        with self.assertLogs("turnos.google_calendar_sync", level="ERROR"):
+        with self.assertLogs("turnos.google_calendar_sync", level="WARNING") as logs:
             resultado = sincronizar_turno_creado(
                 self.turno,
                 lambda conexion: GoogleCalendarClientErrorInesperadoFake(),
@@ -586,6 +769,60 @@ class GoogleCalendarSyncTests(TestCase):
         self.assertEqual(self.turno.google_calendar_event_id, "")
         self.assertEqual(self.conexion.ultimo_error, MENSAJE_ERROR_INESPERADO)
         self.assertTrue(Turno.objects.filter(pk=self.turno.pk).exists())
+        self.assertNotIn("token tecnico", " ".join(logs.output))
+
+    def test_retry_tras_timeout_posterior_al_alta_no_duplica_evento(self):
+        servicio = GoogleCalendarServiceIdempotenteFake(fallar_despues_de_insert=True)
+
+        def factory(_conexion):
+            return GoogleCalendarClient(servicio=servicio)
+
+        primer_resultado = sincronizar_turno_creado(self.turno, factory)
+        servicio.fallar_despues_de_insert = False
+        segundo_resultado = sincronizar_turno_creado(self.turno, factory)
+
+        self.turno.refresh_from_db()
+        self.assertFalse(primer_resultado.realizada)
+        self.assertTrue(segundo_resultado.realizada)
+        self.assertEqual(len(servicio.eventos.remotos), 1)
+        self.assertEqual(self.turno.google_calendar_event_id, segundo_resultado.event_id)
+        self.assertEqual(
+            [accion["accion"] for accion in servicio.eventos.acciones],
+            ["insert", "insert", "update"],
+        )
+
+    def test_retry_tras_fallo_local_no_duplica_evento(self):
+        servicio = GoogleCalendarServiceIdempotenteFake()
+
+        def factory(_conexion):
+            return GoogleCalendarClient(servicio=servicio)
+
+        with patch.object(
+            Turno.objects,
+            "filter",
+            side_effect=OperationalError("fallo local con contenido sensible"),
+        ):
+            primer_resultado = sincronizar_turno_creado(self.turno, factory)
+
+        segundo_resultado = sincronizar_turno_creado(self.turno, factory)
+
+        self.turno.refresh_from_db()
+        self.assertFalse(primer_resultado.realizada)
+        self.assertTrue(segundo_resultado.realizada)
+        self.assertEqual(len(servicio.eventos.remotos), 1)
+        self.assertEqual(self.turno.google_calendar_event_id, segundo_resultado.event_id)
+
+    def test_logs_no_incluyen_payload_ni_error_del_proveedor(self):
+        with self.assertLogs("turnos.google_calendar_sync", level="WARNING") as logs:
+            sincronizar_turno_creado(
+                self.turno,
+                lambda _conexion: GoogleCalendarClientErrorConDatosSensiblesFake(),
+            )
+
+        salida = " ".join(logs.output)
+        self.assertNotIn(self.paciente.nombre, salida)
+        self.assertNotIn(self.turno.motivo, salida)
+        self.assertNotIn("token-super-secreto", salida)
 
     def _cliente_factory(self, conexion):
         return GoogleCalendarClient(
@@ -627,12 +864,12 @@ class GoogleCalendarClientTests(TestCase):
 
         event_id = cliente.crear_evento(self.turno)
 
-        self.assertEqual(event_id, "evento-creado")
+        self.assertEqual(event_id, construir_google_calendar_event_id(self.turno))
         self.assertEqual(servicio.eventos.acciones[0]["accion"], "insert")
         self.assertEqual(servicio.eventos.acciones[0]["calendarId"], "primary")
         self.assertEqual(
             servicio.eventos.acciones[0]["body"]["summary"],
-            "Turno odontológico - Gomez, Ana",
+            "Turno odontológico",
         )
 
     def test_actualiza_evento_existente(self):
@@ -698,7 +935,7 @@ class GoogleCalendarEventsFake:
                 "body": body,
             }
         )
-        return GoogleCalendarRequestFake({"id": "evento-creado"})
+        return GoogleCalendarRequestFake({"id": body["id"]})
 
     def update(self, calendarId, eventId, body):
         self.acciones.append(
@@ -730,6 +967,59 @@ class GoogleCalendarRequestFake:
         return self.respuesta
 
 
+class GoogleCalendarServiceIdempotenteFake:
+    def __init__(self, *, fallar_despues_de_insert=False):
+        self.eventos = GoogleCalendarEventsIdempotenteFake(self)
+        self.fallar_despues_de_insert = fallar_despues_de_insert
+
+    def events(self):
+        return self.eventos
+
+
+class GoogleCalendarEventsIdempotenteFake:
+    def __init__(self, servicio):
+        self.servicio = servicio
+        self.remotos = {}
+        self.acciones = []
+
+    def insert(self, calendarId, body):
+        def ejecutar():
+            event_id = body["id"]
+            self.acciones.append({"accion": "insert", "eventId": event_id})
+            if event_id in self.remotos:
+                raise GoogleCalendarHTTPError("duplicate", status_code=409)
+            self.remotos[event_id] = body
+            if self.servicio.fallar_despues_de_insert:
+                raise GoogleCalendarHTTPError("timeout remoto")
+            return {"id": event_id}
+
+        return GoogleCalendarCallableRequestFake(ejecutar)
+
+    def update(self, calendarId, eventId, body):
+        def ejecutar():
+            self.acciones.append({"accion": "update", "eventId": eventId})
+            self.remotos[eventId] = body
+            return {"id": eventId}
+
+        return GoogleCalendarCallableRequestFake(ejecutar)
+
+    def delete(self, calendarId, eventId):
+        def ejecutar():
+            self.acciones.append({"accion": "delete", "eventId": eventId})
+            self.remotos.pop(eventId, None)
+            return {}
+
+        return GoogleCalendarCallableRequestFake(ejecutar)
+
+
+class GoogleCalendarCallableRequestFake:
+    def __init__(self, callback):
+        self.callback = callback
+
+    def execute(self):
+        return self.callback()
+
+
 class GoogleCalendarClientErrorFake:
     def crear_evento(self, turno):
         raise GoogleCalendarError("Fallo simulado al crear evento.")
@@ -744,3 +1034,10 @@ class GoogleCalendarClientErrorFake:
 class GoogleCalendarClientErrorInesperadoFake:
     def crear_evento(self, turno):
         raise RuntimeError("Fallo externo inesperado con token tecnico")
+
+
+class GoogleCalendarClientErrorConDatosSensiblesFake:
+    def crear_evento(self, turno):
+        raise GoogleCalendarError(
+            f"paciente={turno.paciente.nombre} motivo={turno.motivo} token-super-secreto"
+        )

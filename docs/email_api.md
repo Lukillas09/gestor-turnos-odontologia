@@ -74,14 +74,14 @@ No subir `EMAIL_API_KEY` al repositorio.
 
 ## Adjuntos de indicaciones
 
-El cliente de Resend soporta adjuntos de `EmailMessage` sin cambiar el payload de correos
-simples. Para cada adjunto valida nombre, MIME, contenido binario y tamaño; luego transmite
-el contenido Base64 en memoria con `filename` y `content_type`. El PDF no se guarda como
-Base64 ni se registra en logs.
+Los clientes de Resend y Brevo soportan adjuntos de `EmailMessage` sin cambiar el payload de
+correos simples. Para cada adjunto validan nombre, MIME, contenido binario y tamaño. Resend usa
+`attachments` con `filename`, `content` y `content_type`; Brevo usa `attachment` con `name` y
+`content`, según su contrato HTTP. El Base64 se genera sólo en memoria y no se guarda ni se
+registra en logs.
 
-Las indicaciones usan `Idempotency-Key` validado, `application/pdf` y el límite
-`INDICACIONES_PDF_MAX_BYTES`. Brevo conserva el comportamiento anterior y rechaza adjuntos
-en esta versión para evitar una implementación parcial silenciosa.
+Las indicaciones usan `Idempotency-Key` validado cuando el proveedor lo admite,
+`application/pdf` y el límite `INDICACIONES_PDF_MAX_BYTES`.
 
 Un error del proveedor se transforma en `EmailApiError`. La app `indicaciones` registra
 solo el tipo de excepción y mantiene el documento emitido para reintento; no registra API

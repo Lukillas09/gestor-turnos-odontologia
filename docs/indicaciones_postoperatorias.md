@@ -96,9 +96,15 @@ Solo se captura como destino un `Paciente.email` persistido cuando el paciente e
 y `email_verificado_en` no es nulo. Un email propuesto en una solicitud pública no se usa.
 El cuerpo es neutro y el contenido clínico completo queda únicamente en el PDF adjunto.
 
-El backend HTTP de Resend acepta adjuntos binarios de Django, valida nombre, MIME y tamaño,
-y convierte el PDF a Base64 solo en memoria para construir el request. No guarda Base64 ni
-lo registra. Los correos simples existentes conservan el mismo payload.
+Los backends HTTP de Resend y Brevo aceptan adjuntos binarios de Django, validan nombre, MIME y
+tamaño, y convierten el PDF a Base64 sólo en memoria para construir el request. No guardan
+Base64 ni lo registran. Los correos simples existentes conservan el mismo payload.
+
+El reenvío adquiere brevemente el lock de la indicación para reclamarla con estado `ENVIANDO`,
+confirma esa transición y recién entonces lee el PDF y llama al proveedor. Una segunda
+transacción corta persiste `ENVIADO` o `ERROR` y su auditoría. Así, el acceso al storage y la red
+no ocurren dentro de `transaction.atomic()` y dos workers no envían simultáneamente el mismo
+documento.
 
 Si el proveedor falla, la transacción clínica no se revierte: el documento queda emitido,
 el estado de email pasa a `ERROR`, se incrementan intentos y se conserva un mensaje neutral.

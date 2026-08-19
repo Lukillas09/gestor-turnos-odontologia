@@ -319,8 +319,24 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         self._assert_no_horizontal_overflow()
 
     def test_login_listado_y_detalle_de_turno(self):
+        self.page.goto(f"{self.live_server_url}{reverse('login')}")
+        self.page.get_by_role("link", name="Volver a turnos online").wait_for()
+        password = self.page.locator("input[name='password']")
+        password.fill("clave-segura-e2e")
+        toggle = self.page.locator("[data-password-toggle]")
+        toggle.click()
+        self.assertEqual(password.get_attribute("type"), "text")
+        self.assertEqual(toggle.get_attribute("aria-pressed"), "true")
+        self.assertEqual(toggle.get_attribute("aria-label"), "Ocultar contraseña")
+        toggle.click()
+        self.assertEqual(password.get_attribute("type"), "password")
+
         self._login()
         self.page.get_by_role("heading", name="Resumen de la agenda").wait_for()
+        self.page.locator(".app-sidebar").wait_for()
+        self.page.locator(".app-topbar").wait_for()
+        self.page.locator(".internal-dashboard-footer").wait_for()
+        self._assert_no_horizontal_overflow()
         self._capture("internal-dashboard-desktop.png")
 
         self.page.goto(f"{self.live_server_url}{reverse('turnos:agenda_dia')}")

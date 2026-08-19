@@ -29,7 +29,11 @@ class Command(BaseCommand):
         enviados = 0
         errores = 0
         with transaction.atomic():
-            pendientes = list(indicaciones_pendientes_de_email(max_intentos=max_intentos)[:limite])
+            pendientes = list(
+                indicaciones_pendientes_de_email(max_intentos=max_intentos).values_list(
+                    "pk", flat=True
+                )[:limite]
+            )
             if options["dry_run"]:
                 self.stdout.write(
                     self.style.WARNING(
@@ -37,15 +41,16 @@ class Command(BaseCommand):
                     )
                 )
                 return
-            for indicacion in pendientes:
-                if enviar_indicacion_por_email(
-                    indicacion_id=indicacion.pk,
-                    automatico=True,
-                    forzar=False,
-                ):
-                    enviados += 1
-                else:
-                    errores += 1
+
+        for indicacion_id in pendientes:
+            if enviar_indicacion_por_email(
+                indicacion_id=indicacion_id,
+                automatico=True,
+                forzar=False,
+            ):
+                enviados += 1
+            else:
+                errores += 1
 
         self.stdout.write(
             self.style.SUCCESS(

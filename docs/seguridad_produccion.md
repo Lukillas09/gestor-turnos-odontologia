@@ -42,8 +42,15 @@ Estado actual:
 - Los pacientes nuevos creados desde la web quedan pendientes de validacion administrativa; esto no verifica automaticamente email ni telefono.
 - La agenda inteligente no confía en duración, margen o puntaje enviados por el navegador: deriva la configuración y recalcula el candidato bajo bloqueo transaccional.
 - Los endpoints de horarios no exponen puntajes, razones técnicas, turnos ocupados ni datos de pacientes.
+- El endpoint de horarios usado por formularios internos requiere login, permiso de turnos y
+  alcance sobre el odontólogo y, al reprogramar, sobre el turno.
 - La caché de horarios es solo una optimización de lectura; nunca autoriza la creación definitiva.
 - Los logs operativos de agenda usan identificadores técnicos y cantidades, sin DNI, contacto, comentario ni datos clínicos.
+- Los errores de PostgreSQL en OTP, permisos públicos, cancelación, reprogramación o creación
+  impiden la mutación y cualquier callback posterior. La respuesta es siempre neutral, con 503
+  y `Retry-After`, y los logs guardan sólo operación y tipo de error.
+- Email y Google Calendar se ejecutan después del commit; un timeout externo no prolonga los
+  locks de agenda ni revierte un turno ya confirmado.
 
 Antes de produccion real:
 

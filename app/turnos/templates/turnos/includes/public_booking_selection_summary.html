@@ -1,0 +1,58 @@
+<aside class="public-booking-rail animate-fade-up" aria-label="Resumen de tu selección">
+    <section class="public-selection-summary">
+        <div class="public-summary-brand" aria-hidden="true">
+            {% if configuracion_consultorio.logo_url %}
+                <img src="{{ configuracion_consultorio.logo_url }}" alt="">
+            {% else %}
+                <span>{{ configuracion_consultorio.iniciales }}</span>
+            {% endif %}
+        </div>
+        <header class="public-summary-heading">
+            <h2>Tu turno</h2>
+            <p>Resumen de tu selección</p>
+        </header>
+
+        <div class="public-summary-professional" data-summary-professional-block>
+            <span class="public-summary-row-icon" aria-hidden="true">{% include "includes/icon.html" with name="user" %}</span>
+            <div>
+                <small>Profesional</small>
+                <strong data-summary-professional>{% if odontologo %}{{ odontologo.nombre_completo }}{% else %}Elegí un profesional{% endif %}</strong>
+                <span data-summary-specialty>{% if odontologo %}{{ odontologo.especialidad|default:"Odontología general" }}{% else %}Tu selección aparecerá acá{% endif %}</span>
+            </div>
+        </div>
+
+        <dl class="public-summary-list">
+            {% if smart_scheduling_enabled %}
+                <div>
+                    <dt><span class="public-summary-row-icon" aria-hidden="true">{% include "includes/icon.html" with name="appointments" %}</span><small>Motivo de la visita</small></dt>
+                    <dd data-summary-service>{% if tipo_turno %}{{ tipo_turno.nombre }}{% else %}Pendiente{% endif %}</dd>
+                </div>
+            {% endif %}
+            <div>
+                <dt><span class="public-summary-row-icon" aria-hidden="true">{% include "includes/icon.html" with name="calendar" %}</span><small>Fecha</small></dt>
+                <dd data-summary-date>{% if fecha %}{{ fecha|date:"l d/m/Y" }}{% else %}Pendiente{% endif %}</dd>
+            </div>
+            <div>
+                <dt><span class="public-summary-row-icon" aria-hidden="true">{% include "includes/icon.html" with name="clock" %}</span><small>Duración estimada</small></dt>
+                <dd data-summary-duration>{% if duracion_atencion_minutos %}{{ duracion_atencion_minutos }} minutos{% elif not smart_scheduling_enabled %}30 minutos{% else %}Pendiente{% endif %}</dd>
+            </div>
+        </dl>
+
+        <div class="public-summary-selected-time" data-public-slot-action hidden>
+            <span>Horario seleccionado</span>
+            <strong data-public-slot-label></strong>
+        </div>
+        <button class="button button-large public-summary-continue" type="button" data-public-slot-continue disabled aria-disabled="true">
+            Continuar {% include "includes/icon.html" with name="arrow-right" %}
+        </button>
+        <p class="public-summary-privacy">{% include "includes/icon.html" with name="lock" %}<span>Tus datos están protegidos</span></p>
+    </section>
+
+    {% if configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp %}
+        <a class="public-whatsapp-help" href="{{ configuracion_consultorio.whatsapp_url }}" target="_blank" rel="noopener noreferrer">
+            <span class="public-whatsapp-help-icon" aria-hidden="true">{% include "includes/icon.html" with name="whatsapp" %}</span>
+            <span><strong>¿Necesitás ayuda?</strong><small>Escribinos por WhatsApp</small></span>
+            {% include "includes/icon.html" with name="arrow-right" %}
+        </a>
+    {% endif %}
+</aside>

@@ -1,9 +1,11 @@
 import logging
+from datetime import timedelta
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
+from django.db.models import CharField, Count, Exists, OuterRef, Prefetch, Q, Subquery, Value
+from django.db.models.functions import Coalesce, NullIf, Trim
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -68,30 +70,30 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        queryset = limitar_pacientes_por_usuario(queryset, self.request.user)
-        estado = self.request.GET.get("estado", "activos")
+        queryset = limitar_pacientes_por_usuario(
+            super().get_queryset(),
+            self.request.user,
+        )
+        estado = self._estado_actual()
         ahora = timezone.localtime()
 
-        if estado == "archivados" and self._puede_ver_archivados():
+        if estado == "archivados":
             queryset = queryset.archivados()
-        else:
+        elif estado == "activos":
             queryset = queryset.activos()
 
         busqueda = self.request.GET.get("q", "").strip()
-        ultimo_turno = Turno.objects.filter(paciente=OuterRef("pk")).order_by(
-            "-fecha",
-            "-hora_inicio",
-        )
-        proximo_turno = (
-            Turno.objects.filter(
-                paciente=OuterRef("pk"),
-                estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
-            )
+        ultimo_turno = (
+            Turno.objects.filter(paciente=OuterRef("pk"))
+            .exclude(estado=Turno.Estado.CANCELADO)
             .filter(
-                Q(fecha__gt=ahora.date()) | Q(fecha=ahora.date(), hora_inicio__gte=ahora.time()),
+                Q(fecha__lt=ahora.date()) | Q(fecha=ahora.date(), hora_inicio__lte=ahora.time()),
             )
-            .order_by("fecha", "hora_inicio")
+            .annotate(detalle_directorio=self._detalle_turno())
+            .order_by("-fecha", "-hora_inicio")
+        )
+        proximo_turno = self._turnos_proximos(ahora).annotate(
+            detalle_directorio=self._detalle_turno(),
         )
 
         if busqueda:
@@ -105,7 +107,7 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 | Q(obra_social__icontains=busqueda)
             )
 
-        return queryset.only(
+        queryset = queryset.only(
             "id",
             "nombre",
             "apellido",
@@ -121,20 +123,37 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                 ultimo_turno.values("hora_inicio")[:1],
             ),
             ultimo_turno_estado=Subquery(ultimo_turno.values("estado")[:1]),
+            ultimo_turno_detalle=Subquery(
+                ultimo_turno.values("detalle_directorio")[:1],
+            ),
             proximo_turno_fecha=Subquery(proximo_turno.values("fecha")[:1]),
             proximo_turno_hora_inicio=Subquery(
                 proximo_turno.values("hora_inicio")[:1],
             ),
             proximo_turno_estado=Subquery(proximo_turno.values("estado")[:1]),
+            proximo_turno_detalle=Subquery(
+                proximo_turno.values("detalle_directorio")[:1],
+            ),
+            tiene_proximo_turno=Exists(proximo_turno),
         )
+
+        if self._filtro_con_proximo_turno():
+            queryset = queryset.filter(tiene_proximo_turno=True)
+
+        if self._filtro_sin_obra_social():
+            queryset = queryset.alias(
+                obra_social_normalizada=Trim("obra_social"),
+            ).filter(
+                Q(obra_social_normalizada="") | Q(obra_social__isnull=True),
+            )
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["busqueda"] = self.request.GET.get("q", "").strip()
-        context["estado_actual"] = (
-            self.request.GET.get("estado", "activos") if self._puede_ver_archivados() else "activos"
-        )
-        context["puede_ver_archivados"] = self._puede_ver_archivados()
+        busqueda = self.request.GET.get("q", "").strip()
+        estado_actual = self._estado_actual()
+        puede_ver_archivados = self._puede_ver_archivados()
         estados_turno = dict(Turno.Estado.choices)
 
         for paciente in context["pacientes"]:
@@ -144,6 +163,8 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                     "hora_inicio": paciente.ultimo_turno_hora_inicio,
                     "estado": paciente.ultimo_turno_estado,
                     "estado_label": estados_turno.get(paciente.ultimo_turno_estado, ""),
+                    "detalle": paciente.ultimo_turno_detalle
+                    or estados_turno.get(paciente.ultimo_turno_estado, ""),
                 }
                 if paciente.ultimo_turno_fecha
                 else None
@@ -154,15 +175,154 @@ class PacienteListView(VerPacientesRequeridoMixin, ListView):
                     "hora_inicio": paciente.proximo_turno_hora_inicio,
                     "estado": paciente.proximo_turno_estado,
                     "estado_label": estados_turno.get(paciente.proximo_turno_estado, ""),
+                    "detalle": paciente.proximo_turno_detalle
+                    or estados_turno.get(paciente.proximo_turno_estado, ""),
                 }
                 if paciente.proximo_turno_fecha
                 else None
             )
 
+        filtros_activos = sum(
+            [
+                self._filtro_con_proximo_turno(),
+                self._filtro_sin_obra_social(),
+            ]
+        )
+        context.update(
+            {
+                "busqueda": busqueda,
+                "estado_actual": estado_actual,
+                "puede_ver_archivados": puede_ver_archivados,
+                "filtro_con_proximo_turno": self._filtro_con_proximo_turno(),
+                "filtro_sin_obra_social": self._filtro_sin_obra_social(),
+                "filtros_activos": filtros_activos,
+                "metricas_pacientes": self._obtener_metricas(),
+                "tabs_pacientes": self._obtener_tabs(estado_actual),
+                "url_limpiar_filtros": self._url_lista(
+                    eliminar={"con_proximo", "sin_obra_social", "page"},
+                ),
+                "paginacion_query": self._query_string(eliminar={"page"}),
+            }
+        )
         return context
 
+    def _obtener_metricas(self):
+        ahora = timezone.localtime()
+        limite = ahora + timedelta(days=7)
+        alcance = limitar_pacientes_por_usuario(
+            Paciente.objects.all(),
+            self.request.user,
+        )
+        pacientes_activos = alcance.filter(activo=True)
+        turnos_proximos = self._turnos_proximos(ahora).filter(
+            Q(fecha__lt=limite.date()) | Q(fecha=limite.date(), hora_inicio__lte=limite.time()),
+        )
+
+        return {
+            "activos": pacientes_activos.count(),
+            "con_proximo_turno": pacientes_activos.filter(
+                Exists(turnos_proximos),
+            ).count(),
+            "sin_obra_social": pacientes_activos.alias(
+                obra_social_normalizada=Trim("obra_social"),
+            )
+            .filter(
+                Q(obra_social_normalizada="") | Q(obra_social__isnull=True),
+            )
+            .count(),
+            "url_activos": self._url_lista(
+                reemplazar={"estado": "activos"},
+                eliminar={"q", "con_proximo", "sin_obra_social", "page"},
+            ),
+            "url_con_proximo_turno": self._url_lista(
+                reemplazar={"estado": "activos", "con_proximo": "1"},
+                eliminar={"q", "sin_obra_social", "page"},
+            ),
+            "url_sin_obra_social": self._url_lista(
+                reemplazar={"estado": "activos", "sin_obra_social": "1"},
+                eliminar={"q", "con_proximo", "page"},
+            ),
+        }
+
+    def _obtener_tabs(self, estado_actual):
+        estados = [("activos", "Activos")]
+
+        if self._puede_ver_archivados():
+            estados.extend([("archivados", "Archivados"), ("todos", "Todos")])
+
+        return [
+            {
+                "valor": valor,
+                "etiqueta": etiqueta,
+                "activo": estado_actual == valor,
+                "url": self._url_lista(
+                    reemplazar={"estado": valor},
+                    eliminar={"page"},
+                ),
+            }
+            for valor, etiqueta in estados
+        ]
+
+    def _estado_actual(self):
+        estado = self.request.GET.get("estado", "activos")
+
+        if self._puede_ver_archivados() and estado in {"activos", "archivados", "todos"}:
+            return estado
+
+        return "activos"
+
+    def _filtro_con_proximo_turno(self):
+        return self.request.GET.get("con_proximo") == "1"
+
+    def _filtro_sin_obra_social(self):
+        return self.request.GET.get("sin_obra_social") == "1"
+
+    @staticmethod
+    def _turnos_proximos(ahora):
+        return (
+            Turno.objects.filter(
+                paciente=OuterRef("pk"),
+                estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
+            )
+            .filter(
+                Q(fecha__gt=ahora.date()) | Q(fecha=ahora.date(), hora_inicio__gte=ahora.time()),
+            )
+            .order_by("fecha", "hora_inicio")
+        )
+
+    @staticmethod
+    def _detalle_turno():
+        return Coalesce(
+            NullIf("tipo_turno_nombre_snapshot", Value("")),
+            NullIf("tipo_turno__nombre", Value("")),
+            NullIf("motivo", Value("")),
+            Value(""),
+            output_field=CharField(),
+        )
+
+    def _url_lista(self, reemplazar=None, eliminar=None):
+        query = self._query_string(reemplazar=reemplazar, eliminar=eliminar)
+        base_url = reverse("pacientes:lista")
+        return f"{base_url}?{query}" if query else base_url
+
+    def _query_string(self, reemplazar=None, eliminar=None):
+        parametros = self.request.GET.copy()
+
+        for clave in eliminar or set():
+            parametros.pop(clave, None)
+
+        for clave, valor in (reemplazar or {}).items():
+            parametros[clave] = valor
+
+        return parametros.urlencode()
+
     def _puede_ver_archivados(self):
-        return puede_archivar_pacientes(self.request.user)
+        if not hasattr(self, "_puede_ver_archivados_cache"):
+            self._puede_ver_archivados_cache = puede_archivar_pacientes(
+                self.request.user,
+            )
+
+        return self._puede_ver_archivados_cache
 
 
 class PacienteCreateView(GestionConsultorioRequeridaMixin, CreateView):

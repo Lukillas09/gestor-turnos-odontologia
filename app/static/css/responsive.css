@@ -1515,3 +1515,740 @@
         letter-spacing: 0.25rem;
     }
 }
+
+/* Public patient experience V3 */
+@media (max-width: 1279px) {
+    .public-shell-body .page,
+    .public-shell-body .topbar-inner {
+        width: min(100% - 48px, 1180px);
+    }
+
+    .public-data-decoration {
+        width: 160px;
+        height: 320px;
+        top: 235px;
+        right: -92px;
+        opacity: 0.28;
+    }
+
+    .public-premium-hero {
+        grid-template-columns: minmax(0, 1fr) minmax(400px, 0.9fr);
+        gap: 3rem;
+    }
+
+    .public-premium-brand-watermark {
+        left: -2rem;
+    }
+
+    .public-benefit {
+        grid-template-columns: 48px minmax(0, 1fr);
+        padding-inline: 1rem;
+    }
+
+    .public-benefit-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .public-booking-shell.public-booking-shell-v3 {
+        grid-template-columns: minmax(0, 1fr) 285px;
+    }
+
+    .public-search-panel-v2.is-smart {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-search-panel-v2.is-smart .booking-date-control {
+        grid-column: 1 / -1;
+        border-top: 1px solid var(--public-border);
+    }
+
+    .public-search-panel-v2.is-smart .public-service-control {
+        border-right: 0;
+    }
+
+    .public-visual-calendar {
+        max-width: 430px;
+        margin-inline: auto;
+    }
+
+    .public-time-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1023px) {
+    .public-shell-body .page,
+    .public-shell-body .topbar-inner {
+        width: min(100% - 40px, 920px);
+    }
+
+    .public-data-decoration {
+        width: 130px;
+        height: 270px;
+        top: 230px;
+        right: -18px;
+        opacity: 0.2;
+    }
+
+    .public-topbar .public-nav {
+        display: none;
+    }
+
+    .public-mobile-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .public-mobile-cta {
+        gap: 0.45rem;
+        border-color: var(--public-gold);
+        background: var(--public-gold);
+        color: #ffffff;
+    }
+
+    .public-mobile-menu {
+        position: relative;
+    }
+
+    .public-mobile-menu > summary {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--public-border);
+        border-radius: 8px;
+        background: var(--public-surface);
+        color: var(--public-text);
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .public-mobile-menu > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .public-mobile-menu > nav {
+        width: min(290px, calc(100vw - 32px));
+        display: grid;
+        position: absolute;
+        top: calc(100% + 0.6rem);
+        right: 0;
+        z-index: 60;
+        overflow: hidden;
+        border: 1px solid var(--public-border);
+        border-radius: 12px;
+        padding: 0.5rem;
+        background: var(--public-surface);
+        box-shadow: var(--public-shadow);
+    }
+
+    .public-mobile-menu > nav a {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        border-radius: 8px;
+        padding: 0.65rem 0.8rem;
+        color: var(--public-text);
+        font-size: 0.88rem;
+        font-weight: 650;
+        text-decoration: none;
+    }
+
+    .public-mobile-menu > nav a:hover,
+    .public-mobile-menu > nav a:focus-visible {
+        background: var(--public-gold-soft);
+        color: var(--public-gold-dark);
+    }
+
+    .public-premium-hero {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        padding-top: 1rem;
+    }
+
+    .public-premium-hero-copy {
+        max-width: 760px;
+    }
+
+    .public-premium-visual {
+        width: min(760px, 100%);
+        min-height: 460px;
+        justify-self: center;
+    }
+
+    .public-premium-brand-watermark {
+        width: 128px;
+        top: 2.2rem;
+        left: 1rem;
+    }
+
+    .public-premium-floating-note {
+        left: 1rem;
+    }
+
+    .public-benefits {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-benefit:nth-child(2) {
+        border-right: 0;
+    }
+
+    .public-benefit:nth-child(-n + 2) {
+        border-bottom: 1px solid var(--public-border);
+        padding-bottom: 1.2rem;
+    }
+
+    .public-benefit:nth-child(n + 3) {
+        padding-top: 1.2rem;
+    }
+
+    .public-how-premium .public-how-grid {
+        gap: 2.2rem;
+        padding-inline: 0;
+    }
+
+    .public-how-premium .public-how-item {
+        grid-template-columns: 58px minmax(0, 1fr);
+    }
+
+    .public-how-premium .public-how-icon {
+        width: 56px;
+        height: 56px;
+    }
+
+    .public-how-premium .public-how-number {
+        left: 46px;
+    }
+
+    .public-how-connector {
+        width: 1.5rem;
+        right: -1.1rem;
+    }
+
+    .public-booking-shell.public-booking-shell-v3 {
+        grid-template-columns: 1fr;
+    }
+
+    .public-booking-rail {
+        grid-template-columns: minmax(0, 1fr) minmax(250px, 0.65fr);
+        position: static;
+    }
+
+    .public-whatsapp-help {
+        align-self: start;
+    }
+
+    .public-data-layout.public-data-layout-v3 {
+        grid-template-columns: 1fr;
+    }
+
+    .public-data-layout .public-booking-summary {
+        grid-row: auto;
+        position: static;
+    }
+
+    .public-data-summary .public-booking-summary-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .public-data-decoration {
+        display: none;
+    }
+}
+
+@media (max-width: 767px) {
+    .public-shell-body .page,
+    .public-shell-body .topbar-inner {
+        width: min(100% - 32px, 680px);
+    }
+
+    .public-shell-body .page {
+        padding: 1.6rem 0 2.5rem;
+    }
+
+    .public-topbar,
+    .public-topbar .topbar-inner {
+        min-height: 72px;
+    }
+
+    .public-brand-logo {
+        width: 70px;
+        height: 46px;
+    }
+
+    .public-brand-mark {
+        width: 44px;
+        height: 44px;
+    }
+
+    .public-brand-copy strong {
+        max-width: 180px;
+        overflow: hidden;
+        font-size: 1.05rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .public-brand-copy small {
+        font-size: 0.62rem;
+    }
+
+    .public-header-privacy span {
+        font-size: 0.76rem;
+    }
+
+    .public-premium-hero {
+        min-height: 0;
+        gap: 2.25rem;
+        overflow: clip;
+        padding: 0.5rem 0 2rem;
+    }
+
+    .public-premium-badge {
+        margin-bottom: 1.1rem;
+    }
+
+    .public-premium-hero h1 {
+        font-size: clamp(2.4rem, 10.5vw, 3rem);
+        line-height: 1.04;
+    }
+
+    .public-premium-lead {
+        margin-top: 1.15rem;
+        font-size: 1rem;
+        line-height: 1.65;
+    }
+
+    .public-premium-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        margin-top: 1.5rem;
+    }
+
+    .public-premium-actions .button {
+        width: 100%;
+    }
+
+    .public-premium-trust {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem 0.8rem;
+        margin-top: 1.35rem;
+        font-size: 0.72rem;
+    }
+
+    .public-premium-trust li {
+        flex: 0 0 auto;
+        gap: 0.35rem;
+    }
+
+    .public-premium-trust .ui-icon {
+        width: 0.9rem;
+        height: 0.9rem;
+    }
+
+    .public-premium-visual {
+        min-height: 350px;
+        padding: 1.5rem 0 2.4rem;
+    }
+
+    .public-premium-visual-backdrop {
+        inset: 0 0 3rem 2rem;
+        border-radius: 28px;
+    }
+
+    .public-premium-visual > img {
+        border-width: 5px;
+        border-radius: 20px;
+    }
+
+    .public-premium-brand-watermark {
+        width: 96px;
+        top: 0.35rem;
+        left: 0.75rem;
+    }
+
+    .public-premium-floating-note {
+        width: min(340px, calc(100% - 24px));
+        min-height: 94px;
+        grid-template-columns: 42px minmax(0, 1fr) 24px;
+        bottom: 0;
+        left: 12px;
+        border-radius: 14px;
+        padding: 0.9rem;
+    }
+
+    .public-premium-floating-note > span {
+        width: 42px;
+        height: 42px;
+    }
+
+    .public-premium-floating-note p {
+        font-size: 0.74rem;
+    }
+
+    .public-benefits {
+        margin-bottom: 3rem;
+        border-radius: 14px;
+    }
+
+    .public-benefit {
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .public-benefit-icon {
+        width: 42px;
+        height: 42px;
+    }
+
+    .public-benefit h3 {
+        font-size: 0.9rem;
+    }
+
+    .public-benefit p {
+        font-size: 0.74rem;
+    }
+
+    .public-centered-heading h2,
+    .public-section-heading h2 {
+        font-size: 2.25rem;
+    }
+
+    .public-how-premium .public-how-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .public-how-premium .public-how-item {
+        min-height: 86px;
+    }
+
+    .public-how-connector {
+        display: none;
+    }
+
+    .public-patient-actions,
+    .public-patient-actions .public-home-secondary {
+        grid-template-columns: 1fr;
+    }
+
+    .public-stepper {
+        --public-stepper-marker-size: 36px;
+        margin-bottom: 2.2rem;
+    }
+
+    .public-stepper-mobile {
+        display: none;
+    }
+
+    .public-stepper-list {
+        display: grid;
+    }
+
+    .public-stepper-list li {
+        grid-template-columns: var(--public-stepper-marker-size);
+        gap: 0.45rem;
+    }
+
+    .public-stepper-list li > span {
+        font-size: 0.78rem;
+    }
+
+    .public-stepper-list li strong {
+        font-size: 0.76rem;
+    }
+
+    .public-stepper-list li small {
+        display: none;
+    }
+
+    .public-booking-heading {
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .public-booking-heading-premium h1,
+    .public-data-header h1 {
+        font-size: 2.65rem;
+    }
+
+    .public-search-panel.public-search-panel-v2,
+    .public-search-panel.public-search-panel-v2.is-smart,
+    .public-search-panel.public-search-panel-v2.is-enhanced {
+        grid-template-columns: 1fr;
+        border-radius: 16px;
+    }
+
+    .public-search-panel-v2.is-smart .booking-date-control {
+        grid-column: 1;
+    }
+
+    .public-professional-control,
+    .public-service-control {
+        border-right: 0;
+        border-bottom: 1px solid var(--public-border);
+    }
+
+    .public-professional-picker,
+    .public-service-picker {
+        grid-template-columns: 1fr;
+    }
+
+    .public-booking-control,
+    .public-booking-results {
+        padding: 1.1rem;
+    }
+
+    .public-visual-calendar {
+        max-width: 100%;
+    }
+
+    .public-calendar-day {
+        min-height: 38px;
+    }
+
+    .public-booking-results {
+        border-radius: 16px;
+    }
+
+    .public-date-strip {
+        grid-template-columns: repeat(7, 96px);
+        overflow-x: auto;
+        margin-right: -1.1rem;
+        margin-left: -1.1rem;
+        padding: 0 1.1rem 0.55rem;
+        scroll-padding-inline: 1.1rem;
+        scrollbar-width: thin;
+        scroll-snap-type: x proximity;
+    }
+
+    .public-date-chip {
+        scroll-snap-align: start;
+    }
+
+    .public-smart-schedule-intro {
+        grid-template-columns: 1fr;
+    }
+
+    .public-time-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .public-booking-rail {
+        grid-template-columns: 1fr;
+    }
+
+    .public-selection-summary {
+        border-radius: 16px;
+    }
+
+    .public-data-layout .public-patient-data-card,
+    .public-data-summary.public-booking-summary {
+        border-radius: 16px;
+        padding: 1.25rem;
+    }
+
+    .public-patient-data-card .public-short-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .public-patient-data-card .field-group {
+        grid-column: 1;
+    }
+
+    .public-form-actions .public-gold-button {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .public-data-summary .public-booking-summary-details {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .public-shell-body .page,
+    .public-shell-body .topbar-inner {
+        width: calc(100% - 32px);
+    }
+
+    .public-brand {
+        gap: 0.6rem;
+    }
+
+    .public-brand-logo {
+        width: 58px;
+        height: 40px;
+    }
+
+    .public-brand-copy strong {
+        max-width: 118px;
+        font-size: 0.92rem;
+    }
+
+    .public-brand-copy small {
+        display: none;
+    }
+
+    .public-mobile-actions {
+        gap: 0.4rem;
+    }
+
+    .public-mobile-cta {
+        min-height: 40px;
+        padding-inline: 0.65rem;
+    }
+
+    .public-header-privacy span {
+        max-width: 92px;
+        line-height: 1.2;
+        text-align: right;
+    }
+
+    .public-premium-badge {
+        min-height: 34px;
+        font-size: 0.7rem;
+    }
+
+    .public-premium-hero h1 {
+        font-size: clamp(2.25rem, 10.5vw, 2.7rem);
+    }
+
+    .public-premium-trust {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.55rem 0.7rem;
+    }
+
+    .public-premium-visual {
+        min-height: 300px;
+    }
+
+    .public-premium-floating-note {
+        grid-template-columns: 38px minmax(0, 1fr) 22px;
+    }
+
+    .public-premium-floating-note > span {
+        width: 38px;
+        height: 38px;
+    }
+
+    .public-premium-floating-note strong {
+        font-size: 0.82rem;
+    }
+
+    .public-premium-floating-note p {
+        display: none;
+    }
+
+    .public-benefits {
+        grid-template-columns: 1fr;
+        padding: 0;
+    }
+
+    .public-benefit,
+    .public-benefit:nth-child(2),
+    .public-benefit:nth-child(n + 3) {
+        border-right: 0;
+        border-bottom: 1px solid var(--public-border);
+        padding: 0.9rem 1rem;
+    }
+
+    .public-benefit:last-child {
+        border-bottom: 0;
+    }
+
+    .public-booking-heading-premium h1,
+    .public-data-header h1 {
+        font-size: 2.25rem;
+    }
+
+    .public-professional-option {
+        grid-template-columns: 48px minmax(0, 1fr) 24px;
+        padding: 0.75rem;
+    }
+
+    .public-professional-option-photo {
+        width: 48px;
+        height: 48px;
+    }
+
+    .public-time-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-slot-card-header {
+        align-items: flex-start;
+    }
+
+    .public-summary-professional,
+    .public-summary-list > div {
+        grid-template-columns: 38px minmax(0, 1fr);
+    }
+
+    .public-summary-row-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .public-summary-list dt {
+        grid-template-columns: 38px minmax(0, 1fr);
+    }
+
+    .public-data-summary .public-booking-summary-details div {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+
+    .public-data-summary .public-booking-summary-details dd {
+        text-align: left;
+    }
+}
+
+@media (max-width: 360px) {
+    .public-mobile-cta span {
+        display: none;
+    }
+
+    .public-mobile-cta {
+        width: 40px;
+        padding: 0;
+    }
+
+    .public-brand-logo {
+        width: 52px;
+        height: 36px;
+    }
+
+    .public-premium-trust {
+        gap: 0.5rem 0.6rem;
+        font-size: 0.68rem;
+    }
+
+    .public-premium-trust .ui-icon {
+        width: 0.82rem;
+        height: 0.82rem;
+    }
+
+    .public-calendar-weekdays,
+    .public-calendar-days {
+        gap: 0.05rem;
+    }
+
+    .public-calendar-day {
+        min-height: 34px;
+        font-size: 0.69rem;
+    }
+
+    .public-stepper-list li strong {
+        font-size: 0.7rem;
+    }
+}

@@ -47,6 +47,10 @@ class TurnoEmailPrueba:
         )
         return fecha_hora_fin.time()
 
+    @property
+    def hora_fin_atencion(self):
+        return self.hora_fin
+
     def get_estado_display(self):
         return dict(Turno.Estado.choices)[self.estado]
 

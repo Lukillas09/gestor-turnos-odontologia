@@ -18,55 +18,72 @@
         </section>
     {% endif %}
 
-    <section class="public-home-hero public-home-hero-v2 animate-fade-up" aria-labelledby="public-home-title">
-        <img class="public-home-hero-image" src="{% static 'images/dental-hero.svg' %}" width="640" height="520" alt="">
-        <div class="public-home-copy">
-            <span class="public-pill public-pill-light">Turnos online</span>
-            <div class="public-home-brand-signal">
-                {% if configuracion_consultorio.logo_url %}
-                    <span class="public-home-logo"><img src="{{ configuracion_consultorio.logo_url }}" alt=""></span>
-                {% else %}
-                    <span class="public-home-logo public-home-logo-fallback">{{ configuracion_consultorio.iniciales }}</span>
-                {% endif %}
-                <strong>{{ configuracion_consultorio.nombre_comercial }}</strong>
-            </div>
-            <h1 id="public-home-title">{{ configuracion_consultorio.titulo_portada }}</h1>
-            <p>{{ configuracion_consultorio.texto_bienvenida }}</p>
-            <div class="public-home-actions">
-                <a class="button public-primary-action button-large" href="{% url 'turnos:solicitud_publica' %}">
-                    {% include "includes/icon.html" with name="calendar" %} Solicitar turno
+    <section class="public-premium-hero animate-fade-up" aria-labelledby="public-home-title">
+        <div class="public-premium-hero-copy">
+            <span class="public-premium-badge"><i aria-hidden="true"></i> Turnos online 24/7</span>
+            <h1 id="public-home-title">
+                <span>{{ configuracion_consultorio.titulo_portada }}</span>
+                <em>y sin complicaciones</em>
+            </h1>
+            <p class="public-premium-lead">{{ configuracion_consultorio.texto_bienvenida }}</p>
+            <div class="public-premium-actions">
+                <a class="button button-large public-gold-button" href="{% url 'turnos:solicitud_publica' %}">
+                    {% include "includes/icon.html" with name="calendar" %} Reservá tu turno
                 </a>
-                <a class="button button-secondary button-large" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar mis turnos</a>
+                <a class="button button-large public-outline-button" href="{% url 'turnos:acceso_publico_solicitar' %}">
+                    {% include "includes/icon.html" with name="appointments" %} Ver mis turnos
+                    {% include "includes/icon.html" with name="arrow-right" %}
+                </a>
             </div>
-            <ul class="public-trust-list" aria-label="Características de la reserva">
-                <li>{% include "includes/icon.html" with name="lock" %}<span>Reserva segura</span></li>
-                <li>{% include "includes/icon.html" with name="user" %}<span>Sin crear una cuenta</span></li>
+            <ul class="public-premium-trust" aria-label="Características de la reserva">
+                <li>{% include "includes/icon.html" with name="shield-check" %}<span>Seguro y confidencial</span></li>
                 <li>{% include "includes/icon.html" with name="mail" %}<span>Seguimiento por email</span></li>
+                <li>{% include "includes/icon.html" with name="lock" %}<span>Datos protegidos</span></li>
             </ul>
+        </div>
+
+        <div class="public-premium-visual">
+            <span class="public-premium-visual-backdrop" aria-hidden="true"></span>
+            <img src="{% static 'images/dental-clinic-hero.webp' %}" width="1448" height="1086" alt="Consultorio odontológico preparado para recibir pacientes">
+            <span class="public-premium-brand-watermark" aria-hidden="true">
+                {% if configuracion_consultorio.logo_url %}
+                    <img src="{{ configuracion_consultorio.logo_url }}" alt="" width="520" height="325">
+                {% else %}
+                    <img src="{% static 'images/consultorio-abete-logo.png' %}" alt="" width="520" height="325">
+                {% endif %}
+            </span>
+            <article class="public-premium-floating-note">
+                <span aria-hidden="true">{% include "includes/icon.html" with name="calendar" %}</span>
+                <div><strong>Tu salud, nuestra prioridad</strong><p>Atención profesional en un ambiente cómodo y seguro.</p></div>
+                <i aria-hidden="true">{% include "includes/icon.html" with name="check" %}</i>
+            </article>
         </div>
     </section>
 
-    <section class="public-section public-how-section" aria-labelledby="how-title">
-        <div class="public-section-heading">
-            <p class="eyebrow">Simple y rápido</p>
+    {% include "turnos/includes/public_benefits.html" %}
+
+    <section class="public-section public-how-section public-how-premium" aria-labelledby="how-title">
+        <div class="public-section-heading public-centered-heading">
+            <p class="eyebrow">Así de fácil</p>
             <h2 id="how-title">¿Cómo funciona?</h2>
-            <p>Completá la solicitud en tres pasos. El consultorio confirma el turno después de revisar tus datos.</p>
         </div>
         <ol class="public-how-grid">
             <li class="public-how-item">
-                <span class="public-how-number">1</span>
                 <span class="public-how-icon">{% include "includes/icon.html" with name="user" %}</span>
-                <div><strong>Elegí un profesional</strong><p>Seleccioná el odontólogo con quien querés atenderte.</p></div>
+                <span class="public-how-number">1</span>
+                <div><strong>Elegí el profesional</strong><p>Seleccioná el especialista con quien querés atenderte.</p></div>
+                <span class="public-how-connector" aria-hidden="true"></span>
             </li>
             <li class="public-how-item">
-                <span class="public-how-number">2</span>
                 <span class="public-how-icon">{% include "includes/icon.html" with name="calendar" %}</span>
-                <div><strong>Seleccioná fecha y hora</strong><p>Solo verás opciones disponibles dentro de la agenda.</p></div>
+                <span class="public-how-number">2</span>
+                <div><strong>Elegí fecha y horario</strong><p>Revisá la disponibilidad y elegí la opción que mejor te quede.</p></div>
+                <span class="public-how-connector" aria-hidden="true"></span>
             </li>
             <li class="public-how-item">
+                <span class="public-how-icon">{% include "includes/icon.html" with name="send" %}</span>
                 <span class="public-how-number">3</span>
-                <span class="public-how-icon">{% include "includes/icon.html" with name="check" %}</span>
-                <div><strong>Enviá tus datos</strong><p>Recibirás novedades cuando la solicitud sea revisada.</p></div>
+                <div><strong>Enviá tu solicitud</strong><p>Completá tus datos y te avisaremos cuando sea confirmada.</p></div>
             </li>
         </ol>
     </section>
@@ -93,7 +110,7 @@
                             <p>{{ profesional.especialidad|default:"Odontología general" }}</p>
                             <span>Matrícula {{ profesional.matricula }}</span>
                         </div>
-                        <a class="button button-secondary" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ profesional.pk }}&amp;fecha={{ fecha_minima_reserva_publica|date:'Y-m-d' }}">
+                        <a class="button public-outline-button" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ profesional.pk }}&amp;fecha={{ fecha_minima_reserva_publica|date:'Y-m-d' }}">
                             Ver disponibilidad {% include "includes/icon.html" with name="arrow-right" %}
                         </a>
                     </article>
@@ -106,17 +123,20 @@
         <div class="public-section-heading">
             <p class="eyebrow">Ya tengo un turno</p>
             <h2 id="patient-actions-title">Gestioná tus solicitudes</h2>
+            <p>Accedé mediante un código temporal enviado a tu medio de contacto.</p>
         </div>
         <div class="public-home-secondary">
             <a class="public-secondary-card ui-card ui-card-interactive" href="{% url 'turnos:acceso_publico_solicitar' %}">
                 <span class="public-secondary-icon">{% include "includes/icon.html" with name="appointments" %}</span>
                 <strong>Consultar mis turnos</strong>
-                <p>Solicitá un código temporal para revisar tus turnos activos.</p>
+                <p>Revisá el estado y los datos de tus solicitudes activas.</p>
+                {% include "includes/icon.html" with name="arrow-right" %}
             </a>
             <a class="public-secondary-card ui-card ui-card-interactive" href="{% url 'turnos:acceso_publico_solicitar' %}">
                 <span class="public-secondary-icon">{% include "includes/icon.html" with name="refresh" %}</span>
                 <strong>Reprogramar o cancelar</strong>
                 <p>Verificá tu identidad antes de realizar cualquier cambio.</p>
+                {% include "includes/icon.html" with name="arrow-right" %}
             </a>
         </div>
     </section>

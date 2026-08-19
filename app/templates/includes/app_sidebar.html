@@ -1,10 +1,11 @@
+{% load static %}
 <aside class="app-sidebar" aria-label="Navegación principal">
     <div class="app-sidebar-header">
         <a class="brand" href="{% url 'inicio' %}">
             {% if configuracion_consultorio.logo_url %}
                 <span class="brand-logo"><img src="{{ configuracion_consultorio.logo_url }}" alt=""></span>
             {% else %}
-                <span class="brand-mark">{{ configuracion_consultorio.iniciales }}</span>
+                <span class="brand-logo"><img src="{% static 'images/consultorio-abete-logo.png' %}" alt=""></span>
             {% endif %}
             <span class="brand-copy">
                 <strong class="brand-text">{{ configuracion_consultorio.nombre_visible }}</strong>
@@ -74,6 +75,7 @@
             </a>
         {% endif %}
     </nav>
+    <span class="app-sidebar-ornament" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
     <div class="app-sidebar-footer">
         <span class="app-sidebar-footer-dot" aria-hidden="true"></span>
         <span>Panel operativo</span>

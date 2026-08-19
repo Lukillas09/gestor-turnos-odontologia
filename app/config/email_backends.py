@@ -128,15 +128,18 @@ class BaseEmailApiClient:
             with urlopen(request, timeout=self.timeout) as response:  # nosec B310
                 if response.status >= 400:
                     raise EmailApiError(f"El proveedor de email respondio HTTP {response.status}.")
+                try:
+                    respuesta = json.loads(response.read().decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                    raise EmailApiError(
+                        "El proveedor de email devolvió una respuesta inválida."
+                    ) from error
+                if not isinstance(respuesta, dict):
+                    raise EmailApiError("El proveedor de email devolvió una respuesta inválida.")
         except HTTPError as error:
-            detalle = error.read().decode("utf-8", errors="replace")[:500]
-            raise EmailApiError(
-                f"El proveedor de email respondio HTTP {error.code}: {detalle}"
-            ) from error
+            raise EmailApiError(f"El proveedor de email respondio HTTP {error.code}.") from error
         except URLError as error:
-            raise EmailApiError(
-                f"No se pudo conectar con el proveedor de email: {error.reason}"
-            ) from error
+            raise EmailApiError("No se pudo conectar con el proveedor de email.") from error
 
 
 class ResendEmailApiClient(BaseEmailApiClient):
@@ -192,6 +195,7 @@ class ResendEmailApiClient(BaseEmailApiClient):
 
 class BrevoEmailApiClient(BaseEmailApiClient):
     default_api_url = "https://api.brevo.com/v3/smtp/email"
+    soporta_adjuntos = True
 
     def construir_headers(self):
         return {
@@ -222,6 +226,11 @@ class BrevoEmailApiClient(BaseEmailApiClient):
 
         if text_content:
             payload["textContent"] = text_content
+
+        if email_message.attachments:
+            payload["attachment"] = [
+                _construir_adjunto_brevo(adjunto) for adjunto in email_message.attachments
+            ]
 
         return payload
 
@@ -265,6 +274,23 @@ PATRON_CONTENT_TYPE = re.compile(r"^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#
 
 
 def _construir_adjunto_resend(adjunto):
+    nombre_seguro, contenido, content_type = _normalizar_adjunto(adjunto)
+    return {
+        "content": base64.b64encode(contenido).decode("ascii"),
+        "filename": nombre_seguro,
+        "content_type": content_type,
+    }
+
+
+def _construir_adjunto_brevo(adjunto):
+    nombre_seguro, contenido, _content_type = _normalizar_adjunto(adjunto)
+    return {
+        "content": base64.b64encode(contenido).decode("ascii"),
+        "name": nombre_seguro,
+    }
+
+
+def _normalizar_adjunto(adjunto):
     nombre, contenido, content_type = _extraer_adjunto(adjunto)
     nombre_seguro = _nombre_adjunto_seguro(nombre)
     content_type = (content_type or "application/octet-stream").strip().lower()
@@ -288,11 +314,7 @@ def _construir_adjunto_resend(adjunto):
         raise EmailApiError("El adjunto está vacío.")
     if len(contenido) > limite:
         raise EmailApiError("El adjunto supera el tamaño máximo permitido.")
-    return {
-        "content": base64.b64encode(contenido).decode("ascii"),
-        "filename": nombre_seguro,
-        "content_type": content_type,
-    }
+    return nombre_seguro, contenido, content_type
 
 
 def _extraer_adjunto(adjunto):

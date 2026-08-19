@@ -1,6 +1,8 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from hashlib import sha256
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -9,13 +11,12 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.utils import timezone
 
-from turnos.models import Turno
-
 CALENDARIO_PRINCIPAL = "primary"
 GOOGLE_CALENDAR_API_BASE_URL = "https://www.googleapis.com/calendar/v3"
 GOOGLE_OAUTH_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 HTTP_TIMEOUT_SEGUNDOS = 10
+GOOGLE_EVENT_ID_NAMESPACE = "gestor-turnos-odontologia:turno:v1:"
 
 
 class GoogleCalendarError(RuntimeError):
@@ -35,7 +36,9 @@ class GoogleCalendarCredencialesOAuthIncompletasError(GoogleCalendarError):
 
 
 class GoogleCalendarHTTPError(GoogleCalendarError):
-    pass
+    def __init__(self, mensaje, *, status_code=None):
+        super().__init__(mensaje)
+        self.status_code = status_code
 
 
 @dataclass(frozen=True)
@@ -48,25 +51,21 @@ class GoogleCalendarConfig:
 
     @property
     def esta_configurada(self):
-        tiene_cliente_env = bool(self.client_id and self.client_secret)
-        tiene_archivo_credenciales = bool(self.client_secrets_file)
-        return tiene_cliente_env or tiene_archivo_credenciales
+        return bool(self.client_id and self.client_secret)
 
 
 @dataclass(frozen=True)
 class GoogleCalendarEvento:
+    event_id: str
     resumen: str
-    descripcion: str
     inicio: str
     fin: str
     zona_horaria: str
-    estado_google: str
     metadata_privada: dict[str, str]
 
-    def como_payload(self):
+    def como_payload(self, *, incluir_id=False):
         payload = {
             "summary": self.resumen,
-            "description": self.descripcion,
             "start": {
                 "dateTime": self.inicio,
                 "timeZone": self.zona_horaria,
@@ -75,8 +74,10 @@ class GoogleCalendarEvento:
                 "dateTime": self.fin,
                 "timeZone": self.zona_horaria,
             },
-            "status": self.estado_google,
         }
+
+        if incluir_id:
+            payload["id"] = self.event_id
 
         if self.metadata_privada:
             payload["extendedProperties"] = {"private": self.metadata_privada}
@@ -105,14 +106,39 @@ class GoogleCalendarClient:
         self.access_token = access_token
 
     def crear_evento(self, turno):
-        payload = construir_evento_desde_turno(turno).como_payload()
+        evento = construir_evento_desde_turno(turno)
+        payload = evento.como_payload(incluir_id=True)
 
         if self.servicio is not None:
-            respuesta = self._eventos().insert(calendarId=self.calendar_id, body=payload).execute()
-            return respuesta.get("id", "")
+            try:
+                respuesta = (
+                    self._eventos().insert(calendarId=self.calendar_id, body=payload).execute()
+                )
+            except Exception as error:
+                if _obtener_status_code(error) != 409:
+                    raise
+                respuesta = (
+                    self._eventos()
+                    .update(
+                        calendarId=self.calendar_id,
+                        eventId=evento.event_id,
+                        body=evento.como_payload(),
+                    )
+                    .execute()
+                )
+            return respuesta.get("id", evento.event_id)
 
-        respuesta = self._enviar_request("POST", self._eventos_url(), payload)
-        return respuesta.get("id", "")
+        try:
+            respuesta = self._enviar_request("POST", self._eventos_url(), payload)
+        except GoogleCalendarHTTPError as error:
+            if error.status_code != 409:
+                raise
+            respuesta = self._enviar_request(
+                "PUT",
+                self._evento_url(evento.event_id),
+                evento.como_payload(),
+            )
+        return respuesta.get("id", evento.event_id)
 
     def actualizar_evento(self, turno):
         if not turno.google_calendar_event_id:
@@ -146,16 +172,29 @@ class GoogleCalendarClient:
             return None
 
         if self.servicio is not None:
-            return (
-                self._eventos()
-                .delete(
-                    calendarId=self.calendar_id,
-                    eventId=turno.google_calendar_event_id,
+            try:
+                return (
+                    self._eventos()
+                    .delete(
+                        calendarId=self.calendar_id,
+                        eventId=turno.google_calendar_event_id,
+                    )
+                    .execute()
                 )
-                .execute()
-            )
+            except Exception as error:
+                if _obtener_status_code(error) not in {404, 410}:
+                    raise
+                return None
 
-        return self._enviar_request("DELETE", self._evento_url(turno.google_calendar_event_id))
+        try:
+            return self._enviar_request(
+                "DELETE",
+                self._evento_url(turno.google_calendar_event_id),
+            )
+        except GoogleCalendarHTTPError as error:
+            if error.status_code not in {404, 410}:
+                raise
+            return None
 
     def _eventos(self):
         if self.servicio is None:
@@ -195,13 +234,63 @@ class GoogleCalendarClient:
 
 
 def obtener_configuracion_google_calendar():
+    client_id, client_secret, archivo = _resolver_credenciales_oauth()
     return GoogleCalendarConfig(
-        client_id=settings.GOOGLE_CALENDAR_CLIENT_ID,
-        client_secret=settings.GOOGLE_CALENDAR_CLIENT_SECRET,
-        client_secrets_file=settings.GOOGLE_CALENDAR_CLIENT_SECRETS_FILE,
+        client_id=client_id,
+        client_secret=client_secret,
+        client_secrets_file=archivo,
         redirect_uri=settings.GOOGLE_CALENDAR_REDIRECT_URI,
         scopes=settings.GOOGLE_CALENDAR_SCOPES,
     )
+
+
+def _resolver_credenciales_oauth():
+    client_id = str(getattr(settings, "GOOGLE_CALENDAR_CLIENT_ID", "") or "").strip()
+    client_secret = str(getattr(settings, "GOOGLE_CALENDAR_CLIENT_SECRET", "") or "").strip()
+
+    if client_id and client_secret:
+        return client_id, client_secret, ""
+
+    archivo = str(
+        getattr(settings, "GOOGLE_CALENDAR_CLIENT_SECRET_FILE", "")
+        or getattr(settings, "GOOGLE_CALENDAR_CLIENT_SECRETS_FILE", "")
+        or ""
+    ).strip()
+    if not archivo:
+        return "", "", ""
+
+    try:
+        contenido = Path(archivo).read_text(encoding="utf-8")
+    except OSError as error:
+        raise GoogleCalendarCredencialesOAuthIncompletasError(
+            "No se pudo leer el archivo de credenciales OAuth configurado."
+        ) from error
+
+    try:
+        credenciales = json.loads(contenido)
+    except json.JSONDecodeError as error:
+        raise GoogleCalendarCredencialesOAuthIncompletasError(
+            "El archivo de credenciales OAuth no contiene JSON válido."
+        ) from error
+
+    if not isinstance(credenciales, dict) or not isinstance(credenciales.get("web"), dict):
+        raise GoogleCalendarCredencialesOAuthIncompletasError(
+            "El archivo de credenciales OAuth debe contener un objeto web."
+        )
+
+    credenciales_web = credenciales["web"]
+    client_id = str(credenciales_web.get("client_id") or "").strip()
+    client_secret = str(credenciales_web.get("client_secret") or "").strip()
+    if not client_id:
+        raise GoogleCalendarCredencialesOAuthIncompletasError(
+            "El archivo de credenciales OAuth no contiene client_id."
+        )
+    if not client_secret:
+        raise GoogleCalendarCredencialesOAuthIncompletasError(
+            "El archivo de credenciales OAuth no contiene client_secret."
+        )
+
+    return client_id, client_secret, archivo
 
 
 def construir_url_autorizacion_google_calendar(state, login_hint=""):
@@ -315,57 +404,33 @@ def renovar_access_token(conexion):
 
 def construir_evento_desde_turno(turno):
     inicio = _con_zona_horaria(turno.fecha_hora_inicio)
-    fin = _con_zona_horaria(turno.fecha_hora_fin)
+    fin = _con_zona_horaria(turno.fecha_hora_fin_bloqueada)
+    event_id = construir_google_calendar_event_id(turno)
 
     return GoogleCalendarEvento(
-        resumen=f"Turno odontológico - {turno.paciente.nombre_completo}",
-        descripcion=_construir_descripcion(turno),
+        event_id=event_id,
+        resumen="Turno odontológico",
         inicio=inicio.isoformat(),
         fin=fin.isoformat(),
         zona_horaria=settings.TIME_ZONE,
-        estado_google=_obtener_estado_google(turno),
-        metadata_privada=_construir_metadata_privada(turno),
+        metadata_privada={
+            "source": "gestor-turnos",
+            "appointment_ref": event_id,
+        },
     )
 
 
-def _construir_descripcion(turno):
-    lineas = [
-        f"Paciente: {turno.paciente.nombre_completo}",
-        f"Odontólogo: {turno.odontologo.nombre_completo}",
-        f"Estado: {turno.get_estado_display()}",
-    ]
+def construir_google_calendar_event_id(turno):
+    if turno.google_calendar_event_id:
+        return turno.google_calendar_event_id
 
-    if turno.tipo_turno_nombre_snapshot:
-        lineas.append(f"Tipo: {turno.tipo_turno_nombre_snapshot}")
-
-    if turno.duracion_atencion_minutos:
-        lineas.append(f"Duración aproximada de atención: {turno.duracion_atencion_minutos} minutos")
-
-    if turno.margen_posterior_minutos_snapshot:
-        lineas.append(
-            f"Margen operativo posterior: {turno.margen_posterior_minutos_snapshot} minutos"
+    if turno.pk is None:
+        raise GoogleCalendarEventoSinIdError(
+            "No se puede generar el event ID para un turno sin persistir."
         )
 
-    if turno.motivo and turno.motivo != turno.tipo_turno_nombre_snapshot:
-        lineas.append(f"Motivo: {turno.motivo}")
-
-    if turno.notas:
-        lineas.append(f"Notas: {turno.notas}")
-
-    return "\n".join(lineas)
-
-
-def _construir_metadata_privada(turno):
-    metadata = {
-        "turno_id": turno.pk,
-        "paciente_id": turno.paciente_id,
-        "odontologo_id": turno.odontologo_id,
-        "estado": turno.estado,
-    }
-
-    return {
-        clave: str(valor) for clave, valor in metadata.items() if valor is not None and valor != ""
-    }
+    referencia = f"{GOOGLE_EVENT_ID_NAMESPACE}{turno.pk}".encode()
+    return f"gt{sha256(referencia).hexdigest()}"
 
 
 def _con_zona_horaria(fecha_hora):
@@ -375,16 +440,6 @@ def _con_zona_horaria(fecha_hora):
         return timezone.make_aware(fecha_hora, zona_horaria)
 
     return fecha_hora.astimezone(zona_horaria)
-
-
-def _obtener_estado_google(turno):
-    if turno.estado == Turno.Estado.CANCELADO:
-        return "cancelled"
-
-    if turno.estado == Turno.Estado.PENDIENTE:
-        return "tentative"
-
-    return "confirmed"
 
 
 def _construir_tokens_desde_respuesta(respuesta):
@@ -420,28 +475,30 @@ def _ejecutar_request_json(request):
         with urlopen(request, timeout=HTTP_TIMEOUT_SEGUNDOS) as response:  # nosec B310
             contenido = response.read().decode("utf-8")
     except HTTPError as error:
-        raise GoogleCalendarHTTPError(_obtener_mensaje_http_error(error)) from error
-    except URLError as error:
         raise GoogleCalendarHTTPError(
-            f"No se pudo conectar con Google Calendar: {error}"
+            f"Google Calendar respondió con HTTP {error.code}.",
+            status_code=error.code,
         ) from error
+    except (TimeoutError, URLError) as error:
+        raise GoogleCalendarHTTPError("No se pudo conectar con Google Calendar.") from error
 
     if not contenido:
         return {}
 
-    return json.loads(contenido)
-
-
-def _obtener_mensaje_http_error(error):
     try:
-        contenido = error.read().decode("utf-8")
         respuesta = json.loads(contenido)
-    except (ValueError, json.JSONDecodeError):
-        return f"Google Calendar respondio con HTTP {error.code}."
+    except json.JSONDecodeError as error:
+        raise GoogleCalendarHTTPError("Google Calendar devolvió una respuesta inválida.") from error
 
-    detalle = respuesta.get("error", {})
+    if not isinstance(respuesta, dict):
+        raise GoogleCalendarHTTPError("Google Calendar devolvió una respuesta inválida.")
 
-    if isinstance(detalle, dict):
-        return detalle.get("message") or f"Google Calendar respondio con HTTP {error.code}."
+    return respuesta
 
-    return str(detalle) or f"Google Calendar respondio con HTTP {error.code}."
+
+def _obtener_status_code(error):
+    if isinstance(error, GoogleCalendarHTTPError):
+        return error.status_code
+
+    respuesta = getattr(error, "resp", None)
+    return getattr(respuesta, "status", None) or getattr(error, "status_code", None)

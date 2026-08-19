@@ -191,7 +191,7 @@ Variables principales:
 | Base de datos | `DATABASE_URL` |
 | Email | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL`, `EMAIL_API_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_API_URL` |
 | Recordatorios | `TURNOS_RECORDATORIO_HORAS` |
-| Google Calendar | `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_SECRETS_FILE`, `GOOGLE_CALENDAR_REDIRECT_URI`, `GOOGLE_CALENDAR_SCOPES` |
+| Google Calendar | `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_SECRET_FILE`, `GOOGLE_CALENDAR_REDIRECT_URI`, `GOOGLE_CALENDAR_SCOPES` |
 | Storage clínico | `MEDIA_STORAGE_BACKEND`, `PRIVATE_CLINICAL_STORAGE_BACKEND`, `INDICACIONES_PDF_MAX_BYTES`, `SUPABASE_STORAGE_URL`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_TIMEOUT`, `SUPABASE_STORAGE_CACHE_CONTROL`, `SUPABASE_STORAGE_SIGNED_URL_SECONDS` |
 | Deploy | `WEB_CONCURRENCY` |
 
@@ -275,6 +275,9 @@ Cada odontólogo puede conectar su propia cuenta de Google Calendar desde:
 ```
 
 El sistema guarda tokens OAuth cifrados en `GoogleCalendarConexion` y conserva el `google_calendar_event_id` en cada turno sincronizado.
+
+Los eventos nuevos usan un identificador determinista sin PII y un payload mínimo. Calendar y
+email se ejecutan después del commit para no mantener bloqueos de agenda durante llamadas de red.
 
 Cuando hay conexión activa:
 

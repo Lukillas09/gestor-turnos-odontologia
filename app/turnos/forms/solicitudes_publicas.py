@@ -179,8 +179,13 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     motivo = forms.CharField(
         max_length=200,
         required=False,
-        label="Motivo breve",
-        widget=forms.TextInput(attrs={"placeholder": "Control, limpieza o urgencia"}),
+        label="Comentario adicional",
+        widget=forms.Textarea(
+            attrs={
+                "placeholder": "Información breve que quieras agregar",
+                "rows": 3,
+            }
+        ),
     )
     idempotency_token = forms.CharField(required=False, widget=forms.HiddenInput())
     turnstile_token = forms.CharField(required=False, widget=forms.HiddenInput())
@@ -198,10 +203,6 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         )
         if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
             self._configurar_tipos_disponibles()
-            self.fields["motivo"].label = "Comentario adicional"
-            self.fields["motivo"].widget.attrs[
-                "placeholder"
-            ] = "Información breve que quieras agregar"
         else:
             self.fields.pop("tipo_turno", None)
         self._configurar_horarios_disponibles()

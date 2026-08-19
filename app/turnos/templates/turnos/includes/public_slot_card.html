@@ -1,7 +1,7 @@
-<section class="public-slot-card animate-fade-up" style="--stagger-index: {{ indice }};">
+<section class="public-slot-card public-time-period animate-fade-up" style="--stagger-index: {{ indice }};" data-public-slot-card data-slot-card-title="{{ titulo }}">
     <div class="public-slot-card-header">
         <div>{% include "includes/icon.html" with name=icono %}<h3>{{ titulo }}</h3></div>
-        <span>{{ horarios|length }} opciones</span>
+        <span>{{ horarios|length }} {% if horarios|length == 1 %}opción{% else %}opciones{% endif %}</span>
     </div>
     {% if horarios %}
         <div class="public-slot-list public-time-grid">

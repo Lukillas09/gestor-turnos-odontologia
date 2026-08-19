@@ -1,0 +1,17 @@
+{% load static %}
+<header class="internal-login-topbar">
+    <div class="internal-login-topbar-inner">
+        <a class="internal-login-brand" href="{% url 'landing_publica' %}" aria-label="Ir a los turnos online de {{ configuracion_consultorio.nombre_visible }}">
+            {% if configuracion_consultorio.logo_url %}
+                <span class="internal-login-header-logo"><img src="{{ configuracion_consultorio.logo_url }}" alt=""></span>
+            {% else %}
+                <span class="internal-login-header-logo"><img src="{% static 'images/consultorio-abete-logo.png' %}" alt=""></span>
+            {% endif %}
+            <strong>{{ configuracion_consultorio.nombre_visible|default:"Gestor de Turnos" }}</strong>
+        </a>
+        <a class="internal-login-back" href="{% url 'landing_publica' %}">
+            {% include "includes/icon.html" with name="calendar" %}
+            <span>Volver a turnos online</span>
+        </a>
+    </div>
+</header>
