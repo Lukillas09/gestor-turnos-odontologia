@@ -114,4 +114,18 @@
     --topbar-height: 72px;
     --content-max: 1320px;
     --bottom-nav-height: 72px;
+
+    --public-bg: #fbfaf7;
+    --public-surface: #fffefa;
+    --public-surface-soft: #f7f1e7;
+    --public-text: #2d2823;
+    --public-muted: #746d65;
+    --public-border: #e6ded2;
+    --public-gold: #be9142;
+    --public-gold-dark: #956b29;
+    --public-gold-soft: #f6eddd;
+    --public-green: #3f7d60;
+    --public-green-soft: #eaf3ed;
+    --public-danger: #a33f3f;
+    --public-shadow: 0 18px 48px rgba(71, 55, 34, 0.08);
 }

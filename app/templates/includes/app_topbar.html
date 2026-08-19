@@ -13,7 +13,12 @@
         </strong>
     </div>
     <div class="app-topbar-actions">
-        <time class="app-topbar-date">{% now "l d \d\e F" %}</time>
+        <time class="app-topbar-date">
+            {% include "includes/icon.html" with name="calendar" %}
+            {% now "l d \d\e F" as fecha_actual %}
+            <span>{{ fecha_actual|capfirst }}</span>
+        </time>
+        <span class="app-topbar-divider" aria-hidden="true"></span>
         <div class="app-user-menu">
             <a class="app-user-profile-link" href="{% url 'perfil' %}" aria-label="Abrir perfil de {{ request.user.get_username }}">
                 <div class="app-user-text">
@@ -27,6 +32,7 @@
                         <span>{{ request.user.get_username|first|upper }}</span>
                     {% endif %}
                 </div>
+                <span class="app-user-chevron" aria-hidden="true">{% include "includes/icon.html" with name="chevron-down" %}</span>
             </a>
         </div>
     </div>

@@ -3,9 +3,10 @@
 {% block title %}Agenda diaria | Gestor de Turnos{% endblock %}
 
 {% block content %}
+<div class="clinical-agenda clinical-agenda-day">
     <header class="internal-page-heading agenda-page-heading animate-fade-up">
         <div>
-            <p class="eyebrow">Agenda profesional</p>
+            <p class="eyebrow">Turnos</p>
             <h1>Agenda diaria</h1>
             <p class="subtitle">{{ fecha|date:"l d \d\e F \d\e Y"|capfirst }}</p>
         </div>
@@ -19,18 +20,19 @@
                 <a class="button button-secondary" href="{% url 'turnos:agenda_dia' %}">Hoy</a>
                 <a class="button button-icon button-secondary" href="{% url 'turnos:agenda_dia' %}?fecha={{ fecha_siguiente|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&amp;buscar={{ busqueda|urlencode }}{% endif %}" aria-label="Día siguiente">{% include "includes/icon.html" with name="arrow-right" %}</a>
             </nav>
-            {% if puede_gestionar_turnos %}<a class="button" href="{% url 'turnos:crear' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
+            {% if puede_gestionar_turnos %}<a class="button clinical-primary-action" href="{% url 'turnos:crear' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
+            <a class="button button-secondary agenda-view-link" href="{% url 'turnos:agenda_semana' %}?fecha={{ fecha|date:'Y-m-d' }}{% if odontologo %}&amp;odontologo={{ odontologo.pk }}{% endif %}{% if busqueda %}&amp;buscar={{ busqueda|urlencode }}{% endif %}">{% include "includes/icon.html" with name="calendar" %} Ver agenda semanal</a>
         </div>
     </header>
 
     <section class="agenda-summary-strip" aria-label="Resumen del día">
-        <div><span>Total</span><strong>{{ resumen_estados.total }}</strong></div>
-        <div class="is-pending"><span>Pendientes</span><strong>{{ resumen_estados.pendiente }}</strong></div>
-        <div class="is-confirmed"><span>Confirmados</span><strong>{{ resumen_estados.confirmado }}</strong></div>
-        <div class="is-cancelled"><span>Cancelados</span><strong>{{ resumen_estados.cancelado }}</strong></div>
+        <div><span>Total</span><strong>{{ resumen_estados.total }}</strong><small>turnos</small></div>
+        <div class="is-pending"><span>Pendientes</span><strong>{{ resumen_estados.pendiente }}</strong><small>turnos</small></div>
+        <div class="is-confirmed"><span>Confirmados</span><strong>{{ resumen_estados.confirmado }}</strong><small>turnos</small></div>
+        <div class="is-cancelled"><span>Cancelados</span><strong>{{ resumen_estados.cancelado }}</strong><small>turnos</small></div>
     </section>
 
-    <details class="agenda-filters-panel" open>
+    <details class="agenda-filters-panel" data-clinical-filter-panel open>
         <summary>{% include "includes/icon.html" with name="filter" %} Filtros <span>{% if busqueda or odontologo %}Activos{% endif %}</span></summary>
         <form class="agenda-filter-form" method="get">
             <div><label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>{{ filtros_form.fecha }}</div>
@@ -94,4 +96,5 @@
             {% include "includes/empty_state.html" with illustration="images/calendar-empty.svg" title="No hay agenda para este día" description="No hay disponibilidad ni turnos cargados para la fecha seleccionada." %}
         {% endif %}
     {% endif %}
+</div>
 {% endblock %}

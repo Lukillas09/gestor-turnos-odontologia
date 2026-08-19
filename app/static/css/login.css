@@ -1,0 +1,756 @@
+.internal-login-body {
+    /* Keep login colors independent from the public stylesheet token scope. */
+    --clinic-bg: #fbfaf7;
+    --clinic-surface: #fffefa;
+    --clinic-panel: #f7f1e7;
+    --clinic-charcoal: #2d2823;
+    --clinic-charcoal-soft: #514b45;
+    --clinic-gold: #be9142;
+    --clinic-gold-dark: #956b29;
+    --clinic-gold-soft: #f6eddd;
+    --clinic-text: #2d2823;
+    --clinic-muted: #746d65;
+    --clinic-border: #e6ded2;
+    --clinic-green: #3f7d60;
+    --clinic-green-soft: #eaf3ed;
+    --clinic-blue-soft: #eef2f0;
+    --clinic-amber-soft: #f6eddd;
+    --clinic-red-soft: #f8ece7;
+    --clinic-serif: Georgia, "Times New Roman", serif;
+    --clinic-shadow: 0 18px 48px rgba(71, 55, 34, 0.08);
+
+    /* Compatibility aliases for the small set of shared palette references below. */
+    --public-bg: var(--clinic-bg);
+    --public-surface: var(--clinic-surface);
+    --public-surface-soft: var(--clinic-panel);
+    --public-text: var(--clinic-text);
+    --public-muted: var(--clinic-muted);
+    --public-border: var(--clinic-border);
+    --public-gold: var(--clinic-gold);
+    --public-gold-dark: var(--clinic-gold-dark);
+    --public-gold-soft: var(--clinic-gold-soft);
+    --public-green: var(--clinic-green);
+    --public-green-soft: var(--clinic-green-soft);
+    --public-danger: #a33f3f;
+    --public-shadow: var(--clinic-shadow);
+
+    min-width: 320px;
+    min-height: 100vh;
+    background: #fbfaf7;
+    color: var(--clinic-text);
+}
+
+.internal-login-body .internal-login-topbar {
+    min-height: 96px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(207, 192, 169, 0.42);
+    background: rgba(255, 254, 250, 0.96);
+}
+
+.internal-login-body .internal-login-topbar-inner {
+    width: min(1456px, calc(100% - 12vw));
+    margin-inline: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.internal-login-body .internal-login-brand {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--clinic-text);
+    text-decoration: none;
+}
+
+.internal-login-body .internal-login-header-logo {
+    width: 86px;
+    height: 58px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    overflow: hidden;
+    color: var(--clinic-gold-dark);
+    font-family: var(--clinic-serif);
+    font-size: 1.25rem;
+}
+
+.internal-login-body .internal-login-header-logo img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.internal-login-body .internal-login-brand strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #2f2923;
+    font-family: var(--clinic-serif);
+    font-size: clamp(1.25rem, 1.8vw, 1.7rem);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.internal-login-body .internal-login-back {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    color: var(--clinic-gold-dark);
+    font-size: 0.94rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.internal-login-body .internal-login-back:hover,
+.internal-login-body .internal-login-back:focus-visible {
+    color: var(--public-text);
+}
+
+.internal-login-body .internal-login-back .ui-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.internal-login-body .internal-login-page {
+    width: 100%;
+    min-height: calc(100vh - 96px);
+    padding: 0.625rem 2rem 0;
+}
+
+.internal-login-body .internal-login {
+    width: min(1400px, calc(100% - 12vw));
+    margin-inline: auto;
+}
+
+.internal-login-body .internal-login-card {
+    width: 100%;
+    min-height: clamp(650px, calc(100vh - 162px), 738px);
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    overflow: hidden;
+    border: 1px solid rgba(218, 207, 190, 0.8);
+    border-radius: 24px;
+    background: var(--clinic-surface);
+    box-shadow: 0 22px 56px rgba(72, 58, 40, 0.11);
+}
+
+.internal-login-body .internal-login-visual {
+    min-width: 0;
+    min-height: 650px;
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 1.5rem;
+    overflow: hidden;
+    padding: clamp(2rem, 4vw, 3.5rem);
+    background: var(--clinic-panel);
+    color: var(--clinic-text);
+}
+
+.internal-login-body .internal-login-visual::before {
+    width: 72%;
+    aspect-ratio: 1;
+    position: absolute;
+    top: -31%;
+    right: -18%;
+    content: "";
+    border-radius: 50%;
+    background: rgba(255, 253, 248, 0.56);
+    pointer-events: none;
+}
+
+.internal-login-body .internal-login-dental-image {
+    width: 47%;
+    height: 58%;
+    position: absolute;
+    bottom: 8%;
+    left: -2%;
+    background: url("../images/dental-clinic-hero.webp") center / cover no-repeat;
+    filter: grayscale(1) sepia(0.3);
+    opacity: 0.095;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to right, #000 45%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 45%, transparent 100%);
+}
+
+.internal-login-body .internal-login-visual-copy {
+    width: min(480px, 90%);
+    position: relative;
+    z-index: 2;
+    align-self: center;
+    justify-self: center;
+    transform: translateY(12px);
+    text-align: center;
+}
+
+.internal-login-body .internal-login-hero-logo {
+    width: clamp(150px, 16vw, 200px);
+    height: clamp(94px, 10vw, 124px);
+    display: grid;
+    place-items: center;
+    margin: 0 auto 1.1rem;
+    overflow: hidden;
+    color: var(--clinic-gold-dark);
+    font-family: var(--clinic-serif);
+    font-size: 2rem;
+}
+
+.internal-login-body .internal-login-hero-logo img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.internal-login-body .internal-login-eyebrow {
+    margin: 0;
+    color: var(--clinic-gold-dark);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.internal-login-body .internal-login-visual h2,
+.internal-login-body .internal-login-heading h1 {
+    color: var(--clinic-text);
+    font-family: var(--clinic-serif);
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.internal-login-body .internal-login-visual h2 {
+    margin: 1.3rem 0 1.1rem;
+    font-size: clamp(2.35rem, 3.4vw, 3.35rem);
+    line-height: 1.1;
+}
+
+.internal-login-body .internal-login-title-rule,
+.internal-login-body .internal-login-heading-rule {
+    width: 38px;
+    height: 1px;
+    display: block;
+    background: var(--clinic-gold-dark);
+}
+
+.internal-login-body .internal-login-title-rule {
+    margin: 0 auto 1.4rem;
+}
+
+.internal-login-body .internal-login-lead {
+    max-width: 440px;
+    margin: 0 auto;
+    color: #676159;
+    font-size: 0.98rem;
+    line-height: 1.65;
+}
+
+.internal-login-body .internal-login-benefits {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.internal-login-body .internal-login-benefits li {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.internal-login-body .internal-login-benefits li > span {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(255, 250, 241, 0.88);
+    color: var(--clinic-gold-dark);
+}
+
+.internal-login-body .internal-login-benefits li > span .ui-icon {
+    width: 1.3rem;
+    height: 1.3rem;
+}
+
+.internal-login-body .internal-login-benefits li div {
+    min-width: 0;
+    display: grid;
+    gap: 0.3rem;
+}
+
+.internal-login-body .internal-login-benefits strong {
+    font-size: 0.82rem;
+}
+
+.internal-login-body .internal-login-benefits small {
+    color: #6d675f;
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.internal-login-body .internal-login-botanical {
+    width: 180px;
+    height: 210px;
+    position: absolute;
+    top: -26px;
+    left: -28px;
+    z-index: 1;
+    border-left: 1px solid rgba(190, 145, 66, 0.2);
+    border-radius: 50%;
+    transform: rotate(24deg);
+    pointer-events: none;
+}
+
+.internal-login-body .internal-login-botanical i {
+    width: 54px;
+    height: 24px;
+    position: absolute;
+    border: 1px solid rgba(190, 145, 66, 0.18);
+    border-left: 0;
+    border-radius: 0 100% 0 100%;
+}
+
+.internal-login-body .internal-login-botanical i:nth-child(1) { top: 46px; left: 6px; transform: rotate(-24deg); }
+.internal-login-body .internal-login-botanical i:nth-child(2) { top: 94px; left: 22px; transform: rotate(6deg); }
+.internal-login-body .internal-login-botanical i:nth-child(3) { top: 142px; left: 5px; transform: rotate(-18deg); }
+
+.internal-login-body .internal-login-panel {
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    padding: clamp(2rem, 5vw, 4.5rem);
+    background: var(--clinic-surface);
+}
+
+.internal-login-body .internal-login-form {
+    width: min(440px, 100%);
+    display: grid;
+    gap: 1.7rem;
+}
+
+.internal-login-body .internal-login-heading {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.internal-login-body .internal-login-heading-rule {
+    margin-top: 0.1rem;
+}
+
+.internal-login-body .internal-login-heading h1 {
+    margin: 0.2rem 0 0;
+    font-size: clamp(2.45rem, 3.4vw, 3.35rem);
+    line-height: 1;
+}
+
+.internal-login-body .internal-login-heading > p:last-child {
+    margin: 0.25rem 0 0;
+    color: var(--clinic-muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.internal-login-body .internal-login-fields {
+    display: grid;
+    gap: 1.15rem;
+}
+
+.internal-login-body .internal-login-field label {
+    margin-bottom: 0.55rem;
+    color: var(--clinic-text);
+    font-size: 0.86rem;
+}
+
+.internal-login-body .internal-login-field:focus-within label {
+    color: var(--clinic-gold-dark);
+}
+
+.internal-login-body .internal-login-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.internal-login-body .internal-login-control-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    position: absolute;
+    left: 1rem;
+    z-index: 1;
+    color: #8b8a88;
+    pointer-events: none;
+}
+
+.internal-login-body .internal-login-control-icon .ui-icon {
+    width: 100%;
+    height: 100%;
+}
+
+.internal-login-body .internal-login-field input {
+    width: 100%;
+    min-height: 52px;
+    border: 1px solid #d7d3cc;
+    border-radius: 10px;
+    padding: 0.7rem 3rem;
+    background: #ffffff;
+    color: var(--clinic-text);
+}
+
+.internal-login-body .internal-login-field input:-webkit-autofill,
+.internal-login-body .internal-login-field input:-webkit-autofill:hover,
+.internal-login-body .internal-login-field input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--clinic-text);
+    -webkit-box-shadow: 0 0 0 1000px var(--clinic-surface) inset;
+    caret-color: var(--clinic-text);
+}
+
+.internal-login-body .internal-login-field input:focus {
+    border-color: var(--public-gold);
+    outline: 3px solid color-mix(in srgb, var(--public-gold) 24%, transparent);
+    outline-offset: 0;
+}
+
+.internal-login-body .internal-login-field.has-error input {
+    border-color: #bf5847;
+}
+
+.internal-login-body .internal-login-field .field-error {
+    margin-top: 0.45rem;
+    color: #a53f31;
+    font-size: 0.78rem;
+}
+
+.internal-login-body .internal-login-password-toggle {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    position: absolute;
+    right: 4px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    padding: 0;
+    background: transparent;
+    color: #77746f;
+    box-shadow: none;
+}
+
+.internal-login-body .internal-login-password-toggle:hover,
+.internal-login-body .internal-login-password-toggle:focus-visible {
+    background: var(--clinic-gold-soft);
+    color: var(--clinic-gold-dark);
+}
+
+.internal-login-body .internal-login-password-toggle span {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.internal-login-body .internal-login-password-toggle span[hidden] {
+    display: none;
+}
+
+.internal-login-body .internal-login-submit {
+    width: 100%;
+    min-height: 52px;
+    gap: 0.65rem;
+    border-color: var(--public-gold);
+    border-radius: 9px;
+    background: var(--public-gold);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(149, 107, 41, 0.16);
+}
+
+.internal-login-body .internal-login-submit:hover,
+.internal-login-body .internal-login-submit:focus-visible {
+    border-color: var(--public-gold-dark);
+    background: var(--public-gold-dark);
+    color: #ffffff;
+}
+
+.internal-login-body .internal-login-submit:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--public-gold) 38%, transparent);
+    outline-offset: 2px;
+}
+
+.internal-login-body .internal-login-submit:active {
+    border-color: color-mix(in srgb, var(--public-gold-dark) 88%, var(--public-text));
+    background: color-mix(in srgb, var(--public-gold-dark) 88%, var(--public-text));
+    transform: translateY(1px);
+}
+
+.internal-login-body .internal-login-submit:disabled {
+    border-color: var(--public-border);
+    background: #ddd6cc;
+    color: #827b72;
+    box-shadow: none;
+    cursor: wait;
+    opacity: 1;
+}
+
+.internal-login-body .internal-login-security {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 0.85rem;
+    align-items: center;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    background: var(--public-surface-soft);
+}
+
+.internal-login-body .internal-login-security > span {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--clinic-green-soft);
+    color: var(--clinic-green);
+}
+
+.internal-login-body .internal-login-security div {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.internal-login-body .internal-login-security strong {
+    font-size: 0.78rem;
+}
+
+.internal-login-body .internal-login-security small {
+    color: var(--clinic-muted);
+    font-size: 0.68rem;
+    line-height: 1.4;
+}
+
+.internal-login-body .internal-login-error {
+    border-color: #ead0ca;
+    border-radius: 10px;
+    background: #fff6f3;
+    color: #9c3c2f;
+}
+
+.internal-login-body .internal-login-footer {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 0.65rem;
+    color: var(--clinic-muted);
+    font-size: 0.82rem;
+}
+
+.internal-login-body .brand-footer-security-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    color: #9a8970;
+}
+
+.internal-login-body .brand-footer-security-icon .ui-icon {
+    width: 100%;
+    height: 100%;
+}
+
+.internal-login-body .internal-login-footer i {
+    color: var(--clinic-gold);
+    font-style: normal;
+}
+
+@media (max-width: 1100px) {
+    .internal-login-body .internal-login-topbar {
+        min-height: 78px;
+    }
+
+    .internal-login-body .internal-login-topbar-inner {
+        width: calc(100% - 40px);
+    }
+
+    .internal-login-body .internal-login-header-logo {
+        width: 64px;
+        height: 44px;
+    }
+
+    .internal-login-body .internal-login-page {
+        min-height: calc(100vh - 78px);
+        padding: 1.25rem 1.25rem 0;
+    }
+
+    .internal-login-body .internal-login {
+        width: min(760px, 100%);
+    }
+
+    .internal-login-body .internal-login-card {
+        min-height: 0;
+        grid-template-columns: 1fr;
+    }
+
+    .internal-login-body .internal-login-panel {
+        grid-row: 1;
+        padding: 3rem clamp(1.5rem, 8vw, 4rem);
+    }
+
+    .internal-login-body .internal-login-visual {
+        min-height: 390px;
+        grid-row: 2;
+        grid-template-rows: auto auto;
+        padding: 2.25rem clamp(1.5rem, 6vw, 3rem);
+    }
+
+    .internal-login-body .internal-login-visual-copy {
+        width: min(530px, 100%);
+        transform: none;
+    }
+
+    .internal-login-body .internal-login-hero-logo {
+        width: 132px;
+        height: 82px;
+        margin-bottom: 0.65rem;
+    }
+
+    .internal-login-body .internal-login-visual h2 {
+        margin-block: 0.8rem;
+        font-size: 2.25rem;
+    }
+
+    .internal-login-body .internal-login-title-rule {
+        margin-bottom: 0.85rem;
+    }
+
+    .internal-login-body .internal-login-benefits {
+        width: min(640px, 100%);
+        justify-self: center;
+    }
+
+    .internal-login-body .internal-login-dental-image {
+        display: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .internal-login-body .internal-login-topbar-inner {
+        width: calc(100% - 28px);
+        gap: 0.75rem;
+    }
+
+    .internal-login-body .internal-login-brand {
+        gap: 0.55rem;
+    }
+
+    .internal-login-body .internal-login-header-logo {
+        width: 54px;
+        height: 38px;
+    }
+
+    .internal-login-body .internal-login-brand strong {
+        max-width: 150px;
+        font-size: 1.05rem;
+    }
+
+    .internal-login-body .internal-login-back {
+        min-width: 44px;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    .internal-login-body .internal-login-back span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .internal-login-body .internal-login-page {
+        padding: 0.85rem 0.75rem 0;
+    }
+
+    .internal-login-body .internal-login-card {
+        border-radius: 18px;
+    }
+
+    .internal-login-body .internal-login-panel {
+        padding: 2.2rem 1.15rem;
+    }
+
+    .internal-login-body .internal-login-form {
+        gap: 1.4rem;
+    }
+
+    .internal-login-body .internal-login-heading h1 {
+        font-size: 2.35rem;
+    }
+
+    .internal-login-body .internal-login-visual {
+        min-height: 0;
+        gap: 1.5rem;
+        padding: 1.8rem 1.15rem;
+    }
+
+    .internal-login-body .internal-login-visual h2 {
+        font-size: 1.9rem;
+    }
+
+    .internal-login-body .internal-login-lead {
+        font-size: 0.88rem;
+    }
+
+    .internal-login-body .internal-login-benefits {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .internal-login-body .internal-login-benefits li {
+        grid-template-columns: 40px minmax(0, 1fr);
+    }
+
+    .internal-login-body .internal-login-benefits li > span {
+        width: 40px;
+        height: 40px;
+    }
+
+    .internal-login-body .internal-login-footer {
+        flex-wrap: wrap;
+        gap: 0.35rem 0.55rem;
+        padding-inline: 1rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 360px) {
+    .internal-login-body .internal-login-brand strong {
+        max-width: 125px;
+        font-size: 0.95rem;
+    }
+
+    .internal-login-body .internal-login-field input {
+        padding-left: 2.75rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .internal-login-body .internal-login-card {
+        transition: none;
+    }
+}

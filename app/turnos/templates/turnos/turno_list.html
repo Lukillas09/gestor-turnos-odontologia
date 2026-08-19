@@ -3,12 +3,13 @@
 {% block title %}Turnos | Gestor de Turnos{% endblock %}
 
 {% block content %}
-    <header class="internal-page-heading animate-fade-up">
+<div class="clinical-turnos">
+    <header class="internal-page-heading turnos-page-heading animate-fade-up">
         <div><p class="eyebrow">Turnos</p><h1>Agenda de turnos</h1><p class="subtitle">Pacientes, horarios y estados listos para revisar de un vistazo.</p></div>
-        {% if puede_gestionar_turnos %}<a class="button" href="{% url 'turnos:crear' %}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
+        {% if puede_gestionar_turnos %}<a class="button clinical-primary-action" href="{% url 'turnos:crear' %}">{% include "includes/icon.html" with name="plus" %} Nuevo turno</a>{% endif %}
     </header>
 
-    <details class="list-filters-panel turnos-filters-v2 animate-fade-up" open>
+    <details class="list-filters-panel turnos-filters-v2 animate-fade-up" data-clinical-filter-panel open>
         <summary>{% include "includes/icon.html" with name="filter" %} Filtros de turnos {% if hay_filtros_activos %}<span class="status-badge status-sync-ok">Activos</span>{% endif %}</summary>
         <form class="turnos-filter-form" method="get">
             <div><label for="{{ filtros_form.fecha.id_for_label }}">Fecha</label>{{ filtros_form.fecha }}</div>
@@ -23,7 +24,10 @@
     </details>
 
     <section class="agenda-summary-strip turnos-summary-strip" aria-label="Resumen de turnos">
-        <div><span>Total</span><strong>{{ resumen_turnos.total }}</strong></div><div class="is-pending"><span>Pendientes</span><strong>{{ resumen_turnos.pendiente }}</strong></div><div class="is-confirmed"><span>Confirmados</span><strong>{{ resumen_turnos.confirmado }}</strong></div><div class="is-cancelled"><span>Cancelados</span><strong>{{ resumen_turnos.cancelado }}</strong></div>
+        <div><span>Total</span><strong>{{ resumen_turnos.total }}</strong><small>turnos</small></div>
+        <div class="is-pending"><span>Pendientes</span><strong>{{ resumen_turnos.pendiente }}</strong><small>turnos</small></div>
+        <div class="is-confirmed"><span>Confirmados</span><strong>{{ resumen_turnos.confirmado }}</strong><small>turnos</small></div>
+        <div class="is-cancelled"><span>Cancelados</span><strong>{{ resumen_turnos.cancelado }}</strong><small>turnos</small></div>
     </section>
 
     {% if turnos %}
@@ -67,4 +71,5 @@
             {% if page_obj.has_next %}<a class="button button-secondary" href="?page={{ page_obj.next_page_number }}{% if filtros_querystring %}&amp;{{ filtros_querystring }}{% endif %}">Siguiente {% include "includes/icon.html" with name="arrow-right" %}</a>{% endif %}
         </nav>
     {% endif %}
+</div>
 {% endblock %}

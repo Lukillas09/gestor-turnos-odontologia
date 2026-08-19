@@ -1,27 +1,105 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Ingresar | Gestor de Turnos{% endblock %}
+{% block title %}Ingresar | {{ configuracion_consultorio.nombre_visible|default:"Gestor de Turnos" }}{% endblock %}
+{% block body_class %}internal-login-body{% endblock %}
+{% block main_class %}internal-login-page page-transition{% endblock %}
+{% block shell_header %}{% include "includes/login_header.html" %}{% endblock %}
+{% block mobile_navigation %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
 
 {% block content %}
-    <section class="login-shell animate-fade-up" aria-labelledby="login-title">
-        <div class="login-visual">
-            <img src="{% static 'images/secure-access.svg' %}" alt="" width="320" height="240">
-            <div><p class="eyebrow">Área profesional</p><h2>Tu jornada clínica, organizada</h2><p>Accedé a la agenda, los turnos y la información de pacientes desde un espacio protegido.</p></div>
+    <section class="internal-login" aria-labelledby="login-title">
+        <div class="internal-login-card animate-fade-up">
+            <section class="internal-login-visual" aria-labelledby="login-welcome-title">
+                <span class="internal-login-botanical" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="internal-login-dental-image" aria-hidden="true"></span>
+
+                <div class="internal-login-visual-copy">
+                    <span class="internal-login-hero-logo" aria-hidden="true">
+                        {% if configuracion_consultorio.logo_url %}
+                            <img src="{{ configuracion_consultorio.logo_url }}" alt="">
+                        {% else %}
+                            <img src="{% static 'images/consultorio-abete-logo.png' %}" alt="">
+                        {% endif %}
+                    </span>
+                    <p class="internal-login-eyebrow">Área profesional</p>
+                    <h2 id="login-welcome-title">Ingresá a tu<br>espacio de trabajo</h2>
+                    <span class="internal-login-title-rule" aria-hidden="true"></span>
+                    <p class="internal-login-lead">Gestioná tu agenda, turnos e información de pacientes de forma segura y confidencial.</p>
+                </div>
+
+                <ul class="internal-login-benefits" aria-label="Beneficios del espacio interno">
+                    <li>
+                        <span>{% include "includes/icon.html" with name="shield-check" %}</span>
+                        <div><strong>Entorno seguro</strong><small>Protegemos tu información y la de tus pacientes.</small></div>
+                    </li>
+                    <li>
+                        <span>{% include "includes/icon.html" with name="calendar" %}</span>
+                        <div><strong>Todo en un lugar</strong><small>Agenda, turnos y pacientes siempre a mano.</small></div>
+                    </li>
+                    <li>
+                        <span>{% include "includes/icon.html" with name="lock" %}</span>
+                        <div><strong>Acceso exclusivo</strong><small>Solo para profesionales autorizados.</small></div>
+                    </li>
+                </ul>
+            </section>
+
+            <form class="internal-login-panel" method="post" novalidate data-login-form>
+                {% csrf_token %}
+                <div class="internal-login-form">
+                    <header class="internal-login-heading">
+                        <p class="internal-login-eyebrow">Acceso interno</p>
+                        <span class="internal-login-heading-rule" aria-hidden="true"></span>
+                        <h1 id="login-title">Ingresar</h1>
+                        <p>Usá tus credenciales asignadas por el consultorio.</p>
+                    </header>
+
+                    {% if form.non_field_errors %}
+                        <div class="form-error-summary internal-login-error" role="alert">
+                            {% include "includes/icon.html" with name="alert" %}
+                            <div>{{ form.non_field_errors }}</div>
+                        </div>
+                    {% endif %}
+                    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+                    <div class="internal-login-fields">
+                        <div class="form-field internal-login-field{% if form.username.errors %} has-error{% endif %}">
+                            <label for="{{ form.username.id_for_label }}">{{ form.username.label }}{% if form.username.field.required %}<span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> obligatorio</span>{% endif %}</label>
+                            <div class="internal-login-control">
+                                <span class="internal-login-control-icon" aria-hidden="true">{% include "includes/icon.html" with name="user" %}</span>
+                                {{ form.username }}
+                            </div>
+                            {% if form.username.errors %}<div class="field-error" id="{{ form.username.id_for_label }}-error" role="alert">{{ form.username.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="form-field internal-login-field{% if form.password.errors %} has-error{% endif %}">
+                            <label for="{{ form.password.id_for_label }}">{{ form.password.label }}{% if form.password.field.required %}<span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> obligatorio</span>{% endif %}</label>
+                            <div class="internal-login-control internal-login-password">
+                                <span class="internal-login-control-icon" aria-hidden="true">{% include "includes/icon.html" with name="lock" %}</span>
+                                {{ form.password }}
+                                <button class="internal-login-password-toggle" type="button" data-password-toggle aria-controls="{{ form.password.id_for_label }}" aria-label="Mostrar contraseña" aria-pressed="false">
+                                    <span data-password-show>{% include "includes/icon.html" with name="eye" %}</span>
+                                    <span data-password-hide hidden>{% include "includes/icon.html" with name="eye-off" %}</span>
+                                </button>
+                            </div>
+                            {% if form.password.errors %}<div class="field-error" id="{{ form.password.id_for_label }}-error" role="alert">{{ form.password.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <button class="button internal-login-submit" type="submit">
+                        {% include "includes/icon.html" with name="lock" %}
+                        <span data-submit-label>Ingresar de forma segura</span>
+                    </button>
+
+                    <div class="internal-login-security">
+                        <span>{% include "includes/icon.html" with name="shield-check" %}</span>
+                        <div><strong>Acceso protegido</strong><small>La sesión utiliza las medidas de seguridad configuradas por el consultorio.</small></div>
+                    </div>
+                </div>
+            </form>
         </div>
 
-        <form class="login-panel" method="post" novalidate>
-            {% csrf_token %}
-            <header><span class="login-icon">{% include "includes/icon.html" with name="lock" %}</span><div><p class="eyebrow">Acceso interno</p><h1 id="login-title">Ingresar</h1><p>Usá las credenciales asignadas por el consultorio.</p></div></header>
-
-            {% if form.non_field_errors %}<div class="form-error-summary" role="alert">{% include "includes/icon.html" with name="alert" %}<div>{{ form.non_field_errors }}</div></div>{% endif %}
-            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-
-            <div class="login-fields">
-                {% include "includes/form_field.html" with field=form.username full=True %}
-                {% include "includes/form_field.html" with field=form.password full=True %}
-            </div>
-            <button class="button button-large" type="submit">{% include "includes/icon.html" with name="lock" %} Ingresar de forma segura</button>
-        </form>
+        {% include "includes/brand_footer.html" with footer_class="internal-login-footer" footer_icon="shield" %}
     </section>
 {% endblock %}

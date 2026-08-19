@@ -1,20 +1,50 @@
-<header class="topbar public-topbar">
+{% load static %}
+<header class="topbar public-topbar{% if request.resolver_match.url_name == 'solicitud_publica_datos' %} public-topbar-minimal{% endif %}">
     <div class="topbar-inner">
-        <a class="brand" href="{% url 'landing_publica' %}">
+        <a class="brand public-brand" href="{% url 'landing_publica' %}" aria-label="Ir al inicio de {{ configuracion_consultorio.nombre_visible }}">
             {% if configuracion_consultorio.logo_url %}
-                <span class="brand-logo"><img src="{{ configuracion_consultorio.logo_url }}" alt=""></span>
+                <span class="brand-logo public-brand-logo"><img src="{{ configuracion_consultorio.logo_url }}" alt=""></span>
             {% else %}
-                <span class="brand-mark">{{ configuracion_consultorio.iniciales }}</span>
+                <span class="brand-logo public-brand-logo public-brand-logo-default"><img src="{% static 'images/consultorio-abete-logo.png' %}" alt=""></span>
             {% endif %}
-            <span class="brand-text">{{ configuracion_consultorio.nombre_visible }}</span>
+            <span class="public-brand-copy">
+                <strong class="brand-text">{{ configuracion_consultorio.nombre_comercial|default:configuracion_consultorio.nombre_visible }}</strong>
+                <small>Turnos online</small>
+            </span>
         </a>
-        <nav class="nav public-nav" aria-label="Navegación para pacientes">
-            <a class="nav-link" href="{% url 'landing_publica' %}">Inicio</a>
-            <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Mis turnos</a>
-            <a class="button button-small public-nav-cta" href="{% url 'turnos:solicitud_publica' %}">
-                {% include "includes/icon.html" with name="calendar" %} Solicitar turno
-            </a>
-            <a class="nav-link nav-link-internal" href="{% url 'login' %}">Ingresar</a>
-        </nav>
+
+        {% if request.resolver_match.url_name == 'solicitud_publica_datos' %}
+            <p class="public-header-privacy">
+                {% include "includes/icon.html" with name="lock" %}
+                <span>Tus datos están protegidos</span>
+            </p>
+        {% else %}
+            <nav class="nav public-nav" aria-label="Navegación para pacientes">
+                <a class="nav-link{% if request.resolver_match.url_name == 'landing_publica' %} is-active{% endif %}" href="{% url 'landing_publica' %}"{% if request.resolver_match.url_name == 'landing_publica' %} aria-current="page"{% endif %}>Inicio</a>
+                <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Mis turnos</a>
+                <a class="nav-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Reprogramar / Cancelar</a>
+                <a class="button button-small public-nav-cta" href="{% url 'turnos:solicitud_publica' %}">
+                    {% include "includes/icon.html" with name="calendar" %} Reservá tu turno
+                </a>
+            </nav>
+
+            <div class="public-mobile-actions">
+                <a class="button button-small public-mobile-cta" href="{% url 'turnos:solicitud_publica' %}" aria-label="Reservá tu turno">
+                    {% include "includes/icon.html" with name="calendar" %}
+                    <span>Reservá</span>
+                </a>
+                <details class="public-mobile-menu">
+                    <summary aria-label="Abrir navegación" title="Abrir navegación">
+                        {% include "includes/icon.html" with name="menu" %}
+                    </summary>
+                    <nav aria-label="Navegación móvil para pacientes">
+                        <a href="{% url 'landing_publica' %}">Inicio</a>
+                        <a href="{% url 'turnos:acceso_publico_solicitar' %}">Mis turnos</a>
+                        <a href="{% url 'turnos:acceso_publico_solicitar' %}">Reprogramar / Cancelar</a>
+                        <a href="{% url 'login' %}">Acceso del personal</a>
+                    </nav>
+                </details>
+            </div>
+        {% endif %}
     </div>
 </header>

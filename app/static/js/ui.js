@@ -22,6 +22,12 @@
                 }
             }
         }
+
+        if (!event.target.closest(".public-mobile-menu")) {
+            document.querySelectorAll(".public-mobile-menu[open]").forEach(function (details) {
+                details.open = false;
+            });
+        }
     });
 
     document.addEventListener("keydown", function (event) {
@@ -57,6 +63,31 @@
                 summary.focus();
             }
         });
+
+        document.querySelectorAll(".public-mobile-menu[open]").forEach(function (details) {
+            details.open = false;
+            const summary = details.querySelector("summary");
+            if (summary) {
+                summary.focus();
+            }
+        });
+    });
+
+    document.querySelectorAll(".public-mobile-menu").forEach(function (details) {
+        const summary = details.querySelector(":scope > summary");
+
+        function syncState() {
+            if (summary) {
+                summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+                summary.setAttribute(
+                    "aria-label",
+                    details.open ? "Cerrar navegación" : "Abrir navegación"
+                );
+            }
+        }
+
+        syncState();
+        details.addEventListener("toggle", syncState);
     });
 
     document.querySelectorAll("[data-mobile-more]").forEach(function (details) {
@@ -74,6 +105,28 @@
                 if (firstControl) {
                     firstControl.focus();
                 }
+            }
+        });
+    });
+
+    document.querySelectorAll("[data-patient-directory-filters]").forEach(function (details) {
+        const summary = details.querySelector(":scope > summary");
+
+        if (!summary) {
+            return;
+        }
+
+        function syncState() {
+            summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+        }
+
+        syncState();
+        details.addEventListener("toggle", syncState);
+        details.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && details.open) {
+                event.preventDefault();
+                details.open = false;
+                summary.focus();
             }
         });
     });
@@ -215,6 +268,34 @@
 
     initializeTurnoActionsMenus();
 
+    document.querySelectorAll("[data-password-toggle]").forEach(function (toggle) {
+        const inputId = toggle.getAttribute("aria-controls");
+        const input = inputId ? document.getElementById(inputId) : null;
+        const showIcon = toggle.querySelector("[data-password-show]");
+        const hideIcon = toggle.querySelector("[data-password-hide]");
+
+        if (!input) {
+            return;
+        }
+
+        toggle.addEventListener("click", function () {
+            const isVisible = input.type === "text";
+            input.type = isVisible ? "password" : "text";
+            toggle.setAttribute("aria-pressed", isVisible ? "false" : "true");
+            toggle.setAttribute(
+                "aria-label",
+                isVisible ? "Mostrar contraseña" : "Ocultar contraseña"
+            );
+            if (showIcon) {
+                showIcon.hidden = !isVisible;
+            }
+            if (hideIcon) {
+                hideIcon.hidden = isVisible;
+            }
+            input.focus({ preventScroll: true });
+        });
+    });
+
     document.addEventListener("submit", function (event) {
         const submitter = event.submitter;
 
@@ -224,6 +305,26 @@
 
         submitter.classList.add("button-loading");
         submitter.setAttribute("aria-busy", "true");
+
+        if (event.target.matches("[data-login-form]")) {
+            const label = submitter.querySelector("[data-submit-label]");
+            if (label) {
+                label.textContent = "Ingresando...";
+            }
+            submitter.disabled = true;
+        }
+    });
+
+    window.addEventListener("pageshow", function () {
+        document.querySelectorAll("[data-login-form] [type='submit']").forEach(function (button) {
+            const label = button.querySelector("[data-submit-label]");
+            button.disabled = false;
+            button.classList.remove("button-loading");
+            button.removeAttribute("aria-busy");
+            if (label) {
+                label.textContent = "Ingresar de forma segura";
+            }
+        });
     });
 
     document.querySelectorAll(".form-field").forEach(function (wrapper) {

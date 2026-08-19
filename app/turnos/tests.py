@@ -309,6 +309,8 @@ class TurnoViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Diaz")
         self.assertContains(response, "10:00")
+        self.assertContains(response, 'class="clinical-turnos"')
+        self.assertContains(response, "data-clinical-filter-panel")
 
     def test_listado_filtra_por_estado(self):
         Turno.objects.create(
@@ -1128,7 +1130,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         response_interna = self.client.get(reverse("inicio"))
 
         self.assertEqual(response_interna.status_code, 200)
-        self.assertContains(response_interna, '<body class="app-shell-body">')
+        self.assertContains(response_interna, '<body class="app-shell-body internal-shell">')
         self.assertContains(response_interna, 'class="app-sidebar"')
         self.assertContains(response_interna, 'class="app-topbar"')
         self.assertContains(response_interna, 'class="mobile-navigation"')
@@ -1726,17 +1728,18 @@ class SolicitudTurnoPublicaTests(TestCase):
         response = self.client.get(reverse("turnos:solicitud_publica"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Solicitar turno")
-        self.assertContains(response, "Opciones de turnos disponibles")
+        self.assertContains(response, "Elegí tu turno")
+        self.assertContains(response, "Horarios disponibles")
         self.assertContains(response, "Paso 1 de 3")
         self.assertContains(response, 'aria-current="step"')
         self.assertContains(response, "Seleccionar odontólogo")
         self.assertContains(response, "Elegí un odontólogo para ver los horarios disponibles.")
-        self.assertContains(response, "Autogestión de turnos")
-        self.assertContains(response, "consultorio-public-card")
-        self.assertContains(response, "261 555 0101")
-        self.assertContains(response, "turnos-publico@example.com")
-        self.assertContains(response, "Politica visible solo en tarjetas publicas.")
+        self.assertContains(response, "data-public-calendar")
+        self.assertContains(response, "data-public-slot-continue")
+        self.assertContains(response, "Escribinos por WhatsApp")
+        self.assertNotContains(response, "consultorio-public-card")
+        self.assertNotContains(response, "turnos-publico@example.com")
+        self.assertNotContains(response, "Politica visible solo en tarjetas publicas.")
         self.assertIsNone(response.context["odontologo"])
         self.assertEqual(response.context["horarios_manana"], [])
         self.assertEqual(response.context["horarios_tarde"], [])
@@ -2021,7 +2024,7 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Completar datos")
+        self.assertContains(response, "Completá tus datos")
         self.assertContains(response, "Paso 2 de 3")
         self.assertContains(response, 'aria-label="Progreso de la solicitud"')
         self.assertContains(response, "Paula Publica")
@@ -2031,11 +2034,15 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "Tus datos de contacto")
         self.assertContains(
             response,
-            "Usaremos este correo para enviarte códigos de acceso",
+            "Lo usamos para enviarte códigos de acceso",
         )
         self.assertContains(
             response,
-            "Si ya sos paciente, cualquier cambio en tus datos será revisado",
+            "Usaremos esta información solo para gestionar tu turno.",
+        )
+        self.assertContains(
+            response,
+            "Si ya sos paciente, tus datos registrados no se modifican automáticamente.",
         )
         self.assertContains(response, "Necesario si es tu primera solicitud")
         self.assertNotContains(response, "o dejá el campo vacío")
@@ -5118,6 +5125,9 @@ class AgendaViewsTests(TestCase):
         self.assertContains(response, "1122334455")
         self.assertContains(response, "Contacto")
         self.assertContains(response, "status-pendiente")
+        self.assertContains(response, "clinical-agenda-day")
+        self.assertContains(response, "Ver agenda semanal")
+        self.assertContains(response, "data-clinical-filter-panel")
         self.assertNotContains(response, "Fuera del dia")
 
     def test_agenda_diaria_busca_por_paciente_contacto_o_motivo(self):
@@ -5240,6 +5250,9 @@ class AgendaViewsTests(TestCase):
         self.assertContains(response, "Inicio de semana")
         self.assertContains(response, "1122334455")
         self.assertContains(response, "status-pendiente")
+        self.assertContains(response, "clinical-agenda-week")
+        self.assertContains(response, "Ver agenda diaria")
+        self.assertContains(response, "data-clinical-filter-panel")
         self.assertNotContains(response, "Fuera de la semana")
 
     def test_agenda_semanal_busca_por_motivo(self):

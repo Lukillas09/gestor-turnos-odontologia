@@ -3,6 +3,7 @@ from datetime import date, time, timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.templatetags.static import static
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -144,6 +145,60 @@ class RolesTests(TestCase):
         self.assertNotIn(paciente_archivado, visibles)
 
 
+class LoginInternoTests(TestCase):
+    def test_login_usa_shell_propio_y_enlace_publico_real(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "registration/login.html")
+        self.assertContains(response, 'class="internal-login-body"')
+        self.assertContains(response, 'class="internal-login-topbar"')
+        self.assertContains(response, f'href="{static("css/tokens.css")}"')
+        self.assertContains(response, f'href="{static("css/login.css")}"')
+        self.assertContains(response, f'src="{static("images/consultorio-abete-logo.png")}"')
+        self.assertContains(response, "Volver a turnos online")
+        self.assertContains(response, f'href="{reverse("landing_publica")}"')
+        self.assertNotContains(response, 'class="public-topbar"')
+        self.assertNotContains(response, 'class="app-sidebar"')
+
+    def test_login_conserva_formulario_csrf_next_y_toggle_password(self):
+        destino = reverse("perfil")
+
+        response = self.client.get(reverse("login"), {"next": destino})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        self.assertContains(response, f'name="next" value="{destino}"')
+        self.assertContains(response, 'name="username"')
+        self.assertContains(response, 'placeholder="Ingresá tu usuario"')
+        self.assertContains(response, 'name="password"')
+        self.assertContains(response, 'placeholder="Ingresá tu contraseña"')
+        self.assertContains(response, "data-password-toggle")
+
+    def test_login_invalido_muestra_error_accesible(self):
+        response = self.client.post(
+            reverse("login"),
+            {"username": "usuario.inexistente", "password": "incorrecta"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="form-error-summary internal-login-error"')
+        self.assertContains(response, 'role="alert"')
+
+    def test_login_valido_redirige_al_inicio(self):
+        get_user_model().objects.create_user(
+            username="recepcion.login",
+            password="clave-segura-login",
+        )
+
+        response = self.client.post(
+            reverse("login"),
+            {"username": "recepcion.login", "password": "clave-segura-login"},
+        )
+
+        self.assertRedirects(response, reverse("inicio"))
+
+
 class PerfilUsuarioTests(TestCase):
     def test_perfil_requiere_login(self):
         response = self.client.get(reverse("perfil"))
@@ -231,6 +286,13 @@ class InicioDashboardTests(TestCase):
         self.assertContains(response, "Turnos de hoy")
         self.assertContains(response, "Turnos de la semana")
         self.assertContains(response, "Pendientes")
+        self.assertContains(response, 'class="internal-dashboard"')
+        self.assertContains(response, "internal-dashboard-footer")
+        self.assertContains(response, f'href="{static("css/tokens.css")}"')
+        self.assertContains(response, f'href="{static("css/internal-shell.css")}"')
+        self.assertContains(response, f'src="{static("images/consultorio-abete-logo.png")}"')
+        self.assertContains(response, 'class="app-sidebar"')
+        self.assertContains(response, 'class="app-topbar"')
         self.assertNotContains(response, "Accesos rápidos")
 
     def test_dashboard_muestra_solo_resumen_y_turnos_de_hoy(self):
