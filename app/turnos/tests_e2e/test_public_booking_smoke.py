@@ -308,6 +308,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.keyboard.press("Enter")
         self.assertEqual(opcion_limpieza.get_attribute("aria-checked"), "true")
         self.page.get_by_text("Aproximadamente 45 min").first.wait_for()
+        self.page.get_by_text("Horarios recomendados", exact=True).wait_for()
 
         calendario_mes = self.page.locator("[data-public-calendar-month]")
         mes_inicial = calendario_mes.inner_text()
