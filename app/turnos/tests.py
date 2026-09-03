@@ -65,6 +65,7 @@ from turnos.services import (
 from turnos.solicitudes_publicas.proteccion import SESSION_IDEMPOTENCY_KEY
 from turnos.solicitudes_publicas.services import (
     crear_solicitud_publica_de_turno,
+    obtener_solicitud_duplicada_exacta,
     revisar_solicitud_publica,
 )
 from usuarios.roles import ROL_ADMINISTRADOR, ROL_ODONTOLOGO, ROL_RECEPCIONISTA
@@ -1553,6 +1554,73 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertEqual(
             SolicitudTurnoPublica.objects.filter(documento_enviado="84111235").count(), 1
         )
+
+    def test_vista_delega_la_deteccion_de_duplicado_exacto_al_servicio(self):
+        datos = self._datos_solicitud_publica(
+            documento="84111245",
+            motivo="Delegacion compartida",
+        )
+
+        with patch(
+            "turnos.views.public_booking.obtener_solicitud_duplicada_exacta",
+            return_value=object(),
+        ) as obtener_duplicado:
+            response = self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+
+        self.assertRedirects(response, reverse("landing_publica"))
+        obtener_duplicado.assert_called_once()
+        self.assertEqual(obtener_duplicado.call_args.args[0]["documento"], "84111245")
+        self.assertFalse(Turno.objects.filter(motivo="Delegacion compartida").exists())
+
+    def test_identidad_exacta_normaliza_la_fotografia_enviada(self):
+        datos = self._datos_solicitud_publica(
+            documento="84111246",
+            telefono="11 5566-7788",
+            motivo="Duplicado normalizado",
+        )
+        self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+        solicitud = SolicitudTurnoPublica.objects.get(documento_enviado="84111246")
+
+        duplicada = obtener_solicitud_duplicada_exacta(
+            {
+                "nombre": "  LUCIA ",
+                "apellido": "paz",
+                "documento": "84.111.246",
+                "telefono": "(11) 5566 7788",
+                "email": " LUCIA@EXAMPLE.COM ",
+                "odontologo": str(self.odontologo.pk),
+                "fecha": self.fecha_turno.isoformat(),
+                "hora_inicio": "10:00",
+                "motivo": "  duplicado   NORMALIZADO ",
+            }
+        )
+
+        self.assertEqual(duplicada, solicitud)
+
+    def test_mismo_dni_y_horario_con_motivo_distinto_no_se_deduplica(self):
+        datos = self._datos_solicitud_publica(
+            documento="84111247",
+            motivo="Primera intencion",
+        )
+        self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+
+        otro_cliente = Client()
+        response = otro_cliente.post(
+            reverse("turnos:solicitud_publica_datos"),
+            {
+                **datos,
+                "motivo": "Intencion diferente",
+                "idempotency_token": crear_idempotency_token_para_cliente(otro_cliente),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Ese horario ya no está disponible. Volvé a buscar horarios.",
+        )
+        self.assertEqual(Turno.objects.filter(fecha=self.fecha_turno).count(), 1)
+        self.assertEqual(SolicitudTurnoPublica.objects.count(), 1)
 
     def test_turno_cancelado_permite_solicitar_nuevamente_mismo_horario(self):
         datos = self._datos_solicitud_publica(

@@ -63,7 +63,7 @@ class AgendaConcurrentePostgreSQLTests(TransactionTestCase):
                 return "conflicto"
 
         with (
-            patch("turnos.solicitudes_publicas.services._notificar_solicitud"),
+            patch("turnos.solicitudes_publicas.services._notificar_solicitud") as notificar,
             ThreadPoolExecutor(max_workers=2) as executor,
         ):
             resultados = list(
@@ -73,6 +73,8 @@ class AgendaConcurrentePostgreSQLTests(TransactionTestCase):
         self.assertEqual(resultados.count("creada"), 1)
         self.assertEqual(resultados.count("conflicto"), 1)
         self.assertEqual(self._turnos_en(self.odontologo_a, time(10, 0)).count(), 1)
+        self.assertEqual(SolicitudTurnoPublica.objects.count(), 1)
+        notificar.assert_called_once()
         self._assert_sin_solapamientos(self.odontologo_a)
 
     def test_paciente_y_recepcion_mismo_horario_tienen_un_solo_ganador(self):
@@ -265,7 +267,7 @@ class AgendaConcurrentePostgreSQLTests(TransactionTestCase):
             return resultado.turno.pk, resultado.duplicada
 
         with (
-            patch("turnos.solicitudes_publicas.services._notificar_solicitud"),
+            patch("turnos.solicitudes_publicas.services._notificar_solicitud") as notificar,
             ThreadPoolExecutor(max_workers=2) as executor,
         ):
             resultados = list(
@@ -276,6 +278,41 @@ class AgendaConcurrentePostgreSQLTests(TransactionTestCase):
         self.assertEqual(sorted(resultado[1] for resultado in resultados), [False, True])
         self.assertEqual(SolicitudTurnoPublica.objects.count(), 1)
         self.assertEqual(self._turnos_en(self.odontologo_a, time(10, 0)).count(), 1)
+        notificar.assert_called_once_with(SolicitudTurnoPublica.objects.get().pk)
+
+    def test_mismo_paciente_y_horario_con_payload_distinto_no_deduplica(self):
+        barrera = Barrier(2)
+
+        def reservar(indice):
+            odontologo = Odontologo.objects.get(pk=self.odontologo_a.pk)
+            barrera.wait(timeout=10)
+            try:
+                resultado = crear_solicitud_publica_de_turno(
+                    self._datos_publicos(
+                        indice,
+                        odontologo,
+                        time(10, 0),
+                        documento="79999996",
+                    )
+                )
+                return resultado.duplicada
+            except ValidationError:
+                return "conflicto"
+
+        with (
+            patch("turnos.solicitudes_publicas.services._notificar_solicitud") as notificar,
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            resultados = list(
+                executor.map(lambda indice: self._en_worker(reservar, indice), (10, 11))
+            )
+
+        self.assertEqual(resultados.count(False), 1)
+        self.assertEqual(resultados.count("conflicto"), 1)
+        self.assertNotIn(True, resultados)
+        self.assertEqual(SolicitudTurnoPublica.objects.count(), 1)
+        self.assertEqual(self._turnos_en(self.odontologo_a, time(10, 0)).count(), 1)
+        notificar.assert_called_once_with(SolicitudTurnoPublica.objects.get().pk)
 
     def test_horarios_distintos_del_mismo_profesional_progresan_sin_conflicto(self):
         resultados = self._reservas_independientes(

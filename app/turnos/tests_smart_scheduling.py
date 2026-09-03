@@ -30,6 +30,7 @@ from turnos.models import (
     DisponibilidadOdontologo,
     ExcepcionAgenda,
     Odontologo,
+    SolicitudTurnoPublica,
     TipoTurno,
     TipoTurnoOdontologo,
     Turno,
@@ -914,27 +915,17 @@ class AgendaInteligentePostgreSQLTests(TransactionTestCase):
             tipo = TipoTurno.objects.get(pk=self.tipo.pk)
             barrera.wait(timeout=5)
             try:
-                crear_solicitud_publica_de_turno(
-                    {
-                        "nombre": "Paciente",
-                        "apellido": f"Concurrente {indice}",
-                        "telefono": "2604000000",
-                        "documento": f"9911122{indice}",
-                        "email": f"concurrente.{indice}@example.test",
-                        "odontologo": odontologo,
-                        "tipo_turno": tipo,
-                        "fecha": self.fecha,
-                        "hora_inicio": time(9, 0),
-                        "motivo": "",
-                    }
-                )
+                crear_solicitud_publica_de_turno(self._datos_publicos(indice, odontologo, tipo))
                 return "creada"
             except ValidationError:
                 return "rechazada"
             finally:
                 close_old_connections()
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with (
+            patch("turnos.solicitudes_publicas.services._notificar_solicitud") as notificar,
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
             resultados = list(executor.map(reservar, (1, 2)))
 
         self.assertEqual(resultados.count("creada"), 1)
@@ -947,3 +938,88 @@ class AgendaInteligentePostgreSQLTests(TransactionTestCase):
             ).count(),
             1,
         )
+        self.assertEqual(SolicitudTurnoPublica.objects.count(), 1)
+        notificar.assert_called_once_with(SolicitudTurnoPublica.objects.get().pk)
+
+    def test_doble_click_identico_reutiliza_solicitud(self):
+        barrera = Barrier(2)
+
+        def reservar(_indice):
+            close_old_connections()
+            odontologo = Odontologo.objects.get(pk=self.odontologo.pk)
+            tipo = TipoTurno.objects.get(pk=self.tipo.pk)
+            barrera.wait(timeout=10)
+            try:
+                resultado = crear_solicitud_publica_de_turno(
+                    self._datos_publicos(
+                        3,
+                        odontologo,
+                        tipo,
+                        documento="99111223",
+                    )
+                )
+                return resultado.turno.pk, resultado.duplicada
+            finally:
+                close_old_connections()
+
+        with (
+            patch("turnos.solicitudes_publicas.services._notificar_solicitud") as notificar,
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            resultados = list(executor.map(reservar, (1, 2)))
+
+        self.assertEqual({resultado[0] for resultado in resultados}, {resultados[0][0]})
+        self.assertEqual(sorted(resultado[1] for resultado in resultados), [False, True])
+        self.assertEqual(Turno.objects.count(), 1)
+        self.assertEqual(SolicitudTurnoPublica.objects.count(), 1)
+        notificar.assert_called_once_with(SolicitudTurnoPublica.objects.get().pk)
+
+    def test_mismo_paciente_y_horario_con_payload_distinto_no_deduplica(self):
+        barrera = Barrier(2)
+
+        def reservar(indice):
+            close_old_connections()
+            odontologo = Odontologo.objects.get(pk=self.odontologo.pk)
+            tipo = TipoTurno.objects.get(pk=self.tipo.pk)
+            barrera.wait(timeout=10)
+            try:
+                resultado = crear_solicitud_publica_de_turno(
+                    self._datos_publicos(
+                        indice,
+                        odontologo,
+                        tipo,
+                        documento="99111224",
+                    )
+                )
+                return resultado.duplicada
+            except ValidationError:
+                return "rechazada"
+            finally:
+                close_old_connections()
+
+        with (
+            patch("turnos.solicitudes_publicas.services._notificar_solicitud") as notificar,
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            resultados = list(executor.map(reservar, (4, 5)))
+
+        self.assertEqual(resultados.count(False), 1)
+        self.assertEqual(resultados.count("rechazada"), 1)
+        self.assertNotIn(True, resultados)
+        self.assertEqual(Turno.objects.count(), 1)
+        self.assertEqual(SolicitudTurnoPublica.objects.count(), 1)
+        notificar.assert_called_once_with(SolicitudTurnoPublica.objects.get().pk)
+
+    def _datos_publicos(self, indice, odontologo, tipo, *, documento=None):
+        return {
+            "nombre": "Paciente",
+            "apellido": f"Concurrente {indice}",
+            "telefono": "2604000000",
+            "documento": documento or f"9911122{indice}",
+            "email": f"concurrente.{indice}@example.test",
+            "odontologo": odontologo,
+            "tipo_turno": tipo,
+            "fecha": self.fecha,
+            "hora_inicio": time(9, 0),
+            "motivo": "",
+        }

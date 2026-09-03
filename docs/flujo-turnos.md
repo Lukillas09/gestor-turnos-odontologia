@@ -88,7 +88,7 @@ Reglas:
 - No pide datos clínicos ni administrativos extensos.
 - No crea registros si se supera el rate limit por IP/DNI o si PostgreSQL no puede garantizar la protección; en ese caso responde 503 de forma neutral.
 - El máximo de pendientes cuenta solo solicitudes públicas futuras con turno pendiente, no turnos internos, confirmados, cancelados, pasados ni solicitudes rechazadas.
-- Un duplicado exacto activo del mismo DNI, odontólogo, fecha, hora y servicio cuando aplica se trata como operación ya registrada y redirige a la confirmación genérica sin reenviar emails.
+- Un duplicado exacto activo reutiliza la solicitud existente cuando coinciden, tras normalizar, el DNI, odontólogo, fecha, hora, tipo de turno cuando aplica y la fotografía enviada (nombre, apellido, teléfono, email y motivo). Un cambio relevante conserva la competencia normal por disponibilidad y nunca reutiliza silenciosamente otra intención.
 - Las alertas administrativas sin turno para pacientes archivados se reutilizan dentro de la ventana configurada para no generar pendientes ilimitados.
 - Crea asociación paciente-odontólogo.
 - No usa el email enviado para notificar a un paciente ya registrado si difiere del email persistido.

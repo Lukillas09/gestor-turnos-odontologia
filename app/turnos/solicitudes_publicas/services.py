@@ -41,7 +41,12 @@ from turnos.smart_scheduling import (
 )
 from turnos.tipos_turno import aplicar_snapshot_publico, obtener_configuracion_tipo_publica
 
-from .comparaciones import construir_fotografia_solicitud, detectar_diferencias_datos_paciente
+from .comparaciones import (
+    construir_fotografia_solicitud,
+    construir_identidad_desde_solicitud,
+    construir_identidad_solicitud_publica,
+    detectar_diferencias_datos_paciente,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +84,20 @@ def crear_solicitud_publica_de_turno(datos):
             "documento": documento,
             "email": (datos.get("email") or "").strip(),
         }
-        configuracion_tipo, candidato = _validar_reserva_publica_bloqueada(datos)
+        configuracion_tipo, configuracion_agenda = _preparar_reserva_publica_bloqueada(datos)
         datos["configuracion_tipo_turno"] = configuracion_tipo
-        datos["candidato_horario"] = candidato
 
         paciente, paciente_creado = _obtener_o_crear_paciente_publico(datos)
 
-        solicitud_duplicada = _obtener_solicitud_duplicada_exacta(paciente, datos)
+        solicitud_duplicada = obtener_solicitud_duplicada_exacta(datos, paciente=paciente)
+
+        if not solicitud_duplicada:
+            candidato = _validar_disponibilidad_reserva_publica_bloqueada(
+                datos,
+                configuracion_tipo,
+                configuracion_agenda,
+            )
+            datos["candidato_horario"] = candidato
 
         if solicitud_duplicada:
             turno = solicitud_duplicada.turno
@@ -182,7 +194,7 @@ def crear_solicitud_publica_de_turno(datos):
     )
 
 
-def _validar_reserva_publica_bloqueada(datos):
+def _preparar_reserva_publica_bloqueada(datos):
     odontologo = datos["odontologo"]
     fecha = datos["fecha"]
     hora_inicio = datos["hora_inicio"]
@@ -191,13 +203,6 @@ def _validar_reserva_publica_bloqueada(datos):
 
     if not settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
         validar_intervalo_reserva_publica(fecha, hora_inicio, 30)
-        horarios = obtener_horarios_publicos_disponibles(
-            odontologo=odontologo,
-            fecha=fecha,
-            duracion_minutos=30,
-        )
-        if hora_inicio not in horarios:
-            raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
         return None, None
 
     configuracion_tipo = obtener_configuracion_tipo_publica(
@@ -221,6 +226,28 @@ def _validar_reserva_publica_bloqueada(datos):
         hora_inicio,
         configuracion_tipo.duracion_bloqueada_minutos,
     )
+    return configuracion_tipo, configuracion_agenda
+
+
+def _validar_disponibilidad_reserva_publica_bloqueada(
+    datos,
+    configuracion_tipo,
+    configuracion_agenda,
+):
+    odontologo = datos["odontologo"]
+    fecha = datos["fecha"]
+    hora_inicio = datos["hora_inicio"]
+
+    if not settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
+        horarios = obtener_horarios_publicos_disponibles(
+            odontologo=odontologo,
+            fecha=fecha,
+            duracion_minutos=30,
+        )
+        if hora_inicio not in horarios:
+            raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
+        return None
+
     resultado = calcular_horarios_inteligentes(
         odontologo=odontologo,
         fecha=fecha,
@@ -231,7 +258,7 @@ def _validar_reserva_publica_bloqueada(datos):
     candidato = buscar_candidato(resultado, hora_inicio)
     if not candidato:
         raise ValidationError("Ese horario ya no está disponible. Elegí otro horario.")
-    return configuracion_tipo, candidato
+    return candidato
 
 
 def _construir_motivo_turno(tipo_nombre, comentario):
@@ -289,24 +316,40 @@ def _validar_email_publico_para_paciente(email, paciente):
         raise ValidationError({"email": MENSAJE_EMAIL_PUBLICO_REQUERIDO})
 
 
-def _obtener_solicitud_duplicada_exacta(paciente, datos):
+def obtener_solicitud_duplicada_exacta(datos, *, paciente=None):
+    incluir_tipo_turno = settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
+    identidad = construir_identidad_solicitud_publica(
+        datos,
+        incluir_tipo_turno=incluir_tipo_turno,
+    )
+    if not identidad:
+        return None
+
     queryset = (
         SolicitudTurnoPublica.objects.select_related("turno", "paciente")
         .filter(
-            paciente=paciente,
-            turno__odontologo=datos["odontologo"],
-            turno__fecha=datos["fecha"],
-            turno__hora_inicio=datos["hora_inicio"],
+            turno__odontologo_id=identidad.odontologo_id,
+            turno__fecha=identidad.fecha,
+            turno__hora_inicio=identidad.hora_inicio,
             turno__estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
         )
         .exclude(estado_revision=SolicitudTurnoPublica.EstadoRevision.RECHAZADA)
     )
-    if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
-        configuracion_tipo = datos.get("configuracion_tipo_turno")
-        queryset = queryset.filter(
-            turno__tipo_turno_id=(configuracion_tipo.tipo_turno_id if configuracion_tipo else None)
+    if paciente is not None:
+        queryset = queryset.filter(paciente=paciente)
+    else:
+        queryset = queryset.filter(paciente__documento=identidad.documento_enviado)
+    if incluir_tipo_turno:
+        queryset = queryset.filter(turno__tipo_turno_id=identidad.tipo_turno_id)
+
+    for solicitud in queryset.order_by("-creado_en"):
+        identidad_guardada = construir_identidad_desde_solicitud(
+            solicitud,
+            incluir_tipo_turno=incluir_tipo_turno,
         )
-    return queryset.order_by("-creado_en").first()
+        if identidad_guardada == identidad:
+            return solicitud
+    return None
 
 
 def _obtener_alerta_administrativa_duplicada(paciente):

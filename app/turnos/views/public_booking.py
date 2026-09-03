@@ -17,8 +17,6 @@ from django.utils.formats import date_format
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
-from pacientes.normalizacion import normalizar_documento
-
 from ..excepciones import (
     obtener_excepciones_activas,
     obtener_horarios_publicos_disponibles,
@@ -46,7 +44,10 @@ from ..solicitudes_publicas.proteccion import (
     registrar_intento_creacion_publica,
     turnstile_requerido_para_request,
 )
-from ..solicitudes_publicas.services import MaximoSolicitudesPendientesError
+from ..solicitudes_publicas.services import (
+    MaximoSolicitudesPendientesError,
+    obtener_solicitud_duplicada_exacta,
+)
 from ..tipos_turno import configuraciones_tipos_publicos, obtener_configuracion_tipo_publica
 
 SOLICITUD_PUBLICA_CONFIRMADA_SESSION_KEY = "solicitud_turno_publica_confirmada"
@@ -957,34 +958,7 @@ class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
         return None
 
     def _existe_duplicado_exacto_desde_post(self):
-        documento = normalizar_documento(self.request.POST.get("documento"))
-        fecha = parse_date(self.request.POST.get("fecha") or "")
-        hora_inicio = parse_time(self.request.POST.get("hora_inicio") or "")
-        odontologo_id = self.request.POST.get("odontologo")
-
-        if not documento or not fecha or not hora_inicio or not odontologo_id:
-            return False
-
-        try:
-            odontologo_pk = int(odontologo_id)
-        except (TypeError, ValueError):
-            return False
-
-        solicitudes = SolicitudTurnoPublica.objects.filter(
-            paciente__documento=documento,
-            turno__odontologo_id=odontologo_pk,
-            turno__fecha=fecha,
-            turno__hora_inicio=hora_inicio,
-            turno__estado__in=[Turno.Estado.PENDIENTE, Turno.Estado.CONFIRMADO],
-        )
-        if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED:
-            tipo_turno_id = self.request.POST.get("tipo_turno")
-            if not tipo_turno_id:
-                return False
-            solicitudes = solicitudes.filter(turno__tipo_turno_id=tipo_turno_id)
-        return solicitudes.exclude(
-            estado_revision=SolicitudTurnoPublica.EstadoRevision.RECHAZADA,
-        ).exists()
+        return obtener_solicitud_duplicada_exacta(self.request.POST) is not None
 
     def _obtener_reserva_desde_get(self):
         return self._obtener_reserva(self.request.GET, validar_disponibilidad=True)
