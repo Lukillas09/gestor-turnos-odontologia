@@ -3514,15 +3514,22 @@ class SolicitudTurnoPublicaTests(TestCase):
 
         for response in respuestas:
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Podés pedir otro código pasado 1 minuto.")
+            # Es el mismo setting que aplica el cooldown en reenviar_codigo_acceso_publico.
+            self.assertContains(
+                response, "Entre un envío y otro tiene que pasar al menos 1 minuto."
+            )
             self.assertContains(response, "Nunca te vamos a pedir este código")
             self.assertNotContains(response, "Reenviar en")
 
-        with override_settings(TURNOS_PUBLIC_RESEND_SECONDS=90):
-            cliente = Client()
-            cliente.post(reverse("turnos:acceso_publico_solicitar"), {"documento": "30999777"})
-            response = cliente.get(reverse("turnos:acceso_publico_verificar"))
-        self.assertContains(response, "Podés pedir otro código pasado 90 segundos.")
+        for segundos, esperado in ((90, "al menos 90 segundos."), (0, None)):
+            with override_settings(TURNOS_PUBLIC_RESEND_SECONDS=segundos):
+                cliente = Client()
+                cliente.post(reverse("turnos:acceso_publico_solicitar"), {"documento": "30999777"})
+                response = cliente.get(reverse("turnos:acceso_publico_verificar"))
+            if esperado:
+                self.assertContains(response, esperado)
+            else:
+                self.assertNotContains(response, "Entre un envío y otro")
 
     def test_mis_turnos_publico_requiere_sesion_verificada(self):
         response = self.client.get(reverse("turnos:mis_turnos_publico"))

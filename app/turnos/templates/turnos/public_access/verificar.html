@@ -23,7 +23,7 @@
                 <span>¿No te llegó?</span> <button class="public-access-link" type="submit">Reenviar código</button>
             </form>
             <p>
-                Podés pedir otro código pasado{% if reenvio_segundos >= 60 and reenvio_segundos|divisibleby:60 %}{% widthratio reenvio_segundos 60 1 as minutos %} {{ minutos }} minuto{{ minutos|pluralize }}{% else %} {{ reenvio_segundos }} segundo{{ reenvio_segundos|pluralize }}{% endif %}. Revisá también la carpeta de spam.
+                {% if reenvio_segundos %}Entre un envío y otro tiene que pasar al menos{% if reenvio_segundos >= 60 and reenvio_segundos|divisibleby:60 %}{% widthratio reenvio_segundos 60 1 as minutos %} {{ minutos }} minuto{{ minutos|pluralize }}{% else %} {{ reenvio_segundos }} segundo{{ reenvio_segundos|pluralize }}{% endif %}. {% endif %}Revisá también la carpeta de spam.
             </p>
             <a class="public-access-link" href="{% url 'turnos:acceso_publico_solicitar' %}">Usar otro DNI</a>
         </div>
