@@ -59,7 +59,7 @@ En escritorio, el panel interno usa sidebar navy y topbar contextual. Hasta 767 
 
 ## Iconografía e ilustraciones
 
-`includes/icon.html` contiene SVG de trazo redondeado, `currentColor` y tamaño estable. Las ilustraciones originales están en `app/static/images/`: hero dental, calendario vacío y sin resultados.
+`includes/icon.html` contiene SVG de trazo redondeado, `currentColor` y tamaño estable. Las ilustraciones originales están en `app/static/images/`: calendario vacío y sin resultados. La landing usa la fotografía `dental-clinic-hero.webp`.
 
 ## Experiencia pública V3
 

@@ -48,6 +48,7 @@ from turnos.smart_scheduling import (
 )
 from turnos.smart_scheduling_cache import obtener_horarios_inteligentes_cacheados
 from turnos.solicitudes_publicas.services import crear_solicitud_publica_de_turno
+from turnos.tests import crear_idempotency_token_para_cliente
 
 
 def crear_usuario_odontologo(sufijo, *, activo=True):
@@ -387,12 +388,75 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIsNone(response.context["tipo_turno_preseleccionado"])
                 self.assertNotContains(response, "data-preselected-type")
+                self.assertNotContains(response, "field-error")
 
         with override_settings(TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=False):
             response = self.client.get(
                 reverse("turnos:solicitud_publica"), {"tipo_turno": self.tipo.pk}
             )
         self.assertIsNone(response.context["tipo_turno_preseleccionado"])
+
+    def test_tipo_preseleccionado_no_habilitado_se_ignora_y_el_servidor_lo_valida(self):
+        tipo_otro = crear_tipo("Ortodoncia", "ortodoncia-presel")
+        TipoTurnoOdontologo.objects.create(
+            odontologo=self.otro_odontologo,
+            tipo_turno=tipo_otro,
+            duracion_atencion_minutos=30,
+            reserva_publica=True,
+        )
+
+        # La preselección no es una búsqueda: renderiza sin errores.
+        response = self.client.get(
+            reverse("turnos:solicitud_publica"), {"tipo_turno": tipo_otro.pk}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["busqueda_form"].is_bound)
+        self.assertNotContains(response, "field-error")
+
+        # El profesional elegido no lo ofrece: el endpoint de motivos no lo devuelve,
+        # así que el cliente no tiene qué preseleccionar.
+        tipos = self.client.get(
+            reverse("turnos:solicitud_publica_tipos"), {"odontologo": self.odontologo.pk}
+        ).json()["tipos"]
+        self.assertNotIn(tipo_otro.pk, [tipo["tipo_turno_id"] for tipo in tipos])
+
+        # Si igual llega como búsqueda completa, el formulario del servidor lo rechaza.
+        response = self.client.get(
+            reverse("turnos:solicitud_publica"),
+            {
+                "odontologo": self.odontologo.pk,
+                "tipo_turno": tipo_otro.pk,
+                "fecha": self.fecha.isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("tipo_turno", response.context["busqueda_form"].errors)
+        self.assertNotContains(response, "data-public-slot=")
+
+        reserva = {
+            "odontologo": self.odontologo.pk,
+            "tipo_turno": tipo_otro.pk,
+            "fecha": self.fecha.isoformat(),
+            "hora_inicio": "09:00",
+        }
+        response = self.client.get(reverse("turnos:solicitud_publica_datos"), reserva)
+        self.assertRedirects(response, reverse("turnos:solicitud_publica"))
+
+        # Y al enviar, la validación final tampoco lo acepta ni crea el turno.
+        datos = {
+            **reserva,
+            "nombre": "Lucía",
+            "apellido": "Paciente",
+            "telefono": "2604000000",
+            "documento": "88111333",
+            "email": "lucia.presel@example.test",
+            "motivo": "",
+            "idempotency_token": crear_idempotency_token_para_cliente(self.client),
+        }
+        response = self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("tipo_turno", response.context["form"].errors)
+        self.assertFalse(Turno.objects.filter(paciente__documento="88111333").exists())
 
     def test_seleccion_renderiza_grupos_de_horarios_sin_javascript(self):
         response = self.client.get(

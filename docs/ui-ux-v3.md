@@ -79,8 +79,10 @@ Ningún texto promete algo que el backend no hace:
   avisa para elegir otro. No se ofrecen alternativas automáticas.
 - La respuesta tras enviar es neutral (igual para todos los resultados), como exige
   `docs/flujo-turnos.md`.
-- El reenvío de código muestra un aviso fijo con `TURNOS_PUBLIC_RESEND_SECONDS`. No hay cuenta
-  regresiva porque el cooldown real solo existe para DNIs registrados y la revelaría.
+- El reenvío de código muestra un aviso fijo con `TURNOS_PUBLIC_RESEND_SECONDS`, el mismo setting
+  con el que el servidor aplica el cooldown. Se redacta como condición mínima ("tiene que pasar al
+  menos") porque además rige `TURNOS_PUBLIC_RESEND_LIMIT` por ventana. No hay cuenta regresiva
+  porque el cooldown real solo se registra para DNIs con email y la revelaría.
 - No se muestra email enmascarado ni "Hola, {nombre}": el contexto no los provee.
 
 ## Accesibilidad
