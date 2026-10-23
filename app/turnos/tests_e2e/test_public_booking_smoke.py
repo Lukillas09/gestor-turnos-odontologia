@@ -219,7 +219,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         continuar.click()
 
         self.page.get_by_role("heading", name="Completá tus datos").wait_for()
-        self.page.get_by_role("heading", name="Resumen del turno").wait_for()
+        self.page.get_by_role("heading", name="Tu turno").wait_for()
         self._capture("public-data-desktop.png")
 
         self.page.get_by_role("button", name="Enviar solicitud").click()

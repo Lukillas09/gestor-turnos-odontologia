@@ -108,6 +108,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     telefono = forms.CharField(
         max_length=30,
         label="Teléfono",
+        help_text="Incluí el código de área.",
         error_messages={"required": "Ingresá tu teléfono."},
         widget=forms.TextInput(
             attrs={
@@ -120,6 +121,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
     documento = forms.CharField(
         max_length=20,
         label="DNI",
+        help_text="Solo números, sin puntos.",
         error_messages={"required": "Ingresá tu DNI."},
         widget=forms.TextInput(
             attrs={
@@ -133,6 +135,7 @@ class SolicitudTurnoPublicaForm(HorariosDisponiblesFormMixin, forms.Form):
         required=False,
         label="Email",
         help_text=(
+            "Necesario si es tu primera solicitud. "
             "Lo usamos para enviarte códigos de acceso con los que podés consultar, "
             "cancelar o reprogramar tus turnos. Si ya sos paciente, tus datos "
             "registrados no se modifican automáticamente."
