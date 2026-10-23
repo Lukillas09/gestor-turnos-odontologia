@@ -22,6 +22,9 @@
         {% else %}
             <nav class="nav public-nav" aria-label="Navegación para pacientes">
                 <a class="nav-link{% if url_name == 'landing_publica' %} is-active{% endif %}" href="{% url 'landing_publica' %}"{% if url_name == 'landing_publica' %} aria-current="page"{% endif %}>Inicio</a>
+                {% if url_name == 'landing_publica' and tipos_turno_publicos %}
+                    <a class="nav-link" href="#servicios">Servicios</a>
+                {% endif %}
                 {% if url_name == 'landing_publica' and odontologos_publicos %}
                     <a class="nav-link" href="#equipo">Equipo</a>
                 {% endif %}
@@ -39,6 +42,9 @@
                 </summary>
                 <nav aria-label="Navegación móvil para pacientes">
                     <a href="{% url 'landing_publica' %}">Inicio</a>
+                    {% if url_name == 'landing_publica' and tipos_turno_publicos %}
+                        <a href="#servicios">Servicios</a>
+                    {% endif %}
                     {% if url_name == 'landing_publica' and odontologos_publicos %}
                         <a href="#equipo">Equipo</a>
                     {% endif %}

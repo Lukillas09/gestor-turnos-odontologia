@@ -1,20 +1,31 @@
-from .models import ConfiguracionAgendaInteligente, TipoTurnoOdontologo, Turno
+from .models import ConfiguracionAgendaInteligente, TipoTurno, TipoTurnoOdontologo, Turno
 from .smart_scheduling import ALGORITMO_HORARIO_VERSION
+
+
+def _configuraciones_tipos_reservables_publicamente():
+    return TipoTurnoOdontologo.objects.filter(
+        odontologo__activo=True,
+        activo=True,
+        reserva_publica=True,
+        tipo_turno__activo=True,
+        tipo_turno__visible_publicamente=True,
+    )
 
 
 def configuraciones_tipos_publicos(odontologo):
     return (
-        TipoTurnoOdontologo.objects.select_related("tipo_turno", "odontologo")
-        .filter(
-            odontologo=odontologo,
-            odontologo__activo=True,
-            activo=True,
-            reserva_publica=True,
-            tipo_turno__activo=True,
-            tipo_turno__visible_publicamente=True,
-        )
+        _configuraciones_tipos_reservables_publicamente()
+        .select_related("tipo_turno", "odontologo")
+        .filter(odontologo=odontologo)
         .order_by("tipo_turno__orden_publico", "tipo_turno__nombre", "pk")
     )
+
+
+def tipos_turno_publicos():
+    """Tipos que al menos un odontólogo activo ofrece para reserva pública."""
+    return TipoTurno.objects.filter(
+        pk__in=_configuraciones_tipos_reservables_publicamente().values("tipo_turno_id")
+    ).order_by("orden_publico", "nombre", "pk")
 
 
 def obtener_configuracion_tipo_publica(odontologo, tipo_turno, *, bloquear=False):

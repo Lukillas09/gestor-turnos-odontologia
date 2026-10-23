@@ -391,7 +391,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
                 self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
                 self.page.get_by_role("link", name="Reservá tu turno").first.wait_for()
                 self.page.wait_for_timeout(150)
-                self._assert_centered(".public-premium-hero")
+                self._assert_centered(".public-home-hero")
                 self._assert_no_horizontal_overflow()
 
         self.page.set_viewport_size({"width": 390, "height": 844})
@@ -435,14 +435,14 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self._login()
 
         self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
-        self.page.locator(".public-premium-hero").wait_for()
+        self.page.locator(".public-home-hero").wait_for()
 
         self.assertEqual(self.page.locator("body.public-shell-body").count(), 1)
         self.assertEqual(self.page.locator(".public-topbar").count(), 1)
         self.assertEqual(self.page.locator(".app-sidebar").count(), 0)
         self.assertEqual(self.page.locator(".app-topbar").count(), 0)
         self.assertEqual(self.page.locator(".mobile-navigation").count(), 0)
-        self._assert_centered(".public-premium-hero")
+        self._assert_centered(".public-home-hero")
         self._assert_no_horizontal_overflow()
         self._capture("public-home-authenticated-mobile.png")
 

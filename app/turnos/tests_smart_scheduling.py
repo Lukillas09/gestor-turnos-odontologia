@@ -358,6 +358,38 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
         self.assertNotIn("puntaje", str(contenido).lower())
         self.assertNotIn("razones", str(contenido).lower())
 
+    def test_landing_muestra_solo_motivos_reservables_publicamente(self):
+        tipo_oculto = crear_tipo("Blanqueamiento", "blanqueamiento-smart")
+        tipo_sin_reserva = crear_tipo("Ortodoncia", "ortodoncia-smart")
+        tipo_inactivo_odontologo = crear_tipo("Implante", "implante-smart")
+        _, odontologo_inactivo = crear_usuario_odontologo("inactivo")
+        for odontologo, tipo, reserva_publica in (
+            (self.odontologo, tipo_oculto, True),
+            (self.odontologo, tipo_sin_reserva, False),
+            (odontologo_inactivo, tipo_inactivo_odontologo, True),
+        ):
+            TipoTurnoOdontologo.objects.create(
+                odontologo=odontologo,
+                tipo_turno=tipo,
+                duracion_atencion_minutos=30,
+                reserva_publica=reserva_publica,
+            )
+        TipoTurno.objects.filter(pk=tipo_oculto.pk).update(visible_publicamente=False)
+        Odontologo.objects.filter(pk=odontologo_inactivo.pk).update(activo=False)
+
+        response = self.client.get(reverse("landing_publica"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["tipos_turno_publicos"], [self.tipo])
+        self.assertContains(response, 'id="servicios"')
+        self.assertContains(response, 'href="#servicios"', count=2)
+        self.assertContains(response, "Reservar control")
+        self.assertContains(response, "Servicio programado.")
+        self.assertContains(response, "Elegí profesional y motivo")
+        self.assertNotContains(response, "Blanqueamiento")
+        self.assertNotContains(response, "Ortodoncia")
+        self.assertNotContains(response, "Implante")
+
     def test_paso_datos_vuelve_a_la_seleccion_conservando_tipo_de_turno(self):
         horarios = self.client.get(
             reverse("turnos:solicitud_publica_horarios"),

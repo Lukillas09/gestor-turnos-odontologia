@@ -1166,6 +1166,44 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertNotContains(response, "public-fonts.css")
         self.assertNotContains(response, 'class="public-footer"')
 
+    @override_settings(TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=False)
+    def test_landing_v3_muestra_secciones_y_contacto_abierto(self):
+        configuracion = self._configurar_contacto_publico()
+        configuracion.direccion = "Av. Siempre Viva 742"
+        configuracion.localidad = "San Rafael"
+        configuracion.mostrar_direccion = True
+        configuracion.save()
+
+        response = self.client.get(reverse("landing_publica"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["tipos_turno_publicos"], [])
+        self.assertNotContains(response, 'id="servicios"')
+        self.assertNotContains(response, 'href="#servicios"')
+        self.assertContains(response, "Elegí el profesional")
+        self.assertContains(response, "Enviá y esperá la confirmación")
+        self.assertContains(response, 'id="equipo"')
+        self.assertContains(response, "Gestioná tus solicitudes")
+        self.assertContains(response, 'class="public-home-band public-home-info"')
+        self.assertNotContains(response, "public-contact-details")
+        self.assertContains(response, "Lunes a viernes de 9 a 18")
+        self.assertContains(response, 'href="tel:261 555 0101"', count=2)
+        self.assertContains(response, "https://www.google.com/maps/search/?api=1&amp;query=Av.")
+        self.assertContains(response, "&middot; San Rafael")
+        self.assertContains(response, "¿Listo para tu próxima visita?")
+        self.assertContains(response, 'class="public-home-sticky-cta"')
+        self.assertNotContains(response, "un día antes")
+        self.assertNotContains(response, "Recordatorios")
+
+        configuracion.mostrar_direccion = False
+        configuracion.save()
+
+        response = self.client.get(reverse("landing_publica"))
+
+        self.assertNotContains(response, "Cómo llegar")
+        self.assertNotContains(response, "Av. Siempre Viva")
+        self.assertNotContains(response, "&middot; San Rafael")
+
     def _datos_solicitud_publica(self, **overrides):
         datos = {
             "nombre": "Lucia",
