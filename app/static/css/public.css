@@ -17,43 +17,6 @@
     width: min(760px, 100%);
 }
 
-.public-avatar {
-    width: 112px;
-    height: 112px;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    border: 4px solid rgba(255, 255, 255, 0.32);
-    border-radius: 999px;
-    background: #dbeafe;
-    color: #0f766e;
-    font-size: 42px;
-    font-weight: 700;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.28);
-}
-
-.public-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.public-avatar-fallback {
-    display: none;
-}
-
-.public-avatar img[hidden] + .public-avatar-fallback,
-.public-avatar.is-fallback .public-avatar-fallback {
-    display: inline;
-}
-
-.public-avatar-small {
-    width: 82px;
-    height: 82px;
-    border-width: 3px;
-    font-size: 30px;
-}
-
 .public-profile h1,
 .public-reservation-summary h2 {
     margin: 10px 0 6px;
@@ -177,10 +140,6 @@
 .public-form-intro p {
     margin: 0;
     color: var(--muted);
-}
-
-.public-short-form-grid {
-    align-items: start;
 }
 
 .public-form-actions {
@@ -1045,22 +1004,6 @@
     height: 1.5rem;
 }
 
-.public-booking-heading {
-    max-width: 760px;
-    margin: 0 auto var(--space-6);
-    text-align: center;
-}
-
-.public-booking-heading h1 {
-    font-size: var(--font-3xl);
-}
-
-.public-booking-heading > p:last-child {
-    margin: var(--space-2) 0 0;
-    color: var(--muted);
-    font-size: var(--font-lg);
-}
-
 .public-more-slots {
     margin-top: var(--space-4);
     border-top: 1px solid var(--line);
@@ -1142,36 +1085,10 @@
     margin: 0;
 }
 
-.public-data-layout {
-    max-width: 1080px;
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
-    gap: var(--space-5);
-    align-items: start;
-    margin: 0 auto;
-}
-
-.public-data-layout .public-data-form {
-    max-width: none;
-    border-radius: var(--radius-lg);
-    padding: var(--space-6);
-}
-
 .public-form-intro {
     display: flex;
     gap: var(--space-3);
     align-items: flex-start;
-}
-
-.public-form-icon {
-    width: 42px;
-    height: 42px;
-    display: grid;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: var(--radius-md);
-    background: var(--primary-soft);
-    color: var(--primary-dark);
 }
 
 .field-group {
@@ -1294,31 +1211,6 @@
     margin-top: 0.1rem;
 }
 
-.public-privacy-note {
-    display: flex;
-    gap: var(--space-3);
-    align-items: flex-start;
-    margin-top: var(--space-5);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-    background: var(--gray-50);
-    color: var(--muted);
-}
-
-.public-privacy-note .ui-icon {
-    flex: 0 0 auto;
-    color: var(--teal-700);
-}
-
-.public-privacy-note p {
-    margin: 0;
-    font-size: var(--font-sm);
-}
-
-.public-privacy-note p + p {
-    margin-top: var(--space-2);
-}
-
 .public-booking-summary {
     display: grid;
     gap: var(--space-4);
@@ -1329,59 +1221,6 @@
     padding: var(--space-5);
     background: var(--surface);
     box-shadow: var(--shadow-sm);
-}
-
-.public-booking-summary-header,
-.public-booking-summary-professional {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-}
-
-.public-booking-summary-header > span:first-child {
-    font-weight: 800;
-}
-
-.public-booking-summary-professional {
-    justify-content: flex-start;
-    border-block: 1px solid var(--line);
-    padding-block: var(--space-4);
-}
-
-.public-booking-summary-professional > div:last-child {
-    display: grid;
-}
-
-.public-booking-summary-professional span {
-    color: var(--muted);
-    font-size: var(--font-sm);
-}
-
-.public-booking-summary-details {
-    display: grid;
-    gap: var(--space-3);
-    margin: 0;
-}
-
-.public-booking-summary-details div {
-    display: grid;
-    grid-template-columns: minmax(100px, 0.45fr) minmax(0, 1fr);
-    gap: var(--space-3);
-}
-
-.public-booking-summary-details dt {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    color: var(--muted);
-    font-size: var(--font-sm);
-}
-
-.public-booking-summary-details dd {
-    margin: 0;
-    font-weight: 700;
-    text-align: right;
 }
 
 .public-success-shell {
@@ -1969,42 +1808,6 @@
     font-weight: 700;
 }
 
-.public-data-decoration {
-    width: 200px;
-    height: 390px;
-    position: absolute;
-    top: 220px;
-    right: -125px;
-    z-index: -1;
-    color: var(--public-gold);
-    opacity: 0.38;
-    pointer-events: none;
-}
-
-.public-data-decoration path {
-    stroke: currentColor;
-    stroke-width: 1.35;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    vector-effect: non-scaling-stroke;
-}
-
-.public-data-layout.public-data-layout-v3 {
-    max-width: 1280px;
-    grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.65fr);
-    gap: 2rem;
-}
-
-.public-data-layout .public-patient-data-card {
-    display: grid;
-    gap: 1.4rem;
-    border-color: var(--public-border);
-    border-radius: 20px;
-    padding: clamp(1.5rem, 3vw, 2.4rem);
-    background: var(--public-surface);
-    box-shadow: var(--public-shadow);
-}
-
 .public-form-intro {
     align-items: center;
     margin-bottom: 0.2rem;
@@ -2028,120 +1831,6 @@
     font-size: 0.85rem;
 }
 
-.public-form-icon {
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    background: var(--public-green-soft);
-    color: var(--public-green);
-}
-
-.public-patient-data-card .public-short-form-grid {
-    gap: 1.15rem 1.3rem;
-}
-
-.public-patient-data-card .field-group label {
-    margin-bottom: 0.45rem;
-    color: var(--public-text);
-    font-size: 0.86rem;
-}
-
-.public-patient-data-card .field-label-note {
-    margin-left: 0.3rem;
-    color: var(--public-muted);
-    font-weight: 500;
-}
-
-.public-input-control {
-    position: relative;
-}
-
-.public-input-control > .ui-icon {
-    width: 1rem;
-    height: 1rem;
-    position: absolute;
-    top: 50%;
-    left: 1rem;
-    z-index: 1;
-    color: #969da4;
-    transform: translateY(-50%);
-    pointer-events: none;
-}
-
-.public-patient-data-card input,
-.public-patient-data-card textarea {
-    min-height: 52px;
-    border-color: #d9d9d7;
-    border-radius: 9px;
-    padding: 0.75rem 1rem 0.75rem 2.8rem;
-    background: #ffffff;
-    color: var(--public-text);
-    box-shadow: none;
-}
-
-.public-patient-data-card textarea {
-    min-height: 100px;
-    padding-top: 0.9rem;
-}
-
-.public-textarea-control > .ui-icon {
-    top: 1.05rem;
-    transform: none;
-}
-
-.public-patient-data-card input::placeholder,
-.public-patient-data-card textarea::placeholder {
-    color: #a6abb0;
-}
-
-.public-patient-data-card input:focus,
-.public-patient-data-card textarea:focus {
-    border-color: var(--public-gold);
-    outline: 3px solid rgba(190, 145, 66, 0.12);
-}
-
-.public-patient-data-card [aria-invalid="true"] {
-    border-color: var(--public-danger);
-}
-
-.public-patient-data-card .field-help {
-    margin: 0.35rem 0 0;
-    color: var(--public-muted);
-    font-size: 0.72rem;
-    line-height: 1.45;
-}
-
-.public-patient-data-card .field-error {
-    margin-top: 0.35rem;
-    color: var(--public-danger);
-    font-size: 0.76rem;
-}
-
-.public-patient-data-card .form-error-summary {
-    border-color: #e7bcbc;
-    background: #fff3f1;
-    color: var(--public-danger);
-}
-
-.public-privacy-note {
-    margin-top: 0;
-    border: 1px solid #dce9df;
-    border-radius: 12px;
-    background: #f6faf7;
-    color: var(--public-muted);
-}
-
-.public-privacy-note > span {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: 50%;
-    background: var(--public-green-soft);
-    color: var(--public-green);
-}
-
 .public-form-actions {
     justify-content: flex-end;
     margin-top: 0;
@@ -2151,73 +1840,6 @@
     min-width: 250px;
     min-height: 54px;
     gap: 1rem;
-}
-
-.public-data-summary.public-booking-summary {
-    gap: 1.2rem;
-    top: 108px;
-    border-color: var(--public-border);
-    border-radius: 20px;
-    padding: 1.5rem;
-    background: var(--public-surface);
-    box-shadow: var(--public-shadow);
-}
-
-.public-data-summary .public-booking-summary-header h2 {
-    margin: 0;
-    font-size: 1.3rem;
-}
-
-.public-selected-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    border-radius: var(--radius-pill);
-    padding: 0.35rem 0.65rem;
-    background: var(--public-green-soft);
-    color: var(--public-green);
-    font-size: 0.7rem;
-    font-weight: 700;
-}
-
-.public-selected-badge i {
-    width: 0.45rem;
-    height: 0.45rem;
-    border-radius: 50%;
-    background: var(--public-green);
-}
-
-.public-data-summary .public-booking-summary-professional {
-    border-color: var(--public-border);
-}
-
-.public-data-summary .public-avatar {
-    width: 64px;
-    height: 64px;
-    background: var(--public-gold-soft);
-    color: var(--public-gold-dark);
-}
-
-.public-data-summary .public-booking-summary-details {
-    gap: 1rem;
-}
-
-.public-data-summary .public-booking-summary-details div {
-    grid-template-columns: minmax(130px, 1fr) minmax(0, 1fr);
-    align-items: center;
-}
-
-.public-data-summary .public-booking-summary-details dt {
-    color: var(--public-muted);
-}
-
-.public-data-summary .public-booking-summary-details dt .ui-icon {
-    color: var(--public-gold-dark);
-}
-
-.public-data-summary .public-outline-button {
-    min-height: 50px;
-    gap: 0.7rem;
 }
 
 /* Rediseño público V3: header, botones, foco, stepper y footer */
@@ -3806,4 +3428,307 @@ a.public-progress-label:hover {
     .public-service-option {
         transition: none;
     }
+}
+
+/* Rediseño público V3: tus datos */
+.public-patient {
+    max-width: 1200px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-5);
+    margin: 0 auto;
+}
+
+.public-patient-form {
+    min-width: 0;
+    flex: 999 1 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    border: 1px solid var(--public-border);
+    border-radius: 24px;
+    padding: 32px;
+    background: var(--public-surface);
+}
+
+.public-patient-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.public-patient-grid .field-full {
+    grid-column: 1 / -1;
+}
+
+.public-patient .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.public-patient .form-field label,
+.public-patient .form-field:focus-within label {
+    color: var(--public-text);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.public-patient .required-mark {
+    color: var(--public-danger);
+}
+
+.public-patient .field-label-note {
+    color: var(--public-subtle);
+    font-size: 0.875rem;
+    font-weight: 400;
+}
+
+.public-patient .form-field input,
+.public-patient .form-field textarea {
+    min-height: 50px;
+    border: 1.5px solid #ddd3c4;
+    border-radius: 14px;
+    padding: 0 16px;
+    background: #ffffff;
+    color: var(--public-text);
+    font: inherit;
+    font-size: 1rem;
+}
+
+.public-patient .form-field textarea {
+    min-height: 96px;
+    padding: 14px 16px;
+}
+
+.public-patient .form-field input:focus,
+.public-patient .form-field textarea:focus {
+    border-color: var(--public-gold-ink);
+    outline: 0;
+    box-shadow: 0 0 0 4px rgba(190, 145, 66, 0.22);
+}
+
+.public-patient .field-help {
+    margin: 0;
+    color: var(--public-subtle);
+    font-size: 0.8125rem;
+}
+
+.public-patient .form-field:has(.field-error) input,
+.public-patient .form-field:has(.field-error) textarea,
+.public-patient .form-field [aria-invalid="true"] {
+    border-color: var(--public-danger);
+    background: var(--public-danger-bg);
+}
+
+.public-patient .field-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0;
+    color: var(--public-danger);
+    font-size: 0.8125rem;
+}
+
+.public-patient .field-error::before {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    margin-top: 2px;
+    content: "";
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.public-patient .field-error .errorlist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.public-patient .form-error-summary {
+    margin: 0;
+    border: 1px solid #f0d4d1;
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--public-danger-bg);
+    color: var(--public-danger);
+}
+
+.public-patient .form-error-summary .errorlist {
+    margin: 4px 0 0;
+}
+
+.public-patient-turnstile {
+    width: fit-content;
+    max-width: 100%;
+}
+
+.public-patient-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-top: 1px solid #efe8dd;
+    padding-top: 18px;
+}
+
+.public-patient-privacy {
+    max-width: 420px;
+    display: flex;
+    gap: 10px;
+    color: var(--public-muted);
+    font-size: 0.8125rem;
+}
+
+.public-patient-privacy .ui-icon {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    color: var(--public-green);
+}
+
+.public-patient-privacy p {
+    margin: 0;
+}
+
+.public-patient-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.public-patient-back {
+    min-height: 52px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-pill);
+    padding: 0 20px;
+    color: var(--public-muted);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.public-patient-back:hover {
+    background: var(--public-surface-soft);
+    color: var(--public-text);
+}
+
+.public-patient-actions .public-gold-button {
+    min-height: 52px;
+    gap: 10px;
+    padding-inline: 1.75rem;
+}
+
+.public-patient-summary {
+    min-width: 0;
+    flex: 1 1 320px;
+    position: sticky;
+    top: calc(76px + var(--space-5));
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    border: 1px solid var(--public-border);
+    border-radius: 24px;
+    padding: 26px;
+    background: var(--public-surface);
+    box-shadow: var(--public-shadow);
+}
+
+.public-patient-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.public-patient-summary-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.public-patient-summary-header a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--public-gold-ink-hover);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.public-patient-summary-professional {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #efe8dd;
+    padding-bottom: 18px;
+}
+
+.public-patient-summary-professional strong,
+.public-patient-summary-professional small {
+    display: block;
+}
+
+.public-patient-summary-professional strong {
+    font-weight: 600;
+}
+
+.public-patient-summary-professional small {
+    color: var(--public-subtle);
+    font-size: 0.875rem;
+}
+
+.public-patient-summary-avatar {
+    width: 52px;
+    height: 52px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--public-gold-soft);
+    color: var(--public-gold-ink-hover);
+    font-family: var(--public-font-serif);
+    font-size: 1.25rem;
+}
+
+.public-patient-summary-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.public-patient-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+}
+
+.public-patient-summary-list > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.public-patient-summary-list dt {
+    color: var(--public-subtle);
+}
+
+.public-patient-summary-list dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+}
+
+.public-patient-summary-note {
+    margin: 0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--public-gold-soft);
+    color: #5c4320;
+    font-size: 0.8125rem;
 }

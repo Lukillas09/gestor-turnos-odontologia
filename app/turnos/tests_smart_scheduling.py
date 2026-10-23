@@ -473,7 +473,7 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
         )
         url_seleccion = escape(f"{reverse('turnos:solicitud_publica')}?{parametros}")
         self.assertContains(response, f'class="public-progress-label" href="{url_seleccion}"')
-        self.assertContains(response, f'href="{url_seleccion}"', count=2)
+        self.assertContains(response, f'href="{url_seleccion}"', count=3)
 
     def test_formulario_rechaza_tipo_de_otro_odontologo(self):
         tipo_otro = crear_tipo("Consulta", "consulta-otro-smart")

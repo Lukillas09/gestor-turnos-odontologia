@@ -2171,13 +2171,19 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, 'aria-label="Progreso de la solicitud"')
         self.assertContains(response, "Paula Publica")
         self.assertContains(response, "10:00 a 10:30")
-        self.assertContains(response, "Cambiar horario")
+        self.assertContains(response, 'Cambiar<span class="sr-only"> horario</span>')
         url_seleccion = (
             f"{reverse('turnos:solicitud_publica')}"
             f"?odontologo={self.odontologo.pk}&amp;fecha={self.fecha_turno.isoformat()}"
         )
         self.assertContains(response, f'class="public-progress-label" href="{url_seleccion}"')
-        self.assertContains(response, f'href="{url_seleccion}"', count=2)
+        # Stepper, "Volver" y "Cambiar" vuelven a la misma selección.
+        self.assertContains(response, f'href="{url_seleccion}"', count=3)
+        self.assertContains(response, "Si ya no está disponible, te avisamos para que elijas otro.")
+        self.assertNotContains(response, "te mostramos otras opciones")
+        self.assertContains(response, 'id="id_telefono-help"')
+        self.assertContains(response, "Incluí el código de área.")
+        self.assertContains(response, '<span class="field-label-note">(opcional)</span>')
         self.assertContains(response, "Conexión segura · </span>Tus datos están protegidos")
         self.assertContains(response, "Enviar solicitud")
         self.assertContains(response, "Tus datos de contacto")
