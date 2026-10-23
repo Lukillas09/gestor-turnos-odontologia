@@ -237,3 +237,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude Code: configuracion local (no versionar)
+.mcp.json
+.claude/settings.local.json
