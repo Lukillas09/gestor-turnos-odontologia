@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Solicitud enviada — Consultorio Abete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFAF7}
+a{color:#2D2823}a:hover{color:#8A6224}
+.btn-gold:hover{background:#74511C !important;color:#FFFFFF !important}
+.btn-line:hover{border-color:#8A6224 !important;color:#8A6224 !important}
+a:focus-visible,button:focus-visible{outline:3px solid #BE9142;outline-offset:2px}
+</style>
+</helmet>
+<div style="background: #FBFAF7; color: #2D2823; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 16px; line-height: 1.5; min-height: 100vh">
+
+  <header style="border-bottom: 1px solid #E6DED2; background: #FFFEFA">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none">
+        <img src="../../../app/static/images/consultorio-abete-logo.png" alt="" style="width: 56px; height: 36px; object-fit: contain">
+        <span style="font-family: Fraunces, Georgia, serif; font-size: 20px; font-weight: 500">Consultorio Abete</span>
+      </a>
+      <nav aria-label="Principal" style="display: flex; flex-wrap: wrap; gap: 4px">
+        <a href="Main.dc.html" style="padding: 10px 14px; font-size: 15px; color: #6B645C; text-decoration: none">Inicio</a>
+        <a href="MisTurnos.dc.html" style="padding: 10px 14px; font-size: 15px; color: #6B645C; text-decoration: none">Mis turnos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width: 820px; margin: 0 auto; padding: 36px 24px 72px; display: flex; flex-direction: column; gap: 28px">
+    <nav aria-label="Progreso de la reserva">
+      <ol style="list-style: none; margin: 0 auto; padding: 0; max-width: 720px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <li style="display: flex; flex-direction: column; gap: 8px"><span style="height: 4px; border-radius: 4px; background: #3F7D60"></span><span style="font-size: 14px; font-weight: 600; color: #2F5E48">✓ Turno</span></li>
+        <li style="display: flex; flex-direction: column; gap: 8px"><span style="height: 4px; border-radius: 4px; background: #3F7D60"></span><span style="font-size: 14px; font-weight: 600; color: #2F5E48">✓ Tus datos</span></li>
+        <li aria-current="step" style="display: flex; flex-direction: column; gap: 8px"><span style="height: 4px; border-radius: 4px; background: #3F7D60"></span><span style="font-size: 14px; font-weight: 600; color: #2F5E48">3 · Confirmación</span></li>
+      </ol>
+    </nav>
+
+    <section role="status" aria-live="polite" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 12px">
+      <span aria-hidden="true" style="display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: #EAF3ED; color: #3F7D60">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      </span>
+      <h1 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 42px; line-height: 1.1">¡Recibimos tu solicitud!</h1>
+      <p style="margin: 0; max-width: 540px; color: #5E5750; font-size: 17px">Todavía no es un turno confirmado. El consultorio la revisa y te escribe a <strong style="color: #2D2823">lucia.f@email.com</strong>.</p>
+    </section>
+
+    <article aria-label="Detalle de la solicitud" style="padding: 28px; border-radius: 24px; background: #FFFEFA; border: 1px solid #E6DED2; box-shadow: 0 18px 48px rgba(71,55,34,0.08); display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+        <div style="display: flex; gap: 16px; align-items: center">
+          <span style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 72px; height: 72px; border-radius: 18px; background: #F6EDDD; color: #5C4320; line-height: 1.1">
+            <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em">Oct</span>
+            <span style="font-family: Fraunces, Georgia, serif; font-size: 30px">23</span>
+          </span>
+          <span style="display: flex; flex-direction: column">
+            <strong style="font-size: 20px; font-weight: 600">Viernes · 09:30 h</strong>
+            <span style="color: #5E5750">Control con Dra. Laura Abete · 30 min</span>
+          </span>
+        </div>
+        <span style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: #FDF3DC; color: #7A5410; font-size: 14px; font-weight: 600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>Pendiente de confirmación</span>
+      </div>
+
+      <ol aria-label="Qué sigue" style="list-style: none; margin: 0; padding: 20px 0 0; border-top: 1px solid #EFE8DD; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px">
+        <li style="display: flex; gap: 12px">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #3F7D60; color: #FFFFFF"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+          <span style="font-size: 14px"><strong style="display: block; font-weight: 600">Solicitud registrada</strong><span style="color: #5E5750">Te enviamos un email con el resumen.</span></span>
+        </li>
+        <li style="display: flex; gap: 12px">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #BE9142; color: #74511C; font-size: 14px; font-weight: 600">2</span>
+          <span style="font-size: 14px"><strong style="display: block; font-weight: 600">El consultorio la revisa</strong><span style="color: #5E5750">Cuando confirma, te avisamos por email.</span></span>
+        </li>
+        <li style="display: flex; gap: 12px">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #D9C9AE; color: #6B645C; font-size: 14px; font-weight: 600">3</span>
+          <span style="font-size: 14px"><strong style="display: block; font-weight: 600">Recordatorio</strong><span style="color: #5E5750">Te avisamos antes de la cita.</span></span>
+        </li>
+      </ol>
+    </article>
+
+    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px">
+      <a class="btn-gold" href="MisTurnos.dc.html" style="display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 26px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-weight: 600; text-decoration: none">Ver mis turnos</a>
+      <a class="btn-line" href="Reserva.dc.html" style="display: inline-flex; align-items: center; min-height: 52px; padding: 0 24px; border-radius: 999px; border: 1.5px solid #D9C9AE; background: #FFFEFA; color: #2D2823; font-weight: 500; text-decoration: none">Solicitar otro turno</a>
+    </div>
+
+    <p style="margin: 0; text-align: center; font-size: 14px; color: #6B645C">¿No te llegó el email? Revisá spam o <a href="https://wa.me/" style="color: #2F5E48; font-weight: 600">escribinos por WhatsApp</a>.</p>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

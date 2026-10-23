@@ -20,7 +20,9 @@ Los estados siempre incluyen texto o iconografía; nunca dependen solo del color
 
 ### Tipografía
 
-Se utiliza una pila nativa sin descargas externas: `Inter`, `ui-sans-serif`, fuentes del sistema, `Segoe UI`, Roboto, Helvetica y Arial. La escala va de `--font-xs` (metadatos) a `--font-4xl` (hero público). Inputs y contenido móvil conservan 16 px para evitar zoom involuntario.
+La interfaz usa una pila nativa sin descargas externas: `Inter`, `ui-sans-serif`, fuentes del sistema, `Segoe UI`, Roboto, Helvetica y Arial. La escala va de `--font-xs` (metadatos) a `--font-4xl` (hero público). Inputs y contenido móvil conservan 16 px para evitar zoom involuntario.
+
+El shell público (`usar_shell_publico`) usa además Fraunces (`--public-font-serif`) para titulares y números grandes. Se sirve desde `static/fonts/fraunces/` (licencia OFL, subset latino 400/500/400 itálica) mediante `css/public-fonts.css`, sin depender de servicios externos de fuentes. El panel interno y el login no la cargan.
 
 ### Espacio, radio y sombra
 

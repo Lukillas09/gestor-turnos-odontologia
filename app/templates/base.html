@@ -10,6 +10,10 @@
     {% if request.user.is_authenticated and not usar_shell_publico %}
         <link rel="stylesheet" href="{% static 'css/internal-shell.css' %}">
     {% endif %}
+    {% if usar_shell_publico %}
+        <link rel="preload" href="{% static 'fonts/fraunces/fraunces-latin-500-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+        <link rel="stylesheet" href="{% static 'css/public-fonts.css' %}">
+    {% endif %}
     <style>
         :root {
             --primary: {{ configuracion_consultorio.color_principal|default:"#2563EB" }};
@@ -37,7 +41,11 @@
 
         {% block content %}{% endblock %}
     </main>
-    {% block shell_footer %}{% endblock %}
+    {% block shell_footer %}
+        {% if usar_shell_publico %}
+            {% include "includes/public_footer.html" %}
+        {% endif %}
+    {% endblock %}
     {% block mobile_navigation %}
         {% if request.user.is_authenticated and not usar_shell_publico %}
             {% include "includes/mobile_navigation.html" %}

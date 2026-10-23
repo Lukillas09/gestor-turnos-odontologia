@@ -1,0 +1,25 @@
+/* Fraunces (SIL Open Font License 1.1, see ../fonts/fraunces/OFL.txt), self-hosted so the public
+   shell does not depend on third-party font services. Latin subset covers Spanish text. */
+@font-face {
+    font-family: Fraunces;
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/fraunces/fraunces-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: Fraunces;
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("../fonts/fraunces/fraunces-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: Fraunces;
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/fraunces/fraunces-latin-400-italic.woff2") format("woff2");
+}

@@ -89,7 +89,7 @@
     </section>
 
     {% if odontologos_publicos %}
-        <section class="public-section public-professionals-section" aria-labelledby="professionals-title">
+        <section class="public-section public-professionals-section" id="equipo" aria-labelledby="professionals-title">
             <div class="public-section-heading">
                 <p class="eyebrow">Profesionales</p>
                 <h2 id="professionals-title">Nuestro equipo</h2>
@@ -156,6 +156,4 @@
             </div>
         </details>
     {% endif %}
-
-    <p class="public-internal-access"><a href="{% url 'login' %}">Acceso para personal del consultorio</a></p>
 {% endblock %}

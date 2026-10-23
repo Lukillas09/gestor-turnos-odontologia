@@ -119,13 +119,22 @@
     --public-surface: #fffefa;
     --public-surface-soft: #f7f1e7;
     --public-text: #2d2823;
-    --public-muted: #746d65;
+    --public-muted: #5e5750;
+    --public-subtle: #6b645c;
     --public-border: #e6ded2;
+    --public-border-strong: #d9c9ae;
     --public-gold: #be9142;
     --public-gold-dark: #956b29;
+    --public-gold-ink: #8a6224;
+    --public-gold-ink-hover: #74511c;
     --public-gold-soft: #f6eddd;
     --public-green: #3f7d60;
+    --public-green-ink: #2f5e48;
     --public-green-soft: #eaf3ed;
+    --public-warning-bg: #fdf3dc;
+    --public-warning-text: #7a5410;
     --public-danger: #a33f3f;
+    --public-danger-bg: #fff8f7;
     --public-shadow: 0 18px 48px rgba(71, 55, 34, 0.08);
+    --public-font-serif: Fraunces, Georgia, "Times New Roman", serif;
 }

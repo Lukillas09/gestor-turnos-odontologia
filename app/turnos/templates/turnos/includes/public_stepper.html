@@ -1,20 +1,24 @@
-<nav class="public-stepper" aria-label="Progreso de la solicitud">
-    <p class="public-stepper-mobile">
+<nav class="public-progress" aria-label="Progreso de la solicitud">
+    <p class="public-progress-mobile">
         <span>Paso {{ current_step }} de 3</span>
         <strong>{{ current_label }}</strong>
     </p>
-    <ol class="public-stepper-list">
-        <li class="{% if current_step == 1 %}is-current{% elif current_step > 1 %}is-complete{% endif %}" {% if current_step == 1 %}aria-current="step"{% endif %}>
-            <span>{% if current_step > 1 %}{% include "includes/icon.html" with name="check" %}{% else %}1{% endif %}</span>
-            <div><strong>Turno</strong><small>Profesional y horario</small></div>
+    <ol class="public-progress-list">
+        <li class="{% if current_step == 1 %}is-current{% else %}is-complete{% endif %}"{% if current_step == 1 %} aria-current="step"{% endif %}>
+            <span class="public-progress-bar" aria-hidden="true"></span>
+            {% if current_step == 2 and url_seleccion %}
+                <a class="public-progress-label" href="{{ url_seleccion }}">{% include "includes/icon.html" with name="check" %}1 · Turno<span class="sr-only"> (completado, volver a elegir)</span></a>
+            {% else %}
+                <span class="public-progress-label">{% if current_step > 1 %}{% include "includes/icon.html" with name="check" %}{% endif %}1 · Turno{% if current_step > 1 %}<span class="sr-only"> (completado)</span>{% endif %}</span>
+            {% endif %}
         </li>
-        <li class="{% if current_step == 2 %}is-current{% elif current_step > 2 %}is-complete{% endif %}" {% if current_step == 2 %}aria-current="step"{% endif %}>
-            <span>{% if current_step > 2 %}{% include "includes/icon.html" with name="check" %}{% else %}2{% endif %}</span>
-            <div><strong>Datos</strong><small>Información personal</small></div>
+        <li class="{% if current_step == 2 %}is-current{% elif current_step > 2 %}is-complete{% endif %}"{% if current_step == 2 %} aria-current="step"{% endif %}>
+            <span class="public-progress-bar" aria-hidden="true"></span>
+            <span class="public-progress-label">{% if current_step > 2 %}{% include "includes/icon.html" with name="check" %}{% endif %}2 · Tus datos{% if current_step > 2 %}<span class="sr-only"> (completado)</span>{% endif %}</span>
         </li>
-        <li class="{% if current_step == 3 %}is-current{% endif %}" {% if current_step == 3 %}aria-current="step"{% endif %}>
-            <span>3</span>
-            <div><strong>Confirmación</strong><small>Revisión final</small></div>
+        <li class="{% if current_step == 3 %}is-current is-complete{% endif %}"{% if current_step == 3 %} aria-current="step"{% endif %}>
+            <span class="public-progress-bar" aria-hidden="true"></span>
+            <span class="public-progress-label">3 · Confirmación</span>
         </li>
     </ol>
 </nav>

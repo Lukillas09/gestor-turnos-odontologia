@@ -1235,31 +1235,6 @@
         padding: var(--space-4);
     }
 
-    .public-stepper {
-        margin-bottom: var(--space-5);
-    }
-
-    .public-stepper-list {
-        display: none;
-    }
-
-    .public-stepper-mobile {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3);
-        margin: 0;
-        border-radius: var(--radius-sm);
-        padding: var(--space-3) var(--space-4);
-        background: var(--primary-soft);
-    }
-
-    .public-stepper-mobile span {
-        color: var(--primary-dark);
-        font-size: var(--font-sm);
-        font-weight: 700;
-    }
-
     .public-booking-heading {
         margin-bottom: var(--space-5);
         text-align: left;
@@ -1595,19 +1570,6 @@
         display: none;
     }
 
-    .public-mobile-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.65rem;
-    }
-
-    .public-mobile-cta {
-        gap: 0.45rem;
-        border-color: var(--public-gold);
-        background: var(--public-gold);
-        color: #ffffff;
-    }
-
     .public-mobile-menu {
         position: relative;
     }
@@ -1938,36 +1900,6 @@
         grid-template-columns: 1fr;
     }
 
-    .public-stepper {
-        --public-stepper-marker-size: 36px;
-        margin-bottom: 2.2rem;
-    }
-
-    .public-stepper-mobile {
-        display: none;
-    }
-
-    .public-stepper-list {
-        display: grid;
-    }
-
-    .public-stepper-list li {
-        grid-template-columns: var(--public-stepper-marker-size);
-        gap: 0.45rem;
-    }
-
-    .public-stepper-list li > span {
-        font-size: 0.78rem;
-    }
-
-    .public-stepper-list li strong {
-        font-size: 0.76rem;
-    }
-
-    .public-stepper-list li small {
-        display: none;
-    }
-
     .public-booking-heading {
         margin-bottom: 2rem;
         text-align: center;
@@ -2096,15 +2028,6 @@
         display: none;
     }
 
-    .public-mobile-actions {
-        gap: 0.4rem;
-    }
-
-    .public-mobile-cta {
-        min-height: 40px;
-        padding-inline: 0.65rem;
-    }
-
     .public-header-privacy span {
         max-width: 92px;
         line-height: 1.2;
@@ -2214,14 +2137,6 @@
 }
 
 @media (max-width: 360px) {
-    .public-mobile-cta span {
-        display: none;
-    }
-
-    .public-mobile-cta {
-        width: 40px;
-        padding: 0;
-    }
 
     .public-brand-logo {
         width: 52px;
@@ -2248,7 +2163,112 @@
         font-size: 0.69rem;
     }
 
-    .public-stepper-list li strong {
-        font-size: 0.7rem;
+}
+
+/* Rediseño público V3: header, stepper y footer */
+@media (max-width: 1279px) {
+    .public-footer-inner {
+        width: min(100% - 48px, 1180px);
+    }
+}
+
+@media (max-width: 1023px) {
+    .public-mobile-menu {
+        display: block;
+    }
+
+    .public-mobile-menu > summary {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+    }
+
+    .public-mobile-menu > nav .public-mobile-menu-cta {
+        justify-content: center;
+        margin-top: 0.35rem;
+        border-radius: var(--radius-pill);
+        background: var(--public-gold-ink);
+        color: #ffffff;
+    }
+
+    .public-mobile-menu > nav .public-mobile-menu-cta:hover,
+    .public-mobile-menu > nav .public-mobile-menu-cta:focus-visible {
+        background: var(--public-gold-ink-hover);
+        color: #ffffff;
+    }
+}
+
+@media (max-width: 767px) {
+    .public-topbar,
+    .public-topbar .topbar-inner {
+        min-height: 68px;
+    }
+
+    .public-brand-logo {
+        width: 48px;
+        height: 30px;
+    }
+
+    .public-brand-copy strong {
+        max-width: 220px;
+    }
+
+    .public-header-privacy-extra {
+        display: none;
+    }
+
+    .public-progress {
+        margin-bottom: var(--space-5);
+    }
+
+    .public-progress-mobile {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin: 0 0 var(--space-2);
+        font-size: 0.875rem;
+    }
+
+    .public-progress-mobile span {
+        color: var(--public-subtle);
+    }
+
+    .public-progress-list {
+        gap: 4px;
+    }
+
+    .public-progress-label {
+        font-size: 0.78rem;
+    }
+
+    .public-footer {
+        padding: 28px 0 32px;
+        font-size: 0.8125rem;
+        text-align: center;
+    }
+
+    .public-footer-inner {
+        width: min(100% - 32px, 680px);
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .public-footer-nav {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 520px) {
+    .public-brand-copy strong {
+        max-width: 200px;
+    }
+
+    .public-header-privacy > span {
+        max-width: 160px;
+    }
+
+    .public-footer-inner {
+        width: calc(100% - 32px);
     }
 }

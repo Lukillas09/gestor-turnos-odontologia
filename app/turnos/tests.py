@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db.models.deletion import ProtectedError
+from django.templatetags.static import static
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -1136,6 +1137,35 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response_interna, 'class="app-topbar"')
         self.assertContains(response_interna, 'class="mobile-navigation"')
 
+    def test_shell_publico_v3_header_footer_y_fuente_local(self):
+        response = self.client.get(reverse("landing_publica"))
+
+        self.assertEqual(response.status_code, 200)
+        contenido = response.content.decode()
+        header = contenido.split('id="main-content"')[0]
+        self.assertContains(response, f'href="{static("css/public-fonts.css")}"')
+        self.assertNotContains(response, "fonts.googleapis.com")
+        self.assertIn("Odontología · Turnos online", header)
+        self.assertIn("Reservar turno", header)
+        self.assertIn('href="#equipo"', header)
+        self.assertContains(response, 'id="equipo"')
+        self.assertNotIn("Reprogramar / Cancelar", header)
+        self.assertNotIn(reverse("login"), header)
+        self.assertContains(response, 'class="public-footer"')
+        self.assertContains(response, "Acceso para personal del consultorio")
+        self.assertContains(response, f'href="{reverse("login")}"', count=1)
+
+        response = self.client.get(reverse("login"))
+
+        self.assertNotContains(response, "public-fonts.css")
+        self.assertNotContains(response, 'class="public-footer"')
+
+        self.client.force_login(self.odontologo.usuario)
+        response = self.client.get(reverse("inicio"))
+
+        self.assertNotContains(response, "public-fonts.css")
+        self.assertNotContains(response, 'class="public-footer"')
+
     def _datos_solicitud_publica(self, **overrides):
         datos = {
             "nombre": "Lucia",
@@ -2098,6 +2128,13 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertContains(response, "Paula Publica")
         self.assertContains(response, "10:00 a 10:30")
         self.assertContains(response, "Cambiar horario")
+        url_seleccion = (
+            f"{reverse('turnos:solicitud_publica')}"
+            f"?odontologo={self.odontologo.pk}&amp;fecha={self.fecha_turno.isoformat()}"
+        )
+        self.assertContains(response, f'class="public-progress-label" href="{url_seleccion}"')
+        self.assertContains(response, f'href="{url_seleccion}"', count=2)
+        self.assertContains(response, "Conexión segura · </span>Tus datos están protegidos")
         self.assertContains(response, "Enviar solicitud")
         self.assertContains(response, "Tus datos de contacto")
         self.assertContains(

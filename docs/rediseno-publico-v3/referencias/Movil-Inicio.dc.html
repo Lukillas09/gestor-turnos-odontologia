@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Inicio móvil — Consultorio Abete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFAF7}
+a{color:#2D2823}a:hover{color:#8A6224}
+a:focus-visible,button:focus-visible{outline:3px solid #BE9142;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 2400px; box-sizing: border-box; position: relative; overflow: hidden; background: #FBFAF7; color: #2D2823; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 16px; line-height: 1.5">
+
+  <header style="position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #FFFEFA; border-bottom: 1px solid #E6DED2">
+    <a href="Movil-Inicio.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none">
+      <img src="../../../app/static/images/consultorio-abete-logo.png" alt="" style="width: 48px; height: 30px; object-fit: contain">
+      <span style="font-family: Fraunces, Georgia, serif; font-size: 18px; font-weight: 500">Consultorio Abete</span>
+    </a>
+    <button type="button" aria-label="Abrir menú" aria-expanded="false" style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 1px solid #E6DED2; background: #FFFEFA; color: #2D2823"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+  </header>
+
+  <section style="padding: 28px 16px 8px; display: flex; flex-direction: column; gap: 16px">
+    <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: #F6EDDD; color: #74511C; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #3F7D60"></span>Turnos online 24/7</span>
+    <h1 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 38px; line-height: 1.08">Reservá tu turno odontológico <em style="font-weight: 400; color: #8A6224">sin complicaciones</em></h1>
+    <p style="margin: 0; color: #5E5750">Elegí profesional, motivo y horario. El consultorio te confirma por email.</p>
+    <a href="Movil-Reserva.dc.html" style="display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 54px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-size: 17px; font-weight: 600; text-decoration: none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>
+      Reservá tu turno
+    </a>
+    <a href="Movil-Acceso.dc.html" style="display: flex; justify-content: center; align-items: center; min-height: 52px; border-radius: 999px; border: 1.5px solid #D9C9AE; background: #FFFEFA; color: #2D2823; font-weight: 500; text-decoration: none">Ver mis turnos</a>
+    <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: #5E5750">
+      <li style="display: flex; align-items: center; gap: 6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Sin crear cuenta</li>
+      <li style="display: flex; align-items: center; gap: 6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Aviso por email</li>
+      <li style="display: flex; align-items: center; gap: 6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Datos protegidos</li>
+    </ul>
+  </section>
+
+  <div style="padding: 16px">
+    <img src="../../../app/static/images/dental-clinic-hero.webp" alt="Sala de atención del consultorio" style="display: block; width: 100%; height: 230px; object-fit: cover; border-radius: 22px">
+  </div>
+
+  <section aria-label="Beneficios" style="padding: 8px 16px 32px">
+    <ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <li style="padding: 14px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2"><strong style="display: block; font-size: 15px; font-weight: 600">Atención rápida</strong><span style="font-size: 13px; color: #5E5750">Horarios disponibles al instante.</span></li>
+      <li style="padding: 14px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2"><strong style="display: block; font-size: 15px; font-weight: 600">Recordatorios</strong><span style="font-size: 13px; color: #5E5750">Te avisamos antes del turno.</span></li>
+      <li style="padding: 14px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2"><strong style="display: block; font-size: 15px; font-weight: 600">Cambios simples</strong><span style="font-size: 13px; color: #5E5750">Reprogramá o cancelá.</span></li>
+      <li style="padding: 14px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2"><strong style="display: block; font-size: 15px; font-weight: 600">Datos protegidos</strong><span style="font-size: 13px; color: #5E5750">Cuidamos tu información.</span></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="m-mot" style="padding: 32px 16px; background: #F7F1E7; display: flex; flex-direction: column; gap: 14px">
+    <h2 id="m-mot" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 28px">¿Por qué querés venir?</h2>
+    <a href="Movil-Reserva.dc.html" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; min-height: 64px; box-sizing: border-box; border-radius: 18px; background: #FFFEFA; border: 1px solid #E6DED2; text-decoration: none"><span><strong style="display: block; font-weight: 600">Control</strong><span style="font-size: 13px; color: #5E5750">Revisión general programada.</span></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+    <a href="Movil-Reserva.dc.html" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; min-height: 64px; box-sizing: border-box; border-radius: 18px; background: #FFFEFA; border: 1px solid #E6DED2; text-decoration: none"><span><strong style="display: block; font-weight: 600">Limpieza</strong><span style="font-size: 13px; color: #5E5750">Limpieza dental programada.</span></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+    <a href="Movil-Reserva.dc.html" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; min-height: 64px; box-sizing: border-box; border-radius: 18px; background: #FFFEFA; border: 1px solid #E6DED2; text-decoration: none"><span><strong style="display: block; font-weight: 600">Consulta</strong><span style="font-size: 13px; color: #5E5750">Evaluar una molestia puntual.</span></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+  </section>
+
+  <section aria-labelledby="m-como" style="padding: 36px 16px; display: flex; flex-direction: column; gap: 18px">
+    <h2 id="m-como" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 28px">¿Cómo funciona?</h2>
+    <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px">
+      <li style="display: flex; gap: 14px"><span style="flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid #BE9142; font-family: Fraunces, Georgia, serif; font-size: 18px; color: #74511C">1</span><span><strong style="display: block; font-weight: 600">Elegí profesional y motivo</strong><span style="font-size: 14px; color: #5E5750">Con quién y por qué venís.</span></span></li>
+      <li style="display: flex; gap: 14px"><span style="flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid #BE9142; font-family: Fraunces, Georgia, serif; font-size: 18px; color: #74511C">2</span><span><strong style="display: block; font-weight: 600">Elegí día y horario</strong><span style="font-size: 14px; color: #5E5750">Solo ves horarios libres.</span></span></li>
+      <li style="display: flex; gap: 14px"><span style="flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #3F7D60; color: #FFFFFF; font-family: Fraunces, Georgia, serif; font-size: 18px">3</span><span><strong style="display: block; font-weight: 600">Enviá y esperá la confirmación</strong><span style="font-size: 14px; color: #5E5750">Te avisamos por email.</span></span></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="m-eq" style="padding: 8px 16px 32px; display: flex; flex-direction: column; gap: 14px">
+    <h2 id="m-eq" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 28px">Nuestro equipo</h2>
+    <div style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px">
+      <article style="flex: none; width: 220px; padding: 18px; border-radius: 20px; background: #FFFEFA; border: 1px solid #E6DED2; display: flex; flex-direction: column; gap: 6px">
+        <span aria-hidden="true" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: #F6EDDD; font-family: Fraunces, Georgia, serif; font-size: 20px; color: #74511C">LA</span>
+        <strong style="font-weight: 600">Dra. Laura Abete</strong><span style="font-size: 14px; color: #5E5750">Odontología general</span>
+        <a href="Movil-Reserva.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; font-weight: 600; color: #74511C">Ver disponibilidad</a>
+      </article>
+      <article style="flex: none; width: 220px; padding: 18px; border-radius: 20px; background: #FFFEFA; border: 1px solid #E6DED2; display: flex; flex-direction: column; gap: 6px">
+        <span aria-hidden="true" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: #EAF3ED; font-family: Fraunces, Georgia, serif; font-size: 20px; color: #2F5E48">MR</span>
+        <strong style="font-weight: 600">Dr. Martín Ruiz</strong><span style="font-size: 14px; color: #5E5750">Ortodoncia</span>
+        <a href="Movil-Reserva.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; font-weight: 600; color: #74511C">Ver disponibilidad</a>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="m-info" style="margin: 0 16px; padding: 22px 18px; border-radius: 22px; background: #FFFEFA; border: 1px solid #E6DED2; display: flex; flex-direction: column; gap: 12px">
+    <h2 id="m-info" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 24px">Contacto</h2>
+    <p style="margin: 0; font-size: 14px; color: #5E5750">[Calle y número], San Rafael, Mendoza<br>Lun a Vie [09:00 – 20:00]</p>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <a href="tel:+5400000000" style="display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 48px; border-radius: 14px; border: 1px solid #E6DED2; text-decoration: none; font-weight: 600; font-size: 15px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"></path></svg>Llamar</a>
+      <a href="https://wa.me/" style="display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 48px; border-radius: 14px; background: #EAF3ED; text-decoration: none; font-weight: 600; font-size: 15px; color: #2F5E48"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-3.8-1L4 20z"></path></svg>WhatsApp</a>
+    </div>
+  </section>
+
+  <footer style="padding: 28px 16px 120px; font-size: 13px; color: #6B645C; text-align: center">
+    © 2026 Consultorio Abete · <a href="#" style="color: #6B645C">Acceso para personal</a>
+  </footer>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 20px; background: rgba(255,254,250,0.96); border-top: 1px solid #E6DED2">
+    <a href="Movil-Reserva.dc.html" style="display: flex; justify-content: center; align-items: center; min-height: 52px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-weight: 600; text-decoration: none">Reservar turno</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
