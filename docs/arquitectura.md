@@ -466,7 +466,6 @@ La interfaz continúa siendo server-rendered con Django Templates. No se agregó
 
 - `tokens.css`: paleta clínica, escala tipográfica, espacios, radios, sombras y tiempos de movimiento.
 - `components.css`: botones, badges, mensajes, estados vacíos, skeletons e iconos.
-- `calendar.css`: patrones de calendario y selección de disponibilidad.
 - `mobile-navigation.css`: navegación inferior y drawer accesible para el panel interno.
 - `animations.css`: transiciones breves con fallback para `prefers-reduced-motion`.
 - `public.css`, `internal.css` y `responsive.css`: superficies de producto y adaptación por viewport.
