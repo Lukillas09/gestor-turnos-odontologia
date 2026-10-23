@@ -1,0 +1,57 @@
+{% comment %}
+Respuesta neutral tras enviar una solicitud: el mismo texto para todos los resultados.
+Solo la vista OK agrega el detalle del turno cuando existe en la sesión.
+{% endcomment %}
+<div class="public-received">
+    <section class="public-received-status" role="status" aria-live="polite" aria-labelledby="received-title">
+        <span class="public-received-icon" aria-hidden="true">{% include "includes/icon.html" with name="check" %}</span>
+        {% if as_page %}<h1 id="received-title">¡Recibimos tu solicitud!</h1>{% else %}<h2 id="received-title">¡Recibimos tu solicitud!</h2>{% endif %}
+        <p>Todavía no es un turno confirmado. El consultorio la revisa y se comunica por un medio de contacto válido.</p>
+    </section>
+
+    <article class="public-received-card" aria-label="Detalle de la solicitud">
+        {% if turno %}
+            <div class="public-received-turno">
+                <div class="public-received-when">
+                    <span class="public-received-date" aria-hidden="true">
+                        <small>{{ turno.fecha|date:"M" }}</small>
+                        <strong>{{ turno.fecha|date:"j" }}</strong>
+                    </span>
+                    <span>
+                        <strong>{{ turno.fecha|date:"l j \d\e F"|capfirst }}</strong>
+                        <span>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin_atencion|time:"H:i" }}{% if turno.tipo_turno_nombre_snapshot %} · {{ turno.tipo_turno_nombre_snapshot }}{% endif %} · {{ turno.odontologo }}</span>
+                    </span>
+                </div>
+                {% if turno.estado == "pendiente" %}
+                    {% include "turnos/includes/public_status_chip.html" with estado=turno.estado label="Pendiente de confirmación" %}
+                {% else %}
+                    {% include "turnos/includes/public_status_chip.html" with estado=turno.estado label=turno.get_estado_display %}
+                {% endif %}
+            </div>
+        {% endif %}
+        <ol class="public-received-steps" aria-label="Qué sigue">
+            <li class="is-done">
+                <span aria-hidden="true">{% include "includes/icon.html" with name="check" %}</span>
+                <span><strong>Solicitud registrada</strong>El consultorio ya la tiene para revisar.</span>
+            </li>
+            <li class="is-next">
+                <span aria-hidden="true">2</span>
+                <span><strong>El consultorio la revisa</strong>Puede confirmarla o reprogramarla.</span>
+            </li>
+            <li>
+                <span aria-hidden="true">3</span>
+                <span><strong>Te avisamos</strong>Cuando quede confirmada, te escribimos al email registrado.</span>
+            </li>
+        </ol>
+    </article>
+
+    <div class="public-received-actions">
+        <a class="button button-large public-gold-button" href="{% url 'turnos:acceso_publico_solicitar' %}">Ver mis turnos</a>
+        <a class="button button-large public-outline-button" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
+    </div>
+
+    <p class="public-received-note">Guardá el email que ingresaste. Cuando el contacto quede habilitado, podrás usarlo para solicitar un código y administrar tus turnos.</p>
+    <p class="public-received-help">
+        ¿No te llegó el email? Revisá spam{% if configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp %} o <a href="{{ configuracion_consultorio.whatsapp_url }}" target="_blank" rel="noopener noreferrer">escribinos por WhatsApp</a>{% endif %}.
+    </p>
+</div>

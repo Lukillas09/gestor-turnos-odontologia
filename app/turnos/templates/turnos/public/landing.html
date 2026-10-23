@@ -5,17 +5,9 @@
 
 {% block content %}
     {% if solicitud_turno_confirmada %}
-        <section class="public-confirmation-banner animate-fade-up" role="status" aria-live="polite">
-            <span class="public-confirmation-icon animate-check" aria-hidden="true">{% include "includes/icon.html" with name="check" %}</span>
-            <div class="public-confirmation-copy">
-                <strong>Tu solicitud fue registrada</strong>
-                <p>El consultorio revisará la información y se comunicará por un medio de contacto válido.</p>
-            </div>
-            <div class="public-confirmation-actions">
-                <a class="button button-large" href="{% url 'turnos:solicitud_publica' %}">Solicitar otro turno</a>
-                <a class="button button-secondary" href="{% url 'turnos:acceso_publico_solicitar' %}">Consultar mis turnos</a>
-            </div>
-        </section>
+        <div class="public-received-banner animate-fade-up">
+            {% include "turnos/includes/public_request_received.html" %}
+        </div>
     {% endif %}
 
     <section class="public-home-hero animate-fade-up" aria-labelledby="public-home-title">

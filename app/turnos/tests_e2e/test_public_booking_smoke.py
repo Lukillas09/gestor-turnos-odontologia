@@ -260,7 +260,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.get_by_role("button", name="Enviar solicitud").click()
 
         self.page.wait_for_url(f"**{reverse('landing_publica')}")
-        self.page.get_by_text("Tu solicitud fue registrada").wait_for()
+        self.page.get_by_text("¡Recibimos tu solicitud!").wait_for()
 
         self.assertEqual(Turno.objects.filter(motivo="Control E2E").count(), 1)
         turno = Turno.objects.get(motivo="Control E2E")
@@ -364,7 +364,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.get_by_role("button", name="Enviar solicitud").click()
 
         self.page.wait_for_url(f"**{reverse('landing_publica')}")
-        self.page.get_by_text("Tu solicitud fue registrada").wait_for()
+        self.page.get_by_text("¡Recibimos tu solicitud!").wait_for()
         turno = Turno.objects.get(paciente__documento="45111222")
         self.assertEqual(turno.tipo_turno, limpieza)
         self.assertEqual(turno.tipo_turno_nombre_snapshot, "Limpieza")

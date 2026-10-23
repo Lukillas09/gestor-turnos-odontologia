@@ -17,6 +17,7 @@ from django.templatetags.static import static
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 
 from consultorio.models import ConfiguracionConsultorio
 from pacientes.models import Paciente, PacienteOdontologo
@@ -2292,20 +2293,23 @@ class SolicitudTurnoPublicaTests(TestCase):
         )
 
         self.assertEqual(response.redirect_chain, [(reverse("landing_publica"), 302)])
-        self.assertContains(response, "Tu solicitud fue registrada")
+        self.assertContains(response, "¡Recibimos tu solicitud!")
         self.assertContains(
             response,
             (
-                "El consultorio revisará la información y se comunicará por un "
-                "medio de contacto válido."
+                "Todavía no es un turno confirmado. El consultorio la revisa y se comunica "
+                "por un medio de contacto válido."
             ),
         )
+        # El banner es neutral: nunca muestra el detalle del turno ni promete recordatorios.
+        self.assertNotContains(response, "public-received-turno")
+        self.assertNotContains(response, "Recordatorio")
         self.assertContains(response, reverse("turnos:solicitud_publica"))
         self.assertContains(response, reverse("turnos:acceso_publico_solicitar"))
 
         nueva_visita = self.client.get(reverse("landing_publica"))
 
-        self.assertNotContains(nueva_visita, "Tu solicitud fue registrada")
+        self.assertNotContains(nueva_visita, "¡Recibimos tu solicitud!")
 
     def test_solicitud_publica_acepta_hora_enviada_con_segundos(self):
         response = self.client.post(
@@ -2333,15 +2337,31 @@ class SolicitudTurnoPublicaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Paula Publica")
-        self.assertContains(response, self.fecha_turno.strftime("%d/%m/%Y"))
+        self.assertContains(response, date_format(self.fecha_turno, "j \\d\\e F"))
         self.assertContains(response, "10:00 a 10:30")
-        self.assertContains(response, "Pendiente")
+        self.assertContains(response, 'class="public-status-chip is-pendiente"')
+        self.assertContains(response, "Pendiente de confirmación")
+        self.assertContains(response, 'aria-current="step"')
         self.assertContains(
             response,
             "Guardá el email que ingresaste. Cuando el contacto quede habilitado",
         )
         self.assertNotContains(response, "Paz, Lucia")
         self.assertNotContains(response, "Consulta inicial")
+
+    def test_confirmacion_publica_sin_turno_en_sesion_es_neutral(self):
+        response = self.client.get(reverse("turnos:solicitud_publica_ok"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "¡Recibimos tu solicitud!")
+        self.assertContains(response, "Todavía no es un turno confirmado.")
+        self.assertNotContains(response, "public-received-turno")
+        self.assertNotContains(response, "escribinos por WhatsApp")
+
+        self._configurar_contacto_publico()
+        response = self.client.get(reverse("turnos:solicitud_publica_ok"))
+
+        self.assertContains(response, "escribinos por WhatsApp")
 
     def test_solicitud_publica_reutiliza_paciente_sin_reemplazar_datos(self):
         paciente = Paciente.objects.create(
