@@ -684,7 +684,7 @@ class PerfilConsultorioPublicoTests(TestCase):
         response = self.client.get(reverse("turnos:solicitud_publica"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Horarios disponibles")
+        self.assertContains(response, "Día y horario")
 
     def test_textos_configurables_se_escapan(self):
         configuracion = obtener_o_crear_configuracion_consultorio()

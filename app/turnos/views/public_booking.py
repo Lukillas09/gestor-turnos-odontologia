@@ -416,6 +416,9 @@ class SolicitudTurnoPublicaView(
             )
 
         context["busqueda_form"] = busqueda_form
+        context["tipo_turno_preseleccionado"] = self._obtener_tipo_turno_preseleccionado(
+            busqueda_form
+        )
         context["hay_odontologos"] = Odontologo.objects.filter(activo=True).exists()
         context["smart_scheduling_enabled"] = settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
         context["configuraciones_tipos_iniciales"] = (
@@ -443,11 +446,24 @@ class SolicitudTurnoPublicaView(
 
     def _obtener_busqueda_form(self):
         data = self.request.GET if self.request.GET else None
+        if data is not None and set(data) <= {"tipo_turno"}:
+            # Un motivo sin profesional solo preselecciona; no es una búsqueda.
+            data = None
         return SolicitudTurnoBusquedaPublicaForm(
             data,
             initial={"fecha": obtener_rango_reserva_publica().fecha_minima},
             auto_id="id_busqueda_%s",
         )
+
+    def _obtener_tipo_turno_preseleccionado(self, busqueda_form):
+        tipo_turno_id = self.request.GET.get("tipo_turno", "")
+        if (
+            not settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
+            or busqueda_form.is_bound
+            or not tipo_turno_id.isdigit()
+        ):
+            return None
+        return tipos_turno_publicos().filter(pk=tipo_turno_id).first()
 
 
 class SolicitudTurnoPublicaTiposView(View):

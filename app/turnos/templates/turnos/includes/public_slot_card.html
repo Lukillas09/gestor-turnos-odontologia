@@ -1,20 +1,13 @@
-<section class="public-slot-card public-time-period animate-fade-up" style="--stagger-index: {{ indice }};" data-public-slot-card data-slot-card-title="{{ titulo }}">
-    <div class="public-slot-card-header">
-        <div>{% include "includes/icon.html" with name=icono %}<h3>{{ titulo }}</h3></div>
-        <span>{{ horarios|length }} {% if horarios|length == 1 %}opción{% else %}opciones{% endif %}</span>
-    </div>
-    {% if horarios %}
-        <div class="public-slot-list public-time-grid">
+{% if horarios or horarios_extra %}
+    <section class="public-slot-group{% if grupo == 'recomendados' %} is-recommended{% endif %}" data-public-slot-card data-slot-group="{{ grupo }}">
+        <h3>{{ titulo }}</h3>
+        <div class="public-time-grid">
             {% for opcion in horarios %}
-                <a
-                    class="public-slot-button"
-                    href="{{ opcion.url }}"
-                    data-public-slot="{{ opcion.label }}"
-                    aria-label="Seleccionar horario {{ opcion.label }}"
-                ><span>{{ opcion.label }}</span></a>
+                <a class="public-slot-button" href="{{ opcion.url }}" data-public-slot="{{ opcion.label }}" aria-label="Seleccionar horario {{ opcion.label }}">{{ opcion.label }}</a>
+            {% endfor %}
+            {% for opcion in horarios_extra %}
+                <a class="public-slot-button" href="{{ opcion.url }}" data-public-slot="{{ opcion.label }}" aria-label="Seleccionar horario {{ opcion.label }}">{{ opcion.label }}</a>
             {% endfor %}
         </div>
-    {% else %}
-        <p class="muted public-slot-empty">No hay opciones en esta franja.</p>
-    {% endif %}
-</section>
+    </section>
+{% endif %}

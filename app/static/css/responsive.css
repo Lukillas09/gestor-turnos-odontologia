@@ -215,8 +215,6 @@
 
     .filter-panel,
     .agenda-filter,
-    .public-search-panel,
-    .public-search-panel.is-enhanced,
     .form-grid,
     .detail-grid,
     .agenda-turno-body,
@@ -240,7 +238,6 @@
     .confirm-duration-layout,
     .public-reservation-details,
     .public-profile,
-    .public-slot-grid,
     .public-reservation-summary,
     .public-confirmation-banner,
     .public-dni-form,
@@ -314,7 +311,6 @@
     .empty-state,
     .panel-section,
     .public-query-panel,
-    .public-search-panel,
     .public-turno-card,
     .consultorio-preview-card,
     .review-hero,
@@ -386,18 +382,6 @@
         min-height: 54px;
     }
 
-    .public-date-strip {
-        margin-right: 0;
-        margin-left: 0;
-        padding-right: 0;
-        padding-left: 0;
-    }
-
-    .public-date-chip {
-        min-width: 116px;
-    }
-
-    .public-slot-card-header,
     .public-slot-button {
         align-items: flex-start;
         flex-direction: column;
@@ -1130,58 +1114,6 @@
         text-align: left;
     }
 
-    .public-search-panel.public-search-panel-v2,
-    .public-search-panel.public-search-panel-v2.is-enhanced {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        grid-template-columns: 1fr;
-        border-radius: var(--radius-sm);
-    }
-
-    .public-professional-control {
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-    }
-
-    .public-service-control {
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-    }
-
-    .public-professional-picker,
-    .public-search-panel-v2.is-enhanced .public-professional-picker {
-        width: 100%;
-        min-width: 0;
-        grid-template-columns: 1fr;
-    }
-
-    .public-professional-option,
-    .booking-date-control {
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-    }
-
-    .public-booking-control,
-    .public-booking-results {
-        padding: var(--space-4);
-    }
-
-    .public-booking-results {
-        min-height: 260px;
-        border-radius: var(--radius-sm);
-    }
-
-    .public-selected-professional {
-        align-items: flex-start;
-    }
-
-    .public-smart-schedule-intro {
-        grid-template-columns: 1fr;
-        align-items: start;
-    }
-
     .public-time-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -1189,19 +1121,6 @@
     .public-slot-button {
         min-height: 48px;
         align-items: center;
-    }
-
-    .public-slot-action {
-        bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
-        border-radius: var(--radius-sm);
-    }
-
-    .public-slot-action > div {
-        min-width: 0;
-    }
-
-    .public-slot-action .button {
-        flex: 0 0 auto;
     }
 
     .public-data-layout .public-data-form,
@@ -1338,15 +1257,6 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .public-slot-action {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .public-slot-action .button {
-        width: 100%;
-    }
-
     .public-booking-summary-details div {
         grid-template-columns: 1fr;
         gap: var(--space-1);
@@ -1375,28 +1285,6 @@
         top: 235px;
         right: -92px;
         opacity: 0.28;
-    }
-
-    .public-booking-shell.public-booking-shell-v3 {
-        grid-template-columns: minmax(0, 1fr) 285px;
-    }
-
-    .public-search-panel-v2.is-smart {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .public-search-panel-v2.is-smart .booking-date-control {
-        grid-column: 1 / -1;
-        border-top: 1px solid var(--public-border);
-    }
-
-    .public-search-panel-v2.is-smart .public-service-control {
-        border-right: 0;
-    }
-
-    .public-visual-calendar {
-        max-width: 430px;
-        margin-inline: auto;
     }
 
     .public-time-grid {
@@ -1476,19 +1364,6 @@
         color: var(--public-gold-dark);
     }
 
-    .public-booking-shell.public-booking-shell-v3 {
-        grid-template-columns: 1fr;
-    }
-
-    .public-booking-rail {
-        grid-template-columns: minmax(0, 1fr) minmax(250px, 0.65fr);
-        position: static;
-    }
-
-    .public-whatsapp-help {
-        align-self: start;
-    }
-
     .public-data-layout.public-data-layout-v3 {
         grid-template-columns: 1fr;
     }
@@ -1555,79 +1430,12 @@
         text-align: center;
     }
 
-    .public-booking-heading-premium h1,
     .public-data-header h1 {
         font-size: 2.65rem;
     }
 
-    .public-search-panel.public-search-panel-v2,
-    .public-search-panel.public-search-panel-v2.is-smart,
-    .public-search-panel.public-search-panel-v2.is-enhanced {
-        grid-template-columns: 1fr;
-        border-radius: 16px;
-    }
-
-    .public-search-panel-v2.is-smart .booking-date-control {
-        grid-column: 1;
-    }
-
-    .public-professional-control,
-    .public-service-control {
-        border-right: 0;
-        border-bottom: 1px solid var(--public-border);
-    }
-
-    .public-professional-picker,
-    .public-service-picker {
-        grid-template-columns: 1fr;
-    }
-
-    .public-booking-control,
-    .public-booking-results {
-        padding: 1.1rem;
-    }
-
-    .public-visual-calendar {
-        max-width: 100%;
-    }
-
-    .public-calendar-day {
-        min-height: 38px;
-    }
-
-    .public-booking-results {
-        border-radius: 16px;
-    }
-
-    .public-date-strip {
-        grid-template-columns: repeat(7, 96px);
-        overflow-x: auto;
-        margin-right: -1.1rem;
-        margin-left: -1.1rem;
-        padding: 0 1.1rem 0.55rem;
-        scroll-padding-inline: 1.1rem;
-        scrollbar-width: thin;
-        scroll-snap-type: x proximity;
-    }
-
-    .public-date-chip {
-        scroll-snap-align: start;
-    }
-
-    .public-smart-schedule-intro {
-        grid-template-columns: 1fr;
-    }
-
     .public-time-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .public-booking-rail {
-        grid-template-columns: 1fr;
-    }
-
-    .public-selection-summary {
-        border-radius: 16px;
     }
 
     .public-data-layout .public-patient-data-card,
@@ -1684,37 +1492,17 @@
         text-align: right;
     }
 
-    .public-booking-heading-premium h1,
     .public-data-header h1 {
         font-size: 2.25rem;
-    }
-
-    .public-professional-option {
-        grid-template-columns: 48px minmax(0, 1fr) 24px;
-        padding: 0.75rem;
-    }
-
-    .public-professional-option-photo {
-        width: 48px;
-        height: 48px;
     }
 
     .public-time-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .public-slot-card-header {
-        align-items: flex-start;
-    }
-
     .public-summary-professional,
     .public-summary-list > div {
         grid-template-columns: 38px minmax(0, 1fr);
-    }
-
-    .public-summary-row-icon {
-        width: 38px;
-        height: 38px;
     }
 
     .public-summary-list dt {
@@ -1736,16 +1524,6 @@
     .public-brand-logo {
         width: 52px;
         height: 36px;
-    }
-
-    .public-calendar-weekdays,
-    .public-calendar-days {
-        gap: 0.05rem;
-    }
-
-    .public-calendar-day {
-        min-height: 34px;
-        font-size: 0.69rem;
     }
 
 }
@@ -2045,5 +1823,145 @@
 
     .public-shell-body:has(.public-home-sticky-cta) .public-footer {
         padding-bottom: 104px;
+    }
+}
+
+/* Rediseño público V3: elegí tu turno */
+@media (max-width: 1023px) {
+    .public-pick-rail {
+        position: static;
+    }
+}
+
+@media (max-width: 767px) {
+    .public-pick-heading {
+        margin-bottom: var(--space-5);
+    }
+
+    .public-pick-heading h1 {
+        font-size: 2rem;
+    }
+
+    .public-pick-card {
+        border-radius: 20px;
+        padding: 20px;
+    }
+
+    .public-pick-card-help {
+        margin-left: 0;
+    }
+
+    .public-pick-schedule {
+        gap: var(--space-5);
+    }
+
+    .public-calendar-toggle:not([hidden]) {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--public-border-strong);
+        border-radius: var(--radius-pill);
+        padding: 0 16px;
+        background: var(--public-surface);
+        color: var(--public-text);
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .public-pick .public-visual-calendar:not(.is-open) {
+        display: none;
+    }
+
+    .public-pick .public-visual-calendar.is-open {
+        margin-top: var(--space-4);
+    }
+
+    .public-pick .public-date-strip {
+        display: flex;
+        gap: 8px;
+        margin: 0 -20px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        padding: 2px 20px 6px;
+        scroll-snap-type: x proximity;
+    }
+
+    .public-date-chip {
+        width: 60px;
+        height: 72px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        border: 1.5px solid var(--public-border);
+        border-radius: 16px;
+        background: var(--public-surface);
+        color: var(--public-text);
+        text-decoration: none;
+        scroll-snap-align: start;
+    }
+
+    .public-date-chip small {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .public-date-chip strong {
+        font-family: var(--public-font-serif);
+        font-size: 1.375rem;
+        font-weight: 500;
+        line-height: 1;
+    }
+
+    .public-date-chip.is-active {
+        border-color: var(--public-gold-ink);
+        background: var(--public-gold-ink);
+        color: #ffffff;
+    }
+
+    .public-selection-summary {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .public-selection-summary h2,
+    .public-pick .public-summary-list {
+        display: none;
+    }
+
+    .public-summary-cta {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: var(--z-sticky);
+        border-top: 1px solid var(--public-border);
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+        background: var(--public-surface);
+        box-shadow: 0 -10px 30px rgba(71, 55, 34, 0.08);
+    }
+
+    .public-summary-compact {
+        display: block;
+        margin: 0;
+        color: var(--public-text);
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .public-summary-note {
+        margin-top: 0;
+    }
+
+    .public-shell-body:has(.public-summary-cta) .public-footer {
+        padding-bottom: 150px;
     }
 }

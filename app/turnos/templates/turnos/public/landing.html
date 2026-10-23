@@ -66,7 +66,7 @@
                         <span class="public-home-service-icon" aria-hidden="true">{% include "includes/icon.html" with name=tipo.icono|default:"calendar" %}</span>
                         <h3>{{ tipo.nombre }}</h3>
                         {% if tipo.descripcion_publica %}<p>{{ tipo.descripcion_publica }}</p>{% endif %}
-                        <a href="{% url 'turnos:solicitud_publica' %}">Reservar {{ tipo.nombre|lower }} {% include "includes/icon.html" with name="arrow-right" %}</a>
+                        <a href="{% url 'turnos:solicitud_publica' %}?tipo_turno={{ tipo.pk }}">Reservar {{ tipo.nombre|lower }} {% include "includes/icon.html" with name="arrow-right" %}</a>
                     </article>
                 {% endfor %}
             </div>

@@ -190,7 +190,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self._capture("public-home-desktop.png")
         self.page.get_by_role("link", name="Reservá tu turno").first.click()
 
-        self.page.locator(".public-search-panel-v2.is-enhanced").wait_for()
+        self.page.locator("[data-public-search-form].is-enhanced").wait_for()
         continuar = self.page.locator("[data-public-slot-continue]")
         self.assertTrue(continuar.is_disabled())
         self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
@@ -202,9 +202,13 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         while fecha_chip.weekday() >= 5:
             fecha_chip += timedelta(days=1)
 
-        self.page.locator(f"[data-public-date='{fecha_chip.isoformat()}']").wait_for()
-        self.page.locator(f"[data-public-date='{fecha_chip.isoformat()}']").click()
+        dia_calendario = self.page.locator(f"[data-public-calendar-day='{fecha_chip.isoformat()}']")
+        dia_calendario.click()
+        self.assertEqual(dia_calendario.get_attribute("aria-pressed"), "true")
         self.assertEqual(self.page.input_value("input[name='fecha']"), fecha_chip.isoformat())
+        self.page.locator(
+            f"[data-public-date='{fecha_chip.isoformat()}'][aria-current='date']"
+        ).wait_for(state="attached")
         self.page.locator(".public-slot-button").first.wait_for()
         self._capture("public-booking-desktop.png")
         horario = self.page.locator(".public-slot-button").first
@@ -299,7 +303,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.set_viewport_size({"width": 390, "height": 844})
         self.page.goto(f"{self.live_server_url}{reverse('landing_publica')}")
         self.page.get_by_role("link", name="Reservá tu turno").first.click()
-        self.page.locator(".public-search-panel-v2.is-enhanced").wait_for()
+        self.page.locator("[data-public-search-form].is-enhanced").wait_for()
         self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
 
         opcion_limpieza = self.page.locator(f"[data-public-service='{limpieza.pk}']")
@@ -307,9 +311,13 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         opcion_limpieza.focus()
         self.page.keyboard.press("Enter")
         self.assertEqual(opcion_limpieza.get_attribute("aria-checked"), "true")
-        self.page.get_by_text("Aproximadamente 45 min").first.wait_for()
-        self.page.get_by_text("Horarios recomendados", exact=True).wait_for()
+        self.assertIn("45 min", opcion_limpieza.inner_text())
+        self.assertEqual(
+            self.page.locator("[data-summary-duration]").text_content().strip(), "45 minutos"
+        )
+        self.page.locator("[data-slot-group='recomendados']").wait_for()
 
+        self.page.locator("[data-public-calendar-toggle]").click()
         calendario_mes = self.page.locator("[data-public-calendar-month]")
         mes_inicial = calendario_mes.inner_text()
         self.page.locator("[data-public-calendar-next]").click()
@@ -322,25 +330,24 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.locator(
             f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
         ).wait_for()
-        self.page.get_by_text("Horarios recomendados", exact=True).wait_for()
+        self.page.locator("[data-slot-group='recomendados']").wait_for()
         self.page.wait_for_load_state("networkidle")
         horarios_limpieza = self.page.locator("[data-public-slot]").all_inner_texts()
         self.assertGreaterEqual(len(horarios_limpieza), 3)
         self._capture("public-booking-smart-mobile.png")
 
-        mas_horarios = self.page.locator("[data-public-more-slots]")
-        mas_horarios.locator("summary").focus()
-        self.page.keyboard.press("Enter")
-        self.page.wait_for_function("""() => {
-                const details = document.querySelector('[data-public-more-slots]');
-                return details.open
-                    && details.querySelector('summary').getAttribute('aria-expanded') === 'true';
-            }""")
-        self.assertEqual(mas_horarios.locator("summary").get_attribute("aria-expanded"), "true")
-
-        alternativa = mas_horarios.locator("[data-public-slot]").first
+        alternativa = self.page.locator(
+            "[data-slot-group='manana'] [data-public-slot], "
+            "[data-slot-group='tarde'] [data-public-slot]"
+        ).first
         alternativa.wait_for()
-        alternativa.click()
+        alternativa.focus()
+        self.page.keyboard.press("Space")
+        self.assertEqual(alternativa.get_attribute("aria-pressed"), "true")
+        self.assertIn(
+            alternativa.inner_text().strip(),
+            self.page.locator("[data-summary-compact]").inner_text(),
+        )
         self.page.locator("[data-public-slot-continue]").click()
 
         self.page.get_by_role("heading", name="Completá tus datos").wait_for()
@@ -371,13 +378,14 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         opcion_control = self.page.locator(f"[data-public-service='{control.pk}']")
         opcion_control.wait_for()
         opcion_control.click()
-        self.page.get_by_text("Aproximadamente 20 min").first.wait_for()
+        self.assertIn("20 min", opcion_control.inner_text())
         self.page.fill("input[name='fecha']", self.fecha.isoformat())
         self.page.dispatch_event("input[name='fecha']", "change")
         self.page.locator(
             f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
-        ).wait_for()
-        self.page.get_by_text("Horarios recomendados", exact=True).wait_for()
+        ).wait_for(state="attached")
+        self.assertTrue(self.page.locator("[data-public-calendar]").is_visible())
+        self.page.locator("[data-slot-group='recomendados']").wait_for()
         self.page.wait_for_load_state("networkidle")
         horarios_control = self.page.locator("[data-public-slot]").all_inner_texts()
         self.assertNotEqual(horarios_control, horarios_limpieza)
@@ -416,12 +424,12 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.assertEqual(menu.locator("summary").get_attribute("aria-expanded"), "false")
 
         self.page.get_by_role("link", name="Reservá tu turno").first.click()
-        self.page.locator(".public-search-panel-v2.is-enhanced").wait_for()
+        self.page.locator("[data-public-search-form].is-enhanced").wait_for()
         self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
         self.page.fill("input[name='fecha']", self.fecha.isoformat())
         self.page.dispatch_event("input[name='fecha']", "change")
         self.page.locator(".public-slot-button").first.wait_for()
-        self.page.locator(".public-booking-results").scroll_into_view_if_needed()
+        self.page.locator("[data-public-results]").scroll_into_view_if_needed()
         self._capture("public-booking-mobile.png")
         self._assert_no_horizontal_overflow()
 

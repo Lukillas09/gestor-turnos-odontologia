@@ -358,6 +358,61 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
         self.assertNotIn("puntaje", str(contenido).lower())
         self.assertNotIn("razones", str(contenido).lower())
 
+    def test_seleccion_preselecciona_motivo_publico_sin_errores_de_busqueda(self):
+        response = self.client.get(
+            reverse("turnos:solicitud_publica"), {"tipo_turno": self.tipo.pk}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["busqueda_form"].is_bound)
+        self.assertEqual(response.context["tipo_turno_preseleccionado"], self.tipo)
+        self.assertContains(response, f'data-preselected-type="{self.tipo.pk}"')
+        self.assertContains(response, "Elegí un profesional para reservar control.")
+        self.assertNotContains(response, "field-error")
+
+        landing = self.client.get(reverse("landing_publica"))
+        self.assertContains(
+            landing, f'{reverse("turnos:solicitud_publica")}?tipo_turno={self.tipo.pk}'
+        )
+
+    def test_seleccion_ignora_motivo_preseleccionado_invalido_u_oculto(self):
+        tipo_oculto = crear_tipo("Blanqueamiento", "blanqueamiento-presel")
+        TipoTurno.objects.filter(pk=tipo_oculto.pk).update(visible_publicamente=False)
+
+        for valor in ("abc", "999999", str(tipo_oculto.pk)):
+            with self.subTest(valor=valor):
+                response = self.client.get(
+                    reverse("turnos:solicitud_publica"), {"tipo_turno": valor}
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertIsNone(response.context["tipo_turno_preseleccionado"])
+                self.assertNotContains(response, "data-preselected-type")
+
+        with override_settings(TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=False):
+            response = self.client.get(
+                reverse("turnos:solicitud_publica"), {"tipo_turno": self.tipo.pk}
+            )
+        self.assertIsNone(response.context["tipo_turno_preseleccionado"])
+
+    def test_seleccion_renderiza_grupos_de_horarios_sin_javascript(self):
+        response = self.client.get(
+            reverse("turnos:solicitud_publica"),
+            {
+                "odontologo": self.odontologo.pk,
+                "tipo_turno": self.tipo.pk,
+                "fecha": self.fecha.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-slot-group="recomendados"')
+        self.assertContains(response, "Recomendados")
+        # Dos profesionales y un motivo; quedan marcados el profesional y el motivo elegidos.
+        self.assertContains(response, 'role="radio"', count=3)
+        self.assertContains(response, 'aria-checked="true"', count=2)
+        self.assertNotContains(response, "puntaje")
+        self.assertNotContains(response, "public-more-slots")
+
     def test_landing_muestra_solo_motivos_reservables_publicamente(self):
         tipo_oculto = crear_tipo("Blanqueamiento", "blanqueamiento-smart")
         tipo_sin_reserva = crear_tipo("Ortodoncia", "ortodoncia-smart")

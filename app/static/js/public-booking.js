@@ -56,14 +56,17 @@
     const visualCalendar = panel.querySelector("[data-public-calendar]");
     const calendarDays = panel.querySelector("[data-public-calendar-days]");
     const calendarMonth = panel.querySelector("[data-public-calendar-month]");
-    const calendarSelected = panel.querySelector("[data-public-calendar-selected]");
+    const calendarWindow = panel.querySelector("[data-public-calendar-window]");
+    const calendarToggle = panel.querySelector("[data-public-calendar-toggle]");
     const calendarPrevious = panel.querySelector("[data-public-calendar-prev]");
     const calendarNext = panel.querySelector("[data-public-calendar-next]");
     const summaryProfessional = panel.querySelector("[data-summary-professional]");
-    const summarySpecialty = panel.querySelector("[data-summary-specialty]");
     const summaryService = panel.querySelector("[data-summary-service]");
     const summaryDate = panel.querySelector("[data-summary-date]");
     const summaryDuration = panel.querySelector("[data-summary-duration]");
+    const summaryCompact = panel.querySelector("[data-summary-compact]");
+    const emptyValue = "Sin elegir";
+    let preselectedType = panel.dataset.preselectedType || "";
     let activeRequest = null;
     let activeTypesRequest = null;
     let debounceTimer = null;
@@ -138,17 +141,21 @@
         }).format(value);
     }
 
+    function capitalize(value) {
+        return value.charAt(0).toUpperCase() + value.slice(1);
+    }
+
+    function formatDayMonth(value) {
+        const weekday = new Intl.DateTimeFormat("es-AR", {weekday: "long"}).format(value);
+        const month = new Intl.DateTimeFormat("es-AR", {month: "long"}).format(value);
+        return capitalize(`${weekday} ${value.getDate()} de ${month}`);
+    }
+
     function formatDateChip(value) {
         const weekday = new Intl.DateTimeFormat("es-AR", {weekday: "short"})
             .format(value)
             .replace(".", "");
-        const month = new Intl.DateTimeFormat("es-AR", {month: "short"})
-            .format(value)
-            .replace(".", "");
-        return {
-            weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1),
-            date: `${String(value.getDate()).padStart(2, "0")} ${month.toUpperCase()}`,
-        };
+        return {weekday: capitalize(weekday), day: String(value.getDate())};
     }
 
     function setBusy(isBusy) {
@@ -156,24 +163,12 @@
     }
 
     function updateProfessionalSummary(professional) {
-        if (!professional) {
-            if (summaryProfessional) {
-                summaryProfessional.textContent = "Elegí un profesional";
-            }
-            if (summarySpecialty) {
-                summarySpecialty.textContent = "Tu selección aparecerá acá";
-            }
-            return;
-        }
         if (summaryProfessional) {
-            summaryProfessional.textContent = professional.nombre || professional.name || "";
+            summaryProfessional.textContent = professional
+                ? professional.nombre || professional.name || emptyValue
+                : emptyValue;
         }
-        if (summarySpecialty) {
-            summarySpecialty.textContent = professional.especialidad
-                || professional.specialty
-                || "Odontología general";
-        }
-        if (!smartScheduling && summaryDuration) {
+        if (professional && !smartScheduling && summaryDuration) {
             summaryDuration.textContent = "30 minutos";
         }
     }
@@ -182,35 +177,59 @@
         if (summaryService) {
             summaryService.textContent = service && (service.nombre || service.name)
                 ? service.nombre || service.name
-                : "Pendiente";
+                : emptyValue;
         }
         if (summaryDuration) {
             const duration = service && (service.duracion_aproximada || service.duration);
             summaryDuration.textContent = duration
                 ? `${duration} minutos`
-                : smartScheduling ? "Pendiente" : "30 minutos";
+                : smartScheduling ? emptyValue : "30 minutos";
         }
     }
 
     function updateDateSummary() {
         const selected = parseIsoDate(fechaControl.value);
         if (summaryDate) {
-            summaryDate.textContent = formatReadableDate(selected);
+            summaryDate.textContent = selected ? formatDayMonth(selected) : emptyValue;
         }
+    }
+
+    function updateCompactSummary() {
+        if (!summaryCompact) {
+            return;
+        }
+        const hasSlot = actionControl && !actionControl.disabled && actionLabel;
+        summaryCompact.textContent = hasSlot && summaryDate
+            ? `${summaryDate.textContent} · ${actionLabel.textContent}`
+            : "Elegí un horario";
     }
 
     function hideAction() {
         if (actionBar) {
-            actionBar.hidden = true;
+            actionBar.classList.add("is-empty");
         }
         if (actionLabel) {
-            actionLabel.textContent = "";
+            actionLabel.textContent = emptyValue;
         }
         if (actionControl) {
             actionControl.disabled = true;
             actionControl.setAttribute("aria-disabled", "true");
             delete actionControl.dataset.href;
         }
+        updateCompactSummary();
+    }
+
+    function syncRovingTabindex(group) {
+        if (!group) {
+            return;
+        }
+        const radios = Array.from(group.querySelectorAll("[role='radio']"));
+        const checked = radios.find(function (radio) {
+            return radio.getAttribute("aria-checked") === "true";
+        });
+        radios.forEach(function (radio) {
+            radio.tabIndex = radio === (checked || radios[0]) ? 0 : -1;
+        });
     }
 
     function selectProfessional(id, professionalData) {
@@ -219,11 +238,12 @@
         form.querySelectorAll("[data-public-professional]").forEach(function (button) {
             const selected = button.dataset.publicProfessional === String(id);
             button.classList.toggle("is-selected", selected);
-            button.setAttribute("aria-pressed", selected ? "true" : "false");
+            button.setAttribute("aria-checked", selected ? "true" : "false");
             if (selected) {
                 selectedButton = button;
             }
         });
+        syncRovingTabindex(form.querySelector("[data-professional-picker]"));
         if (professionalData) {
             updateProfessionalSummary(professionalData);
         } else if (selectedButton) {
@@ -251,6 +271,7 @@
                 selectedButton = button;
             }
         });
+        syncRovingTabindex(servicePicker);
         if (serviceData) {
             updateServiceSummary(serviceData);
         } else if (selectedButton) {
@@ -289,11 +310,10 @@
         hideAction();
         setBusy(true);
         results.innerHTML = `
-            <div class="public-booking-skeleton" aria-label="Buscando horarios disponibles">
+            <div class="public-booking-skeleton" role="status" aria-label="Buscando horarios disponibles">
                 <div class="ui-skeleton ui-skeleton-line ui-skeleton-line-short"></div>
                 <div class="public-booking-skeleton-grid">
-                    <div class="ui-skeleton ui-skeleton-card"></div>
-                    <div class="ui-skeleton ui-skeleton-card"></div>
+                    ${'<div class="ui-skeleton public-booking-skeleton-slot"></div>'.repeat(6)}
                 </div>
             </div>
         `;
@@ -326,20 +346,14 @@
         }
 
         servicePicker.innerHTML = data.tipos.map(function (tipo) {
-            const initial = String(tipo.nombre || "M").trim().charAt(0).toUpperCase();
             return `
                 <button class="public-service-option" type="button" role="radio"
                     data-public-service="${escapeHtml(tipo.tipo_turno_id)}"
                     data-service-name="${escapeHtml(tipo.nombre)}"
                     data-service-duration="${escapeHtml(tipo.duracion_aproximada)}"
                     aria-checked="false">
-                    <span class="public-service-option-icon" aria-hidden="true">${escapeHtml(initial)}</span>
-                    <span class="public-service-option-copy">
-                        <strong>${escapeHtml(tipo.nombre)}</strong>
-                        ${tipo.descripcion ? `<small>${escapeHtml(tipo.descripcion)}</small>` : ""}
-                        <span>Aproximadamente ${escapeHtml(tipo.duracion_aproximada)} min</span>
-                    </span>
-                    <span class="public-service-option-check" aria-hidden="true">✓</span>
+                    <strong>${escapeHtml(tipo.nombre)}</strong>
+                    <span>${escapeHtml(tipo.duracion_aproximada)} min</span>
                 </button>
             `;
         }).join("");
@@ -349,6 +363,17 @@
                 return `<option value="${escapeHtml(tipo.tipo_turno_id)}">${escapeHtml(tipo.nombre)}</option>`;
             })
             .join("");
+        syncRovingTabindex(servicePicker);
+
+        const preselected = preselectedType
+            ? servicePicker.querySelector(`[data-public-service="${CSS.escape(preselectedType)}"]`)
+            : null;
+        if (preselected) {
+            preselectedType = "";
+            selectService(preselected.dataset.publicService);
+            updateAvailability();
+            return;
+        }
         if (focusFirst) {
             const first = servicePicker.querySelector("[data-public-service]");
             if (first) {
@@ -361,142 +386,66 @@
         if (!days || days.length === 0) {
             return "";
         }
-        const chips = days.map(function (day, index) {
+        const chips = days.map(function (day) {
             const date = parseIsoDate(day.fecha);
-            const label = date ? formatDateChip(date) : {weekday: "Día", date: day.label};
+            const label = date ? formatDateChip(date) : {weekday: "", day: day.label};
             return `
-                <a class="public-date-chip animate-fade-up${day.seleccionado ? " is-active" : ""}"
-                    style="--stagger-index: ${index};" href="${escapeHtml(day.url)}"
-                    data-public-date="${escapeHtml(day.fecha)}"${day.seleccionado ? ' aria-current="date"' : ""}>
+                <a class="public-date-chip${day.seleccionado ? " is-active" : ""}"
+                    href="${escapeHtml(day.url)}" data-public-date="${escapeHtml(day.fecha)}"
+                    aria-label="${escapeHtml(date ? formatDayMonth(date) : day.label)}"${day.seleccionado ? ' aria-current="date"' : ""}>
                     <small>${escapeHtml(label.weekday)}</small>
-                    <strong>${escapeHtml(label.date)}</strong>
-                    <span>Ver horarios</span>
+                    <strong>${escapeHtml(label.day)}</strong>
                 </a>
             `;
         }).join("");
-        return `<div class="public-date-strip stagger-list" aria-label="Días disponibles cercanos">${chips}</div>`;
+        return `<div class="public-date-strip" aria-label="Días cercanos">${chips}</div>`;
     }
 
-    function parseSlotHour(slot) {
-        const hour = Number.parseInt(String(slot.label || "").split(":")[0], 10);
-        return Number.isNaN(hour) ? 0 : hour;
-    }
-
-    function renderSlotCard(title, slots, index) {
-        const horarios = slots || [];
-        const body = horarios.length
-            ? `<div class="public-slot-list public-time-grid">${horarios.map(function (slot) {
-                return `<a class="public-slot-button" href="${escapeHtml(slot.url)}" data-public-slot="${escapeHtml(slot.label)}" aria-label="Seleccionar horario ${escapeHtml(slot.label)}" aria-pressed="false"><span>${escapeHtml(slot.label)}</span></a>`;
-            }).join("")}</div>`
-            : '<p class="muted public-slot-empty">No hay opciones en esta franja.</p>';
-        const countLabel = horarios.length === 1 ? "1 opción" : `${horarios.length} opciones`;
+    function renderSlotGroup(title, group, slots) {
+        if (!slots || slots.length === 0) {
+            return "";
+        }
+        const buttons = slots.map(function (slot) {
+            return `<a class="public-slot-button" role="button" aria-pressed="false" href="${escapeHtml(slot.url)}" data-public-slot="${escapeHtml(slot.label)}" aria-label="Seleccionar horario ${escapeHtml(slot.label)}">${escapeHtml(slot.label)}</a>`;
+        }).join("");
         return `
-            <section class="public-slot-card public-time-period animate-fade-up" style="--stagger-index: ${index};" data-public-slot-card data-slot-card-title="${escapeHtml(title)}">
-                <div class="public-slot-card-header"><div><h3>${escapeHtml(title)}</h3></div><span>${countLabel}</span></div>
-                ${body}
+            <section class="public-slot-group${group === "recomendados" ? " is-recommended" : ""}" data-public-slot-card data-slot-group="${group}">
+                <h3>${escapeHtml(title)}</h3>
+                <div class="public-time-grid">${buttons}</div>
             </section>
         `;
     }
 
-    function renderSlotGroups(slots, prefix) {
-        const groups = [
-            {title: prefix ? `${prefix} de mañana` : "Mañana", slots: []},
-            {title: prefix ? `${prefix} de tarde` : "Tarde", slots: []},
-            {title: prefix ? `${prefix} de tarde / noche` : "Tarde / noche", slots: []},
-        ];
-        (slots || []).forEach(function (slot) {
-            const hour = parseSlotHour(slot);
-            const index = hour < 13 ? 0 : hour < 17 ? 1 : 2;
-            groups[index].slots.push(slot);
-        });
-        return groups
-            .filter(function (group) { return group.slots.length > 0; })
-            .map(function (group, index) { return renderSlotCard(group.title, group.slots, index); })
-            .join("");
-    }
-
-    function normalizeRenderedSlotGroups(container) {
-        container.querySelectorAll(".public-slot-grid").forEach(function (grid) {
-            if (grid.dataset.slotGroupsNormalized === "true") {
-                return;
-            }
-            const cards = Array.from(grid.querySelectorAll("[data-public-slot-card]"));
-            const slots = Array.from(grid.querySelectorAll("[data-public-slot]")).map(function (slot) {
-                return {label: slot.dataset.publicSlot, url: slot.getAttribute("href")};
-            });
-            if (!cards.length || !slots.length) {
-                return;
-            }
-            const isAlternative = cards.some(function (card) {
-                return String(card.dataset.slotCardTitle || "").toLowerCase().includes("otras");
-            });
-            grid.innerHTML = renderSlotGroups(slots, isAlternative ? "Otras opciones" : "");
-            grid.dataset.slotGroupsNormalized = "true";
-        });
-    }
-
     function renderSelectedDate(fecha) {
-        return `
-            <p class="public-selected-date-label">
-                <strong>${escapeHtml(fecha.display)}</strong>
-            </p>
-        `;
+        const date = fecha ? parseIsoDate(fecha.iso) : null;
+        const label = date ? formatDayMonth(date) : fecha && fecha.display;
+        return `<p class="public-selected-date-label">${escapeHtml(label)}</p>`;
     }
 
-    function renderAvailabilityNote() {
-        return `
-            <div class="public-availability-note">
-                <span aria-hidden="true">i</span>
-                <p>Los horarios mostrados son sugerencias basadas en la disponibilidad. También podés consultar otras opciones.</p>
-            </div>
-        `;
+    function renderNoSlots(message) {
+        return `<div class="empty-state public-booking-empty"><h3>Sin horarios para este día</h3><p>${escapeHtml(message || "Probá con otra fecha disponible.")}</p></div>`;
     }
 
     function renderSmartAvailability(data) {
         const recommended = data.horarios_recomendados || {manana: [], tarde: []};
         const alternatives = data.horarios_alternativos || {manana: [], tarde: []};
-        const recommendedSlots = recommended.manana.concat(recommended.tarde);
-        const alternativeSlots = alternatives.manana.concat(alternatives.tarde);
-        const total = recommendedSlots.length + alternativeSlots.length;
-        const empty = total === 0
-            ? `<div class="empty-state public-booking-empty"><h3>Sin horarios para este día</h3><p>${escapeHtml(data.mensaje)}</p></div>`
-            : "";
-        const recommendedHtml = recommendedSlots.length ? `
-            <div class="public-smart-schedule-intro">
-                <div><p class="eyebrow">Agenda inteligente</p><h3>Horarios recomendados</h3></div>
-                <p>Primero aparecen las opciones sugeridas. También podés consultar otras alternativas.</p>
-            </div>
-            <div class="public-slot-grid stagger-list" data-slot-groups-normalized="true">
-                ${renderSlotGroups(recommendedSlots, "")}
-            </div>
-        ` : "";
-        const alternativesHtml = alternativeSlots.length ? `
-            <details class="public-more-slots" data-public-more-slots>
-                <summary aria-expanded="false"><span>Ver más horarios</span><span aria-hidden="true">⌄</span></summary>
-                <div class="public-slot-grid stagger-list" data-slot-groups-normalized="true">
-                    ${renderSlotGroups(alternativeSlots, "Otras opciones")}
-                </div>
-            </details>
-        ` : "";
+        const groups = renderSlotGroup("Recomendados", "recomendados", recommended.manana.concat(recommended.tarde))
+            + renderSlotGroup("Mañana", "manana", alternatives.manana)
+            + renderSlotGroup("Tarde", "tarde", alternatives.tarde);
         results.innerHTML = `
             ${renderDateStrip(data.dias_cercanos)}
             ${renderSelectedDate(data.fecha)}
-            ${empty}${recommendedHtml}${alternativesHtml}
-            ${total ? renderAvailabilityNote() : ""}
+            ${groups || renderNoSlots(data.mensaje)}
         `;
     }
 
     function renderLegacyAvailability(data) {
-        const slots = (data.horarios_manana || []).concat(data.horarios_tarde || []);
-        const empty = slots.length === 0
-            ? `<div class="empty-state public-booking-empty"><h3>Sin horarios para este día</h3><p>${escapeHtml(data.mensaje)}</p></div>`
-            : "";
+        const groups = renderSlotGroup("Mañana", "manana", data.horarios_manana)
+            + renderSlotGroup("Tarde", "tarde", data.horarios_tarde);
         results.innerHTML = `
             ${renderDateStrip(data.dias_cercanos)}
             ${renderSelectedDate(data.fecha)}
-            ${empty}
-            ${slots.length ? `<div class="public-slot-grid stagger-list" data-slot-groups-normalized="true">${renderSlotGroups(slots, "")}</div>` : ""}
-            ${slots.length ? renderAvailabilityNote() : ""}
+            ${groups || renderNoSlots(data.mensaje)}
         `;
     }
 
@@ -648,9 +597,9 @@
             }
             cells.push(`
                 <button class="public-calendar-day${outside ? " is-outside" : ""}${isSelected ? " is-selected" : ""}"
-                    type="button" role="gridcell" data-public-calendar-day="${iso}"
-                    aria-label="${escapeHtml(formatReadableDate(date))}"
-                    aria-selected="${isSelected ? "true" : "false"}"
+                    type="button" data-public-calendar-day="${iso}"
+                    aria-label="${escapeHtml(formatReadableDate(date))}${disabled ? ", fuera de la ventana de reserva" : ""}"
+                    aria-pressed="${isSelected ? "true" : "false"}"
                     tabindex="${tabIndex}"${disabled ? " disabled" : ""}>${date.getDate()}</button>
             `);
         }
@@ -660,10 +609,8 @@
             year: "numeric",
         }).format(monthStart);
         calendarDays.innerHTML = cells.join("");
-        if (calendarSelected) {
-            calendarSelected.textContent = selected
-                ? formatReadableDate(selected)
-                : "Elegí una fecha";
+        if (calendarWindow && maximum) {
+            calendarWindow.textContent = `Podés reservar hasta el ${formatDayMonth(maximum).toLowerCase()}.`;
         }
         if (calendarPrevious && minimum) {
             calendarPrevious.disabled = monthStart <= startOfMonth(minimum);
@@ -692,6 +639,16 @@
         visualCalendar.hidden = false;
         syncCalendarFromControl();
 
+        if (calendarToggle) {
+            calendarToggle.hidden = false;
+            calendarToggle.addEventListener("click", function () {
+                const open = !visualCalendar.classList.contains("is-open");
+                visualCalendar.classList.toggle("is-open", open);
+                calendarToggle.setAttribute("aria-expanded", open ? "true" : "false");
+                calendarToggle.querySelector("span").textContent = open ? "Ocultar calendario" : "Ver calendario";
+            });
+        }
+
         calendarPrevious.addEventListener("click", function () {
             calendarVisibleMonth = addMonths(calendarVisibleMonth, -1);
             renderCalendar();
@@ -706,8 +663,10 @@
                 return;
             }
             fechaControl.value = day.dataset.publicCalendarDay;
-            syncCalendarFromControl();
-            updateAvailability();
+            fechaControl.dispatchEvent(new Event("change", {bubbles: true}));
+            if (calendarToggle && visualCalendar.classList.contains("is-open")) {
+                calendarToggle.click();
+            }
         });
         calendarDays.addEventListener("keydown", function (event) {
             const day = event.target.closest("[data-public-calendar-day]");
@@ -734,12 +693,27 @@
         });
     }
 
+    form.addEventListener("keydown", function (event) {
+        const radio = event.target.closest("[role='radio']");
+        const group = radio ? radio.closest("[role='radiogroup']") : null;
+        const steps = {ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1};
+        if (!group || !(event.key in steps)) {
+            return;
+        }
+        event.preventDefault();
+        const radios = Array.from(group.querySelectorAll("[role='radio']"));
+        const next = radios[(radios.indexOf(radio) + steps[event.key] + radios.length) % radios.length];
+        next.focus();
+        next.click();
+    });
+
     form.addEventListener("click", function (event) {
         const professional = event.target.closest("[data-public-professional]");
         if (professional) {
             selectProfessional(professional.dataset.publicProfessional);
             if (smartScheduling) {
-                updateTypes(true);
+                // Only pointer clicks move focus forward; arrow keys keep it in the radiogroup.
+                updateTypes(event.detail > 0);
             } else {
                 updateAvailability();
             }
@@ -747,6 +721,7 @@
         }
         const service = event.target.closest("[data-public-service]");
         if (service) {
+            preselectedType = "";
             selectService(service.dataset.publicService);
             updateAvailability();
         }
@@ -771,12 +746,13 @@
         scheduleAvailabilityUpdate();
     });
 
-    results.addEventListener("toggle", function (event) {
-        if (event.target.matches("[data-public-more-slots]")) {
-            const summary = event.target.querySelector("summary");
-            summary.setAttribute("aria-expanded", event.target.open ? "true" : "false");
+    results.addEventListener("keydown", function (event) {
+        const slot = event.target.closest("[data-public-slot]");
+        if (slot && event.key === " ") {
+            event.preventDefault();
+            slot.click();
         }
-    }, true);
+    });
 
     results.addEventListener("click", function (event) {
         const retry = event.target.closest("[data-public-retry]");
@@ -803,12 +779,12 @@
             option.setAttribute("aria-pressed", selected ? "true" : "false");
         });
         if (actionBar && actionLabel && actionControl) {
-            actionLabel.textContent = slot.dataset.publicSlot;
+            actionLabel.textContent = `${slot.dataset.publicSlot} h`;
             actionControl.dataset.href = slot.href;
             actionControl.disabled = false;
             actionControl.setAttribute("aria-disabled", "false");
-            actionBar.hidden = false;
-            actionControl.focus({preventScroll: true});
+            actionBar.classList.remove("is-empty");
+            updateCompactSummary();
         }
     });
 
@@ -828,7 +804,12 @@
     if (selectedService) {
         selectService(selectedService.dataset.publicService);
     }
+    results.querySelectorAll("[data-public-slot]").forEach(function (slot) {
+        slot.setAttribute("role", "button");
+        slot.setAttribute("aria-pressed", "false");
+    });
+    syncRovingTabindex(form.querySelector("[data-professional-picker]"));
+    syncRovingTabindex(servicePicker);
     initializeCalendar();
-    normalizeRenderedSlotGroups(results);
     hideAction();
 })();

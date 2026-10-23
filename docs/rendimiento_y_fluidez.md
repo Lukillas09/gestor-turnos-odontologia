@@ -23,7 +23,6 @@ El CSS global ya no vive inline en `base.html`. El punto de entrada es `app/stat
 - `components.css`: componentes compartidos, iconos, skeletons, mensajes y estados vacíos.
 - `internal.css`: pacientes, turnos, agenda, historias y pantallas internas.
 - `public.css`: landing pública, solicitud pública, autogestión y revisión visual.
-- `calendar.css`: calendario y selección de horarios.
 - `mobile-navigation.css`: navegación inferior y drawer móvil.
 - `animations.css`: movimiento breve y controlado.
 - `responsive.css`: breakpoints, tactilidad y `prefers-reduced-motion`.
