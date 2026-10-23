@@ -6,6 +6,8 @@ El rediseño cubre la experiencia pública de pacientes y el panel interno de re
 
 ## Experiencia pública
 
+> La experiencia pública fue reemplazada por el rediseño V3: ver [Interfaz UI/UX V3](ui-ux-v3.md). Esta sección queda como referencia histórica.
+
 - Landing con marca en el primer viewport, CTA principal, garantías, explicación del proceso y profesionales reales.
 - Stepper semántico en Turno, Datos y Confirmación.
 - Selector visual de odontólogo sincronizado con el `select` de fallback.

@@ -1,5 +1,7 @@
 # Rediseño público para pacientes
 
+> Continuado por el rediseño V3: ver [Interfaz UI/UX V3](ui-ux-v3.md).
+
 ## Objetivo
 
 Reconstruir la landing y los dos primeros pasos de la solicitud pública con la
