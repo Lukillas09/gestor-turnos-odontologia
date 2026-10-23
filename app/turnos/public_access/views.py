@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.formats import date_format
 from django.views import View
@@ -203,6 +204,12 @@ class VerificarAccesoPublicoTurnosView(
 
         return super().dispatch(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Valor de configuración, igual para todos los desafíos: no revela si el DNI existe.
+        context["reenvio_segundos"] = settings.TURNOS_PUBLIC_RESEND_SECONDS
+        return context
+
     def post(self, request, *args, **kwargs):
         if request.POST.get("accion") == "reenviar":
             messages.success(request, reenviar_codigo_acceso_publico(request))
@@ -236,6 +243,18 @@ class MisTurnosPublicoView(
 
         context["items_turnos"] = [
             self._construir_item_turno(turno, acciones.get(turno.pk, {})) for turno in turnos
+        ]
+        ahora = timezone.localtime()
+        context["proximo_turno"] = next(
+            (
+                item
+                for item in context["items_turnos"]
+                if (item["turno"].fecha, item["turno"].hora_inicio) >= (ahora.date(), ahora.time())
+            ),
+            None,
+        )
+        context["otros_turnos"] = [
+            item for item in context["items_turnos"] if item is not context["proximo_turno"]
         ]
         return context
 

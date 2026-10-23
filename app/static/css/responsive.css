@@ -240,7 +240,6 @@
     .public-profile,
     .public-reservation-summary,
     .public-dni-form,
-    .public-turno-card,
     .consultorio-editor-grid,
     .review-hero,
     .review-summary-grid,
@@ -261,7 +260,6 @@
     .turno-detail-actions,
     .pagination-actions,
     .public-reservation-details,
-    .public-form-actions,
     .consultorio-preview-meta,
     .review-hero-actions,
     .review-card-header,
@@ -287,10 +285,6 @@
     .turno-detail-actions button,
     .agenda-turno-actions .button,
     .agenda-turno-actions button,
-    .public-turno-actions .button,
-    .public-turno-actions button,
-    .public-form-actions .button,
-    .public-form-actions button,
     .review-hero-actions .button,
     .review-card-header .button,
     .review-form-actions .button,
@@ -308,7 +302,6 @@
     .empty-state,
     .panel-section,
     .public-query-panel,
-    .public-turno-card,
     .consultorio-preview-card,
     .review-hero,
     .review-info-card,
@@ -457,9 +450,6 @@
         min-width: 0;
     }
 
-    .public-turno-card h2 {
-        font-size: 19px;
-    }
 }
 
 /* Responsive system V2 */
@@ -564,22 +554,6 @@
         margin-inline: auto;
     }
 
-    .public-access-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .public-booking-summary {
-        position: static;
-        grid-row: 1;
-    }
-
-    .public-access-visual {
-        grid-row: 1;
-    }
-
-    .public-access-visual img {
-        width: min(260px, 58vw);
-    }
 }
 
 @media (max-width: 767px) {
@@ -1078,14 +1052,6 @@
         gap: var(--space-2);
     }
 
-    .public-access-panel h1 {
-        font-size: var(--font-2xl);
-    }
-
-    .public-booking-help summary {
-        padding: var(--space-4);
-    }
-
     .public-time-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -1095,57 +1061,6 @@
         align-items: center;
     }
 
-    .public-booking-summary,
-    .public-access-panel {
-        border-radius: var(--radius-sm);
-        padding: var(--space-4);
-    }
-
-    .public-form-intro {
-        align-items: center;
-    }
-
-    .public-form-actions button {
-        width: 100%;
-    }
-
-    .public-access-layout {
-        gap: var(--space-5);
-        margin-top: 0;
-    }
-
-    .public-access-visual {
-        grid-row: auto;
-    }
-
-    .public-access-visual img {
-        width: min(210px, 58vw);
-    }
-
-    .public-access-secondary-actions,
-    .public-access-secondary-actions form,
-    .public-access-secondary-actions .button {
-        width: 100%;
-    }
-
-    .public-turno-card-v2 {
-        grid-template-columns: 1fr;
-        border-radius: var(--radius-sm);
-        padding: var(--space-4);
-    }
-
-    .public-turno-actions {
-        width: 100%;
-    }
-
-    .public-reprogram-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .public-reprogram-summary {
-        grid-row: 1;
-        position: static;
-    }
 }
 
 @media (max-width: 520px) {
@@ -1217,10 +1132,6 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .public-code-field input {
-        font-size: var(--font-xl);
-        letter-spacing: 0.25rem;
-    }
 }
 
 /* Public patient experience V3 */
@@ -1343,17 +1254,8 @@
         font-size: 0.76rem;
     }
 
-    .public-data-header h1 {
-        font-size: 2.65rem;
-    }
-
     .public-time-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .public-form-actions .public-gold-button {
-        width: 100%;
-        min-width: 0;
     }
 
 }
@@ -1388,15 +1290,10 @@
         text-align: right;
     }
 
-    .public-data-header h1 {
-        font-size: 2.25rem;
-    }
-
     .public-time-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .public-summary-professional,
     .public-summary-list > div {
         grid-template-columns: 38px minmax(0, 1fr);
     }
@@ -1908,6 +1805,64 @@
 
     .public-received-actions .button {
         width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Rediseño público V3: acceso con código, mis turnos y reprogramar */
+@media (max-width: 767px) {
+    .public-access {
+        margin-top: 0;
+        border-radius: 20px;
+        padding: 28px 20px;
+    }
+
+    .public-mine-header h1 {
+        font-size: 2rem;
+    }
+
+    .public-mine-header form,
+    .public-mine-header .public-outline-button {
+        width: 100%;
+    }
+
+    .public-mine-next {
+        border-radius: 20px;
+    }
+
+    .public-mine-next-band,
+    .public-mine-next-body,
+    .public-mine-next-foot {
+        padding-inline: 20px;
+    }
+
+    .public-mine-actions,
+    .public-mine-actions > * {
+        width: 100%;
+    }
+
+    .public-mine-actions .button,
+    .public-shell-body summary.public-danger-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .public-mine-row {
+        padding: 16px;
+    }
+
+    .public-mine-row-side {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .public-mine-cta {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .public-mine-cta .button {
         justify-content: center;
     }
 }

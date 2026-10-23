@@ -22,6 +22,7 @@ class SolicitudAccesoPublicoTurnosForm(forms.Form):
     documento = forms.CharField(
         max_length=20,
         label="DNI",
+        help_text="Ingresalo sin puntos ni espacios.",
         error_messages={"required": "Ingresá tu DNI para solicitar acceso."},
         widget=forms.TextInput(
             attrs={

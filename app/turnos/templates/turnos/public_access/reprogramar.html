@@ -3,86 +3,73 @@
 {% block title %}Cambiar horario | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <div class="patient-backline animate-fade-up">
-        <a class="button button-secondary button-small button-subtle" href="{% url 'turnos:mis_turnos_publico' %}">
-            {% include "includes/icon.html" with name="arrow-left" %} Volver a mis turnos
-        </a>
-    </div>
+    <div class="public-mine animate-fade-up">
+        <a class="public-access-link public-mine-back" href="{% url 'turnos:mis_turnos_publico' %}">{% include "includes/icon.html" with name="arrow-left" %} Volver a mis turnos</a>
 
-    <header class="page-header public-data-header animate-fade-up">
-        <div>
-            <p class="eyebrow">Turno pendiente</p>
+        <header class="public-pick-heading">
             <h1>Cambiar horario</h1>
-            <p class="subtitle">Elegí una nueva fecha y hora disponible para enviar el cambio.</p>
+            <p>Elegí una nueva fecha y hora disponible con el mismo profesional.</p>
+        </header>
+
+        <div class="public-patient public-reprogram">
+            <form
+                class="public-patient-form public-reprogram-form"
+                method="post"
+                novalidate
+                data-horarios-form
+                data-horarios-url="{% url 'turnos:mis_turnos_reprogramar_horarios' accion.id %}"
+                data-odontologo-id="verificado"
+            >
+                {% csrf_token %}
+                {{ form.accion_token }}
+                <input type="hidden" name="duracion_minutos" value="{{ turno.duracion_minutos }}">
+
+                {% if form.non_field_errors %}<div class="form-error-summary" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+                <div class="public-patient-grid">
+                    {% include "includes/form_field.html" with field=form.fecha %}
+                    {% include "includes/form_field.html" with field=form.hora_inicio %}
+                </div>
+
+                <div class="public-patient-footer">
+                    <p class="public-patient-privacy">{% include "includes/icon.html" with name="info" %}<span>El horario anterior se reemplaza solo si el nuevo sigue disponible al guardar.</span></p>
+                    <div class="public-patient-actions">
+                        <a class="public-patient-back" href="{% url 'turnos:mis_turnos_publico' %}">Cancelar</a>
+                        <button class="button button-large public-gold-button" type="submit">{% include "includes/icon.html" with name="check" %} Guardar nuevo horario</button>
+                    </div>
+                </div>
+            </form>
+
+            <aside class="public-patient-summary" aria-labelledby="current-title">
+                <div class="public-patient-summary-header">
+                    <h2 id="current-title">Turno actual</h2>
+                    {% include "turnos/includes/public_status_chip.html" with estado=turno.estado label=turno.get_estado_display %}
+                </div>
+                <div class="public-patient-summary-professional">
+                    <span class="public-patient-summary-avatar" aria-hidden="true">
+                        {% if turno.odontologo.foto_perfil_url %}
+                            <img src="{{ turno.odontologo.foto_perfil_url }}" alt="" style="object-position: {{ turno.odontologo.foto_object_position }};">
+                        {% else %}
+                            {{ turno.odontologo.nombre_completo|first|upper }}
+                        {% endif %}
+                    </span>
+                    <span><strong>{{ turno.odontologo }}</strong><small>{{ turno.odontologo.especialidad|default:"Odontología general" }}</small></span>
+                </div>
+                <dl class="public-patient-summary-list">
+                    {% if turno.tipo_turno_nombre_snapshot %}<div><dt>Motivo</dt><dd>{{ turno.tipo_turno_nombre_snapshot }}</dd></div>{% endif %}
+                    <div><dt>Fecha</dt><dd>{{ turno.fecha|date:"l j \d\e F"|capfirst }}</dd></div>
+                    <div><dt>Horario</dt><dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin_atencion|time:"H:i" }}</dd></div>
+                    {% if turno.duracion_atencion_minutos %}<div><dt>Duración</dt><dd>{{ turno.duracion_atencion_minutos }} minutos</dd></div>{% endif %}
+                </dl>
+                {% if configuracion_consultorio.whatsapp_url and configuracion_consultorio.mostrar_whatsapp %}
+                    <a class="public-whatsapp-help" href="{{ configuracion_consultorio.whatsapp_url }}" target="_blank" rel="noopener noreferrer">
+                        <span class="public-whatsapp-help-icon" aria-hidden="true">{% include "includes/icon.html" with name="whatsapp" %}</span>
+                        <span><strong>¿Necesitás ayuda?</strong><small>Escribinos por WhatsApp</small></span>
+                    </a>
+                {% endif %}
+            </aside>
         </div>
-    </header>
-
-    <div class="public-reprogram-layout">
-        <form
-            class="form-panel public-data-form public-simple-form public-reprogram-form animate-fade-up"
-            method="post"
-            novalidate
-            data-horarios-form
-            data-horarios-url="{% url 'turnos:mis_turnos_reprogramar_horarios' accion.id %}"
-            data-odontologo-id="verificado"
-        >
-            {% csrf_token %}
-            {{ form.accion_token }}
-            <input type="hidden" name="duracion_minutos" value="{{ turno.duracion_minutos }}">
-
-            <div class="public-form-intro">
-                <span class="public-form-intro-icon">{% include "includes/icon.html" with name="calendar" %}</span>
-                <div><h2>Nuevo horario</h2><p>Solo se muestran opciones válidas para el mismo profesional.</p></div>
-            </div>
-
-            {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-
-            <div class="form-grid">
-                <div>
-                    <label for="{{ form.fecha.id_for_label }}">{{ form.fecha.label }}</label>
-                    {{ form.fecha }}
-                    {% if form.fecha.errors %}<div class="field-error" role="alert">{{ form.fecha.errors }}</div>{% endif %}
-                </div>
-                <div>
-                    <label for="{{ form.hora_inicio.id_for_label }}">{{ form.hora_inicio.label }}</label>
-                    {{ form.hora_inicio }}
-                    {% if form.hora_inicio.help_text %}<p class="field-help">{{ form.hora_inicio.help_text }}</p>{% endif %}
-                    {% if form.hora_inicio.errors %}<div class="field-error" role="alert">{{ form.hora_inicio.errors }}</div>{% endif %}
-                </div>
-            </div>
-
-            <div class="form-actions public-form-actions">
-                <button class="button button-large" type="submit">{% include "includes/icon.html" with name="check" %} Guardar nuevo horario</button>
-                <a class="button button-secondary" href="{% url 'turnos:mis_turnos_publico' %}">Cancelar</a>
-            </div>
-        </form>
-
-        <aside class="public-booking-summary public-reprogram-summary animate-fade-up" aria-label="Turno actual">
-            <div class="public-summary-professional">
-                <span class="public-summary-photo">
-                    {% if turno.odontologo.foto_perfil_url %}
-                        <img src="{{ turno.odontologo.foto_perfil_url }}" alt="" style="object-position: {{ turno.odontologo.foto_object_position }};">
-                    {% else %}
-                        {{ turno.odontologo.nombre_completo|first|upper }}
-                    {% endif %}
-                </span>
-                <div><small>Turno actual</small><strong>{{ turno.odontologo }}</strong><span>{{ turno.odontologo.especialidad|default:"Odontología general" }}</span></div>
-            </div>
-            <dl class="public-summary-list">
-                {% if turno.tipo_turno_nombre_snapshot %}<div><dt>Motivo</dt><dd>{{ turno.tipo_turno_nombre_snapshot }}</dd></div>{% endif %}
-                <div><dt>{% include "includes/icon.html" with name="calendar" %} Fecha</dt><dd>{{ turno.fecha|date:"d/m/Y" }}</dd></div>
-                <div><dt>{% include "includes/icon.html" with name="clock" %} Horario</dt><dd>{{ turno.hora_inicio|time:"H:i" }} a {{ turno.hora_fin_atencion|time:"H:i" }}</dd></div>
-                {% if turno.duracion_atencion_minutos %}<div><dt>Duración aproximada</dt><dd>{{ turno.duracion_atencion_minutos }} minutos</dd></div>{% endif %}
-                <div><dt>Estado</dt><dd><span class="status-badge status-{{ turno.estado }}">{{ turno.get_estado_display }}</span></dd></div>
-            </dl>
-            <p class="public-summary-note">El horario anterior se reemplazará únicamente si el nuevo continúa disponible al confirmar.</p>
-        </aside>
     </div>
-
-    <details class="public-booking-help ui-card">
-        <summary>¿Necesitás ayuda? {% include "includes/icon.html" with name="chevron-down" %}</summary>
-        {% include "consultorio/includes/public_contact_card.html" %}
-    </details>
 
     {% include "turnos/includes/horarios_disponibles_script.html" %}
 {% endblock %}
