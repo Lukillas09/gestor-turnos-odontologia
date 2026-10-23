@@ -59,7 +59,11 @@ En escritorio, el panel interno usa sidebar navy y topbar contextual. Hasta 767 
 
 ## Iconografía e ilustraciones
 
-`includes/icon.html` contiene SVG de trazo redondeado, `currentColor` y tamaño estable. Las ilustraciones originales están en `app/static/images/`: hero dental, calendario vacío, confirmación, sin resultados y acceso seguro.
+`includes/icon.html` contiene SVG de trazo redondeado, `currentColor` y tamaño estable. Las ilustraciones originales están en `app/static/images/`: hero dental, calendario vacío y sin resultados.
+
+## Experiencia pública V3
+
+La superficie pública usa los tokens `--public-*` (marfil, oro y verde salvia), Fraunces para titulares, botón primario en `--public-gold-ink` y componentes propios: header, stepper de barras, footer público y chip de estado. El detalle de pantallas, decisiones y criterios de accesibilidad está en [Interfaz UI/UX V3](ui-ux-v3.md).
 
 ## Movimiento
 

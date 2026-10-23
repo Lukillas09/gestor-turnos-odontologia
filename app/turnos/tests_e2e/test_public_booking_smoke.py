@@ -1,6 +1,7 @@
 import os
 from datetime import time, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 
@@ -12,6 +13,7 @@ from django.utils import timezone
 from playwright.sync_api import sync_playwright
 
 from consultorio.services import obtener_o_crear_configuracion_consultorio
+from pacientes.models import Paciente
 from turnos.models import (
     ConfiguracionAgendaInteligente,
     DisponibilidadOdontologo,
@@ -315,7 +317,10 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.assertEqual(
             self.page.locator("[data-summary-duration]").text_content().strip(), "45 minutos"
         )
-        self.page.locator("[data-slot-group='recomendados']").wait_for()
+        # La fecha inicial es la mínima (puede ser hoy): según la hora puede no tener horarios.
+        self.page.locator(
+            "[data-public-results] [data-slot-group], [data-public-results] .public-booking-empty"
+        ).first.wait_for()
 
         self.page.locator("[data-public-calendar-toggle]").click()
         calendario_mes = self.page.locator("[data-public-calendar-month]")
@@ -437,6 +442,58 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.wait_for_timeout(150)
         self._capture("public-booking-tablet.png")
         self._assert_no_horizontal_overflow()
+
+    def test_acceso_publico_y_mis_turnos_sin_scroll_horizontal(self):
+        paciente = Paciente.objects.create(
+            nombre="Lucia",
+            apellido="Acceso",
+            documento="46111222",
+            email="lucia.acceso@example.com",
+        )
+        Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=self.fecha,
+            hora_inicio=time(11, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.PENDIENTE,
+            motivo="Control",
+        )
+
+        with patch("turnos.public_access.services.generar_codigo_otp", return_value="123456"):
+            for nombre, (width, height) in (("mobile", (390, 844)), ("desktop", (1440, 900))):
+                with self.subTest(viewport=nombre):
+                    self.context.clear_cookies()
+                    self.page.set_viewport_size({"width": width, "height": height})
+                    self.page.goto(
+                        f"{self.live_server_url}{reverse('turnos:acceso_publico_solicitar')}"
+                    )
+                    self._assert_no_horizontal_overflow()
+                    self.page.fill("input[name='documento']", paciente.documento)
+                    self.page.get_by_role("button", name="Enviar código de acceso").click()
+
+                    self.page.get_by_role("heading", name="Revisá tu email").wait_for()
+                    codigo = self.page.locator("input[name='codigo']")
+                    self.assertEqual(codigo.get_attribute("autocomplete"), "one-time-code")
+                    self._assert_no_horizontal_overflow()
+                    self._capture(f"public-access-{nombre}.png")
+                    codigo.fill("123456")
+                    self.page.get_by_role("button", name="Ingresar a mis turnos").click()
+
+                    self.page.get_by_role("heading", name="Tu próximo turno").wait_for()
+                    self.assertEqual(
+                        self.page.locator(".public-mine-next .public-status-chip").inner_text(),
+                        "Pendiente",
+                    )
+                    self._assert_no_horizontal_overflow()
+                    self._capture(f"public-my-appointments-{nombre}.png")
+
+                    self.page.locator(".public-mine-next").get_by_role(
+                        "link", name="Reprogramar"
+                    ).click()
+                    self.page.get_by_role("heading", name="Cambiar horario").wait_for()
+                    self.page.wait_for_load_state("networkidle")
+                    self._assert_no_horizontal_overflow()
 
     def test_landing_autenticada_conserva_shell_publico(self):
         self.page.set_viewport_size({"width": 390, "height": 844})

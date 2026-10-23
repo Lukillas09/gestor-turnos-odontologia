@@ -15,7 +15,7 @@ La experiencia pública y el panel interno comparten un sistema visual responsiv
 | ![Landing pública en escritorio](docs/screenshots/public-home-desktop.png) | ![Dashboard interno en escritorio](docs/screenshots/internal-dashboard-desktop.png) |
 | ![Selección de horario en móvil](docs/screenshots/public-booking-mobile.png) | ![Dashboard interno en móvil](docs/screenshots/internal-dashboard-mobile.png) |
 
-Las referencias completas están en [`docs/screenshots/`](docs/screenshots/). El sistema de diseño y las decisiones de experiencia se documentan en [Design system](docs/design-system.md) e [Interfaz UI/UX V2](docs/ui-ux-v2.md).
+Las referencias completas están en [`docs/screenshots/`](docs/screenshots/). El sistema de diseño y las decisiones de experiencia se documentan en [Design system](docs/design-system.md), [Interfaz UI/UX V2](docs/ui-ux-v2.md) (panel interno) e [Interfaz UI/UX V3](docs/ui-ux-v3.md) (experiencia pública).
 
 ## Estado Actual
 
