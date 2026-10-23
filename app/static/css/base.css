@@ -488,8 +488,7 @@ button,
 .dashboard-card,
 .dashboard-panel-link,
 .public-date-chip,
-.public-slot-button,
-.public-secondary-card {
+.public-slot-button {
     transition:
         background-color 160ms ease,
         border-color 160ms ease,

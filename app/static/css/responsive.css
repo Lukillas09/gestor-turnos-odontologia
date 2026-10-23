@@ -243,8 +243,6 @@
     .public-slot-grid,
     .public-reservation-summary,
     .public-confirmation-banner,
-    .public-home-hero,
-    .public-home-secondary,
     .public-dni-form,
     .public-turno-card,
     .consultorio-editor-grid,
@@ -295,7 +293,6 @@
     .agenda-turno-actions .button,
     .agenda-turno-actions button,
     .public-confirmation-actions .button,
-    .public-home-actions .button,
     .public-turno-actions .button,
     .public-turno-actions button,
     .public-form-actions .button,
@@ -318,7 +315,6 @@
     .panel-section,
     .public-query-panel,
     .public-search-panel,
-    .public-home-card,
     .public-turno-card,
     .consultorio-preview-card,
     .review-hero,
@@ -384,23 +380,6 @@
         width: 76px;
         height: 76px;
         font-size: 28px;
-    }
-
-    .public-home-hero {
-        padding: 28px 20px;
-    }
-
-    .public-home-copy h1 {
-        font-size: clamp(28px, 9vw, 38px);
-    }
-
-    .public-home-copy p {
-        font-size: 16px;
-    }
-
-    .public-home-actions {
-        display: grid;
-        grid-template-columns: 1fr;
     }
 
     .public-primary-action {
@@ -495,8 +474,7 @@
     .clinical-profile-card,
     .turno-detail-hero,
     .patient-list-card,
-    .turno-list-card,
-    .public-home-hero {
+    .turno-list-card {
         padding: 16px;
     }
 
@@ -508,14 +486,6 @@
     .turno-card-status {
         width: 100%;
         min-width: 0;
-    }
-
-    .public-section-title {
-        padding: 18px;
-    }
-
-    .public-home-card {
-        padding: 18px;
     }
 
     .public-turno-card h2 {
@@ -544,13 +514,6 @@
         max-width: 680px;
     }
 
-    .public-home-hero-v2 .public-home-copy {
-        width: min(66%, 690px);
-    }
-
-    .public-home-hero-image {
-        right: -4rem;
-    }
 }
 
 @media (max-width: 1023px) {
@@ -632,24 +595,9 @@
         margin-inline: auto;
     }
 
-    .public-home-hero-v2 {
-        min-height: 540px;
-        padding: var(--space-6);
-    }
-
-    .public-home-hero-image {
-        width: 48%;
-        right: -3rem;
-    }
-
-    .public-patient-actions,
     .public-data-layout,
     .public-access-layout {
         grid-template-columns: 1fr;
-    }
-
-    .public-patient-actions {
-        gap: var(--space-5);
     }
 
     .public-booking-summary {
@@ -1156,81 +1104,23 @@
         font-size: var(--font-xs);
     }
 
-    .public-home-hero-v2 {
-        min-height: 600px;
-        align-items: flex-start;
-        padding: var(--space-5);
-    }
-
-    .public-home-hero-v2 .public-home-copy {
-        width: 100%;
-        gap: var(--space-4);
-    }
-
-    .public-home-hero-v2 .public-home-copy p {
-        max-width: 100%;
-    }
-
-    .public-home-hero-image {
-        width: 170px;
-        right: -0.5rem;
-        bottom: -0.5rem;
-    }
-
-    .public-home-hero-v2 .public-home-actions {
-        display: grid;
-        grid-template-columns: 1fr;
-        max-width: 100%;
-    }
-
-    .public-home-hero-v2 .public-home-actions .button {
-        width: 100%;
-    }
-
     .public-trust-list {
         max-width: calc(100% - 110px);
         display: grid;
         gap: var(--space-2);
     }
 
-    .public-section {
-        padding: var(--space-7) 0;
-    }
-
-    .public-section-heading h2,
     .public-booking-heading h1,
     .public-success-shell h1,
     .public-access-panel h1 {
         font-size: var(--font-2xl);
     }
 
-    .public-section-heading > p:last-child,
     .public-booking-heading > p:last-child,
     .public-success-lead {
         font-size: var(--font-md);
     }
 
-    .public-how-grid,
-    .public-patient-actions,
-    .public-patient-actions .public-home-secondary,
-    .public-professionals-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .public-how-grid {
-        gap: var(--space-5);
-    }
-
-    .public-how-item {
-        min-height: 96px;
-    }
-
-    .public-secondary-card {
-        grid-template-columns: auto minmax(0, 1fr);
-    }
-
-    .public-contact-details-body,
-    .public-contact-details summary,
     .public-booking-help summary {
         padding: var(--space-4);
     }
@@ -1444,25 +1334,6 @@
         display: none;
     }
 
-    .public-home-hero-v2 {
-        min-height: 620px;
-        border-radius: var(--radius-lg);
-    }
-
-    .public-home-brand-signal {
-        max-width: calc(100% - 12px);
-        font-size: var(--font-md);
-    }
-
-    .public-home-hero-image {
-        width: 150px;
-    }
-
-    .public-professional-card {
-        grid-template-columns: auto minmax(0, 1fr);
-        padding: var(--space-4);
-    }
-
     .public-time-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1504,25 +1375,6 @@
         top: 235px;
         right: -92px;
         opacity: 0.28;
-    }
-
-    .public-premium-hero {
-        grid-template-columns: minmax(0, 1fr) minmax(400px, 0.9fr);
-        gap: 3rem;
-    }
-
-    .public-premium-brand-watermark {
-        left: -2rem;
-    }
-
-    .public-benefit {
-        grid-template-columns: 48px minmax(0, 1fr);
-        padding-inline: 1rem;
-    }
-
-    .public-benefit-icon {
-        width: 48px;
-        height: 48px;
     }
 
     .public-booking-shell.public-booking-shell-v3 {
@@ -1624,72 +1476,6 @@
         color: var(--public-gold-dark);
     }
 
-    .public-premium-hero {
-        grid-template-columns: 1fr;
-        gap: 2rem;
-        padding-top: 1rem;
-    }
-
-    .public-premium-hero-copy {
-        max-width: 760px;
-    }
-
-    .public-premium-visual {
-        width: min(760px, 100%);
-        min-height: 460px;
-        justify-self: center;
-    }
-
-    .public-premium-brand-watermark {
-        width: 128px;
-        top: 2.2rem;
-        left: 1rem;
-    }
-
-    .public-premium-floating-note {
-        left: 1rem;
-    }
-
-    .public-benefits {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .public-benefit:nth-child(2) {
-        border-right: 0;
-    }
-
-    .public-benefit:nth-child(-n + 2) {
-        border-bottom: 1px solid var(--public-border);
-        padding-bottom: 1.2rem;
-    }
-
-    .public-benefit:nth-child(n + 3) {
-        padding-top: 1.2rem;
-    }
-
-    .public-how-premium .public-how-grid {
-        gap: 2.2rem;
-        padding-inline: 0;
-    }
-
-    .public-how-premium .public-how-item {
-        grid-template-columns: 58px minmax(0, 1fr);
-    }
-
-    .public-how-premium .public-how-icon {
-        width: 56px;
-        height: 56px;
-    }
-
-    .public-how-premium .public-how-number {
-        left: 46px;
-    }
-
-    .public-how-connector {
-        width: 1.5rem;
-        right: -1.1rem;
-    }
-
     .public-booking-shell.public-booking-shell-v3 {
         grid-template-columns: 1fr;
     }
@@ -1762,142 +1548,6 @@
 
     .public-header-privacy span {
         font-size: 0.76rem;
-    }
-
-    .public-premium-hero {
-        min-height: 0;
-        gap: 2.25rem;
-        overflow: clip;
-        padding: 0.5rem 0 2rem;
-    }
-
-    .public-premium-badge {
-        margin-bottom: 1.1rem;
-    }
-
-    .public-premium-hero h1 {
-        font-size: clamp(2.4rem, 10.5vw, 3rem);
-        line-height: 1.04;
-    }
-
-    .public-premium-lead {
-        margin-top: 1.15rem;
-        font-size: 1rem;
-        line-height: 1.65;
-    }
-
-    .public-premium-actions {
-        display: grid;
-        grid-template-columns: 1fr;
-        margin-top: 1.5rem;
-    }
-
-    .public-premium-actions .button {
-        width: 100%;
-    }
-
-    .public-premium-trust {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.65rem 0.8rem;
-        margin-top: 1.35rem;
-        font-size: 0.72rem;
-    }
-
-    .public-premium-trust li {
-        flex: 0 0 auto;
-        gap: 0.35rem;
-    }
-
-    .public-premium-trust .ui-icon {
-        width: 0.9rem;
-        height: 0.9rem;
-    }
-
-    .public-premium-visual {
-        min-height: 350px;
-        padding: 1.5rem 0 2.4rem;
-    }
-
-    .public-premium-visual-backdrop {
-        inset: 0 0 3rem 2rem;
-        border-radius: 28px;
-    }
-
-    .public-premium-visual > img {
-        border-width: 5px;
-        border-radius: 20px;
-    }
-
-    .public-premium-brand-watermark {
-        width: 96px;
-        top: 0.35rem;
-        left: 0.75rem;
-    }
-
-    .public-premium-floating-note {
-        width: min(340px, calc(100% - 24px));
-        min-height: 94px;
-        grid-template-columns: 42px minmax(0, 1fr) 24px;
-        bottom: 0;
-        left: 12px;
-        border-radius: 14px;
-        padding: 0.9rem;
-    }
-
-    .public-premium-floating-note > span {
-        width: 42px;
-        height: 42px;
-    }
-
-    .public-premium-floating-note p {
-        font-size: 0.74rem;
-    }
-
-    .public-benefits {
-        margin-bottom: 3rem;
-        border-radius: 14px;
-    }
-
-    .public-benefit {
-        grid-template-columns: 42px minmax(0, 1fr);
-        gap: 0.75rem;
-        padding: 1rem;
-    }
-
-    .public-benefit-icon {
-        width: 42px;
-        height: 42px;
-    }
-
-    .public-benefit h3 {
-        font-size: 0.9rem;
-    }
-
-    .public-benefit p {
-        font-size: 0.74rem;
-    }
-
-    .public-centered-heading h2,
-    .public-section-heading h2 {
-        font-size: 2.25rem;
-    }
-
-    .public-how-premium .public-how-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .public-how-premium .public-how-item {
-        min-height: 86px;
-    }
-
-    .public-how-connector {
-        display: none;
-    }
-
-    .public-patient-actions,
-    .public-patient-actions .public-home-secondary {
-        grid-template-columns: 1fr;
     }
 
     .public-booking-heading {
@@ -2034,61 +1684,6 @@
         text-align: right;
     }
 
-    .public-premium-badge {
-        min-height: 34px;
-        font-size: 0.7rem;
-    }
-
-    .public-premium-hero h1 {
-        font-size: clamp(2.25rem, 10.5vw, 2.7rem);
-    }
-
-    .public-premium-trust {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 0.55rem 0.7rem;
-    }
-
-    .public-premium-visual {
-        min-height: 300px;
-    }
-
-    .public-premium-floating-note {
-        grid-template-columns: 38px minmax(0, 1fr) 22px;
-    }
-
-    .public-premium-floating-note > span {
-        width: 38px;
-        height: 38px;
-    }
-
-    .public-premium-floating-note strong {
-        font-size: 0.82rem;
-    }
-
-    .public-premium-floating-note p {
-        display: none;
-    }
-
-    .public-benefits {
-        grid-template-columns: 1fr;
-        padding: 0;
-    }
-
-    .public-benefit,
-    .public-benefit:nth-child(2),
-    .public-benefit:nth-child(n + 3) {
-        border-right: 0;
-        border-bottom: 1px solid var(--public-border);
-        padding: 0.9rem 1rem;
-    }
-
-    .public-benefit:last-child {
-        border-bottom: 0;
-    }
-
     .public-booking-heading-premium h1,
     .public-data-header h1 {
         font-size: 2.25rem;
@@ -2141,16 +1736,6 @@
     .public-brand-logo {
         width: 52px;
         height: 36px;
-    }
-
-    .public-premium-trust {
-        gap: 0.5rem 0.6rem;
-        font-size: 0.68rem;
-    }
-
-    .public-premium-trust .ui-icon {
-        width: 0.82rem;
-        height: 0.82rem;
     }
 
     .public-calendar-weekdays,
@@ -2270,5 +1855,195 @@
 
     .public-footer-inner {
         width: calc(100% - 32px);
+    }
+}
+
+/* Rediseño público V3: landing y beneficios */
+@media (max-width: 1023px) {
+    .public-home-hero {
+        padding-top: var(--space-6);
+    }
+
+    .public-home-section,
+    .public-home-band {
+        padding: 64px 0;
+    }
+}
+
+@media (max-width: 767px) {
+    .public-home-hero {
+        gap: var(--space-5);
+        padding: var(--space-5) 0 0;
+    }
+
+    .public-home-actions {
+        flex-direction: column;
+    }
+
+    .public-home-actions .button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .public-home-visual {
+        padding: 0;
+    }
+
+    .public-home-visual-backdrop {
+        display: none;
+    }
+
+    .public-home-visual img {
+        height: 230px;
+        aspect-ratio: auto;
+        border-radius: 22px;
+    }
+
+    .public-home-floating-note {
+        max-width: none;
+        position: static;
+        margin-top: 12px;
+        box-shadow: none;
+    }
+
+    .public-benefits {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .public-benefit {
+        border: 1px solid var(--public-border);
+        border-radius: 16px;
+        padding: 14px;
+        background: var(--public-surface);
+    }
+
+    .public-benefit-icon {
+        display: none;
+    }
+
+    .public-benefit h3 {
+        font-size: 0.9375rem;
+    }
+
+    .public-benefit p {
+        font-size: 0.8125rem;
+    }
+
+    .public-home-section,
+    .public-home-band {
+        padding: 40px 0;
+    }
+
+    .public-home-heading {
+        margin-bottom: var(--space-5);
+    }
+
+    .public-home-heading h2,
+    .public-home-manage-card .public-home-heading h2,
+    .public-home-final-card h2 {
+        font-size: 1.75rem;
+    }
+
+    .public-home-service-card {
+        padding: 20px;
+    }
+
+    .public-home-steps {
+        gap: var(--space-4);
+    }
+
+    .public-home-steps li {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        align-items: start;
+        gap: 2px 14px;
+        text-align: left;
+    }
+
+    .public-home-step-number {
+        width: 40px;
+        height: 40px;
+        grid-row: span 2;
+        font-size: 1.125rem;
+    }
+
+    .public-home-steps p {
+        max-width: none;
+    }
+
+    .public-home-team-grid {
+        grid-template-columns: none;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(220px, 78%);
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        padding-bottom: 6px;
+        scroll-snap-type: x mandatory;
+    }
+
+    .public-home-team-card {
+        scroll-snap-align: start;
+    }
+
+    .public-home-team-photo {
+        height: 140px;
+        font-size: 3rem;
+    }
+
+    .public-home-manage-card {
+        gap: var(--space-5);
+        padding: var(--space-5);
+    }
+
+    .public-home-quick-contact {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .public-home-quick-contact .button {
+        justify-content: center;
+    }
+
+    .public-home-map {
+        min-height: 0;
+        padding: var(--space-5);
+    }
+
+    .public-home-final-card {
+        border-radius: 24px;
+        padding: 32px 24px;
+    }
+
+    .public-home-final-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .public-home-sticky-cta {
+        display: block;
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: var(--z-sticky);
+        border-top: 1px solid var(--public-border);
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+        background: rgba(255, 254, 250, 0.96);
+    }
+
+    .public-home-sticky-cta .button {
+        width: 100%;
+        min-height: 52px;
+        justify-content: center;
+    }
+
+    .public-shell-body:has(.public-home-sticky-cta) .public-footer {
+        padding-bottom: 104px;
     }
 }

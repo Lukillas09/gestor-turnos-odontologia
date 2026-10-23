@@ -48,7 +48,11 @@ from ..solicitudes_publicas.services import (
     MaximoSolicitudesPendientesError,
     obtener_solicitud_duplicada_exacta,
 )
-from ..tipos_turno import configuraciones_tipos_publicos, obtener_configuracion_tipo_publica
+from ..tipos_turno import (
+    configuraciones_tipos_publicos,
+    obtener_configuracion_tipo_publica,
+    tipos_turno_publicos,
+)
 
 SOLICITUD_PUBLICA_CONFIRMADA_SESSION_KEY = "solicitud_turno_publica_confirmada"
 PUBLIC_BOOKING_NEARBY_DAYS_LIMIT_DEFAULT = 14
@@ -158,6 +162,9 @@ class LandingPublicaPacientesView(PublicShellMixin, TemplateView):
             "usuario"
         )
         context["fecha_minima_reserva_publica"] = obtener_rango_reserva_publica().fecha_minima
+        context["tipos_turno_publicos"] = (
+            list(tipos_turno_publicos()) if settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED else []
+        )
         return context
 
 
