@@ -3480,6 +3480,50 @@ class SolicitudTurnoPublicaTests(TestCase):
         validar_turnstile.assert_called_once_with("turnstile-token", "127.0.0.1")
         self.assertFalse(DesafioAccesoPublicoTurnos.objects.exists())
 
+    def test_mis_turnos_destaca_el_primer_turno_futuro(self):
+        paciente = self._crear_paciente_publico()
+        pasado = Turno.objects.create(
+            paciente=paciente,
+            odontologo=self.odontologo,
+            fecha=timezone.localdate() - timedelta(days=2),
+            hora_inicio=time(9, 0),
+            duracion_minutos=30,
+            estado=Turno.Estado.CONFIRMADO,
+            motivo="Control pasado",
+        )
+        futuro = self._crear_turno_publico(paciente, hora_inicio=time(9, 0))
+
+        self._solicitar_y_validar_acceso_publico(paciente)
+        response = self.client.get(reverse("turnos:mis_turnos_publico"))
+
+        self.assertEqual(response.context["proximo_turno"]["turno"], futuro)
+        self.assertEqual([item["turno"] for item in response.context["otros_turnos"]], [pasado])
+        self.assertContains(response, "Tu próximo turno")
+        self.assertContains(response, "Otras solicitudes")
+        self.assertContains(response, 'class="public-status-chip is-pendiente"')
+        self.assertContains(response, 'class="public-status-chip is-confirmado"')
+        self.assertContains(response, reverse("turnos:acceso_publico_cerrar"))
+
+    def test_verificar_muestra_la_misma_espera_de_reenvio_para_cualquier_dni(self):
+        paciente = self._crear_paciente_publico()
+        respuestas = []
+        for documento in (paciente.documento, "30999888"):
+            cliente = Client()
+            cliente.post(reverse("turnos:acceso_publico_solicitar"), {"documento": documento})
+            respuestas.append(cliente.get(reverse("turnos:acceso_publico_verificar")))
+
+        for response in respuestas:
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Podés pedir otro código pasado 1 minuto.")
+            self.assertContains(response, "Nunca te vamos a pedir este código")
+            self.assertNotContains(response, "Reenviar en")
+
+        with override_settings(TURNOS_PUBLIC_RESEND_SECONDS=90):
+            cliente = Client()
+            cliente.post(reverse("turnos:acceso_publico_solicitar"), {"documento": "30999777"})
+            response = cliente.get(reverse("turnos:acceso_publico_verificar"))
+        self.assertContains(response, "Podés pedir otro código pasado 90 segundos.")
+
     def test_mis_turnos_publico_requiere_sesion_verificada(self):
         response = self.client.get(reverse("turnos:mis_turnos_publico"))
 

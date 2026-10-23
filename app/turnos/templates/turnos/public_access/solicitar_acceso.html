@@ -1,44 +1,33 @@
 {% extends "base.html" %}
-{% load static %}
 
 {% block title %}Consultar mis turnos | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <div class="public-access-layout">
-        <section class="public-access-panel animate-fade-up" aria-labelledby="access-title">
-            <p class="eyebrow">Acceso de pacientes</p>
+    <section class="public-access animate-fade-up" aria-labelledby="access-title">
+        <span class="public-access-icon" aria-hidden="true">{% include "includes/icon.html" with name="shield-check" %}</span>
+        <div class="public-access-heading">
             <h1 id="access-title">Consultar mis turnos</h1>
-            <p class="public-access-lead">Ingresá tu DNI. Si coincide con un paciente registrado, enviaremos un código temporal al medio de contacto asociado.</p>
+            <p>Ingresá tu DNI. Si coincide con un paciente registrado, enviaremos un código temporal al email asociado.</p>
+        </div>
 
-            <form class="public-access-form" method="post" novalidate>
-                {% csrf_token %}
-                <div class="field-group">
-                    <label for="{{ form.documento.id_for_label }}">DNI</label>
-                    {{ form.documento }}
-                    <p class="field-help">Ingresalo sin puntos ni espacios.</p>
-                    {% if form.documento.errors %}<div class="field-error">{{ form.documento.errors }}</div>{% endif %}
-                    {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
-                </div>
+        <form class="public-access-form" method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="form-error-summary" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            {% include "includes/form_field.html" with field=form.documento %}
 
-                {% if turnstile_requerido and turnstile_site_key %}
+            {% if turnstile_requerido and turnstile_site_key %}
+                <div class="public-patient-turnstile" role="group" aria-label="Verificación de seguridad">
                     <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
                     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-                {% endif %}
+                </div>
+            {% endif %}
 
-                <button class="button-large" type="submit">Enviar código de acceso {% include "includes/icon.html" with name="arrow-right" %}</button>
-            </form>
+            <button class="button button-large public-gold-button" type="submit">Enviar código de acceso {% include "includes/icon.html" with name="arrow-right" %}</button>
+        </form>
 
-            <div class="public-access-security-note">
-                {% include "includes/icon.html" with name="lock" %}
-                <p>El DNI por sí solo no permite consultar turnos. También necesitás el código temporal enviado a tu contacto registrado.</p>
-            </div>
-        </section>
-
-        <aside class="public-access-visual" aria-label="Acceso protegido">
-            <img src="{% static 'images/secure-access.svg' %}" width="420" height="320" alt="">
-            <div><strong>Tu información está protegida</strong><p>El acceso vence automáticamente y no requiere crear una cuenta.</p></div>
-        </aside>
-    </div>
-
-    <div class="public-access-contact">{% include "consultorio/includes/public_contact_card.html" %}</div>
+        <p class="public-access-note">
+            {% include "includes/icon.html" with name="lock" %}
+            <span>El DNI por sí solo no permite consultar turnos. También necesitás el código temporal, que vence automáticamente. No hace falta crear una cuenta.</span>
+        </p>
+    </section>
 {% endblock %}

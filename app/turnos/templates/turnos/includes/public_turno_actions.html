@@ -1,0 +1,16 @@
+<div class="public-mine-actions">
+    {% if item.reprogramar_accion %}
+        <a class="button public-outline-button" href="{% url 'turnos:mis_turnos_reprogramar' item.reprogramar_accion.id %}">{% include "includes/icon.html" with name="refresh" %} Reprogramar</a>
+    {% endif %}
+    {% if item.cancelar_accion %}
+        <details class="public-mine-cancel">
+            <summary class="button public-danger-button">{% include "includes/icon.html" with name="x" %} Cancelar turno</summary>
+            <form method="post" action="{% url 'turnos:mis_turnos_cancelar' item.cancelar_accion.id %}">
+                {% csrf_token %}<input type="hidden" name="accion_token" value="{{ item.cancelar_token }}">
+                <label for="motivo-cancelacion-{{ item.turno.pk }}">Motivo de cancelación <span class="field-label-note">(opcional)</span></label>
+                <textarea id="motivo-cancelacion-{{ item.turno.pk }}" name="motivo_cancelacion" rows="2" placeholder="Contanos brevemente el motivo"></textarea>
+                <button class="button public-danger-solid" type="submit">Confirmar cancelación</button>
+            </form>
+        </details>
+    {% endif %}
+</div>

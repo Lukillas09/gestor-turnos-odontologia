@@ -1,51 +1,95 @@
 {% extends "base.html" %}
-{% load static %}
 
 {% block title %}Mis turnos | {{ configuracion_consultorio.nombre_visible }}{% endblock %}
 
 {% block content %}
-    <header class="page-header public-data-header animate-fade-up">
-        <div><p class="eyebrow">Acceso verificado</p><h1>Mis turnos</h1><p class="subtitle">Tu acceso es temporal. Cerralo cuando termines de consultar o modificar tus turnos.</p></div>
-        <form method="post" action="{% url 'turnos:acceso_publico_cerrar' %}">{% csrf_token %}<button class="button button-secondary" type="submit">{% include "includes/icon.html" with name="logout" %} Cerrar acceso</button></form>
-    </header>
-
-    <section class="public-my-appointments animate-fade-up">
-        {% if items_turnos %}
-            <div class="public-turno-list stagger-list">
-                {% for item in items_turnos %}
-                    <article class="public-turno-card public-turno-card-v2{% if forloop.first %} is-next{% endif %} animate-fade-up" style="--stagger-index: {{ forloop.counter0 }};">
-                        <div class="public-turno-main">
-                            {% if forloop.first %}<span class="public-next-label">Próximo turno</span>{% endif %}
-                            <div class="public-turno-status-row"><span class="status-badge status-{{ item.turno.estado }}">{{ item.estado }}</span></div>
-                            <div class="public-turno-date"><strong>{{ item.fecha }}</strong><span>{{ item.hora }}</span></div>
-                            <p>{% include "includes/icon.html" with name="user" %} {{ item.odontologo }}</p>
-                            {% if item.tipo_turno %}<p>{% include "includes/icon.html" with name="appointments" %} {{ item.tipo_turno }}{% if item.duracion_atencion %} · {{ item.duracion_atencion }} min{% endif %}</p>{% endif %}
-                        </div>
-                        <div class="public-turno-actions">
-                            {% if item.reprogramar_accion %}<a class="button button-soft-primary" href="{% url 'turnos:mis_turnos_reprogramar' item.reprogramar_accion.id %}">{% include "includes/icon.html" with name="refresh" %} Reprogramar</a>{% endif %}
-                            {% if item.cancelar_accion %}
-                                <details class="public-cancel-details">
-                                    <summary class="button button-tertiary danger-link">Cancelar turno</summary>
-                                    <form method="post" action="{% url 'turnos:mis_turnos_cancelar' item.cancelar_accion.id %}">
-                                        {% csrf_token %}<input type="hidden" name="accion_token" value="{{ item.cancelar_token }}">
-                                        <label for="motivo-cancelacion-{{ forloop.counter }}">Motivo de cancelación <span class="field-label-note">Opcional</span></label>
-                                        <textarea id="motivo-cancelacion-{{ forloop.counter }}" name="motivo_cancelacion" rows="2" placeholder="Contanos brevemente el motivo"></textarea>
-                                        <button class="button-danger" type="submit">Confirmar cancelación</button>
-                                    </form>
-                                </details>
-                            {% endif %}
-                        </div>
-                    </article>
-                {% endfor %}
+    <div class="public-mine animate-fade-up">
+        <header class="public-mine-header">
+            <div>
+                <p class="public-mine-verified">{% include "includes/icon.html" with name="shield-check" %} Acceso verificado</p>
+                <h1>Mis turnos</h1>
+                <p>Tu acceso es temporal. Cerralo cuando termines.</p>
             </div>
+            <form method="post" action="{% url 'turnos:acceso_publico_cerrar' %}">
+                {% csrf_token %}
+                <button class="button public-outline-button" type="submit">{% include "includes/icon.html" with name="logout" %} Cerrar acceso</button>
+            </form>
+        </header>
+
+        {% if items_turnos %}
+            {% if proximo_turno %}
+                {% with item=proximo_turno turno=proximo_turno.turno %}
+                    <section class="public-mine-next" aria-labelledby="next-title">
+                        <div class="public-mine-next-band">
+                            <h2 id="next-title">Tu próximo turno</h2>
+                            {% include "turnos/includes/public_status_chip.html" with estado=turno.estado label=item.estado %}
+                        </div>
+                        <div class="public-mine-next-body">
+                            <div class="public-mine-when">
+                                <span class="public-mine-date is-large" aria-hidden="true">
+                                    <small>{{ turno.fecha|date:"D" }} · {{ turno.fecha|date:"M" }}</small>
+                                    <strong>{{ turno.fecha|date:"j" }}</strong>
+                                </span>
+                                <div>
+                                    <p class="sr-only">{{ turno.fecha|date:"l j \d\e F"|capfirst }}</p>
+                                    <strong class="public-mine-time">{{ item.hora }}</strong>
+                                    {% if item.tipo_turno %}<span>{{ item.tipo_turno }}{% if item.duracion_atencion %} · {{ item.duracion_atencion }} min{% endif %}</span>{% endif %}
+                                    <span>{% include "includes/icon.html" with name="user" %} {{ item.odontologo }}</span>
+                                </div>
+                            </div>
+                            {% include "turnos/includes/public_turno_actions.html" %}
+                        </div>
+                        {% with config=configuracion_consultorio %}
+                            {% if config.direccion_completa and config.mostrar_direccion or config.politica_cancelacion %}
+                                <div class="public-mine-next-foot">
+                                    {% if config.direccion_completa and config.mostrar_direccion %}<span>{% include "includes/icon.html" with name="home" %} {{ config.direccion_completa }}</span>{% endif %}
+                                    {% if config.politica_cancelacion %}<span><strong>Política de cancelación:</strong> {{ config.politica_cancelacion|linebreaksbr }}</span>{% endif %}
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </section>
+                {% endwith %}
+            {% endif %}
+
+            {% if otros_turnos %}
+                <section class="public-mine-others" aria-labelledby="others-title">
+                    <h2 id="others-title">{% if proximo_turno %}Otras solicitudes{% else %}Tus solicitudes{% endif %}</h2>
+                    {% for item in otros_turnos %}
+                        <article class="public-mine-row">
+                            <div class="public-mine-when">
+                                <span class="public-mine-date" aria-hidden="true">
+                                    <small>{{ item.turno.fecha|date:"M" }}</small>
+                                    <strong>{{ item.turno.fecha|date:"j" }}</strong>
+                                </span>
+                                <div>
+                                    <strong>{{ item.turno.fecha|date:"l j \d\e F"|capfirst }} · {{ item.hora }}</strong>
+                                    <span>{% if item.tipo_turno %}{{ item.tipo_turno }} con {% endif %}{{ item.odontologo }}{% if item.duracion_atencion %} · {{ item.duracion_atencion }} min{% endif %}</span>
+                                </div>
+                            </div>
+                            <div class="public-mine-row-side">
+                                {% include "turnos/includes/public_status_chip.html" with estado=item.turno.estado label=item.estado %}
+                                {% if item.reprogramar_accion or item.cancelar_accion %}
+                                    <details class="public-mine-manage">
+                                        <summary>Gestionar<span class="sr-only"> el turno del {{ item.turno.fecha|date:"j \d\e F" }}</span></summary>
+                                        {% include "turnos/includes/public_turno_actions.html" %}
+                                    </details>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </section>
+            {% endif %}
         {% else %}
-            <div class="empty-state public-booking-empty">
-                <img class="empty-state-visual" src="{% static 'images/calendar-empty.svg' %}" width="420" height="300" alt="">
-                <h2>No hay turnos activos</h2><p>No encontramos solicitudes pendientes o turnos confirmados para mostrar.</p>
-                <a class="button" href="{% url 'turnos:solicitud_publica' %}">Solicitar turno</a>
+            <div class="public-mine-empty">
+                <span aria-hidden="true">{% include "includes/icon.html" with name="calendar" %}</span>
+                <h2>No hay turnos activos</h2>
+                <p>No encontramos solicitudes pendientes o turnos confirmados para mostrar.</p>
             </div>
         {% endif %}
-    </section>
 
-    <div class="public-access-contact">{% include "consultorio/includes/public_contact_card.html" %}</div>
+        <aside class="public-mine-cta" aria-label="Solicitar otro turno">
+            <span>¿Necesitás otro turno?</span>
+            <a class="button public-gold-button" href="{% url 'turnos:solicitud_publica' %}">Solicitar nuevo turno</a>
+        </aside>
+    </div>
 {% endblock %}

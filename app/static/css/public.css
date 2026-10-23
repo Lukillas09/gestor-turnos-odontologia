@@ -113,39 +113,6 @@
     color: #047857;
 }
 
-.public-data-form {
-    max-width: 860px;
-}
-
-.public-simple-form {
-    margin: 0 auto;
-}
-
-.public-data-header {
-    max-width: 860px;
-    margin-right: auto;
-    margin-left: auto;
-}
-
-.public-form-intro {
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eef2f7;
-    padding-bottom: 16px;
-}
-
-.public-form-intro h2 {
-    margin-bottom: 4px;
-}
-
-.public-form-intro p {
-    margin: 0;
-    color: var(--muted);
-}
-
-.public-form-actions {
-    justify-content: flex-end;
-}
-
 .public-pill-light {
     background: rgba(255, 255, 255, 0.18);
 }
@@ -165,8 +132,7 @@
     background: var(--primary-dark);
 }
 
-.public-query-panel,
-.public-turno-card {
+.public-query-panel {
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--surface);
@@ -204,39 +170,6 @@
 .public-results {
     display: grid;
     gap: 14px;
-}
-
-.public-turno-list {
-    display: grid;
-    gap: 14px;
-}
-
-.public-turno-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.45fr);
-    gap: 18px;
-    align-items: start;
-    padding: 18px;
-}
-
-.public-turno-card h2 {
-    margin: 8px 0 4px;
-}
-
-.public-turno-card p {
-    margin: 0;
-    color: var(--muted);
-}
-
-.public-turno-actions {
-    display: grid;
-    gap: 10px;
-}
-
-.public-turno-actions form {
-    display: grid;
-    gap: 8px;
-    margin: 0;
 }
 
 .review-shell {
@@ -920,32 +853,6 @@
     color: var(--teal-500);
 }
 
-.public-booking-help {
-    margin-top: var(--space-6);
-    overflow: hidden;
-}
-
-.public-booking-help summary {
-    min-height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-4) var(--space-5);
-    cursor: pointer;
-    font-weight: 800;
-    list-style: none;
-}
-
-.public-booking-help summary::-webkit-details-marker,
-.public-cancel-details summary::-webkit-details-marker {
-    display: none;
-}
-
-.public-booking-help[open] summary .ui-icon {
-    transform: rotate(180deg);
-}
-
 .public-more-slots {
     margin-top: var(--space-4);
     border-top: 1px solid var(--line);
@@ -1007,30 +914,6 @@
 .public-booking-empty {
     border: 1px dashed var(--line-strong);
     box-shadow: none;
-}
-
-.public-booking-help {
-    max-width: 1040px;
-    margin-right: auto;
-    margin-left: auto;
-}
-
-.public-booking-help .consultorio-public-card {
-    margin: 0;
-    border: 0;
-    border-top: 1px solid var(--line);
-    border-radius: 0;
-    box-shadow: none;
-}
-
-.public-booking-help .consultorio-policy {
-    margin: 0;
-}
-
-.public-form-intro {
-    display: flex;
-    gap: var(--space-3);
-    align-items: flex-start;
 }
 
 .field-group {
@@ -1153,206 +1036,8 @@
     margin-top: 0.1rem;
 }
 
-.public-booking-summary {
-    display: grid;
-    gap: var(--space-4);
-    position: sticky;
-    top: calc(var(--topbar-height) + var(--space-4));
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-}
-
-.public-access-contact {
-    max-width: 960px;
-    margin: var(--space-7) auto 0;
-}
-
-.public-access-layout {
-    max-width: 960px;
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
-    gap: var(--space-7);
-    align-items: center;
-    margin: var(--space-5) auto 0;
-}
-
-.public-access-panel {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: var(--space-6);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-}
-
-.public-access-panel h1 {
-    font-size: var(--font-3xl);
-}
-
-.public-access-lead {
-    margin: var(--space-3) 0 0;
-    color: var(--muted);
-}
-
-.public-access-form {
-    display: grid;
-    gap: var(--space-4);
-    margin-top: var(--space-5);
-}
-
-.public-access-form > button {
-    width: 100%;
-}
-
-.public-access-security-note {
-    display: flex;
-    gap: var(--space-3);
-    align-items: flex-start;
-    margin-top: var(--space-5);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-    background: var(--teal-50);
-    color: var(--teal-700);
-}
-
-.public-access-security-note .ui-icon {
-    flex: 0 0 auto;
-}
-
-.public-access-security-note p {
-    margin: 0;
-    font-size: var(--font-sm);
-}
-
-.public-access-visual {
-    display: grid;
-    justify-items: center;
-    text-align: center;
-}
-
-.public-access-visual img {
-    width: min(360px, 100%);
-}
-
-.public-access-visual p {
-    margin: var(--space-1) 0 0;
-    color: var(--muted);
-}
-
-.public-code-field input {
-    min-height: 62px;
-    font-size: var(--font-2xl);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.35rem;
-    text-align: center;
-}
-
-.public-access-secondary-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-top: var(--space-4);
-}
-
-.public-access-secondary-actions form {
-    margin: 0;
-}
-
-.public-my-appointments {
-    max-width: 960px;
-    margin: 0 auto;
-}
-
-.public-turno-card-v2 {
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-    box-shadow: var(--shadow-xs);
-}
-
-.public-turno-card-v2.is-next {
-    border-color: color-mix(in srgb, var(--primary) 40%, var(--line));
-    border-left: 5px solid var(--primary);
-    background: var(--primary-soft);
-}
-
-.public-next-label {
-    display: block;
-    margin-bottom: var(--space-2);
-    color: var(--primary-dark);
-    font-size: var(--font-xs);
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.public-turno-main {
-    min-width: 0;
-}
-
-.public-turno-status-row {
-    display: flex;
-    justify-content: flex-start;
-}
-
-.public-turno-date {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    align-items: baseline;
-    margin-top: var(--space-3);
-}
-
-.public-turno-date strong {
-    font-size: var(--font-2xl);
-}
-
-.public-turno-date span {
-    color: var(--muted);
-    font-size: var(--font-lg);
-}
-
-.public-turno-main > p {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
-}
-
-.public-cancel-details {
-    display: grid;
-}
-
-.public-cancel-details summary {
-    cursor: pointer;
-}
-
-.public-cancel-details form {
-    display: grid;
-    gap: var(--space-3);
-    margin-top: var(--space-3);
-    border: 1px solid var(--red-100);
-    border-radius: var(--radius-md);
-    padding: var(--space-3);
-    background: var(--red-50);
-}
-
-.public-reprogram-layout {
-    max-width: 960px;
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-    gap: var(--space-5);
-    align-items: start;
-    margin: 0 auto;
-}
-
 .public-reprogram-form {
     margin: 0;
-}
-
-.public-reprogram-summary {
-    position: sticky;
-    top: calc(var(--topbar-height) + var(--space-4));
 }
 
 /* Public patient experience V3 */
@@ -1373,8 +1058,7 @@
 }
 
 .public-shell-body h1,
-.public-shell-body h2,
-.public-shell-body .public-booking-summary h2 {
+.public-shell-body h2 {
     color: var(--public-text);
     font-family: var(--public-font-serif);
     font-weight: 500;
@@ -1539,23 +1223,6 @@
     color: var(--public-green);
 }
 
-.public-data-header {
-    max-width: 850px;
-    margin-bottom: clamp(1.5rem, 2.5vw, 2.25rem);
-}
-
-.public-data-header h1 {
-    font-size: clamp(2.65rem, 4.4vw, 3.25rem);
-    line-height: 1.08;
-}
-
-.public-data-header > p:last-child {
-    max-width: 760px;
-    margin: 0.9rem auto 0;
-    color: var(--public-muted);
-    line-height: 1.7;
-}
-
 .public-time-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.7rem;
@@ -1603,7 +1270,6 @@
     width: min(260px, 55vw);
 }
 
-.public-summary-professional,
 .public-summary-list > div {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr);
@@ -1611,29 +1277,16 @@
     align-items: start;
 }
 
-.public-summary-professional > div,
 .public-summary-list dt {
     min-width: 0;
     display: grid;
 }
 
-.public-summary-professional small,
 .public-summary-list small {
     color: var(--public-gold-dark);
     font-size: 0.64rem;
     font-weight: 800;
     text-transform: uppercase;
-}
-
-.public-summary-professional strong {
-    margin-top: 0.2rem;
-    overflow-wrap: anywhere;
-    color: var(--public-text);
-}
-
-.public-summary-professional span {
-    color: var(--public-muted);
-    font-size: 0.76rem;
 }
 
 .public-summary-list {
@@ -1661,40 +1314,6 @@
     color: var(--public-text);
     font-size: 0.86rem;
     font-weight: 700;
-}
-
-.public-form-intro {
-    align-items: center;
-    margin-bottom: 0.2rem;
-}
-
-.public-form-intro h2,
-.public-form-intro p {
-    margin: 0;
-}
-
-.public-form-intro h2 {
-    color: var(--public-text);
-    font-family: var(--public-font-serif);
-    font-size: 1.35rem;
-    font-weight: 500;
-}
-
-.public-form-intro p {
-    margin-top: 0.2rem;
-    color: var(--public-muted);
-    font-size: 0.85rem;
-}
-
-.public-form-actions {
-    justify-content: flex-end;
-    margin-top: 0;
-}
-
-.public-form-actions .public-gold-button {
-    min-width: 250px;
-    min-height: 54px;
-    gap: 1rem;
 }
 
 /* Rediseño público V3: header, botones, foco, stepper y footer */
@@ -3341,6 +2960,7 @@ a.public-progress-label:hover {
 }
 
 .public-patient .form-field input,
+.public-patient .form-field select,
 .public-patient .form-field textarea {
     min-height: 50px;
     border: 1.5px solid #ddd3c4;
@@ -3358,6 +2978,7 @@ a.public-progress-label:hover {
 }
 
 .public-patient .form-field input:focus,
+.public-patient .form-field select:focus,
 .public-patient .form-field textarea:focus {
     border-color: var(--public-gold-ink);
     outline: 0;
@@ -3495,6 +3116,7 @@ a.public-progress-label:hover {
 
 .public-patient-summary-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
@@ -3502,6 +3124,7 @@ a.public-progress-label:hover {
 
 .public-patient-summary-header h2 {
     margin: 0;
+    white-space: nowrap;
     font-size: 1.5rem;
 }
 
@@ -3816,4 +3439,593 @@ a.public-progress-label:hover {
 .public-received-help a {
     color: var(--public-green-ink);
     font-weight: 600;
+}
+
+/* Rediseño público V3: acceso con código, mis turnos y reprogramar */
+.public-access {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    margin: var(--space-5) auto 0;
+    border: 1px solid var(--public-border);
+    border-radius: 24px;
+    padding: 36px 32px;
+    background: var(--public-surface);
+    box-shadow: var(--public-shadow);
+}
+
+.public-access-icon {
+    width: 64px;
+    height: 64px;
+    display: grid;
+    place-items: center;
+    border-radius: 20px;
+    background: var(--public-gold-soft);
+    color: var(--public-gold-ink);
+}
+
+.public-access-icon .ui-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.public-access-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.public-access-heading h1 {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.public-access-heading p {
+    margin: 0;
+    color: var(--public-muted);
+}
+
+.public-access-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.public-access .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.public-access .form-field label,
+.public-access .form-field:focus-within label {
+    color: var(--public-text);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.public-access .form-field input {
+    min-height: 52px;
+    border: 1.5px solid #ddd3c4;
+    border-radius: 14px;
+    padding: 0 16px;
+    background: #ffffff;
+    color: var(--public-text);
+    font: inherit;
+    font-size: 1rem;
+}
+
+.public-access .form-field input:focus {
+    border-color: var(--public-gold-ink);
+    outline: 0;
+    box-shadow: 0 0 0 4px rgba(190, 145, 66, 0.22);
+}
+
+.public-access .public-code-field input {
+    min-height: 60px;
+    font-family: var(--public-font-serif);
+    font-size: 1.75rem;
+    letter-spacing: 0.5em;
+    text-align: center;
+}
+
+.public-access .field-help {
+    margin: 0;
+    color: var(--public-subtle);
+    font-size: 0.8125rem;
+}
+
+.public-access .form-field:has(.field-error) input,
+.public-access .form-field [aria-invalid="true"] {
+    border-color: var(--public-danger);
+    background: var(--public-danger-bg);
+}
+
+.public-access .field-error,
+.public-access .form-error-summary {
+    margin: 0;
+    color: var(--public-danger);
+    font-size: 0.875rem;
+}
+
+.public-access .form-error-summary {
+    border: 1px solid #f0d4d1;
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: var(--public-danger-bg);
+}
+
+.public-access .errorlist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.public-access-form .public-gold-button {
+    width: 100%;
+    min-height: 54px;
+    justify-content: center;
+}
+
+.public-access-resend {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--public-subtle);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.public-access-resend p {
+    margin: 0;
+}
+
+.public-access-link,
+.public-shell-body button.public-access-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    padding: 0 4px;
+    background: none;
+    color: var(--public-gold-ink-hover);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.public-shell-body button.public-access-link:hover {
+    background: none;
+    color: var(--public-text);
+}
+
+.public-access-note {
+    display: flex;
+    gap: 10px;
+    margin: 0;
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: var(--public-surface-soft);
+    color: var(--public-muted);
+    font-size: 0.8125rem;
+}
+
+.public-access-note.is-safe {
+    background: var(--public-green-soft);
+    color: var(--public-green-ink);
+}
+
+.public-access-note .ui-icon {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+
+.public-mine {
+    max-width: 960px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    margin: 0 auto;
+}
+
+.public-mine-back {
+    align-self: flex-start;
+}
+
+.public-mine-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.public-mine-header h1 {
+    margin: 0;
+    font-size: 2.625rem;
+    line-height: 1.1;
+}
+
+.public-mine-header p {
+    margin: 6px 0 0;
+    color: var(--public-muted);
+}
+
+.public-mine-header .public-mine-verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    color: var(--public-green-ink);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.public-mine-verified .ui-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.public-mine-next {
+    overflow: hidden;
+    border: 1px solid var(--public-border);
+    border-radius: 28px;
+    background: var(--public-surface);
+    box-shadow: var(--public-shadow);
+}
+
+.public-mine-next-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 28px;
+    background: var(--public-green-soft);
+}
+
+.public-mine-next-band h2 {
+    margin: 0;
+    color: var(--public-green-ink);
+    font-family: var(--font-family);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.public-mine-next-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    padding: 28px;
+}
+
+.public-mine-when {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.public-mine-when > div {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.public-mine-when > div span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--public-muted);
+}
+
+.public-mine-when .ui-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.public-mine-time {
+    font-family: var(--public-font-serif);
+    font-size: 1.875rem;
+    font-weight: 500;
+    line-height: 1.1;
+}
+
+.public-mine-date {
+    width: 60px;
+    height: 60px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: var(--public-surface-soft);
+    color: #5c4320;
+    line-height: 1.1;
+}
+
+.public-mine-date small {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.public-mine-date strong {
+    font-family: var(--public-font-serif);
+    font-size: 1.5rem;
+    font-weight: 500;
+}
+
+.public-mine-date.is-large {
+    width: 92px;
+    height: 92px;
+    border-radius: 22px;
+    background: var(--public-gold-soft);
+}
+
+.public-mine-date.is-large strong {
+    font-size: 2.5rem;
+}
+
+.public-mine-next-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    border-top: 1px solid #efe8dd;
+    padding: 16px 28px;
+    color: var(--public-muted);
+    font-size: 0.875rem;
+}
+
+.public-mine-next-foot span {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.public-mine-next-foot .ui-icon {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    margin-top: 2px;
+}
+
+.public-mine-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.public-danger-button,
+.public-shell-body summary.public-danger-button {
+    min-height: 48px;
+    gap: 8px;
+    border: 1.5px solid #e7c3bf;
+    border-radius: var(--radius-pill);
+    padding: 0 20px;
+    background: var(--public-surface);
+    color: var(--public-danger);
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+}
+
+.public-shell-body summary.public-danger-button:hover {
+    border-color: var(--public-danger);
+    background: var(--public-danger-bg);
+    color: var(--public-danger);
+}
+
+.public-danger-button::-webkit-details-marker {
+    display: none;
+}
+
+.public-mine-cancel[open] {
+    flex-basis: 100%;
+}
+
+.public-mine-cancel form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    border: 1px solid #f0d4d1;
+    border-radius: 16px;
+    padding: 16px;
+    background: var(--public-danger-bg);
+}
+
+.public-mine-cancel label {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.public-mine-cancel textarea {
+    border: 1.5px solid #ddd3c4;
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #ffffff;
+    font: inherit;
+}
+
+.public-danger-solid,
+.public-shell-body .public-danger-solid:hover {
+    align-self: flex-start;
+    border-color: var(--public-danger);
+    border-radius: var(--radius-pill);
+    background: var(--public-danger);
+    color: #ffffff;
+}
+
+.public-mine-others {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.public-mine-others h2 {
+    margin: 0;
+    font-size: 1.625rem;
+}
+
+.public-mine-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border: 1px solid var(--public-border);
+    border-radius: 20px;
+    padding: 20px 24px;
+    background: var(--public-surface);
+}
+
+.public-mine-row .public-mine-when strong {
+    font-weight: 600;
+}
+
+.public-mine-row .public-mine-when span {
+    font-size: 0.875rem;
+}
+
+.public-mine-row-side {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.public-mine-manage > summary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    color: var(--public-gold-ink-hover);
+    font-size: 0.875rem;
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+}
+
+.public-mine-manage > summary::-webkit-details-marker {
+    display: none;
+}
+
+.public-mine-manage[open] {
+    flex-basis: 100%;
+}
+
+.public-mine-manage[open] .public-mine-actions {
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.public-mine-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    border: 1px dashed var(--public-border-strong);
+    border-radius: 24px;
+    padding: var(--space-6) var(--space-5);
+    background: var(--public-surface);
+    text-align: center;
+}
+
+.public-mine-empty > span {
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--public-gold-soft);
+    color: var(--public-gold-ink);
+}
+
+.public-mine-empty h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.public-mine-empty p {
+    margin: 0;
+    color: var(--public-muted);
+}
+
+.public-mine-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 20px;
+    padding: 20px 24px;
+    background: var(--public-surface-soft);
+    color: var(--public-muted);
+}
+
+.public-reprogram .public-time-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.public-reprogram .public-slot-button {
+    min-height: 48px;
+    justify-content: center;
+    border: 1.5px solid var(--public-border);
+    border-radius: 14px;
+    background: var(--public-surface);
+    box-shadow: none;
+    color: var(--public-text);
+    font-weight: 500;
+}
+
+.public-reprogram .public-slot-button:hover {
+    border-color: var(--public-gold-ink);
+    background: var(--public-gold-soft);
+    color: var(--public-text);
+}
+
+.public-reprogram .public-more-slots > summary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--public-gold-ink-hover);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.public-reprogram [data-horarios-status] {
+    margin: 0;
+    color: var(--public-subtle);
+    font-size: 0.8125rem;
+}
+
+/* El script de horarios ya muestra su estado en vivo; evita repetir la ayuda fija. */
+.public-reprogram [data-horarios-status] + .field-help {
+    display: none;
+}
+
+.public-reprogram .public-patient-summary .public-whatsapp-help {
+    margin-top: 4px;
 }
