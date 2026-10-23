@@ -239,7 +239,6 @@
     .public-reservation-details,
     .public-profile,
     .public-reservation-summary,
-    .public-confirmation-banner,
     .public-dni-form,
     .public-turno-card,
     .consultorio-editor-grid,
@@ -262,7 +261,6 @@
     .turno-detail-actions,
     .pagination-actions,
     .public-reservation-details,
-    .public-confirmation-actions,
     .public-form-actions,
     .consultorio-preview-meta,
     .review-hero-actions,
@@ -289,7 +287,6 @@
     .turno-detail-actions button,
     .agenda-turno-actions .button,
     .agenda-turno-actions button,
-    .public-confirmation-actions .button,
     .public-turno-actions .button,
     .public-turno-actions button,
     .public-form-actions .button,
@@ -1081,13 +1078,8 @@
         gap: var(--space-2);
     }
 
-    .public-success-shell h1,
     .public-access-panel h1 {
         font-size: var(--font-2xl);
-    }
-
-    .public-success-lead {
-        font-size: var(--font-md);
     }
 
     .public-booking-help summary {
@@ -1115,17 +1107,6 @@
 
     .public-form-actions button {
         width: 100%;
-    }
-
-    .public-success-summary {
-        grid-template-columns: 1fr;
-        border-radius: var(--radius-sm);
-    }
-
-    .public-success-actions {
-        width: 100%;
-        display: grid;
-        grid-template-columns: 1fr;
     }
 
     .public-access-layout {
@@ -1899,6 +1880,33 @@
 
     .public-patient-actions .public-gold-button,
     .public-patient-back {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Rediseño público V3: solicitud enviada */
+@media (max-width: 767px) {
+    .public-received-banner {
+        border-radius: 20px;
+        padding: var(--space-5) var(--space-4);
+    }
+
+    .public-received-status h1,
+    .public-received-status h2 {
+        font-size: 2rem;
+    }
+
+    .public-received-card {
+        border-radius: 20px;
+        padding: 20px;
+    }
+
+    .public-received-actions {
+        flex-direction: column;
+    }
+
+    .public-received-actions .button {
         width: 100%;
         justify-content: center;
     }

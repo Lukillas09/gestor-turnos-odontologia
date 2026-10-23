@@ -150,55 +150,6 @@
     background: rgba(255, 255, 255, 0.18);
 }
 
-.public-confirmation-banner {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 18px;
-    align-items: center;
-    margin: -8px 0 24px;
-    border: 1px solid #abefc6;
-    border-radius: 12px;
-    padding: 20px;
-    background:
-        linear-gradient(135deg, rgba(236, 253, 243, 0.98), rgba(240, 253, 250, 0.98)),
-        #ecfdf3;
-    color: #064e3b;
-    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
-}
-
-.public-confirmation-icon {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    border-radius: 999px;
-    background: #12b76a;
-    color: #ffffff;
-    font-size: 24px;
-    font-weight: 800;
-}
-
-.public-confirmation-copy {
-    display: grid;
-    gap: 4px;
-}
-
-.public-confirmation-copy strong {
-    font-size: 20px;
-}
-
-.public-confirmation-copy p {
-    margin: 0;
-    color: #047857;
-}
-
-.public-confirmation-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: flex-end;
-}
-
 .public-primary-action {
     min-height: 52px;
     border-color: var(--primary);
@@ -995,15 +946,6 @@
     transform: rotate(180deg);
 }
 
-.public-confirmation-banner {
-    border-radius: var(--radius-lg);
-}
-
-.public-confirmation-icon .ui-icon {
-    width: 1.5rem;
-    height: 1.5rem;
-}
-
 .public-more-slots {
     margin-top: var(--space-4);
     border-top: 1px solid var(--line);
@@ -1223,93 +1165,6 @@
     box-shadow: var(--shadow-sm);
 }
 
-.public-success-shell {
-    max-width: 760px;
-    display: grid;
-    justify-items: center;
-    margin: 0 auto;
-    text-align: center;
-}
-
-.public-success-visual {
-    width: min(280px, 70vw);
-    height: auto;
-    margin-bottom: calc(var(--space-5) * -1);
-}
-
-.public-success-check {
-    width: 56px;
-    height: 56px;
-    display: grid;
-    place-items: center;
-    border: 6px solid #ffffff;
-    border-radius: 50%;
-    background: var(--green-700);
-    color: #ffffff;
-    box-shadow: var(--shadow-sm);
-}
-
-.public-success-shell h1 {
-    margin-top: var(--space-2);
-    font-size: var(--font-3xl);
-}
-
-.public-success-lead {
-    max-width: 620px;
-    margin: var(--space-3) 0 0;
-    font-size: var(--font-lg);
-}
-
-.public-success-note {
-    max-width: 620px;
-    margin: var(--space-3) 0 0;
-    color: var(--muted);
-}
-
-.public-success-summary {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
-    margin: var(--space-6) 0 0;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    background: var(--surface);
-    text-align: left;
-}
-
-.public-success-summary div {
-    border-radius: var(--radius-sm);
-    padding: var(--space-3);
-    background: var(--gray-50);
-}
-
-.public-success-summary dt {
-    color: var(--muted);
-    font-size: var(--font-xs);
-    font-weight: 700;
-}
-
-.public-success-summary dd {
-    margin: var(--space-1) 0 0;
-    font-weight: 800;
-}
-
-.public-success-summary-generic {
-    display: block;
-    text-align: center;
-}
-
-.public-success-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--space-3);
-    margin-top: var(--space-5);
-}
-
-.public-success-contact,
 .public-access-contact {
     max-width: 960px;
     margin: var(--space-7) auto 0;
@@ -3731,4 +3586,234 @@ a.public-progress-label:hover {
     background: var(--public-gold-soft);
     color: #5c4320;
     font-size: 0.8125rem;
+}
+
+/* Rediseño público V3: solicitud enviada y chips de estado */
+.public-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius-pill);
+    padding: 6px 14px;
+    background: var(--public-warning-bg);
+    color: var(--public-warning-text);
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.public-status-chip .ui-icon {
+    width: 16px;
+    height: 16px;
+    flex: none;
+}
+
+.public-status-chip.is-confirmado {
+    background: var(--public-green);
+    color: #ffffff;
+}
+
+.public-status-chip.is-cancelado {
+    background: #f9e6e4;
+    color: #8e3131;
+}
+
+.public-received-page {
+    max-width: 820px;
+    margin: 0 auto;
+}
+
+.public-received-banner {
+    max-width: 820px;
+    margin: 0 auto var(--space-6);
+    border: 1px solid var(--public-border);
+    border-radius: 28px;
+    padding: var(--space-6);
+    background: var(--public-surface-soft);
+}
+
+.public-received {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.public-received-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-top: 12px;
+    text-align: center;
+}
+
+.public-received-icon {
+    width: 84px;
+    height: 84px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--public-green-soft);
+    color: var(--public-green);
+}
+
+.public-received-icon .ui-icon {
+    width: 42px;
+    height: 42px;
+}
+
+.public-received-status h1,
+.public-received-status h2 {
+    margin: 0;
+    font-size: 2.625rem;
+    line-height: 1.1;
+}
+
+.public-received-status p {
+    max-width: 540px;
+    margin: 0;
+    color: var(--public-muted);
+    font-size: 1.0625rem;
+}
+
+.public-received-card {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    border: 1px solid var(--public-border);
+    border-radius: 24px;
+    padding: 28px;
+    background: var(--public-surface);
+    box-shadow: var(--public-shadow);
+}
+
+.public-received-turno {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid #efe8dd;
+    padding-bottom: 20px;
+}
+
+.public-received-when {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.public-received-when > span:last-child {
+    display: flex;
+    flex-direction: column;
+}
+
+.public-received-when > span:last-child strong {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.public-received-when > span:last-child span {
+    color: var(--public-muted);
+}
+
+.public-received-date {
+    width: 72px;
+    height: 72px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: var(--public-gold-soft);
+    color: #5c4320;
+    line-height: 1.1;
+}
+
+.public-received-date small {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.public-received-date strong {
+    font-family: var(--public-font-serif);
+    font-size: 1.875rem;
+    font-weight: 500;
+}
+
+.public-received-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.public-received-steps li {
+    display: flex;
+    gap: 12px;
+    color: var(--public-muted);
+    font-size: 0.875rem;
+}
+
+.public-received-steps li > span:first-child {
+    width: 30px;
+    height: 30px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid var(--public-border-strong);
+    border-radius: 50%;
+    color: var(--public-subtle);
+    font-weight: 600;
+}
+
+.public-received-steps li.is-next > span:first-child {
+    border-color: var(--public-gold);
+    color: var(--public-gold-ink-hover);
+}
+
+.public-received-steps li.is-done > span:first-child {
+    border-color: var(--public-green);
+    background: var(--public-green);
+    color: #ffffff;
+}
+
+.public-received-steps li.is-done .ui-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.public-received-steps strong {
+    display: block;
+    color: var(--public-text);
+    font-weight: 600;
+}
+
+.public-received-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+.public-received-actions .button {
+    min-height: 52px;
+}
+
+.public-received-note,
+.public-received-help {
+    margin: 0;
+    color: var(--public-subtle);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.public-received-help a {
+    color: var(--public-green-ink);
+    font-weight: 600;
 }

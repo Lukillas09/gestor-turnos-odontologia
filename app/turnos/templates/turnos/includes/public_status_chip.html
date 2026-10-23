@@ -1,0 +1,1 @@
+<span class="public-status-chip is-{{ estado }}">{% if estado == "confirmado" %}{% include "includes/icon.html" with name="check" %}{% elif estado == "cancelado" %}{% include "includes/icon.html" with name="x" %}{% else %}{% include "includes/icon.html" with name="clock" %}{% endif %}<span>{{ label }}</span></span>
