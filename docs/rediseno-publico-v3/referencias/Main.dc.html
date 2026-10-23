@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Inicio — Consultorio Abete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFAF7}
+a{color:#2D2823}a:hover{color:#8A6224}
+.btn{transition:background-color 160ms ease,border-color 160ms ease,transform 160ms ease}
+.btn:hover{transform:translateY(-1px)}
+.btn-gold:hover{background:#74511C !important;color:#FFFFFF !important}
+.btn-line:hover{border-color:#8A6224 !important;color:#8A6224 !important}
+.lift{transition:box-shadow 180ms ease,border-color 180ms ease}
+.lift:hover{box-shadow:0 18px 48px rgba(71,55,34,0.12) !important;border-color:#D9C9AE !important}
+a:focus-visible,button:focus-visible{outline:3px solid #BE9142;outline-offset:3px}
+@media (prefers-reduced-motion: reduce){.btn,.lift{transition:none}.btn:hover{transform:none}}
+</style>
+</helmet>
+<div style="background: #FBFAF7; color: #2D2823; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 16px; line-height: 1.55; min-height: 100vh">
+
+  <!-- Header -->
+  <header style="border-bottom: 1px solid #E6DED2; background: rgba(255,254,250,0.92)">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none">
+        <img src="../../../app/static/images/consultorio-abete-logo.png" alt="" style="width: 64px; height: 40px; object-fit: contain">
+        <span style="display: flex; flex-direction: column; line-height: 1.15">
+          <span style="font-family: Fraunces, Georgia, serif; font-size: 21px; font-weight: 500; color: #2D2823">Consultorio Abete</span>
+          <span style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #6B645C">Odontología · Turnos online</span>
+        </span>
+      </a>
+      <nav aria-label="Principal" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+        <a href="Main.dc.html" aria-current="page" style="padding: 10px 14px; font-size: 15px; font-weight: 600; text-decoration: none; color: #2D2823">Inicio</a>
+        <a href="#servicios" style="padding: 10px 14px; font-size: 15px; text-decoration: none; color: #6B645C">Servicios</a>
+        <a href="#equipo" style="padding: 10px 14px; font-size: 15px; text-decoration: none; color: #6B645C">Equipo</a>
+        <a href="MisTurnos.dc.html" style="padding: 10px 14px; font-size: 15px; text-decoration: none; color: #6B645C">Mis turnos</a>
+        <a class="btn btn-gold" href="Reserva.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; margin-left: 8px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>
+          Reservar turno
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section aria-labelledby="hero-title" style="max-width: 1200px; margin: 0 auto; padding: 72px 24px 56px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 56px; align-items: center">
+      <div style="display: flex; flex-direction: column; gap: 24px">
+        <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: #F6EDDD; color: #74511C; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase">
+          <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #3F7D60"></span>
+          Turnos online 24/7
+        </span>
+        <h1 id="hero-title" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: clamp(40px, 5vw, 64px); line-height: 1.05; letter-spacing: -0.01em">
+          Reservá tu turno odontológico <em style="font-style: italic; font-weight: 400; color: #8A6224">sin complicaciones</em>
+        </h1>
+        <p style="margin: 0; max-width: 520px; font-size: 18px; color: #5E5750">Elegí profesional, motivo y horario en pocos minutos. Tu solicitud queda registrada y el consultorio te avisa por email cuando la confirma.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px">
+          <a class="btn btn-gold" href="Reserva.dc.html" style="display: inline-flex; align-items: center; gap: 10px; min-height: 54px; padding: 0 28px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-size: 17px; font-weight: 600; text-decoration: none; box-shadow: 0 10px 24px rgba(138,98,36,0.25)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>
+            Reservá tu turno
+          </a>
+          <a class="btn btn-line" href="MisTurnos.dc.html" style="display: inline-flex; align-items: center; gap: 10px; min-height: 54px; padding: 0 24px; border-radius: 999px; border: 1.5px solid #D9C9AE; background: #FFFEFA; color: #2D2823; font-size: 17px; font-weight: 500; text-decoration: none">
+            Ver mis turnos
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </a>
+        </div>
+        <ul aria-label="Características de la reserva" style="list-style: none; margin: 0; padding: 8px 0 0; display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 14px; color: #5E5750">
+          <li style="display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Sin crear una cuenta</li>
+          <li style="display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Seguimiento por email</li>
+          <li style="display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Datos protegidos</li>
+        </ul>
+      </div>
+
+      <div style="position: relative; padding: 0 0 32px 32px">
+        <div aria-hidden="true" style="position: absolute; left: 0; bottom: 0; width: 70%; height: 70%; border-radius: 32px; background: #F6EDDD"></div>
+        <img src="../../../app/static/images/dental-clinic-hero.webp" alt="Sala de atención del consultorio con sillón odontológico y luz natural" style="position: relative; display: block; width: 100%; aspect-ratio: 4 / 3.3; object-fit: cover; border-radius: 28px; box-shadow: 0 24px 60px rgba(71,55,34,0.16)">
+        <div style="position: absolute; left: 0; bottom: 8px; max-width: 300px; display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; border-radius: 20px; background: #FFFEFA; border: 1px solid #E6DED2; box-shadow: 0 18px 48px rgba(71,55,34,0.14)">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #EAF3ED; color: #3F7D60">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3.5 6.5l8.5 6.5 8.5-6.5"></path></svg>
+          </span>
+          <span style="display: flex; flex-direction: column; gap: 2px">
+            <strong style="font-size: 15px; font-weight: 600">Te avisamos por email</strong>
+            <span style="font-size: 14px; color: #5E5750; line-height: 1.45">Cuando el consultorio confirme tu turno y un día antes de la cita.</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Beneficios -->
+    <section aria-label="Beneficios" style="max-width: 1200px; margin: 0 auto; padding: 0 24px 88px">
+      <ul style="list-style: none; margin: 0; padding: 28px 32px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; border-radius: 24px; background: #FFFEFA; border: 1px solid #E6DED2; box-shadow: 0 18px 48px rgba(71,55,34,0.06)">
+        <li style="display: flex; gap: 14px; align-items: flex-start">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #F6EDDD; color: #8A6224"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></span>
+          <span><strong style="display: block; font-weight: 600">Atención rápida</strong><span style="font-size: 14px; color: #5E5750">Encontrá horarios disponibles fácilmente.</span></span>
+        </li>
+        <li style="display: flex; gap: 14px; align-items: flex-start">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #F6EDDD; color: #8A6224"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15L6 16z"></path><path d="M10 20.5a2 2 0 004 0"></path></svg></span>
+          <span><strong style="display: block; font-weight: 600">Recordatorios</strong><span style="font-size: 14px; color: #5E5750">Te avisamos antes de tu turno.</span></span>
+        </li>
+        <li style="display: flex; gap: 14px; align-items: flex-start">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #F6EDDD; color: #8A6224"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 01-14.3 4.9M4 12A8 8 0 0118.3 7.1"></path><path d="M18.5 3v4.3h-4.3M5.5 21v-4.3h4.3"></path></svg></span>
+          <span><strong style="display: block; font-weight: 600">Cambios simples</strong><span style="font-size: 14px; color: #5E5750">Reprogramá o cancelá de forma segura.</span></span>
+        </li>
+        <li style="display: flex; gap: 14px; align-items: flex-start">
+          <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #F6EDDD; color: #8A6224"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"></rect><path d="M8 10.5V7.5a4 4 0 018 0v3"></path></svg></span>
+          <span><strong style="display: block; font-weight: 600">Datos protegidos</strong><span style="font-size: 14px; color: #5E5750">Cuidamos tu información personal.</span></span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Servicios -->
+    <section id="servicios" aria-labelledby="servicios-title" style="background: #F7F1E7; padding: 88px 24px">
+      <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+          <div style="display: flex; flex-direction: column; gap: 8px; max-width: 560px">
+            <p style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #74511C">Motivos de consulta</p>
+            <h2 id="servicios-title" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 40px; line-height: 1.1">¿Por qué querés venir?</h2>
+            <p style="margin: 0; color: #5E5750">Elegir el motivo nos ayuda a reservar el tiempo justo para tu atención.</p>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px">
+          <article class="lift" style="display: flex; flex-direction: column; gap: 14px; padding: 28px; border-radius: 24px; background: #FFFEFA; border: 1px solid #E6DED2">
+            <span aria-hidden="true" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: #EAF3ED; color: #3F7D60"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5-7.5-9.5V6L12 3z"></path><path d="M8.8 12l2.2 2.2 4.2-4.4"></path></svg></span>
+            <h3 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 26px">Control</h3>
+            <p style="margin: 0; color: #5E5750; flex: 1">Revisión general programada para mantener tu salud bucal al día.</p>
+            <a href="Reserva.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; color: #74511C; text-decoration: none">Reservar control <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+          </article>
+          <article class="lift" style="display: flex; flex-direction: column; gap: 14px; padding: 28px; border-radius: 24px; background: #FFFEFA; border: 1px solid #E6DED2">
+            <span aria-hidden="true" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: #EAF3ED; color: #3F7D60"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"></path></svg></span>
+            <h3 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 26px">Limpieza</h3>
+            <p style="margin: 0; color: #5E5750; flex: 1">Limpieza dental programada para remover placa y sarro.</p>
+            <a href="Reserva.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; color: #74511C; text-decoration: none">Reservar limpieza <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+          </article>
+          <article class="lift" style="display: flex; flex-direction: column; gap: 14px; padding: 28px; border-radius: 24px; background: #FFFEFA; border: 1px solid #E6DED2">
+            <span aria-hidden="true" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: #EAF3ED; color: #3F7D60"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg></span>
+            <h3 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 26px">Consulta</h3>
+            <p style="margin: 0; color: #5E5750; flex: 1">Una primera evaluación para una molestia o necesidad puntual.</p>
+            <a href="Reserva.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; color: #74511C; text-decoration: none">Reservar consulta <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cómo funciona -->
+    <section aria-labelledby="como-title" style="max-width: 1200px; margin: 0 auto; padding: 96px 24px; display: flex; flex-direction: column; gap: 48px">
+      <div style="text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center">
+        <p style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #74511C">Así de fácil</p>
+        <h2 id="como-title" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 40px; line-height: 1.1">¿Cómo funciona?</h2>
+      </div>
+      <ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px">
+        <li style="display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center">
+          <span style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; border: 1.5px solid #BE9142; font-family: Fraunces, Georgia, serif; font-size: 26px; color: #74511C">1</span>
+          <strong style="font-size: 18px; font-weight: 600">Elegí profesional y motivo</strong>
+          <span style="max-width: 300px; color: #5E5750">Seleccioná con quién querés atenderte y por qué venís.</span>
+        </li>
+        <li style="display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center">
+          <span style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; border: 1.5px solid #BE9142; font-family: Fraunces, Georgia, serif; font-size: 26px; color: #74511C">2</span>
+          <strong style="font-size: 18px; font-weight: 600">Elegí día y horario</strong>
+          <span style="max-width: 300px; color: #5E5750">Ves solo los horarios realmente disponibles.</span>
+        </li>
+        <li style="display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center">
+          <span style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: #3F7D60; color: #FFFFFF; font-family: Fraunces, Georgia, serif; font-size: 26px">3</span>
+          <strong style="font-size: 18px; font-weight: 600">Enviá y esperá la confirmación</strong>
+          <span style="max-width: 300px; color: #5E5750">El consultorio revisa tu solicitud y te avisa por email.</span>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Equipo -->
+    <section id="equipo" aria-labelledby="equipo-title" style="border-top: 1px solid #E6DED2; padding: 88px 24px">
+      <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px">
+        <div style="display: flex; flex-direction: column; gap: 8px; max-width: 560px">
+          <p style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #74511C">Profesionales</p>
+          <h2 id="equipo-title" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 40px; line-height: 1.1">Nuestro equipo</h2>
+          <p style="margin: 0; color: #5E5750">Conocé a los profesionales con turnos online disponibles.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px">
+          <article class="lift" style="display: flex; flex-direction: column; border-radius: 24px; overflow: hidden; background: #FFFEFA; border: 1px solid #E6DED2">
+            <div aria-hidden="true" style="height: 200px; display: grid; place-items: center; background: #F6EDDD; font-family: Fraunces, Georgia, serif; font-size: 64px; color: #BE9142">LA</div>
+            <div style="padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 6px">
+              <h3 style="margin: 0; font-size: 19px; font-weight: 600">Dra. Laura Abete</h3>
+              <p style="margin: 0; color: #5E5750">Odontología general</p>
+              <p style="margin: 0 0 12px; font-size: 13px; color: #6B645C">Matrícula [MP 0000]</p>
+              <a class="btn btn-line" href="Reserva.dc.html" style="display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 46px; border-radius: 999px; border: 1.5px solid #D9C9AE; color: #2D2823; font-weight: 600; text-decoration: none">Ver disponibilidad <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+            </div>
+          </article>
+          <article class="lift" style="display: flex; flex-direction: column; border-radius: 24px; overflow: hidden; background: #FFFEFA; border: 1px solid #E6DED2">
+            <div aria-hidden="true" style="height: 200px; display: grid; place-items: center; background: #EAF3ED; font-family: Fraunces, Georgia, serif; font-size: 64px; color: #3F7D60">MR</div>
+            <div style="padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 6px">
+              <h3 style="margin: 0; font-size: 19px; font-weight: 600">Dr. Martín Ruiz</h3>
+              <p style="margin: 0; color: #5E5750">Ortodoncia</p>
+              <p style="margin: 0 0 12px; font-size: 13px; color: #6B645C">Matrícula [MP 0000]</p>
+              <a class="btn btn-line" href="Reserva.dc.html" style="display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 46px; border-radius: 999px; border: 1.5px solid #D9C9AE; color: #2D2823; font-weight: 600; text-decoration: none">Ver disponibilidad <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+            </div>
+          </article>
+          <article class="lift" style="display: flex; flex-direction: column; border-radius: 24px; overflow: hidden; background: #FFFEFA; border: 1px solid #E6DED2">
+            <div aria-hidden="true" style="height: 200px; display: grid; place-items: center; background: #F7F1E7; font-family: Fraunces, Georgia, serif; font-size: 64px; color: #8A6224">SP</div>
+            <div style="padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 6px">
+              <h3 style="margin: 0; font-size: 19px; font-weight: 600">Dra. Sofía Pereyra</h3>
+              <p style="margin: 0; color: #5E5750">Odontopediatría</p>
+              <p style="margin: 0 0 12px; font-size: 13px; color: #6B645C">Matrícula [MP 0000]</p>
+              <a class="btn btn-line" href="Reserva.dc.html" style="display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 46px; border-radius: 999px; border: 1.5px solid #D9C9AE; color: #2D2823; font-weight: 600; text-decoration: none">Ver disponibilidad <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ya tengo turno -->
+    <section aria-labelledby="gestion-title" style="max-width: 1200px; margin: 0 auto; padding: 0 24px 96px">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 32px; padding: 40px; border-radius: 28px; background: #FFFEFA; border: 1px solid #E6DED2; align-items: center">
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <p style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #74511C">Ya tengo un turno</p>
+          <h2 id="gestion-title" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.15">Gestioná tus solicitudes</h2>
+          <p style="margin: 0; color: #5E5750">Ingresás con un código temporal que te enviamos por email. No necesitás contraseña.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+          <a class="lift" href="MisTurnos.dc.html" style="display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 20px; border: 1px solid #E6DED2; background: #FBFAF7; text-decoration: none; color: #2D2823">
+            <span aria-hidden="true" style="color: #8A6224"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg></span>
+            <strong style="font-weight: 600">Consultar mis turnos</strong>
+            <span style="font-size: 14px; color: #5E5750">Revisá estado, fecha y profesional.</span>
+          </a>
+          <a class="lift" href="MisTurnos.dc.html" style="display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 20px; border: 1px solid #E6DED2; background: #FBFAF7; text-decoration: none; color: #2D2823">
+            <span aria-hidden="true" style="color: #8A6224"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 01-14.3 4.9M4 12A8 8 0 0118.3 7.1"></path><path d="M18.5 3v4.3h-4.3M5.5 21v-4.3h4.3"></path></svg></span>
+            <strong style="font-weight: 600">Reprogramar o cancelar</strong>
+            <span style="font-size: 14px; color: #5E5750">Verificamos tu identidad antes de cualquier cambio.</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Información del consultorio -->
+    <section aria-labelledby="info-title" style="background: #F7F1E7; padding: 88px 24px">
+      <div style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 40px; align-items: stretch">
+        <div style="display: flex; flex-direction: column; gap: 28px">
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <p style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #74511C">Visitanos</p>
+            <h2 id="info-title" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 40px; line-height: 1.1">Información del consultorio</h2>
+          </div>
+          <ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px">
+            <li style="display: flex; gap: 12px; padding: 16px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>
+              <span><small style="display: block; font-size: 12px; color: #6B645C">Dirección</small>[Calle y número], San Rafael, Mendoza</span>
+            </li>
+            <li style="display: flex; gap: 12px; padding: 16px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"></path></svg>
+              <a href="tel:+5400000000" style="text-decoration: none"><small style="display: block; font-size: 12px; color: #6B645C">Teléfono</small>[Teléfono]</a>
+            </li>
+            <li style="display: flex; gap: 12px; padding: 16px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-3.8-1L4 20z"></path></svg>
+              <a href="https://wa.me/" style="text-decoration: none"><small style="display: block; font-size: 12px; color: #6B645C">WhatsApp</small>Escribir al consultorio</a>
+            </li>
+            <li style="display: flex; gap: 12px; padding: 16px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3.5 6.5l8.5 6.5 8.5-6.5"></path></svg>
+              <a href="mailto:turnos@ejemplo.com" style="text-decoration: none"><small style="display: block; font-size: 12px; color: #6B645C">Email</small>[email del consultorio]</a>
+            </li>
+          </ul>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+            <div style="padding: 20px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2">
+              <strong style="display: block; margin-bottom: 8px; font-weight: 600">Horarios de atención</strong>
+              <dl style="margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 15px">
+                <dt style="color: #6B645C">Lun a Vie</dt><dd style="margin: 0">[09:00 – 13:00 · 16:00 – 20:00]</dd>
+                <dt style="color: #6B645C">Sábados</dt><dd style="margin: 0">[09:00 – 12:00]</dd>
+              </dl>
+            </div>
+            <div style="padding: 20px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2">
+              <strong style="display: block; margin-bottom: 8px; font-weight: 600">Política de cancelación</strong>
+              <p style="margin: 0; font-size: 15px; color: #5E5750">[Texto configurado por el consultorio, por ejemplo: avisar con 24 h de anticipación.]</p>
+            </div>
+          </div>
+        </div>
+        <div role="img" aria-label="Mapa de ubicación del consultorio" style="min-height: 360px; border-radius: 28px; border: 1px dashed #D9C9AE; background: #EFE6D6; display: grid; place-items: center; color: #6B645C; font-size: 15px">
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 10px">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8A6224" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>
+            Mapa embebido (Google Maps / OpenStreetMap)
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA final -->
+    <section aria-labelledby="cta-title" style="padding: 88px 24px">
+      <div style="max-width: 1200px; margin: 0 auto; padding: 56px 48px; border-radius: 32px; background: #2D2823; color: #FBFAF7; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 28px">
+        <div style="display: flex; flex-direction: column; gap: 10px; max-width: 620px">
+          <h2 id="cta-title" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 40px; line-height: 1.1">¿Listo para tu próxima visita?</h2>
+          <p style="margin: 0; color: #D8D0C4; font-size: 17px">Reservá en menos de dos minutos, cuando quieras.</p>
+        </div>
+        <a class="btn" href="Reserva.dc.html" style="display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 30px; border-radius: 999px; background: #D9B26A; color: #2D2823; font-size: 17px; font-weight: 600; text-decoration: none">
+          Reservar turno
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer style="border-top: 1px solid #E6DED2; padding: 40px 24px 48px">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; font-size: 14px; color: #6B645C">
+      <span style="display: flex; align-items: center; gap: 12px">
+        <img src="../../../app/static/images/consultorio-abete-logo.png" alt="" style="width: 52px; height: 32px; object-fit: contain">
+        <span>© 2026 Consultorio Abete · San Rafael, Mendoza</span>
+      </span>
+      <nav aria-label="Pie de página" style="display: flex; flex-wrap: wrap; gap: 20px">
+        <a href="Reserva.dc.html" style="color: #6B645C">Reservar turno</a>
+        <a href="MisTurnos.dc.html" style="color: #6B645C">Mis turnos</a>
+        <a href="#" style="color: #6B645C">Acceso para personal del consultorio</a>
+      </nav>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":3900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

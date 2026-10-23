@@ -132,6 +132,17 @@ def _obtener_entero_configurado(nombre, default):
         return default
 
 
+def _crear_url_seleccion(odontologo, fecha, configuracion_tipo=None):
+    parametros = {
+        "odontologo": odontologo.pk,
+        "fecha": fecha.isoformat(),
+    }
+    if configuracion_tipo:
+        parametros["tipo_turno"] = configuracion_tipo.tipo_turno_id
+    querystring = urlencode(parametros)
+    return f"{reverse('turnos:solicitud_publica')}?{querystring}"
+
+
 class LandingPublicaPacientesView(PublicShellMixin, TemplateView):
     template_name = "turnos/public/landing.html"
 
@@ -325,7 +336,7 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
                     "fecha": dia,
                     "cantidad": None,
                     "seleccionado": dia == fecha,
-                    "url": self._crear_url_seleccion(odontologo, dia, configuracion_tipo),
+                    "url": _crear_url_seleccion(odontologo, dia, configuracion_tipo),
                 }
             )
 
@@ -351,17 +362,6 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
         return any(
             excepcion.fecha_desde <= dia <= excepcion.fecha_hasta for excepcion in excepciones
         )
-
-    @staticmethod
-    def _crear_url_seleccion(odontologo, fecha, configuracion_tipo=None):
-        parametros = {
-            "odontologo": odontologo.pk,
-            "fecha": fecha.isoformat(),
-        }
-        if configuracion_tipo:
-            parametros["tipo_turno"] = configuracion_tipo.tipo_turno_id
-        querystring = urlencode(parametros)
-        return f"{reverse('turnos:solicitud_publica')}?{querystring}"
 
     @staticmethod
     def _crear_url_reserva(
@@ -831,6 +831,11 @@ class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
         context["smart_scheduling_enabled"] = settings.TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED
 
         if reserva:
+            context["url_seleccion"] = _crear_url_seleccion(
+                reserva["odontologo"],
+                reserva["fecha"],
+                reserva.get("configuracion_tipo"),
+            )
             duracion_visible = reserva.get(
                 "duracion_atencion_minutos",
                 DURACION_SOLICITUD_PUBLICA_MINUTOS,

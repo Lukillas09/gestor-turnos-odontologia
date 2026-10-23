@@ -3,6 +3,7 @@ from datetime import datetime, time, timedelta
 from threading import Barrier
 from unittest import skipUnless
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
@@ -15,6 +16,7 @@ from django.db.models.deletion import ProtectedError
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 
 from pacientes.models import Paciente
 from turnos.forms import (
@@ -355,6 +357,36 @@ class AgendaInteligenteModelosYFlujoTests(TestCase):
         self.assertIn("horarios_alternativos", contenido)
         self.assertNotIn("puntaje", str(contenido).lower())
         self.assertNotIn("razones", str(contenido).lower())
+
+    def test_paso_datos_vuelve_a_la_seleccion_conservando_tipo_de_turno(self):
+        horarios = self.client.get(
+            reverse("turnos:solicitud_publica_horarios"),
+            {
+                "odontologo": self.odontologo.pk,
+                "tipo_turno": self.tipo.pk,
+                "fecha": self.fecha.isoformat(),
+            },
+        ).json()
+        opcion = [
+            opcion
+            for grupo in ("horarios_recomendados", "horarios_alternativos")
+            for franja in ("manana", "tarde")
+            for opcion in horarios[grupo][franja]
+        ][0]
+
+        response = self.client.get(opcion["url"])
+
+        self.assertEqual(response.status_code, 200)
+        parametros = urlencode(
+            {
+                "odontologo": self.odontologo.pk,
+                "fecha": self.fecha.isoformat(),
+                "tipo_turno": self.tipo.pk,
+            }
+        )
+        url_seleccion = escape(f"{reverse('turnos:solicitud_publica')}?{parametros}")
+        self.assertContains(response, f'class="public-progress-label" href="{url_seleccion}"')
+        self.assertContains(response, f'href="{url_seleccion}"', count=2)
 
     def test_formulario_rechaza_tipo_de_otro_odontologo(self):
         tipo_otro = crear_tipo("Consulta", "consulta-otro-smart")

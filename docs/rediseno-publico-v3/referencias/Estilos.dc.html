@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sistema visual — Consultorio Abete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFAF7}
+a{color:#2D2823}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1180px; box-sizing: border-box; padding: 64px 72px; background: #FBFAF7; color: #2D2823; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.5; display: flex; flex-direction: column; gap: 44px">
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-end">
+    <div>
+      <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #74511C">Sistema visual · web pública</p>
+      <h1 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 48px; line-height: 1.05">Marfil, oro y verde salvia</h1>
+    </div>
+    <img src="../../../app/static/images/consultorio-abete-logo.png" alt="Logo del consultorio" style="width: 140px; height: 88px; object-fit: contain">
+  </div>
+
+  <!-- Colores -->
+  <section style="display: flex; flex-direction: column; gap: 16px">
+    <h2 style="margin: 0; font-size: 16px; font-weight: 600">Colores <span style="font-weight: 400; color: #6B645C">· tokens <code style="font-family: 'JetBrains Mono', monospace; font-size: 13px">--public-*</code> de tokens.css</span></h2>
+    <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 14px">
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #FBFAF7; border: 1px solid #E6DED2"></span><strong style="font-weight: 600">Fondo</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">bg #FBFAF7</code></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #FFFEFA; border: 1px solid #E6DED2"></span><strong style="font-weight: 600">Superficie</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">surface #FFFEFA</code></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #F7F1E7"></span><strong style="font-weight: 600">Superficie cálida</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">surface-soft #F7F1E7</code></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #2D2823"></span><strong style="font-weight: 600">Texto</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">text #2D2823</code></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #5E5750"></span><strong style="font-weight: 600">Texto suave</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">muted #5E5750 *</code></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #8A6224"></span><strong style="font-weight: 600">Oro acción</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">gold-ink #8A6224 *</code></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #BE9142"></span><strong style="font-weight: 600">Oro detalle</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">gold #BE9142</code></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 84px; border-radius: 16px; background: #3F7D60"></span><strong style="font-weight: 600">Verde salvia</strong><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">green #3F7D60</code></div>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: #5E5750">* Ajustes propuestos: el oro <code style="font-family: 'JetBrains Mono', monospace">#BE9142</code> con texto blanco no llega a 4.5:1, así que los botones usan <code style="font-family: 'JetBrains Mono', monospace">#8A6224</code> (≈5.4:1). El oro claro queda para bordes, números y foco.</p>
+  </section>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px">
+    <!-- Tipografía -->
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0; font-size: 16px; font-weight: 600">Tipografía</h2>
+      <div style="padding: 28px; border-radius: 22px; background: #FFFEFA; border: 1px solid #E6DED2; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px"><span style="font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 56px; line-height: 1">Aa <em style="font-weight: 400; color: #8A6224">Fraunces</em></span><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">Títulos · 500 · 40–64 px</code></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-top: 14px; border-top: 1px solid #EFE8DD"><span style="font-size: 28px; font-weight: 600">Inter para interfaz</span><code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6B645C">UI · 400/500/600 · 14–18 px</code></div>
+        <p style="margin: 0; color: #5E5750">Serif solo en titulares y números grandes (fecha del turno). Todo lo que se lee o se toca va en Inter, que ya usa el panel interno.</p>
+      </div>
+    </section>
+
+    <!-- Estados de turno -->
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0; font-size: 16px; font-weight: 600">Estados del turno <span style="font-weight: 400; color: #6B645C">· siempre con ícono + texto</span></h2>
+      <div style="padding: 28px; border-radius: 22px; background: #FFFEFA; border: 1px solid #E6DED2; display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
+        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: #FDF3DC; color: #7A5410; font-weight: 600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>Pendiente</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: #3F7D60; color: #FFFFFF; font-weight: 600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Confirmado</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: #F9E6E4; color: #8E3131; font-weight: 600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>Cancelado</span>
+        <p style="margin: 6px 0 0; width: 100%; font-size: 13px; color: #5E5750">Mapean 1:1 a los estados del modelo <code style="font-family: 'JetBrains Mono', monospace">Turno</code>: Pendiente, Confirmado y Cancelado.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- Componentes -->
+  <section style="display: flex; flex-direction: column; gap: 14px">
+    <h2 style="margin: 0; font-size: 16px; font-weight: 600">Controles</h2>
+    <div style="padding: 28px; border-radius: 22px; background: #FFFEFA; border: 1px solid #E6DED2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 13px; color: #6B645C">Botones · alto mínimo 44–54 px</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <a href="#" style="display: inline-flex; align-items: center; min-height: 50px; padding: 0 24px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-weight: 600; text-decoration: none">Primario</a>
+          <a href="#" style="display: inline-flex; align-items: center; min-height: 50px; padding: 0 22px; border-radius: 999px; border: 1.5px solid #D9C9AE; color: #2D2823; font-weight: 500; text-decoration: none">Secundario</a>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <a href="#" style="display: inline-flex; align-items: center; min-height: 50px; padding: 0 24px; border-radius: 999px; background: #74511C; color: #FFFFFF; font-weight: 600; text-decoration: none; outline: 3px solid #BE9142; outline-offset: 3px">Hover + foco</a>
+          <button type="button" disabled="{{ true }}" style="min-height: 50px; padding: 0 22px; border-radius: 999px; border: 0; background: #ECE5DA; color: #6B645C; font: inherit; font-weight: 600">Deshabilitado</button>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 13px; color: #6B645C">Horarios · normal / recomendado / elegido</span>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <button type="button" style="min-height: 48px; border-radius: 14px; border: 1.5px solid #E6DED2; background: #FFFEFA; font: inherit; font-weight: 500; color: #2D2823">10:30</button>
+          <button type="button" style="min-height: 48px; border-radius: 14px; border: 1.5px solid #BE9142; background: #FFFEFA; font: inherit; font-weight: 600; color: #2D2823">09:30</button>
+          <button type="button" aria-pressed="true" style="min-height: 48px; border-radius: 14px; border: 1.5px solid #8A6224; background: #8A6224; font: inherit; font-weight: 600; color: #FFFFFF">16:30</button>
+        </div>
+        <span style="font-size: 13px; color: #6B645C">Días del calendario · disponible / elegido / fuera de ventana</span>
+        <div style="display: flex; gap: 8px">
+          <span style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #F7F1E7; font-weight: 600">23</span>
+          <span style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #8A6224; color: #FFFFFF; font-weight: 600">24</span>
+          <span style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #B5ABA0">25</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 13px; color: #6B645C">Campos · normal / foco / error</span>
+        <input aria-label="Ejemplo normal" value="Lucía" style="min-height: 46px; padding: 0 14px; border-radius: 14px; border: 1.5px solid #DDD3C4; background: #FFFFFF; font: inherit; color: #2D2823">
+        <input aria-label="Ejemplo foco" value="Fernández" style="min-height: 46px; padding: 0 14px; border-radius: 14px; border: 1.5px solid #8A6224; box-shadow: 0 0 0 4px rgba(190,145,66,0.22); background: #FFFFFF; font: inherit; color: #2D2823">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <input aria-label="Ejemplo error" aria-invalid="true" value="12.34" style="min-height: 46px; padding: 0 14px; border-radius: 14px; border: 1.5px solid #A33F3F; background: #FFF8F7; font: inherit; color: #2D2823">
+          <span style="font-size: 13px; color: #A33F3F">Ingresá un DNI válido, solo números.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p style="margin: 0; font-size: 13px; color: #5E5750">Radios: 14 px campos y horarios · 20–24 px tarjetas · 999 px botones. Sombra única: <code style="font-family: 'JetBrains Mono', monospace">0 18px 48px rgba(71,55,34,.08)</code>. Movimiento 120–180 ms, desactivado con <code style="font-family: 'JetBrains Mono', monospace">prefers-reduced-motion</code>.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Elegí tu turno móvil — Consultorio Abete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFAF7}
+a{color:#2D2823}
+button{cursor:pointer}
+a:focus-visible,button:focus-visible{outline:3px solid #BE9142;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 1700px; box-sizing: border-box; position: relative; overflow: hidden; background: #FBFAF7; color: #2D2823; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 16px; line-height: 1.5">
+
+  <header style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #FFFEFA; border-bottom: 1px solid #E6DED2">
+    <a href="Movil-Inicio.dc.html" aria-label="Volver al inicio" style="display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #2D2823"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+    <span style="flex: 1; font-weight: 600">Elegí tu turno</span>
+    <span style="font-size: 13px; color: #6B645C; padding-right: 8px">Paso 1 de 3</span>
+  </header>
+  <div aria-hidden="true" style="height: 4px; background: #E6DED2"><div style="width: 33%; height: 4px; background: #BE9142"></div></div>
+
+  <main style="padding: 20px 16px 140px; display: flex; flex-direction: column; gap: 26px">
+
+    <section aria-labelledby="mr-prof">
+      <h2 id="mr-prof" style="margin: 0 0 10px; font-size: 16px; font-weight: 600">Profesional</h2>
+      <div role="radiogroup" aria-labelledby="mr-prof" style="display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{profs}}" as="p" hint-placeholder-count="3">
+          <button type="button" role="radio" aria-checked="{{p.checked}}" onClick="{{p.pick}}" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 64px; text-align: left; font: inherit; color: #2D2823; border-radius: 16px; border: 1.5px solid {{p.border}}; background: {{p.bg}}">
+            <span aria-hidden="true" style="flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: {{p.avatar}}; font-family: Fraunces, Georgia, serif; font-size: 16px; color: #74511C">{{p.ini}}</span>
+            <span style="display: flex; flex-direction: column; line-height: 1.3; flex: 1"><strong style="font-size: 15px; font-weight: 600">{{p.nombre}}</strong><span style="font-size: 13px; color: #6B645C">{{p.esp}}</span></span>
+            <span aria-hidden="true" style="flex: none; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%; border: {{p.radio}}"></span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-labelledby="mr-mot">
+      <h2 id="mr-mot" style="margin: 0 0 10px; font-size: 16px; font-weight: 600">Motivo</h2>
+      <div role="radiogroup" aria-labelledby="mr-mot" style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{motivos}}" as="m" hint-placeholder-count="3">
+          <button type="button" role="radio" aria-checked="{{m.checked}}" onClick="{{m.pick}}" style="min-height: 44px; padding: 0 18px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; border: 1.5px solid {{m.border}}; background: {{m.bg}}; color: {{m.fg}}">{{m.nombre}}</button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-labelledby="mr-dia">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px">
+        <h2 id="mr-dia" style="margin: 0; font-size: 16px; font-weight: 600">Día</h2>
+        <span style="font-size: 13px; color: #6B645C">Octubre 2026</span>
+      </div>
+      <div style="display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 6px">
+        <sc-for list="{{dias}}" as="d" hint-placeholder-count="6">
+          <button type="button" aria-pressed="{{d.pressed}}" aria-label="{{d.aria}}" onClick="{{d.pick}}" style="flex: none; width: 60px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: inherit; border-radius: 16px; border: 1.5px solid {{d.border}}; background: {{d.bg}}; color: {{d.fg}}">
+            <span style="font-size: 12px; font-weight: 600; text-transform: uppercase">{{d.dow}}</span>
+            <span style="font-family: Fraunces, Georgia, serif; font-size: 22px; line-height: 1">{{d.num}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-labelledby="mr-hor" style="display: flex; flex-direction: column; gap: 14px">
+      <h2 id="mr-hor" style="margin: 0; font-size: 16px; font-weight: 600">Horario</h2>
+      <div>
+        <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #3F7D60">Recomendados</p>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{sugeridos}}" as="s" hint-placeholder-count="2">
+            <button type="button" aria-pressed="{{s.pressed}}" onClick="{{s.pick}}" style="min-height: 48px; border-radius: 14px; font: inherit; font-size: 15px; font-weight: 600; border: 1.5px solid {{s.border}}; background: {{s.bg}}; color: {{s.fg}}">{{s.hora}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6B645C">Mañana</p>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{manana}}" as="s" hint-placeholder-count="5">
+            <button type="button" aria-pressed="{{s.pressed}}" onClick="{{s.pick}}" style="min-height: 48px; border-radius: 14px; font: inherit; font-size: 15px; border: 1.5px solid {{s.border}}; background: {{s.bg}}; color: {{s.fg}}">{{s.hora}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6B645C">Tarde</p>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{tarde}}" as="s" hint-placeholder-count="4">
+            <button type="button" aria-pressed="{{s.pressed}}" onClick="{{s.pick}}" style="min-height: 48px; border-radius: 14px; font: inherit; font-size: 15px; border: 1.5px solid {{s.border}}; background: {{s.bg}}; color: {{s.fg}}">{{s.hora}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <a href="https://wa.me/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; font-weight: 600; color: #2F5E48">¿No encontrás horario? Escribinos por WhatsApp</a>
+    </section>
+  </main>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 20px; background: #FFFEFA; border-top: 1px solid #E6DED2; box-shadow: 0 -10px 30px rgba(71,55,34,0.08); display: flex; flex-direction: column; gap: 10px">
+    <p style="margin: 0; font-size: 14px; color: #5E5750"><strong style="color: #2D2823; font-weight: 600">{{resumen}}</strong></p>
+    <sc-if value="{{listo}}" hint-placeholder-val="{{ false }}">
+      <a href="Datos.dc.html" style="display: flex; justify-content: center; align-items: center; min-height: 52px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-weight: 600; text-decoration: none">Continuar</a>
+    </sc-if>
+    <sc-if value="{{noListo}}" hint-placeholder-val="{{ true }}">
+      <button type="button" disabled="{{ true }}" style="min-height: 52px; border-radius: 999px; border: 0; background: #ECE5DA; color: #6B645C; font: inherit; font-weight: 600; cursor: default">Elegí un horario</button>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1700}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { prof: 'la', motivo: 'control', day: 23, slot: null };
+  }
+  renderVals() {
+    const s = this.state;
+    const set = (patch) => () => this.setState(patch);
+    const PROFS = [
+      { id: 'la', nombre: 'Dra. Laura Abete', esp: 'Odontología general', ini: 'LA', avatar: '#F6EDDD' },
+      { id: 'mr', nombre: 'Dr. Martín Ruiz', esp: 'Ortodoncia', ini: 'MR', avatar: '#EAF3ED' },
+      { id: 'sp', nombre: 'Dra. Sofía Pereyra', esp: 'Odontopediatría', ini: 'SP', avatar: '#F7F1E7' }
+    ];
+    const MOTIVOS = [
+      { id: 'control', nombre: 'Control' },
+      { id: 'limpieza', nombre: 'Limpieza' },
+      { id: 'consulta', nombre: 'Consulta' }
+    ];
+    const DOW = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const DOWL = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const profs = PROFS.map((p) => ({
+      ...p,
+      checked: s.prof === p.id ? 'true' : 'false',
+      border: s.prof === p.id ? '#8A6224' : '#E6DED2',
+      bg: s.prof === p.id ? '#FBF5EA' : '#FFFEFA',
+      radio: s.prof === p.id ? '6px solid #8A6224' : '1.5px solid #B5ABA0',
+      pick: set({ prof: p.id, slot: null })
+    }));
+    const motivos = MOTIVOS.map((m) => ({
+      ...m,
+      checked: s.motivo === m.id ? 'true' : 'false',
+      border: s.motivo === m.id ? '#8A6224' : '#E6DED2',
+      bg: s.motivo === m.id ? '#8A6224' : '#FFFEFA',
+      fg: s.motivo === m.id ? '#FFFFFF' : '#2D2823',
+      pick: set({ motivo: m.id, slot: null })
+    }));
+    const dias = [];
+    for (let d = 22; d <= 31; d++) {
+      const dow = (3 + d) % 7;
+      if (dow === 0) continue;
+      const sel = s.day === d;
+      dias.push({
+        dow: DOW[dow], num: d,
+        aria: DOWL[dow] + ' ' + d + ' de octubre',
+        pressed: sel ? 'true' : 'false',
+        border: sel ? '#8A6224' : '#E6DED2',
+        bg: sel ? '#8A6224' : '#FFFEFA',
+        fg: sel ? '#FFFFFF' : '#2D2823',
+        pick: set({ day: d, slot: null })
+      });
+    }
+    const slotObj = (h) => ({
+      hora: h,
+      pressed: s.slot === h ? 'true' : 'false',
+      border: s.slot === h ? '#8A6224' : '#E6DED2',
+      bg: s.slot === h ? '#8A6224' : '#FFFEFA',
+      fg: s.slot === h ? '#FFFFFF' : '#2D2823',
+      pick: set({ slot: h })
+    });
+    const prof = PROFS.find((p) => p.id === s.prof);
+    const mot = MOTIVOS.find((m) => m.id === s.motivo);
+    const dowSel = DOW[(3 + s.day) % 7];
+    return {
+      profs, motivos, dias,
+      sugeridos: ['09:30', '16:30'].map(slotObj),
+      manana: ['09:00', '10:30', '11:00', '12:00', '12:30'].map(slotObj),
+      tarde: ['16:00', '17:30', '18:00', '19:00'].map(slotObj),
+      listo: !!s.slot,
+      noListo: !s.slot,
+      resumen: s.slot
+        ? mot.nombre + ' · ' + dowSel + ' ' + s.day + '/10 · ' + s.slot + ' h · ' + prof.nombre
+        : mot.nombre + ' · ' + dowSel + ' ' + s.day + '/10 · ' + prof.nombre
+    };
+  }
+}
+</script>
+</body>
+</html>

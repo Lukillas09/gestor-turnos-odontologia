@@ -137,7 +137,7 @@
                     <div><dt>{% include "includes/icon.html" with name="clock" %} Duración</dt><dd>{{ duracion_atencion_minutos|default:30 }} minutos</dd></div>
                     <div><dt>{% include "includes/icon.html" with name="user" %} Profesional</dt><dd>{{ odontologo.nombre_completo }}</dd></div>
                 </dl>
-                <a class="button public-outline-button" href="{% url 'turnos:solicitud_publica' %}?odontologo={{ odontologo.pk }}{% if tipo_turno %}&amp;tipo_turno={{ tipo_turno.pk }}{% endif %}&amp;fecha={{ fecha|date:'Y-m-d' }}">{% include "includes/icon.html" with name="arrow-left" %} Cambiar horario</a>
+                <a class="button public-outline-button" href="{{ url_seleccion }}">{% include "includes/icon.html" with name="arrow-left" %} Cambiar horario</a>
             </aside>
         {% endif %}
     </div>

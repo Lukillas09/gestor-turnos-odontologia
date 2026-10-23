@@ -1,0 +1,20 @@
+{% load static %}
+<footer class="public-footer">
+    <div class="public-footer-inner">
+        <p class="public-footer-brand">
+            <span class="public-footer-logo" aria-hidden="true">
+                {% if configuracion_consultorio.logo_url %}
+                    <img src="{{ configuracion_consultorio.logo_url }}" alt="">
+                {% else %}
+                    <img src="{% static 'images/consultorio-abete-logo.png' %}" alt="">
+                {% endif %}
+            </span>
+            <span>&copy; {% now "Y" %} {{ configuracion_consultorio.nombre_visible|default:"Gestor de Turnos" }}{% if configuracion_consultorio.localidad and configuracion_consultorio.mostrar_direccion %} &middot; {{ configuracion_consultorio.localidad }}{% endif %}</span>
+        </p>
+        <nav class="public-footer-nav" aria-label="Pie de página">
+            <a href="{% url 'turnos:solicitud_publica' %}">Reservar turno</a>
+            <a href="{% url 'turnos:acceso_publico_solicitar' %}">Mis turnos</a>
+            <a href="{% url 'login' %}">Acceso para personal del consultorio</a>
+        </nav>
+    </div>
+</footer>

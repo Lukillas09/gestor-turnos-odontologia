@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tus datos — Consultorio Abete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFAF7}
+a{color:#2D2823}a:hover{color:#8A6224}
+.field{transition:border-color 140ms ease,box-shadow 140ms ease}
+.field:focus{outline:none;border-color:#8A6224 !important;box-shadow:0 0 0 4px rgba(190,145,66,0.22)}
+.btn-gold:hover{background:#74511C !important;color:#FFFFFF !important}
+a:focus-visible,button:focus-visible{outline:3px solid #BE9142;outline-offset:2px}
+</style>
+</helmet>
+<div style="background: #FBFAF7; color: #2D2823; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 16px; line-height: 1.5; min-height: 100vh">
+
+  <header style="border-bottom: 1px solid #E6DED2; background: #FFFEFA">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none">
+        <img src="../../../app/static/images/consultorio-abete-logo.png" alt="" style="width: 56px; height: 36px; object-fit: contain">
+        <span style="font-family: Fraunces, Georgia, serif; font-size: 20px; font-weight: 500">Consultorio Abete</span>
+      </a>
+      <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #2F5E48"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"></rect><path d="M8 10.5V7.5a4 4 0 018 0v3"></path></svg>Conexión segura · Tus datos están protegidos</span>
+    </div>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 36px 24px 72px; display: flex; flex-direction: column; gap: 32px">
+    <nav aria-label="Progreso de la reserva">
+      <ol style="list-style: none; margin: 0 auto; padding: 0; max-width: 720px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <li style="display: flex; flex-direction: column; gap: 8px">
+          <span style="height: 4px; border-radius: 4px; background: #3F7D60"></span>
+          <a href="Reserva.dc.html" style="font-size: 14px; font-weight: 600; color: #2F5E48; text-decoration: none; display: inline-flex; align-items: center; gap: 6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>1 · Turno</a>
+        </li>
+        <li aria-current="step" style="display: flex; flex-direction: column; gap: 8px">
+          <span style="height: 4px; border-radius: 4px; background: #BE9142"></span>
+          <span style="font-size: 14px; font-weight: 600; color: #74511C">2 · Tus datos</span>
+        </li>
+        <li style="display: flex; flex-direction: column; gap: 8px">
+          <span style="height: 4px; border-radius: 4px; background: #E6DED2"></span>
+          <span style="font-size: 14px; color: #6B645C">3 · Confirmación</span>
+        </li>
+      </ol>
+    </nav>
+
+    <div style="text-align: center; display: flex; flex-direction: column; gap: 6px">
+      <h1 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 42px; line-height: 1.1">Completá tus datos</h1>
+      <p style="margin: 0; color: #5E5750">Los usamos solo para gestionar tu turno y avisarte cuando esté confirmado.</p>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+      <form style="flex: 999 1 600px; min-width: 0; padding: 32px; border-radius: 24px; background: #FFFEFA; border: 1px solid #E6DED2; display: flex; flex-direction: column; gap: 22px">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="f-nombre" style="font-size: 14px; font-weight: 600">Nombre</label>
+            <input class="field" id="f-nombre" type="text" autocomplete="given-name" value="Lucía" style="min-height: 50px; padding: 0 16px; border-radius: 14px; border: 1.5px solid #DDD3C4; background: #FFFFFF; font: inherit; color: #2D2823">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="f-apellido" style="font-size: 14px; font-weight: 600">Apellido</label>
+            <input class="field" id="f-apellido" type="text" autocomplete="family-name" value="Fernández" style="min-height: 50px; padding: 0 16px; border-radius: 14px; border: 1.5px solid #DDD3C4; background: #FFFFFF; font: inherit; color: #2D2823">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="f-tel" style="font-size: 14px; font-weight: 600">Teléfono</label>
+            <input class="field" id="f-tel" type="tel" autocomplete="tel" placeholder="Ej. 260 4123456" aria-describedby="h-tel" style="min-height: 50px; padding: 0 16px; border-radius: 14px; border: 1.5px solid #DDD3C4; background: #FFFFFF; font: inherit; color: #2D2823">
+            <span id="h-tel" style="font-size: 13px; color: #6B645C">Con código de área, sin 0 ni 15.</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="f-dni" style="font-size: 14px; font-weight: 600">DNI</label>
+            <input class="field" id="f-dni" type="text" inputmode="numeric" value="12.34" aria-invalid="true" aria-describedby="e-dni" style="min-height: 50px; padding: 0 16px; border-radius: 14px; border: 1.5px solid #A33F3F; background: #FFF8F7; font: inherit; color: #2D2823">
+            <span id="e-dni" role="alert" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #A33F3F"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5M12 16h.01"></path></svg>Ingresá un DNI válido, solo números.</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <label for="f-email" style="font-size: 14px; font-weight: 600">Email</label>
+          <input class="field" id="f-email" type="email" autocomplete="email" placeholder="tu@email.com" aria-describedby="h-email" style="min-height: 50px; padding: 0 16px; border-radius: 14px; border: 1.5px solid #DDD3C4; background: #FFFFFF; font: inherit; color: #2D2823">
+          <span id="h-email" style="font-size: 13px; color: #6B645C">Te enviamos ahí la confirmación y el código para gestionar tus turnos.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <label for="f-com" style="font-size: 14px; font-weight: 600">Comentario adicional <span style="font-weight: 400; color: #6B645C">(opcional)</span></label>
+          <textarea class="field" id="f-com" rows="3" placeholder="Contanos si tenés alguna molestia o algo que el profesional deba saber." style="padding: 14px 16px; border-radius: 14px; border: 1.5px solid #DDD3C4; background: #FFFFFF; font: inherit; color: #2D2823; resize: vertical"></textarea>
+        </div>
+
+        <div role="group" aria-label="Verificación de seguridad" style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; width: fit-content; border-radius: 12px; border: 1px dashed #D9C9AE; background: #FBFAF7; font-size: 14px; color: #6B645C">
+          <span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid #B5ABA0; background: #FFFFFF"></span>
+          Verificación anti-spam (Cloudflare Turnstile)
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-top: 18px; border-top: 1px solid #EFE8DD">
+          <p style="margin: 0; max-width: 420px; display: flex; gap: 10px; font-size: 13px; color: #5E5750"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3F7D60" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5-7.5-9.5V6L12 3z"></path></svg>Solo el consultorio ve estos datos. No los compartimos con terceros.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px">
+            <a href="Reserva.dc.html" style="display: inline-flex; align-items: center; min-height: 52px; padding: 0 20px; border-radius: 999px; color: #5E5750; text-decoration: none; font-weight: 500">Volver</a>
+            <a class="btn-gold" href="Confirmacion.dc.html" style="display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 28px; border-radius: 999px; background: #8A6224; color: #FFFFFF; font-weight: 600; text-decoration: none">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"></path></svg>
+              Enviar solicitud
+            </a>
+          </div>
+        </div>
+      </form>
+
+      <aside aria-labelledby="h-res" style="flex: 1 1 320px; min-width: 0; padding: 26px; border-radius: 24px; background: #FFFEFA; border: 1px solid #E6DED2; box-shadow: 0 18px 48px rgba(71,55,34,0.08); display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+          <h2 id="h-res" style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 24px">Tu turno</h2>
+          <a href="Reserva.dc.html" style="font-size: 14px; font-weight: 600; color: #74511C">Cambiar</a>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; padding-bottom: 18px; border-bottom: 1px solid #EFE8DD">
+          <span aria-hidden="true" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: #F6EDDD; font-family: Fraunces, Georgia, serif; font-size: 20px; color: #74511C">LA</span>
+          <span style="display: flex; flex-direction: column; line-height: 1.3"><strong style="font-weight: 600">Dra. Laura Abete</strong><span style="font-size: 14px; color: #6B645C">Odontología general</span></span>
+        </div>
+        <dl style="margin: 0; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; justify-content: space-between; gap: 12px"><dt style="color: #6B645C">Motivo</dt><dd style="margin: 0; font-weight: 600">Control</dd></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px"><dt style="color: #6B645C">Fecha</dt><dd style="margin: 0; font-weight: 600">Viernes 23/10/2026</dd></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px"><dt style="color: #6B645C">Horario</dt><dd style="margin: 0; font-weight: 600">09:30 h</dd></div>
+          <div style="display: flex; justify-content: space-between; gap: 12px"><dt style="color: #6B645C">Duración</dt><dd style="margin: 0; font-weight: 600">30 min</dd></div>
+        </dl>
+        <p style="margin: 0; padding: 12px 14px; border-radius: 12px; background: #F6EDDD; font-size: 13px; color: #5C4320">Al enviar verificamos que el horario siga libre. Si alguien lo tomó, te mostramos otras opciones.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
