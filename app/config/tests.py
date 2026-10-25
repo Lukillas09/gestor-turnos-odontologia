@@ -4,8 +4,11 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 
 from django.conf import settings
+from django.contrib.messages import constants
+from django.contrib.messages.storage.base import Message
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
+from django.template.loader import render_to_string
 from django.test import SimpleTestCase, override_settings
 
 from .database import configurar_base_de_datos
@@ -171,3 +174,23 @@ class SupabaseStorageTests(SimpleTestCase):
     def test_requiere_url_de_supabase(self):
         with self.assertRaises(ImproperlyConfigured):
             SupabaseStorage()
+
+
+class MensajesCompartidosTests(SimpleTestCase):
+    def test_la_region_en_vivo_va_en_el_texto_y_el_li_conserva_su_rol(self):
+        html = render_to_string(
+            "includes/messages.html",
+            {
+                "messages": [
+                    Message(constants.SUCCESS, "Guardado."),
+                    Message(constants.ERROR, "No se pudo guardar."),
+                ]
+            },
+        )
+
+        self.assertIn('<ul class="messages" aria-label="Notificaciones">', html)
+        self.assertIn('<li class="message success" data-message>', html)
+        self.assertIn('<li class="message error" data-message>', html)
+        self.assertIn('<span class="message-copy" role="status">', html)
+        self.assertIn('<span class="message-copy" role="alert">', html)
+        self.assertNotIn('<li class="message success" role=', html)
