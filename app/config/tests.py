@@ -177,20 +177,30 @@ class SupabaseStorageTests(SimpleTestCase):
 
 
 class MensajesCompartidosTests(SimpleTestCase):
+    def _render(self, *mensajes):
+        return render_to_string("includes/messages.html", {"messages": list(mensajes)})
+
     def test_la_region_en_vivo_va_en_el_texto_y_el_li_conserva_su_rol(self):
-        html = render_to_string(
-            "includes/messages.html",
-            {
-                "messages": [
-                    Message(constants.SUCCESS, "Guardado."),
-                    Message(constants.ERROR, "No se pudo guardar."),
-                ]
-            },
-        )
+        html = self._render(Message(constants.SUCCESS, "Guardado."))
 
         self.assertIn('<ul class="messages" aria-label="Notificaciones">', html)
         self.assertIn('<li class="message success" data-message>', html)
-        self.assertIn('<li class="message error" data-message>', html)
-        self.assertIn('<span class="message-copy" role="status">', html)
-        self.assertIn('<span class="message-copy" role="alert">', html)
-        self.assertNotIn('<li class="message success" role=', html)
+        self.assertNotRegex(html, r"<li[^>]*role=")
+
+    def test_solo_los_errores_usan_alert(self):
+        casos = (
+            (constants.ERROR, "error", "alert"),
+            (constants.SUCCESS, "success", "status"),
+            (constants.WARNING, "warning", "status"),
+            (constants.INFO, "info", "status"),
+        )
+        for nivel, clase, rol in casos:
+            with self.subTest(clase=clase):
+                html = self._render(Message(nivel, "Texto del mensaje."))
+
+                self.assertRegex(
+                    html,
+                    rf'(?s)<li class="message {clase}" data-message>.*?'
+                    rf'<span class="message-copy" role="{rol}">',
+                )
+                self.assertEqual(html.count('role="alert"'), 1 if rol == "alert" else 0)
