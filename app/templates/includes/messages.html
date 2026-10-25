@@ -1,13 +1,14 @@
 {% if messages %}
     <ul class="messages" aria-label="Notificaciones">
         {% for message in messages %}
-            <li class="message {{ message.tags|default:'info' }}" {% if message.tags == 'error' %}role="alert"{% else %}role="status"{% endif %} data-message>
+            <li class="message {{ message.tags|default:'info' }}" data-message>
                 <span class="message-icon" aria-hidden="true">
                     {% if message.tags == "success" %}{% include "includes/icon.html" with name="success" %}
                     {% elif message.tags == "error" or message.tags == "warning" %}{% include "includes/icon.html" with name="alert" %}
                     {% else %}{% include "includes/icon.html" with name="info" %}{% endif %}
                 </span>
-                <span class="message-copy">
+                {# La región en vivo va en el texto: el li conserva su semántica de ítem de lista. #}
+                <span class="message-copy" {% if message.tags == 'error' %}role="alert"{% else %}role="status"{% endif %}>
                     <strong>{% if message.tags == "success" %}Listo{% elif message.tags == "error" %}No pudimos completar la acción{% elif message.tags == "warning" %}Atención{% else %}Información{% endif %}</strong>
                     <span>{{ message }}</span>
                 </span>
