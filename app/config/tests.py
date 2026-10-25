@@ -4,8 +4,11 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 
 from django.conf import settings
+from django.contrib.messages import constants
+from django.contrib.messages.storage.base import Message
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
+from django.template.loader import render_to_string
 from django.test import SimpleTestCase, override_settings
 
 from .database import configurar_base_de_datos
@@ -171,3 +174,33 @@ class SupabaseStorageTests(SimpleTestCase):
     def test_requiere_url_de_supabase(self):
         with self.assertRaises(ImproperlyConfigured):
             SupabaseStorage()
+
+
+class MensajesCompartidosTests(SimpleTestCase):
+    def _render(self, *mensajes):
+        return render_to_string("includes/messages.html", {"messages": list(mensajes)})
+
+    def test_la_region_en_vivo_va_en_el_texto_y_el_li_conserva_su_rol(self):
+        html = self._render(Message(constants.SUCCESS, "Guardado."))
+
+        self.assertIn('<ul class="messages" aria-label="Notificaciones">', html)
+        self.assertIn('<li class="message success" data-message>', html)
+        self.assertNotRegex(html, r"<li[^>]*role=")
+
+    def test_solo_los_errores_usan_alert(self):
+        casos = (
+            (constants.ERROR, "error", "alert"),
+            (constants.SUCCESS, "success", "status"),
+            (constants.WARNING, "warning", "status"),
+            (constants.INFO, "info", "status"),
+        )
+        for nivel, clase, rol in casos:
+            with self.subTest(clase=clase):
+                html = self._render(Message(nivel, "Texto del mensaje."))
+
+                self.assertRegex(
+                    html,
+                    rf'(?s)<li class="message {clase}" data-message>.*?'
+                    rf'<span class="message-copy" role="{rol}">',
+                )
+                self.assertEqual(html.count('role="alert"'), 1 if rol == "alert" else 0)
