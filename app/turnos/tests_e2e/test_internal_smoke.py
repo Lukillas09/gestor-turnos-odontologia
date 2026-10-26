@@ -144,6 +144,9 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         self.page.screenshot(path=SCREENSHOT_DIR / name, full_page=False)
 
     def _assert_no_horizontal_overflow(self):
+        # Medir antes de que carguen todas las hojas (base.css llega por @import) da falsos
+        # overflow: la barra lateral todavía no es fixed y su adorno sobresale.
+        self.page.wait_for_load_state("load")
         scroll_width = self.page.evaluate("document.documentElement.scrollWidth")
         client_width = self.page.evaluate("document.documentElement.clientWidth")
         self.assertLessEqual(scroll_width, client_width + 1)
@@ -307,6 +310,8 @@ class InternalSmokeE2ETests(StaticLiveServerTestCase):
         self.page.get_by_role("heading", name="Enmienda 1", exact=True).wait_for()
         self.page.get_by_text("El asiento original permanece intacto", exact=True).wait_for()
         self.page.get_by_role("link", name="Volver al original").click()
+        self.page.get_by_role("heading", name="Entrada de historia clínica").wait_for()
+        self.page.get_by_text("Registro finalizado e inmutable", exact=True).wait_for()
         self._assert_no_horizontal_overflow()
 
         self.page.get_by_role("link", name="Exportar", exact=True).click()
