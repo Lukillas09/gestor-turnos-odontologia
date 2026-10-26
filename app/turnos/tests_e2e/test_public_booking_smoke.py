@@ -109,6 +109,15 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
     def tearDown(self):
         self.context.close()
 
+    def _elegir_fecha(self, fecha):
+        # El cambio de fecha consulta horarios con debounce. Si la fecha inicial ya era esta, los
+        # resultados viejos cumplen las esperas y se redibujan después, borrando la selección.
+        with self.page.expect_response(
+            lambda response: f"fecha={fecha.isoformat()}" in response.url
+        ):
+            self.page.fill("input[name='fecha']", fecha.isoformat())
+            self.page.dispatch_event("input[name='fecha']", "change")
+
     def _capture(self, name):
         if os.environ.get("CAPTURE_UI_SCREENSHOTS") != "1":
             return
@@ -196,8 +205,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         continuar = self.page.locator("[data-public-slot-continue]")
         self.assertTrue(continuar.is_disabled())
         self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
-        self.page.fill("input[name='fecha']", self.fecha.isoformat())
-        self.page.dispatch_event("input[name='fecha']", "change")
+        self._elegir_fecha(self.fecha)
         self.page.locator(".public-slot-button").first.wait_for()
 
         fecha_chip = self.fecha + timedelta(days=1)
@@ -330,8 +338,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.locator("[data-public-calendar-prev]").click()
         self.assertEqual(calendario_mes.inner_text(), mes_inicial)
 
-        self.page.fill("input[name='fecha']", self.fecha.isoformat())
-        self.page.dispatch_event("input[name='fecha']", "change")
+        self._elegir_fecha(self.fecha)
         self.page.locator(
             f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
         ).wait_for()
@@ -384,8 +391,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         opcion_control.wait_for()
         opcion_control.click()
         self.assertIn("20 min", opcion_control.inner_text())
-        self.page.fill("input[name='fecha']", self.fecha.isoformat())
-        self.page.dispatch_event("input[name='fecha']", "change")
+        self._elegir_fecha(self.fecha)
         self.page.locator(
             f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
         ).wait_for(state="attached")
@@ -431,8 +437,7 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.get_by_role("link", name="Reservá tu turno").first.click()
         self.page.locator("[data-public-search-form].is-enhanced").wait_for()
         self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
-        self.page.fill("input[name='fecha']", self.fecha.isoformat())
-        self.page.dispatch_event("input[name='fecha']", "change")
+        self._elegir_fecha(self.fecha)
         self.page.locator(".public-slot-button").first.wait_for()
         self.page.locator("[data-public-results]").scroll_into_view_if_needed()
         self._capture("public-booking-mobile.png")
