@@ -15,7 +15,7 @@ class SinBorradoAdminMixin:
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def get_actions(self, request):
+    def get_actions(self, request, action_location=admin.ActionLocation.CHANGE_LIST):
         return {}
 
 
