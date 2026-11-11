@@ -253,6 +253,12 @@ No activar `DJANGO_SECURE_HSTS_PRELOAD=True` hasta estar seguro de que todos los
 - `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` sin comodines inseguros.
 - Tokens OAuth no visibles en admin ni templates.
 - PostgreSQL configurado, migraciones aplicadas y concurrencia de protecciones validada.
+- `DATABASE_URL` con el pooler de Supabase en modo sesión y `sslmode=require`; timeouts de la base
+  verificados con `SHOW` desde la aplicación (ver `docs/postgresql.md`).
+- Supabase de producción en un plan que **no pausa proyectos inactivos**, con backups activos y
+  límite de conexiones suficiente (checklist completo en `docs/deploy.md`, "Checklist de entrega
+  al cliente").
+- `rls_auto_enable()` revisada según `docs/runbooks/supabase_rls_auto_enable.md`.
 - `TURNOS_PUBLIC_REDIS_REQUIRED=False`; cualquier Redis configurado se usa sólo como caché opcional.
 - Variables `TURNOS_PUBLIC_BOOKING_*` revisadas para el tráfico esperado.
 - Turnstile configurado o decisión documentada para mantenerlo apagado.

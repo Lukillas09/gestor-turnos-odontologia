@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import OperationalError, transaction
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
@@ -16,6 +16,8 @@ from django.utils.dateparse import parse_date, parse_time
 from django.utils.formats import date_format
 from django.views import View
 from django.views.generic import FormView, TemplateView
+
+from config.db_errors import es_espera_de_base_agotada, sqlstate_de
 
 from ..excepciones import (
     obtener_excepciones_activas,
@@ -30,6 +32,7 @@ from ..forms import (
 )
 from ..mixins import PublicShellMixin
 from ..models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
+from ..public_access.exceptions import RETRY_AFTER_PROTECCION_PUBLICA_SECONDS
 from ..services import crear_solicitud_turno_publica_resultado
 from ..smart_scheduling import (
     buscar_candidato,
@@ -38,6 +41,7 @@ from ..smart_scheduling import (
 )
 from ..smart_scheduling_cache import obtener_horarios_inteligentes_cacheados
 from ..solicitudes_publicas.proteccion import (
+    MENSAJE_PROTECCION_NO_DISPONIBLE,
     IdempotenciaSolicitudPublicaInvalida,
     ProteccionSolicitudPublicaError,
     TurnstileSolicitudPublicaInvalido,
@@ -976,6 +980,31 @@ class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):
         except ProteccionSolicitudPublicaError as error:
             form.add_error(None, error.mensaje)
             return self._form_invalid_con_estado(form, error.status_code, error.retry_after)
+        except OperationalError as error:
+            if not es_espera_de_base_agotada(error):
+                raise
+            # Un lock o una consulta agotaron su tiempo: la transacción ya se revirtió. Se libera
+            # la idempotencia (sin esto el reenvío quedaría bloqueado hasta vencer el lease) y se
+            # responde con el mensaje neutral existente. No se reintenta la mutación.
+            logger.warning(
+                "Espera de base agotada al crear la solicitud publica. error_type=%s sqlstate=%s",
+                error.__class__.__name__,
+                sqlstate_de(error),
+            )
+            respuesta_liberacion = self._liberar_idempotencia_adquirida(
+                form,
+                resultado_idempotencia,
+            )
+
+            if respuesta_liberacion:
+                return respuesta_liberacion
+
+            form.add_error(None, MENSAJE_PROTECCION_NO_DISPONIBLE)
+            return self._form_invalid_con_estado(
+                form,
+                503,
+                RETRY_AFTER_PROTECCION_PUBLICA_SECONDS,
+            )
 
         return self._redirigir_confirmacion_generica(resultado)
 

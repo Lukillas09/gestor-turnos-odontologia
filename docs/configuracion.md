@@ -258,14 +258,28 @@ En desarrollo, si la variable queda vacia, se deriva una clave desde `DJANGO_SEC
 | Variable | Obligatoria | Uso |
 | --- | --- | --- |
 | `DATABASE_URL` | No en local, sí en deploy | Configura SQLite o PostgreSQL. |
+| `DATABASE_CONN_MAX_AGE` | No (`60`) | Segundos que se reutiliza una conexión PostgreSQL entre requests; se verifica antes de reutilizarla. |
+| `DATABASE_CONNECT_TIMEOUT_SECONDS` | No (`5`) | `connect_timeout` si la URL no lo trae. |
+| `DATABASE_LOCK_TIMEOUT_SECONDS` | No (`5`) | `lock_timeout` de sesión. |
+| `DATABASE_STATEMENT_TIMEOUT_SECONDS` | No (`20`) | `statement_timeout` de sesión. |
+| `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_SECONDS` | No (`60`) | `idle_in_transaction_session_timeout` de sesión. |
+| `DATABASE_MIGRATION_STATEMENT_TIMEOUT_SECONDS` | No (`0`) | `statement_timeout` que usa `scripts/release.sh` al migrar (`0` lo desactiva). |
+| `DATABASE_MIGRATION_LOCK_TIMEOUT_SECONDS` | No (`30`) | `lock_timeout` que usa `scripts/release.sh` al migrar. |
 
-Si `DATABASE_URL` está vacío, Django usa SQLite local en `app/db.sqlite3`.
+Si `DATABASE_URL` está vacío, Django usa SQLite local en `app/db.sqlite3`. Las variables
+`DATABASE_*` solo aplican a PostgreSQL y aceptan enteros no negativos (`0` desactiva el límite);
+un valor inválido detiene el arranque.
 
-Supabase PostgreSQL:
+Supabase PostgreSQL (pooler en modo sesión, recomendado en Railway):
 
 ```env
-DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
+DATABASE_URL=postgres://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
 ```
+
+Lo que ya traiga la URL (`connect_timeout`, `options=-c lock_timeout=...`) no se pisa. Con el
+puerto `6543` (pooler en modo transacción) se desactivan los cursores del servidor y las
+sentencias preparadas, y no se envían los timeouts de sesión. Detalle, cómo verificarlos y la
+relación con gunicorn en [postgresql.md](postgresql.md).
 
 Si la contraseña tiene caracteres especiales, deben estar codificados para URL.
 
@@ -386,9 +400,15 @@ El bucket debe ser privado. Django genera URLs firmadas temporales para abrir ad
 
 ```env
 WEB_CONCURRENCY=2
+GUNICORN_TIMEOUT=30
+GUNICORN_MAX_REQUESTS=1000
+GUNICORN_MAX_REQUESTS_JITTER=100
 ```
 
-Gunicorn usa esta variable en `scripts/start.sh`.
+Gunicorn usa estas variables en `scripts/start.sh`. `GUNICORN_TIMEOUT` también lo lee Django:
+con PostgreSQL, `DATABASE_STATEMENT_TIMEOUT_SECONDS + DATABASE_LOCK_TIMEOUT_SECONDS` debe ser
+menor, o el arranque falla. `GUNICORN_MAX_REQUESTS` y su jitter reciclan los workers (`0` lo
+desactiva).
 
 ## Validación de Configuración
 

@@ -19,15 +19,22 @@ Railway no reemplaza a Supabase. Railway solo ejecuta la aplicación.
 ## 1. Preparar Supabase PostgreSQL
 
 1. Entrar al proyecto de Supabase.
-2. Copiar la connection string de PostgreSQL.
+2. Copiar la connection string del **Session pooler** (Connect, Session pooler; puerto 5432).
 3. Usarla como `DATABASE_URL`.
 4. Confirmar que tenga `sslmode=require`.
 
 Ejemplo:
 
 ```env
-DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
+DATABASE_URL=postgres://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
 ```
+
+La conexion directa (`db.<ref>.supabase.co`) resuelve solo a IPv6 salvo que el proyecto tenga el
+complemento IPv4, y Railway no sale por IPv6; por eso se usa el pooler en modo sesion. Los timeouts
+de la base (`lock_timeout`, `statement_timeout`, `idle_in_transaction_session_timeout`) y la
+persistencia de conexiones se configuran con variables `DATABASE_*` opcionales, con defaults
+seguros: ver [postgresql.md](postgresql.md). Tras el primer deploy, verificarlos con `SHOW` desde
+la aplicacion (misma guia).
 
 ## 2. Crear servicio en Railway
 
@@ -77,7 +84,7 @@ DJANGO_CSRF_COOKIE_SECURE=True
 DJANGO_SECURE_PROXY_SSL_HEADER=True
 DJANGO_LOG_LEVEL=INFO
 OAUTH_TOKEN_ENCRYPTION_KEY=clave-fernet-generada
-DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
+DATABASE_URL=postgres://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
 WEB_CONCURRENCY=2
 ```
 

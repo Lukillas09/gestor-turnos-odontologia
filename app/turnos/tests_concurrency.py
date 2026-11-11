@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import time, timedelta
 from threading import Barrier, Event
 from unittest import skipUnless
@@ -6,27 +7,32 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import close_old_connections, connection, transaction
 from django.test import TransactionTestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from pacientes.models import Paciente
 from turnos.models import (
     AccionPublicaTurno,
     DisponibilidadOdontologo,
+    IdempotenciaSolicitudPublica,
     Odontologo,
     SolicitudTurnoPublica,
     Turno,
     bloquear_agendas_de_turnos,
 )
 from turnos.notifications import ResultadoNotificacionEmail
+from turnos.public_access.exceptions import ProteccionPublicaNoDisponible
 from turnos.public_access.services import (
     cancelar_turno_publico_seguro,
     reprogramar_turno_publico_seguro,
 )
 from turnos.services import confirmar_turno_con_duracion
 from turnos.solicitudes_publicas.services import crear_solicitud_publica_de_turno
+from turnos.tests import crear_idempotency_token_para_cliente
 
 
 @skipUnless(
@@ -409,6 +415,130 @@ class AgendaConcurrentePostgreSQLTests(TransactionTestCase):
 
         self.assertTrue(lock_libre)
         self.assertEqual(estado_transaccion_proveedor, [False])
+
+    @override_settings(TURNSTILE_ENABLED=False)
+    def test_lock_agotado_en_reserva_publica_responde_503_neutral_y_libera_idempotencia(self):
+        odontologo = self.odontologo_a
+        url = reverse("turnos:solicitud_publica_datos")
+        datos = {
+            "nombre": "Paciente",
+            "apellido": "Bloqueada",
+            "telefono": "1100000000",
+            "documento": "78111222",
+            "email": "bloqueada@example.test",
+            "odontologo": odontologo.pk,
+            "fecha": self.fecha.isoformat(),
+            "hora_inicio": "11:00",
+            "motivo": "",
+            "idempotency_token": crear_idempotency_token_para_cliente(self.client),
+        }
+
+        with (
+            patch("turnos.solicitudes_publicas.services._notificar_solicitud"),
+            self._agenda_retenida(),
+            self._lock_timeout_corto(),
+        ):
+            respuesta = self.client.post(url, datos)
+
+        self.assertContains(
+            respuesta,
+            "No pudimos registrar la solicitud en este momento",
+            status_code=503,
+        )
+        self.assertIn("Retry-After", respuesta.headers)
+        self.assertFalse(Turno.objects.filter(paciente__documento="78111222").exists())
+        # Sin liberar el lease de idempotencia, el reenvío quedaría bloqueado hasta que venza.
+        self.assertFalse(IdempotenciaSolicitudPublica.objects.exists())
+
+        with patch("turnos.solicitudes_publicas.services._notificar_solicitud"):
+            reenvio = self.client.post(url, datos)
+
+        self.assertEqual(reenvio.status_code, 302)
+        self.assertEqual(self._turnos_en(odontologo, time(11, 0)).count(), 1)
+
+    def test_lock_agotado_en_reprogramacion_publica_es_proteccion_no_disponible(self):
+        turno = self._crear_turno(self.odontologo_a, time(9, 0), "reprogramar-lock")
+        accion, token = self._crear_accion(turno, AccionPublicaTurno.TipoAccion.REPROGRAMAR)
+
+        with (
+            patch("turnos.services.programar_integraciones_turno"),
+            self._agenda_retenida(),
+            self._lock_timeout_corto(),
+            self.assertRaises(ProteccionPublicaNoDisponible),
+        ):
+            reprogramar_turno_publico_seguro(
+                accion.pk,
+                token,
+                turno.paciente_id,
+                {"fecha": self.fecha, "hora_inicio": time(12, 0)},
+            )
+
+        # La transacción se revirtió por completo: el turno no se movió y la acción sigue vigente.
+        turno.refresh_from_db()
+        accion.refresh_from_db()
+        self.assertEqual(turno.hora_inicio, time(9, 0))
+        self.assertIsNone(accion.utilizado_en)
+
+    def test_lock_agotado_en_alta_interna_responde_503_en_lugar_de_500(self):
+        usuario = get_user_model().objects.create_user(username="recepcion.lock")
+        grupo, _ = Group.objects.get_or_create(name="Recepcionista")
+        usuario.groups.add(grupo)
+        paciente = self._crear_paciente("alta-lock", "78333444")
+        self.client.force_login(usuario)
+
+        with (
+            patch("turnos.services.programar_integraciones_turno"),
+            self._agenda_retenida(),
+            self._lock_timeout_corto(),
+        ):
+            respuesta = self.client.post(
+                reverse("turnos:crear"),
+                {
+                    "paciente": paciente.pk,
+                    "odontologo": self.odontologo_a.pk,
+                    "fecha": self.fecha.isoformat(),
+                    "hora_inicio": "11:00",
+                    "duracion_minutos": 30,
+                    "motivo": "Control",
+                    "notas": "",
+                },
+            )
+
+        self.assertContains(respuesta, "El sistema está ocupado", status_code=503)
+        self.assertIn("Retry-After", respuesta.headers)
+        self.assertFalse(self._turnos_en(self.odontologo_a, time(11, 0)).exists())
+
+    @contextmanager
+    def _agenda_retenida(self):
+        """Otro worker retiene el bloqueo de agenda de odontologo_a mientras dura el with."""
+        adquirido = Event()
+        liberar = Event()
+
+        def retener():
+            with transaction.atomic():
+                bloquear_agendas_de_turnos([(self.odontologo_a.pk, self.fecha)])
+                adquirido.set()
+                liberar.wait(timeout=15)
+            return True
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            futuro = executor.submit(self._en_worker, retener)
+            try:
+                self.assertTrue(adquirido.wait(timeout=10))
+                yield
+            finally:
+                liberar.set()
+                self.assertTrue(futuro.result(timeout=20))
+
+    @contextmanager
+    def _lock_timeout_corto(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SET lock_timeout TO '300ms'")
+        try:
+            yield
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("RESET lock_timeout")
 
     def _crear_odontologo(self, sufijo):
         usuario = get_user_model().objects.create_user(username=f"concurrencia.{sufijo}")
