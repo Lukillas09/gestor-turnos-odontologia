@@ -1,12 +1,9 @@
-{% if horarios or horarios_extra %}
-    <section class="public-slot-group{% if grupo == 'recomendados' %} is-recommended{% endif %}" data-public-slot-card data-slot-group="{{ grupo }}">
+{% if horarios %}
+    <section class="public-slot-group" data-public-slot-card data-slot-group="{{ grupo }}">
         <h3>{{ titulo }}</h3>
         <div class="public-time-grid">
             {% for opcion in horarios %}
-                <a class="public-slot-button" href="{{ opcion.url }}" data-public-slot="{{ opcion.label }}" aria-label="Seleccionar horario {{ opcion.label }}">{{ opcion.label }}</a>
-            {% endfor %}
-            {% for opcion in horarios_extra %}
-                <a class="public-slot-button" href="{{ opcion.url }}" data-public-slot="{{ opcion.label }}" aria-label="Seleccionar horario {{ opcion.label }}">{{ opcion.label }}</a>
+                <a class="public-slot-button{% if opcion.sugerido %} is-suggested{% endif %}" href="{{ opcion.url }}" data-public-slot="{{ opcion.label }}"{% if opcion.sugerido is not None %} data-slot-suggested="{{ opcion.sugerido|yesno:'true,false' }}"{% endif %} aria-label="Seleccionar horario {{ opcion.label }}{% if opcion.sugerido %}, sugerido{% endif %}">{{ opcion.label }}</a>
             {% endfor %}
         </div>
     </section>

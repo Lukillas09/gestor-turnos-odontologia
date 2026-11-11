@@ -31,7 +31,11 @@ from ..forms import (
 from ..mixins import PublicShellMixin
 from ..models import DisponibilidadOdontologo, Odontologo, SolicitudTurnoPublica, Turno
 from ..services import crear_solicitud_turno_publica_resultado
-from ..smart_scheduling import buscar_candidato, calcular_horarios_inteligentes
+from ..smart_scheduling import (
+    buscar_candidato,
+    buscar_proximo_horario_disponible,
+    calcular_horarios_inteligentes,
+)
 from ..smart_scheduling_cache import obtener_horarios_inteligentes_cacheados
 from ..solicitudes_publicas.proteccion import (
     IdempotenciaSolicitudPublicaInvalida,
@@ -206,10 +210,11 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
                 "odontologo": odontologo,
                 "fecha": fecha,
                 "configuracion_tipo": None,
-                "horarios_recomendados_manana": [],
-                "horarios_recomendados_tarde": [],
-                "horarios_alternativos_manana": [],
-                "horarios_alternativos_tarde": [],
+                "horarios_manana": [],
+                "horarios_tarde": [],
+                "hay_sugeridos": False,
+                "proximo_disponible": None,
+                "mensaje_sin_horarios": "",
                 "dias_cercanos": [],
                 "cache_hit": False,
                 "resultado_inteligente": None,
@@ -219,48 +224,36 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
             configuracion_tipo=configuracion_tipo,
             fecha=fecha,
         )
+        # Una sola lista cronológica por franja; el servidor marca cuáles son sugeridos.
+        cronologicos = resultado.cronologicos
+        horarios_manana = self._crear_opciones_candidatos(
+            configuracion_tipo,
+            fecha,
+            [candidato for candidato in cronologicos if candidato.hora_inicio.hour < 13],
+        )
+        horarios_tarde = self._crear_opciones_candidatos(
+            configuracion_tipo,
+            fecha,
+            [candidato for candidato in cronologicos if candidato.hora_inicio.hour >= 13],
+        )
+        proximo_disponible = None
+        mensaje_sin_horarios = ""
+        if not cronologicos:
+            proximo_disponible = self._buscar_proximo_disponible(configuracion_tipo, fecha)
+            mensaje_sin_horarios = self._crear_mensaje_sin_horarios(proximo_disponible)
         return {
             "odontologo": odontologo,
             "fecha": fecha,
             "configuracion_tipo": configuracion_tipo,
             "tipo_turno": configuracion_tipo.tipo_turno,
             "duracion_atencion_minutos": configuracion_tipo.duracion_atencion_minutos,
-            "horarios_recomendados_manana": self._crear_opciones_candidatos(
-                configuracion_tipo,
-                fecha,
-                [
-                    candidato
-                    for candidato in resultado.recomendados
-                    if candidato.hora_inicio.hour < 13
-                ],
+            "horarios_manana": horarios_manana,
+            "horarios_tarde": horarios_tarde,
+            "hay_sugeridos": any(
+                opcion["sugerido"] for opcion in [*horarios_manana, *horarios_tarde]
             ),
-            "horarios_recomendados_tarde": self._crear_opciones_candidatos(
-                configuracion_tipo,
-                fecha,
-                [
-                    candidato
-                    for candidato in resultado.recomendados
-                    if candidato.hora_inicio.hour >= 13
-                ],
-            ),
-            "horarios_alternativos_manana": self._crear_opciones_candidatos(
-                configuracion_tipo,
-                fecha,
-                [
-                    candidato
-                    for candidato in resultado.alternativos
-                    if candidato.hora_inicio.hour < 13
-                ],
-            ),
-            "horarios_alternativos_tarde": self._crear_opciones_candidatos(
-                configuracion_tipo,
-                fecha,
-                [
-                    candidato
-                    for candidato in resultado.alternativos
-                    if candidato.hora_inicio.hour >= 13
-                ],
-            ),
+            "proximo_disponible": proximo_disponible,
+            "mensaje_sin_horarios": mensaje_sin_horarios,
             "dias_cercanos": self._obtener_dias_cercanos(
                 odontologo,
                 fecha,
@@ -269,6 +262,40 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
             "cache_hit": cache_hit,
             "resultado_inteligente": resultado,
         }
+
+    def _buscar_proximo_disponible(self, configuracion_tipo, fecha):
+        """Próximo horario libre dentro de la ventana pública; solo informativo."""
+        encontrado = buscar_proximo_horario_disponible(
+            odontologo=configuracion_tipo.odontologo,
+            desde=fecha,
+            duracion_atencion_minutos=configuracion_tipo.duracion_atencion_minutos,
+            margen_posterior_minutos=configuracion_tipo.margen_posterior_minutos,
+        )
+        if not encontrado:
+            return None
+        dia, candidato = encontrado
+        return {
+            "fecha": dia,
+            "hora": candidato.hora_inicio,
+            "label": candidato.hora_inicio.strftime("%H:%M"),
+            "url": self._crear_url_reserva(
+                configuracion_tipo.odontologo,
+                dia,
+                candidato.hora_inicio,
+                configuracion_tipo=configuracion_tipo,
+                clasificacion=candidato.clasificacion,
+            ),
+        }
+
+    @staticmethod
+    def _crear_mensaje_sin_horarios(proximo_disponible):
+        if proximo_disponible:
+            return "No hay horarios disponibles para esa fecha."
+        # Solo se busca hacia adelante: el mensaje no afirma nada sobre días anteriores.
+        return (
+            "No encontramos horarios disponibles después de esta fecha dentro de la ventana "
+            "de reserva. Probá con otra fecha, otro profesional u otro motivo."
+        )
 
     def _crear_opciones_horarias(self, odontologo, fecha, horarios):
         if not odontologo or not fecha:
@@ -296,6 +323,7 @@ class SolicitudTurnoPublicaDisponibilidadMixin:
                     clasificacion=candidato.clasificacion,
                 ),
                 "clasificacion": candidato.clasificacion,
+                "sugerido": candidato.clasificacion == Turno.ClasificacionHorario.RECOMENDADO,
             }
             for candidato in candidatos
         ]
@@ -434,10 +462,9 @@ class SolicitudTurnoPublicaView(
                 "fecha": None,
                 "horarios_manana": [],
                 "horarios_tarde": [],
-                "horarios_recomendados_manana": [],
-                "horarios_recomendados_tarde": [],
-                "horarios_alternativos_manana": [],
-                "horarios_alternativos_tarde": [],
+                "hay_sugeridos": False,
+                "proximo_disponible": None,
+                "mensaje_sin_horarios": "",
                 "dias_cercanos": [],
                 **disponibilidad,
             }
@@ -670,19 +697,9 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
     def _respuesta_horarios_inteligentes(self, disponibilidad, inicio):
         resultado = disponibilidad["resultado_inteligente"]
         configuracion_tipo = disponibilidad["configuracion_tipo"]
-        recomendados_manana = disponibilidad["horarios_recomendados_manana"]
-        recomendados_tarde = disponibilidad["horarios_recomendados_tarde"]
-        alternativos_manana = disponibilidad["horarios_alternativos_manana"]
-        alternativos_tarde = disponibilidad["horarios_alternativos_tarde"]
-        total = sum(
-            len(grupo)
-            for grupo in (
-                recomendados_manana,
-                recomendados_tarde,
-                alternativos_manana,
-                alternativos_tarde,
-            )
-        )
+        horarios_manana = disponibilidad["horarios_manana"]
+        horarios_tarde = disponibilidad["horarios_tarde"]
+        total = len(horarios_manana) + len(horarios_tarde)
         duracion_ms = round((perf_counter() - inicio) * 1000)
         logger.info(
             (
@@ -706,9 +723,9 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
             {
                 "ok": True,
                 "mensaje": (
-                    "Te mostramos primero los horarios que mejor encajan con la disponibilidad."
+                    "Elegí el horario que prefieras."
                     if total
-                    else "No hay horarios disponibles para esa fecha. Probá con otro día."
+                    else disponibilidad["mensaje_sin_horarios"]
                 ),
                 "odontologo": self._serializar_odontologo(disponibilidad["odontologo"]),
                 "tipo_turno": {
@@ -720,14 +737,12 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
                 "dias_cercanos": [
                     self._serializar_dia_cercano(dia) for dia in disponibilidad["dias_cercanos"]
                 ],
-                "horarios_recomendados": {
-                    "manana": self._serializar_horarios(recomendados_manana),
-                    "tarde": self._serializar_horarios(recomendados_tarde),
-                },
-                "horarios_alternativos": {
-                    "manana": self._serializar_horarios(alternativos_manana),
-                    "tarde": self._serializar_horarios(alternativos_tarde),
-                },
+                "horarios_manana": self._serializar_horarios(horarios_manana),
+                "horarios_tarde": self._serializar_horarios(horarios_tarde),
+                "hay_sugeridos": disponibilidad["hay_sugeridos"],
+                "proximo_disponible": self._serializar_proximo_disponible(
+                    disponibilidad["proximo_disponible"]
+                ),
                 "algoritmo_version": resultado.algoritmo_version,
             }
         )
@@ -793,13 +808,25 @@ class SolicitudTurnoPublicaHorariosView(SolicitudTurnoPublicaDisponibilidadMixin
 
     @staticmethod
     def _serializar_horarios(horarios):
+        # `sugerido` solo existe en el flujo inteligente; nunca se expone puntaje ni razones.
         return [
             {
                 "label": opcion["label"],
                 "url": opcion["url"],
+                **({"sugerido": opcion["sugerido"]} if "sugerido" in opcion else {}),
             }
             for opcion in horarios
         ]
+
+    @classmethod
+    def _serializar_proximo_disponible(cls, proximo_disponible):
+        if not proximo_disponible:
+            return None
+        return {
+            "fecha": cls._serializar_fecha(proximo_disponible["fecha"]),
+            "hora": proximo_disponible["label"],
+            "url": proximo_disponible["url"],
+        }
 
 
 class SolicitudTurnoPublicaDatosView(PublicShellMixin, FormView):

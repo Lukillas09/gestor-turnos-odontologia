@@ -361,13 +361,10 @@ class HorariosReprogramacionPublicaJsonView(
                 margen_posterior_minutos=(accion.turno.margen_posterior_minutos_snapshot),
                 turno_excluido=accion.turno,
             )
-            recomendados = [
-                self._serializar_candidato(candidato) for candidato in resultado.recomendados
+            # Una sola lista cronológica: en la reprogramación no se destacan horarios.
+            horarios = [
+                self._serializar_candidato(candidato) for candidato in resultado.cronologicos
             ]
-            alternativos = [
-                self._serializar_candidato(candidato) for candidato in resultado.alternativos
-            ]
-            horarios = recomendados + alternativos
         else:
             horarios_legacy = obtener_horarios_publicos_disponibles(
                 odontologo=accion.turno.odontologo,
@@ -375,8 +372,6 @@ class HorariosReprogramacionPublicaJsonView(
                 duracion_minutos=accion.turno.duracion_minutos,
                 turno_excluido=accion.turno,
             )
-            recomendados = []
-            alternativos = []
             horarios = [
                 {"value": horario.strftime("%H:%M"), "label": horario.strftime("%H:%M")}
                 for horario in horarios_legacy
@@ -393,13 +388,7 @@ class HorariosReprogramacionPublicaJsonView(
         return JsonResponse(
             {
                 "horarios": horarios,
-                "horarios_recomendados": recomendados,
-                "horarios_alternativos": alternativos,
-                "mensaje": (
-                    "Te mostramos primero los horarios que mejor encajan con la disponibilidad."
-                    if recomendados
-                    else "Solo se muestran horarios libres."
-                ),
+                "mensaje": "Solo se muestran horarios libres.",
             }
         )
 

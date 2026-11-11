@@ -17,8 +17,19 @@ código y la migración.
   lista cerrada, orden y estados activo/visible.
 - `TipoTurnoOdontologo` vincula el catálogo con un profesional. Define duración de atención,
   margen posterior, estado y si admite reserva pública.
-- `ConfiguracionAgendaInteligente` guarda la grilla, el hueco mínimo útil, los límites de
-  resultados, la preservación de bloques largos y el modo de compactación por odontólogo.
+- `ConfiguracionAgendaInteligente` guarda la grilla, el hueco mínimo útil, la cantidad de
+  horarios recomendados, la preservación de bloques largos y el modo de compactación por
+  odontólogo. `cantidad_horarios_alternativos` quedó **obsoleto desde `smart-v2`**: la columna
+  se conserva sin migración, pero el motor la ignora y ni el panel interno ni el admin la
+  muestran.
+- `ConfiguracionAgendaInteligente.activa` es el interruptor maestro (solo administración): si se
+  apaga, el profesional no ofrece **ningún** horario inteligente. `evitar_huecos` (migración
+  aditiva `0019`, `default` y `db_default` `True`: la columna conserva su valor por defecto en la
+  base, así revertir el código no impide crear configuraciones) es el interruptor del odontólogo, "Organizar turnos para
+  evitar huecos": encendido es el comportamiento de `smart-v2`; apagado ofrece la grilla pura,
+  sin antifragmentación, sin anclas ni sugeridos (todo se clasifica `alternativo`). Se aplica en
+  el motor, así que la oferta y la revalidación bajo bloqueo no pueden divergir, y no requiere
+  subir la versión del algoritmo porque el valor por defecto no cambia ningún resultado.
 - `Turno` y `SolicitudTurnoPublica` conservan snapshots del tipo, las duraciones y la versión
   del algoritmo. Los cambios posteriores de configuración no alteran reservas existentes.
 
@@ -57,41 +68,111 @@ La grilla de inicio es independiente de la duración. Por ejemplo, un servicio d
 puede comenzar cada 15 minutos. Un candidato solo existe si el bloque completo entra, cumple
 la ventana y anticipación públicas, no se superpone y no cae en una excepción.
 
-Un candidato se descarta si deja a cualquiera de sus lados un fragmento mayor que cero y menor
-que `hueco_minimo_util_minutos`. Cero es válido. Los restos se valoran también contra las
-duraciones bloqueadas de los demás servicios públicos reales del profesional.
+### Candidatos anclados
 
-## Puntuación v1
+Además de la grilla, cada intervalo libre genera dos candidatos anclados a sus bordes: el
+inicio del intervalo y `fin del intervalo - duración bloqueada`. Así, si un turno interno con
+duración manual termina 10:20, se ofrece 10:20 aunque no caiga en la grilla. Las anclas se
+redondean a minutos enteros (el inicio hacia arriba y el fin hacia abajo) porque el horario
+viaja como `HH:MM` y se revalida por igualdad exacta al guardar. Se descartan duplicados y se
+respetan `hora_inicio_minima`, anticipación, ventana pública y excepciones.
 
-La versión persistida es `smart-v1`. La fórmula centralizada es:
+### Antifragmentación y fallback por intervalo
 
-| Regla | Puntos |
-| --- | ---: |
-| Ocupa exactamente todo el intervalo libre | +1000 |
-| Queda pegado al inicio | +350 |
-| Queda pegado al final | +350 |
-| Completa un hueco exacto limitado por turnos | +220 |
-| Un resto coincide exactamente con otro servicio | +180 |
-| Un resto admite al menos otro servicio | +100 |
-| Conserva un bloque largo | +60 |
-| Evita dividir el intervalo | +40 |
-| Bonificación del modo inicio/final | +80 |
-| Divide el intervalo en dos | -150 |
-| Reduce el único bloque largo | -220 |
-| Fragmenta un bloque largo sin conservar otro largo | -300 |
+Un candidato deja un fragmento inútil si a cualquiera de sus lados queda un resto mayor que
+cero y menor que `hueco_minimo_util_minutos`. Cero es válido. Es una **preferencia, no una
+prohibición**: si en un intervalo todos los candidatos que entran dejarían un fragmento inútil,
+se rescata el mejor candidato pegado a un borde (con preferencia por quedar pegado a un turno
+existente) y lleva la razón técnica `fallback_fragmentacion`. Por ejemplo, un hueco de 60
+minutos con un servicio de 45 ofrece 10:00 en lugar de quedar vacío. Los restos se valoran
+también contra las duraciones bloqueadas de los demás servicios públicos reales del profesional.
+
+`descartados_por_fragmentacion` cuenta solo los candidatos que no se ofrecieron; el rescatado
+no se cuenta. Los candidatos que la anticipación mínima ya excluyó tampoco participan del
+fallback.
+
+## Orden de preferencia `smart-v2`
+
+La versión persistida es `smart-v2`. Reemplaza a los pesos numéricos de `smart-v1` por un
+**orden lexicográfico explícito**: se compara el primer criterio y solo se pasa al siguiente en
+caso de empate. De mayor a menor importancia:
+
+| | Criterio | Valores |
+| --- | --- | --- |
+| a | Ocupa exactamente todo el intervalo libre | 1 / 0 |
+| b | No deja un hueco inútil (0 solo en un candidato de fallback) | 1 / 0 |
+| c | Queda pegado a un turno o bloqueo (2) o al borde de la disponibilidad (1) | 2 / 1 / 0 |
+| d | No rompe un bloque largo (si `preservar_bloques_largos` está activo) | 1 / 0 |
+| e | El resto sirve para otro servicio publicado: exacto (2) o admite (1) | 2 / 1 / 0 |
+| f | Coincide con el modo de compactación (inicio o final) | 1 / 0 |
+| | Desempate final: hora de inicio más temprana y luego fin bloqueado | |
+
+`puntaje` es esa tupla codificada en seis dígitos (`a·10⁵ + b·10⁴ + c·10³ + d·10² + e·10 + f`,
+por ejemplo `112100` para un horario que ocupa un hueco exacto entre turnos). Ordenar por
+puntaje descendente equivale a comparar la tupla, y cada dígito se puede explicar en una
+auditoría. **El puntaje solo es comparable dentro de la misma `algoritmo_version`**: el de
+`smart-v1` se calculaba con otros pesos y no debe compararse con el de `smart-v2`.
+
+Consecuencias del orden elegido:
+
+- Como (b) va antes que (c), un horario de fallback queda por debajo de cualquier horario
+  válido del día, aunque llene un hueco entre dos turnos. Casi nunca se recomienda, pero siempre
+  se ofrece entre los alternativos.
+- Se eliminó el matiz de `smart-v1` que castigaba distinto reducir el *único* bloque largo del
+  día; (d) ahora es un booleano que penaliza romper cualquier bloque largo.
 
 La puntuación nunca vuelve válido un horario inválido. Los empates se resuelven por hora de
-inicio y fin bloqueado, por lo que el resultado es estable.
+inicio y fin bloqueado, por lo que el resultado es estable. Los turnos y solicitudes creados
+antes conservan su snapshot `smart-v1` con su puntaje original; las reservas y reprogramaciones
+nuevas guardan `smart-v2`.
 
-## Recomendados y alternativas
+## Horarios sugeridos y lista cronológica
 
-Los candidatos se ordenan por puntuación. La selección recomendada intenta incluir mañana y
-tarde cuando ambas existen y separa opciones al menos 60 minutos antes de completar el cupo.
-Los candidatos válidos restantes aparecen en `Ver más horarios`, hasta el límite configurado.
-El paciente puede elegir cualquiera de ellos y se guarda la clasificación elegida.
+Los candidatos se ordenan por el orden de preferencia. Los **sugeridos son un destacado, no un
+filtro**: la selección (`recomendados` en el motor, `cantidad_horarios_recomendados`) intenta
+incluir mañana y tarde cuando ambas existen y separa opciones al menos 60 minutos antes de
+completar el cupo. Todos los demás candidatos válidos son alternativos, de modo que
+`recomendados + alternativos = total_candidatos_validos`. `cantidad_horarios_alternativos` ya no
+limita el resultado: el trabajo está acotado por construcción (una grilla más dos anclas por
+intervalo libre). `buscar_candidato` acepta cualquier horario ofrecido, incluidos los anclados y
+los de fallback, tanto en la reserva como en la reprogramación pública.
 
-Las razones técnicas y el puntaje sirven para tests y auditoría interna. Los endpoints públicos
-no exponen puntajes, razones, turnos ocupados ni datos de otros pacientes.
+### Qué ve el paciente
+
+El criterio de "sugerido" optimiza la agenda del consultorio, no la comodidad del paciente, por
+eso no se presenta como "recomendado". La pantalla de reserva muestra **todos** los horarios en
+una lista cronológica por franja (Mañana antes de las 13:00, Tarde desde las 13:00):
+
+- los sugeridos llevan una estrella (`is-suggested`, `data-slot-suggested="true"`), un borde
+  distinto y un `aria-label` que termina en ", sugerido", de modo que el estado no depende solo
+  del color;
+- una leyenda "Horario sugerido por el consultorio" aparece solo si hay sugeridos;
+- `ResultadoHorariosInteligentes.cronologicos` es la única fuente: el render sin JavaScript
+  (`public_slot_card.html`) y el JSON (`horarios_manana`, `horarios_tarde`, con `sugerido`,
+  `hay_sugeridos`) salen de las mismas opciones, y `public-booking.js` usa una sola función de
+  render para ambos flujos. Un test compara las ternas (franja, horario, sugerido) del HTML y del
+  JSON;
+- el JSON no expone puntaje ni razones; `sugerido` es un booleano derivado de la clasificación.
+
+En la **reprogramación pública** no se destacan horarios: el JSON y las opciones del formulario
+devuelven una sola lista cronológica (`horarios`).
+
+### Estado vacío: próximo disponible
+
+Si el día elegido no tiene horarios, la respuesta incluye `proximo_disponible` (fecha, hora y la
+URL del formulario de datos de ese horario) y la pantalla muestra "Próximo disponible: <día> ·
+<hora>" con un link directo. Si no hay horarios posteriores dentro de la ventana pública se
+muestra "No encontramos horarios disponibles después de esta fecha dentro de la ventana de
+reserva...". La búsqueda solo mira hacia adelante, por eso el texto no afirma nada sobre los
+días anteriores (que pueden tener horarios).
+
+`buscar_proximo_horario_disponible` recorre desde el día siguiente al elegido hasta el último día
+de la ventana pública de reserva. Carga la agenda de todo el rango en bloque
+(`cargar_contexto_agenda`: disponibilidades, turnos, excepciones y duraciones, con una cantidad de
+consultas constante sin importar el largo de la ventana) y evalúa cada día en memoria con
+`calcular_horarios_del_dia`, la misma función que usa `calcular_horarios_inteligentes` para un
+día. La búsqueda solo se ejecuta cuando el día elegido está vacío, no usa caché y es informativa:
+al reservar se vuelve a validar bajo bloqueo. No aplica al flujo legacy ni a la reprogramación.
 
 ## Flujo público y seguridad
 
@@ -101,7 +182,8 @@ Con el flag activo:
 2. `/turnos/solicitar/tipos/` devuelve solo servicios activos, visibles y habilitados para ese
    profesional.
 3. Elige el motivo y la fecha.
-4. `/turnos/solicitar/horarios/` devuelve recomendados y alternativas.
+4. `/turnos/solicitar/horarios/` devuelve una lista cronológica por franja, con los sugeridos
+   marcados, y el próximo disponible cuando el día está vacío.
 5. La URL conserva odontólogo, tipo, fecha, hora y clasificación; nunca duración, margen o
    puntaje.
 6. El formulario final vuelve a derivar la configuración en el servidor.
@@ -129,8 +211,10 @@ el POST recalcula de todos modos.
 ## Reprogramación y turnos internos
 
 La reprogramación pública usa los snapshots del turno original, no la configuración vigente.
-También excluye el turno actual y revalida bajo bloqueo. Los turnos legacy sin tipo continúan
-usando su duración existente.
+También excluye el turno actual y revalida bajo bloqueo. Como el horario nuevo se revalida con
+el algoritmo vigente, un turno `smart-v1` reprogramado por el paciente pasa a guardar
+`smart-v2` junto con el puntaje del nuevo horario; los turnos que no se reprograman conservan
+su snapshot. Los turnos legacy sin tipo continúan usando su duración existente.
 
 El alta interna puede seleccionar un tipo y recibir la duración configurada, o no seleccionar
 ninguno y cargar una duración manual para casos complejos. El algoritmo público no restringe
@@ -166,9 +250,17 @@ externos.
 
 La sección `/turnos/configuracion/servicios/` permite:
 
-- al odontólogo, administrar sus servicios y su agenda inteligente;
-- a administración, gestionar el catálogo y cualquier profesional;
+- al odontólogo, administrar **solo lo suyo** con una vista simple: la duración aproximada y si
+  cada servicio se reserva online, y el interruptor "Organizar turnos para evitar huecos". Un
+  servicio nuevo del odontólogo queda sin margen operativo;
+- a administración, gestionar el catálogo y cualquier profesional, con todos los campos técnicos
+  (margen, estado, grilla, hueco mínimo, bloque largo, modo de compactación, cantidad de
+  recomendados y el interruptor maestro `activa`);
 - a recepción, consultar la configuración sin modificarla.
+
+El formulario se elige en el servidor según el rol (`get_form_class`), no se oculta en la
+plantilla: un POST manual del odontólogo con campos de administración se ignora (el formulario
+solo declara sus campos) y no puede apagar `activa` ni cambiar el margen por omisión.
 
 Sin servicios públicos configurados, el profesional no ofrece horarios bajo el nuevo flujo. No
 existe fallback silencioso a 30 minutos.

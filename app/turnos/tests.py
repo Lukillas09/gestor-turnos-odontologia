@@ -3978,6 +3978,58 @@ class SolicitudTurnoPublicaTests(TestCase):
         self.assertNotEqual(turno.version_publica, version_anterior)
         self.assertIsNotNone(accion.utilizado_en)
 
+    @override_settings(TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=True)
+    def test_reprogramacion_publica_inteligente_lista_los_horarios_en_orden_cronologico(self):
+        from turnos.models import TipoTurno
+
+        paciente = self._crear_paciente_publico()
+        turno = self._crear_turno_publico(paciente, estado=Turno.Estado.PENDIENTE)
+        tipo = TipoTurno.objects.create(
+            nombre="Control",
+            slug="control-reprogramacion",
+            icono=TipoTurno.Icono.CONTROL,
+            visible_publicamente=True,
+        )
+        Turno.objects.filter(pk=turno.pk).update(
+            tipo_turno=tipo,
+            tipo_turno_nombre_snapshot="Control",
+            duracion_atencion_minutos=30,
+            margen_posterior_minutos_snapshot=0,
+            algoritmo_horario_version="smart-v2",
+        )
+        self._solicitar_y_validar_acceso_publico(paciente)
+        accion, _token = self._generar_permiso_publico(
+            turno,
+            AccionPublicaTurno.TipoAccion.REPROGRAMAR,
+        )
+
+        response = self.client.get(
+            reverse("turnos:mis_turnos_reprogramar_horarios", kwargs={"accion_id": accion.id}),
+            {"fecha": self.fecha_turno.isoformat()},
+        )
+        contenido = response.json()
+        valores = [horario["value"] for horario in contenido["horarios"]]
+
+        self.assertEqual(response.status_code, 200)
+        # Sin grupos de recomendados/alternativos ni puntajes: una sola lista cronológica.
+        self.assertEqual(set(contenido), {"horarios", "mensaje"})
+        self.assertTrue(valores)
+        self.assertEqual(valores, sorted(valores))
+        self.assertTrue(
+            all(set(horario) == {"value", "label"} for horario in contenido["horarios"])
+        )
+
+        pagina = self.client.get(
+            reverse("turnos:mis_turnos_reprogramar", kwargs={"accion_id": accion.id})
+        )
+        opciones = [
+            valor
+            for valor, _etiqueta in pagina.context["form"].fields["hora_inicio"].choices
+            if valor
+        ]
+        self.assertEqual(opciones, sorted(opciones))
+        self.assertNotContains(pagina, "Ver más horarios")
+
     @override_settings(
         TURNOS_PUBLIC_ACTION_LIMIT=1,
         TURNOS_PUBLIC_ACTION_WINDOW_SECONDS=600,

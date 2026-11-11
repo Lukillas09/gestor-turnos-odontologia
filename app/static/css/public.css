@@ -853,36 +853,6 @@
     color: var(--teal-500);
 }
 
-.public-more-slots {
-    margin-top: var(--space-4);
-    border-top: 1px solid var(--line);
-    padding-top: var(--space-3);
-}
-
-.public-more-slots > summary {
-    min-height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    cursor: pointer;
-    color: var(--primary-dark);
-    font-weight: 800;
-    list-style: none;
-}
-
-.public-more-slots > summary::-webkit-details-marker {
-    display: none;
-}
-
-.public-more-slots > summary .ui-icon {
-    transition: transform var(--duration-fast) var(--ease-standard);
-}
-
-.public-more-slots[open] > summary .ui-icon {
-    transform: rotate(180deg);
-}
-
 .public-time-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-2);
@@ -1250,14 +1220,6 @@
     background: var(--public-gold);
     color: #ffffff;
     box-shadow: 0 6px 14px rgba(149, 107, 41, 0.16);
-}
-
-.public-more-slots {
-    border-color: var(--public-border);
-}
-
-.public-more-slots > summary {
-    color: var(--public-gold-dark);
 }
 
 .public-booking-empty {
@@ -2652,8 +2614,22 @@ a.public-progress-label:hover {
     text-transform: uppercase;
 }
 
-.public-slot-group.is-recommended h3 {
-    color: var(--public-green-ink);
+.public-slot-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: var(--public-subtle);
+    font-size: 0.8125rem;
+}
+
+.public-slot-legend span {
+    color: var(--public-gold-ink);
+}
+
+.public-pick .public-next-available {
+    min-height: 44px;
+    margin-top: var(--space-3);
 }
 
 .public-pick .public-time-grid {
@@ -2682,9 +2658,20 @@ a.public-progress-label:hover {
     text-decoration: none;
 }
 
-.public-pick .is-recommended .public-slot-button {
+/* El marcador no depende solo del color: lleva una estrella y el aria-label dice "sugerido". */
+.public-pick .public-slot-button.is-suggested {
     border-color: var(--public-gold);
     font-weight: 600;
+}
+
+.public-pick .public-slot-button.is-suggested::after {
+    content: "\2605";
+    color: var(--public-gold-ink);
+    font-size: 0.75em;
+}
+
+.public-pick .public-slot-button.is-suggested[aria-pressed="true"]::after {
+    color: inherit;
 }
 
 .public-pick .public-slot-button:hover,
@@ -4004,15 +3991,6 @@ a.public-progress-label:hover {
     border-color: var(--public-gold-ink);
     background: var(--public-gold-soft);
     color: var(--public-text);
-}
-
-.public-reprogram .public-more-slots > summary {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    color: var(--public-gold-ink-hover);
-    font-weight: 600;
-    cursor: pointer;
 }
 
 .public-reprogram [data-horarios-status] {

@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.forms import ModelForm
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import FormView, TemplateView, UpdateView
@@ -13,8 +14,10 @@ from usuarios.roles import (
 
 from ..forms import (
     ConfiguracionAgendaInteligenteForm,
+    ConfiguracionAgendaOdontologoForm,
     TipoTurnoForm,
     TipoTurnoOdontologoForm,
+    TipoTurnoOdontologoSimplificadoForm,
 )
 from ..models import (
     ConfiguracionAgendaInteligente,
@@ -39,6 +42,10 @@ class ConfiguracionServiciosView(RolRequeridoMixin, TemplateView):
             odontologo and puede_configurar_servicios(self.request.user, odontologo)
         )
         context["puede_gestionar_catalogo"] = puede_gestionar_catalogo_servicios(self.request.user)
+        # El odontólogo ve una vista simple; administración y recepción ven el detalle técnico.
+        context["vista_simplificada"] = (
+            context["puede_editar_servicios"] and not context["puede_gestionar_catalogo"]
+        )
         context["configuraciones"] = (
             TipoTurnoOdontologo.objects.filter(odontologo=odontologo)
             .select_related("tipo_turno")
@@ -76,6 +83,15 @@ class ConfiguracionServiciosView(RolRequeridoMixin, TemplateView):
 
 class ServicioOdontologoPermisoMixin(RolRequeridoMixin):
     odontologo = None
+    # El formulario se elige en el servidor según el rol: los campos técnicos nunca llegan al
+    # odontólogo, ni siquiera por POST manual (un ModelForm ignora lo que no declara).
+    form_class_administracion: type[ModelForm]
+    form_class_odontologo: type[ModelForm]
+
+    def get_form_class(self):
+        if puede_gestionar_catalogo_servicios(self.request.user):
+            return self.form_class_administracion
+        return self.form_class_odontologo
 
     def test_func(self):
         self.odontologo = self.obtener_odontologo()
@@ -96,7 +112,8 @@ class ServicioOdontologoPermisoMixin(RolRequeridoMixin):
 
 
 class TipoTurnoOdontologoCreateView(ServicioOdontologoPermisoMixin, FormView):
-    form_class = TipoTurnoOdontologoForm
+    form_class_administracion = TipoTurnoOdontologoForm
+    form_class_odontologo = TipoTurnoOdontologoSimplificadoForm
     template_name = "turnos/tipos_turno/form.html"
 
     def obtener_odontologo(self):
@@ -125,7 +142,8 @@ class TipoTurnoOdontologoCreateView(ServicioOdontologoPermisoMixin, FormView):
 
 class TipoTurnoOdontologoUpdateView(ServicioOdontologoPermisoMixin, UpdateView):
     model = TipoTurnoOdontologo
-    form_class = TipoTurnoOdontologoForm
+    form_class_administracion = TipoTurnoOdontologoForm
+    form_class_odontologo = TipoTurnoOdontologoSimplificadoForm
     template_name = "turnos/tipos_turno/form.html"
 
     def obtener_odontologo(self):
@@ -158,7 +176,8 @@ class TipoTurnoOdontologoUpdateView(ServicioOdontologoPermisoMixin, UpdateView):
 
 class ConfiguracionAgendaUpdateView(ServicioOdontologoPermisoMixin, UpdateView):
     model = ConfiguracionAgendaInteligente
-    form_class = ConfiguracionAgendaInteligenteForm
+    form_class_administracion = ConfiguracionAgendaInteligenteForm
+    form_class_odontologo = ConfiguracionAgendaOdontologoForm
     template_name = "turnos/tipos_turno/form.html"
 
     def obtener_odontologo(self):

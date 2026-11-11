@@ -54,8 +54,9 @@ rate limiting ni modelos, y no hay migraciones.
 - **Elegí tu turno**: tarjetas numeradas y resumen sticky; en móvil, barra fija con resumen
   compacto. Profesionales y motivos como `radiogroup`. Calendario sobre el `input[type=date]`
   canónico; en móvil la tira de días es la vista principal y el calendario queda detrás de
-  "Ver calendario" para no perder fechas fuera de los 14 días de la tira. Horarios en
-  "Recomendados", "Mañana" y "Tarde" con los grupos del servidor. `?tipo_turno=` sin
+  "Ver calendario" para no perder fechas fuera de los 14 días de la tira. Horarios en "Mañana" y
+  "Tarde", en orden cronológico, con los sugeridos marcados con estrella y leyenda; un día sin
+  horarios ofrece "Próximo disponible" con link directo. `?tipo_turno=` sin
   profesional preselecciona el motivo cuando el profesional elegido lo ofrece.
 - **Tus datos**: campos desde el form Django, errores con borde, fondo, ícono y `role="alert"`,
   resumen "Tu turno" con "Cambiar".
