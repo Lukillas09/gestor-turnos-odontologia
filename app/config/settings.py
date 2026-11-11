@@ -10,10 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import sys
 from pathlib import Path
 
-from .database import configurar_base_de_datos
-from .env import cargar_env, env, env_bool, env_list
+from .database import (
+    cargar_ajustes_postgres_desde_env,
+    configurar_base_de_datos,
+    validar_coherencia_con_gunicorn,
+)
+from .env import cargar_env, env, env_bool, env_list, env_nonnegative_int
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -78,6 +83,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "config.middleware.ErrorEsperaBaseMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -105,7 +111,26 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {"default": configurar_base_de_datos(env("DATABASE_URL"), BASE_DIR)}
+AJUSTES_CONEXION_POSTGRES = cargar_ajustes_postgres_desde_env()
+DATABASES = {
+    "default": configurar_base_de_datos(
+        env("DATABASE_URL"),
+        BASE_DIR,
+        AJUSTES_CONEXION_POSTGRES,
+    )
+}
+
+# `scripts/start.sh` usa la misma variable. Una consulta o una espera de lock debe terminar antes
+# de que gunicorn mate al worker a mitad de una transacción.
+GUNICORN_TIMEOUT_SECONDS = env_nonnegative_int("GUNICORN_TIMEOUT", 30)
+if DATABASES["default"]["ENGINE"].endswith("postgresql"):
+    validar_coherencia_con_gunicorn(AJUSTES_CONEXION_POSTGRES, GUNICORN_TIMEOUT_SECONDS)
+
+    # Las pruebas de concurrencia usan hilos propios: con conexiones persistentes esas conexiones
+    # quedan abiertas y PostgreSQL no puede borrar la base de pruebas ("is being accessed by
+    # other users"). Solo afecta a `manage.py test`.
+    if sys.argv[1:2] == ["test"]:
+        DATABASES["default"]["CONN_MAX_AGE"] = 0
 
 
 # Password validation
@@ -223,15 +248,6 @@ if CLINICAL_INTEGRITY_ENABLED and not CLINICAL_INTEGRITY_HMAC_KEY:
         "CLINICAL_INTEGRITY_HMAC_KEY debe configurarse cuando la integridad clínica "
         "está habilitada. Debe ser independiente de DJANGO_SECRET_KEY."
     )
-
-
-def env_nonnegative_int(nombre, default):
-    valor = int(env(nombre, str(default)))
-
-    if valor < 0:
-        raise RuntimeError(f"{nombre} no puede ser negativo.")
-
-    return valor
 
 
 INDICACIONES_PDF_MAX_BYTES = env_nonnegative_int(

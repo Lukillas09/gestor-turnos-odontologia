@@ -75,10 +75,27 @@ ACCESO_CLINICO_EMERGENCIA_SECONDS=900
 ### Base de datos Supabase
 
 ```env
-DATABASE_URL=postgres://usuario:password@host.supabase.co:5432/postgres?sslmode=require
+DATABASE_URL=postgres://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
-La URL debe venir de Supabase y debe incluir `sslmode=require`.
+La URL debe venir de Supabase y debe incluir `sslmode=require`. En Railway usar el **pooler de
+Supavisor en modo sesion** (puerto 5432, usuario `postgres.<ref>`): es IPv4. La conexion directa
+`db.<ref>.supabase.co` resuelve solo a IPv6 salvo que el proyecto tenga el complemento IPv4, y
+Railway no sale por IPv6. El modo transaccion (puerto 6543) pierde el estado de sesion y se
+documenta en [postgresql.md](postgresql.md).
+
+Variables opcionales de conexion (segundos; `0` desactiva el limite), con sus defaults:
+
+```env
+DATABASE_CONN_MAX_AGE=60
+DATABASE_CONNECT_TIMEOUT_SECONDS=5
+DATABASE_LOCK_TIMEOUT_SECONDS=5
+DATABASE_STATEMENT_TIMEOUT_SECONDS=20
+DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_SECONDS=60
+```
+
+Su detalle, como verificarlas con `SHOW` desde la aplicacion y el comportamiento con el pooler en
+modo transaccion estan en [postgresql.md](postgresql.md).
 
 ### Protecciones públicas en PostgreSQL
 
@@ -145,7 +162,24 @@ Puede mantenerse apagado en staging inicial con `TURNSTILE_ENABLED=False`. Turns
 
 ```env
 WEB_CONCURRENCY=2
+GUNICORN_TIMEOUT=30
+GUNICORN_MAX_REQUESTS=1000
+GUNICORN_MAX_REQUESTS_JITTER=100
 ```
+
+`scripts/start.sh` pasa estos valores a gunicorn. `GUNICORN_TIMEOUT` tambien lo lee Django:
+`DATABASE_STATEMENT_TIMEOUT_SECONDS + DATABASE_LOCK_TIMEOUT_SECONDS` (25 s por defecto) debe ser
+menor, para que la base corte una consulta o una espera de lock antes de que gunicorn mate al
+worker a mitad de una transaccion. `GUNICORN_MAX_REQUESTS` recicla cada worker pasado ese numero de
+requests (mas el jitter, para que no se reinicien todos a la vez); `0` lo desactiva.
+
+Conexiones a la base: los workers `sync` usan una conexion cada uno, asi que el total es
+`WEB_CONCURRENCY` mas las de `release.sh` y los cron (unas 4 con los valores por defecto), muy
+por debajo del limite del pooler y de `max_connections`. Si se cambia el tipo de worker o se
+sube `WEB_CONCURRENCY`, recalcular contra el limite del plan de Supabase.
+
+`scripts/release.sh` aplica las migraciones sin `statement_timeout` y con `lock_timeout` de 30 s
+(`DATABASE_MIGRATION_STATEMENT_TIMEOUT_SECONDS`, `DATABASE_MIGRATION_LOCK_TIMEOUT_SECONDS`).
 
 ### Email
 
@@ -234,7 +268,9 @@ WhiteNoise sirve los archivos desde `app/staticfiles/`.
 - Variables cargadas.
 - `DJANGO_ALLOWED_HOSTS` contiene el dominio Railway sin `https://`.
 - `DJANGO_CSRF_TRUSTED_ORIGINS` contiene el mismo dominio con `https://`.
-- `DATABASE_URL` apunta a Supabase.
+- `DATABASE_URL` apunta a Supabase (pooler en modo sesion, `sslmode=require`).
+- Timeouts de la base verificados con `SHOW` desde la aplicacion
+  (ver [postgresql.md](postgresql.md)).
 - Build finalizado correctamente.
 - Migraciones aplicadas.
 - Superusuario creado.
@@ -246,6 +282,28 @@ WhiteNoise sirve los archivos desde `app/staticfiles/`.
 - Email real probado.
 - Google Calendar probado con al menos un odontólogo.
 - Adjuntos clínicos probados si Storage está activo.
+
+## Checklist de entrega al cliente (Supabase)
+
+Producción **no** debe estar en un plan que pause proyectos inactivos: un proyecto pausado deja
+la aplicación sin base de datos hasta que alguien lo reactive, y los planes gratuitos de Supabase
+lo hacen tras un período sin actividad. Antes de entregar el sistema, verificar en el panel de
+Supabase y dejarlo anotado:
+
+- El plan del proyecto es de pago y no pausa proyectos inactivos; el proyecto figura **activo**.
+- Los backups automáticos (y, si el plan lo ofrece, Point-in-Time Recovery) están activos, y hay
+  un backup lógico propio restaurado en prueba (ver [backups.md](backups.md)).
+- El tamaño de cómputo y el límite de conexiones del plan cubren el uso previsto (ver la cuenta de
+  conexiones en la sección Deploy y el límite del pooler).
+- SSL obligatorio activo y `sslmode=require` en `DATABASE_URL`.
+- Restricciones de red o complemento IPv4 revisados; Railway se conecta por el pooler IPv4.
+- Los advisors de seguridad y rendimiento están revisados. Los índices "unused" de un entorno sin
+  tráfico no se borran. RLS sin políticas es intencional: bloquea la Data API y Django usa un rol
+  con `bypassrls`.
+- `rls_auto_enable()` revisada según [supabase_rls_auto_enable.md](runbooks/supabase_rls_auto_enable.md).
+- Alertas de uso (base de datos, conexiones, egress) configuradas y con destinatario responsable.
+- Titularidad de las cuentas de Supabase y Railway definida y credenciales entregadas por un
+  canal seguro.
 
 ## Troubleshooting
 

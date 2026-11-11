@@ -675,6 +675,52 @@ class ProteccionesPublicasFailClosedTests(TestCase):
             IdempotenciaSolicitudPublica.Estado.PROCESSING,
         )
 
+    def _error_de_base(self, sqlstate=None):
+        error = OperationalError("dni=88777111 token=secreto")
+        if sqlstate:
+            causa = Exception("detalle")
+            causa.sqlstate = sqlstate
+            error.__cause__ = causa
+        return error
+
+    def test_espera_de_base_agotada_al_crear_la_solicitud_responde_503_y_libera_idempotencia(self):
+        datos = self._datos_reserva_publica()
+        url = reverse("turnos:solicitud_publica_datos")
+
+        with (
+            patch(
+                "turnos.views.public_booking.crear_solicitud_turno_publica_resultado",
+                side_effect=self._error_de_base("55P03"),
+            ),
+            self.captureOnCommitCallbacks(execute=False) as callbacks,
+        ):
+            respuesta = self.client.post(url, datos)
+
+        self._assert_respuesta_booking_503(respuesta)
+        self.assertNotContains(respuesta, "secreto", status_code=503)
+        self.assertEqual(Turno.objects.count(), 1)
+        self.assertFalse(SolicitudTurnoPublica.objects.exists())
+        self.assertEqual(callbacks, [])
+        # Sin liberar el lease, el reenvío quedaría bloqueado hasta que venza.
+        self.assertFalse(IdempotenciaSolicitudPublica.objects.exists())
+
+        reenvio = self.client.post(url, datos)
+
+        self.assertEqual(reenvio.status_code, 302)
+        self.assertEqual(Turno.objects.count(), 2)
+
+    def test_error_de_base_que_no_es_una_espera_sigue_siendo_un_error(self):
+        datos = self._datos_reserva_publica()
+
+        with patch(
+            "turnos.views.public_booking.crear_solicitud_turno_publica_resultado",
+            side_effect=self._error_de_base("08006"),
+        ):
+            with self.assertRaises(OperationalError):
+                self.client.post(reverse("turnos:solicitud_publica_datos"), datos)
+
+        self.assertEqual(Turno.objects.count(), 1)
+
     def _crear_desafio_pendiente(self):
         desafio = DesafioAccesoPublicoTurnos.objects.create(
             paciente=self.paciente,
