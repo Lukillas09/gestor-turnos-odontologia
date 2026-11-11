@@ -1700,3 +1700,26 @@ class HistoriaClinicaPostgreSQLTests(MediaTemporalMixin, TransactionTestCase):
                 "DELETE FROM historias_historiaclinicaadjunto WHERE id = %s",
                 [adjunto.pk],
             )
+
+    def test_funciones_de_triggers_clinicos_tienen_search_path_fijo(self):
+        # Una migración fija el search_path de las funciones de los triggers clínicos (advisor de
+        # Supabase "function_search_path_mutable"). Un CREATE OR REPLACE futuro que olvide el SET
+        # lo vuelve a dejar mutable y este test lo detecta.
+        funciones = [
+            "historias_rechazar_mutacion_append_only",
+            "historias_rechazar_borrado_clinico",
+            "historias_rechazar_cambio_finalizada",
+        ]
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT p.proname, p.proconfig FROM pg_proc p "
+                "JOIN pg_namespace n ON n.oid = p.pronamespace "
+                "WHERE n.nspname = current_schema() AND p.proname = ANY(%s)",
+                [funciones],
+            )
+            configuraciones = dict(cursor.fetchall())
+
+        self.assertEqual(set(configuraciones), set(funciones))
+        for funcion, configuracion in configuraciones.items():
+            with self.subTest(funcion=funcion):
+                self.assertEqual(configuracion, ["search_path=pg_catalog, pg_temp"])
