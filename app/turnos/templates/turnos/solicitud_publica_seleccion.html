@@ -152,24 +152,19 @@
                         {% if odontologo and fecha %}
                             <p class="public-selected-date-label">{{ fecha|date:"l j \d\e F"|capfirst }}</p>
 
-                            {% if smart_scheduling_enabled %}
-                                {% if horarios_recomendados_manana or horarios_recomendados_tarde or horarios_alternativos_manana or horarios_alternativos_tarde %}
-                                    {% include "turnos/includes/public_slot_card.html" with titulo="Recomendados" grupo="recomendados" horarios=horarios_recomendados_manana horarios_extra=horarios_recomendados_tarde %}
-                                    {% include "turnos/includes/public_slot_card.html" with titulo="Mañana" grupo="manana" horarios=horarios_alternativos_manana %}
-                                    {% include "turnos/includes/public_slot_card.html" with titulo="Tarde" grupo="tarde" horarios=horarios_alternativos_tarde %}
-                                {% else %}
-                                    <div class="empty-state public-booking-empty">
-                                        <h3>Sin horarios para este día</h3>
-                                        <p>Probá con otra fecha disponible.</p>
-                                    </div>
+                            {% if horarios_manana or horarios_tarde %}
+                                {% if hay_sugeridos %}
+                                    <p class="public-slot-legend"><span aria-hidden="true">&#9733;</span> Horario sugerido por el consultorio</p>
                                 {% endif %}
-                            {% elif horarios_manana or horarios_tarde %}
                                 {% include "turnos/includes/public_slot_card.html" with titulo="Mañana" grupo="manana" horarios=horarios_manana %}
                                 {% include "turnos/includes/public_slot_card.html" with titulo="Tarde" grupo="tarde" horarios=horarios_tarde %}
                             {% else %}
                                 <div class="empty-state public-booking-empty">
                                     <h3>Sin horarios para este día</h3>
-                                    <p>Probá con otra fecha disponible.</p>
+                                    <p>{{ mensaje_sin_horarios|default:"Probá con otra fecha disponible." }}</p>
+                                    {% if proximo_disponible %}
+                                        <a class="button public-outline-button public-next-available" href="{{ proximo_disponible.url }}" data-public-next-available>Próximo disponible: {{ proximo_disponible.fecha|date:"l j \d\e F"|capfirst }} · {{ proximo_disponible.label }}</a>
+                                    {% endif %}
                                 </div>
                             {% endif %}
                         {% elif not busqueda_form.errors %}

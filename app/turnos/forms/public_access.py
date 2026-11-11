@@ -138,7 +138,7 @@ class TurnoReprogramacionAccesoPublicoForm(HorariosDisponiblesFormMixin, forms.M
                 margen_posterior_minutos=(self.instance.margen_posterior_minutos_snapshot),
                 turno_excluido=self.instance,
             )
-            return [candidato.hora_inicio for candidato in resultado.todos]
+            return [candidato.hora_inicio for candidato in resultado.cronologicos]
         return obtener_horarios_publicos_disponibles(**kwargs)
 
     def clean_accion_token(self):

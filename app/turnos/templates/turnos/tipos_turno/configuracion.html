@@ -48,14 +48,16 @@
             {% else %}
                 <div class="table-wrapper">
                     <table>
-                        <thead><tr><th>Servicio</th><th>Atención</th><th>Margen</th><th>Total bloqueado</th><th>Reserva online</th>{% if puede_editar_servicios %}<th><span class="sr-only">Acciones</span></th>{% endif %}</tr></thead>
+                        <thead><tr><th>Servicio</th><th>Atención</th>{% if not vista_simplificada %}<th>Margen</th><th>Total bloqueado</th>{% endif %}<th>Reserva online</th>{% if puede_editar_servicios %}<th><span class="sr-only">Acciones</span></th>{% endif %}</tr></thead>
                         <tbody>
                             {% for configuracion in configuraciones %}
                                 <tr>
                                     <td><strong>{{ configuracion.tipo_turno.nombre }}</strong>{% if not configuracion.activo %}<br><span class="muted">Desactivado</span>{% endif %}</td>
                                     <td>{{ configuracion.duracion_atencion_minutos }} min</td>
-                                    <td>{{ configuracion.margen_posterior_minutos }} min</td>
-                                    <td>{{ configuracion.duracion_bloqueada_minutos }} min</td>
+                                    {% if not vista_simplificada %}
+                                        <td>{{ configuracion.margen_posterior_minutos }} min</td>
+                                        <td>{{ configuracion.duracion_bloqueada_minutos }} min</td>
+                                    {% endif %}
                                     <td>{% if configuracion.reserva_publica and configuracion.activo %}<span class="status-badge status-confirmado">Activa</span>{% else %}<span class="status-badge">No disponible</span>{% endif %}</td>
                                     {% if puede_editar_servicios %}<td><a class="button button-secondary button-small" href="{% url 'turnos:servicio_odontologo_editar' configuracion.pk %}">Editar</a></td>{% endif %}
                                 </tr>
@@ -68,16 +70,27 @@
 
         <section class="section-panel animate-fade-up">
             <div class="section-heading-row">
-                <div><h2>Agenda inteligente</h2><p>Reglas de compactación, diversidad y preservación de bloques.</p></div>
+                <div>
+                    {% if vista_simplificada %}
+                        <h2>Organización de turnos</h2><p>Evita que queden huecos demasiado cortos para atender a otro paciente.</p>
+                    {% else %}
+                        <h2>Agenda inteligente</h2><p>Reglas de compactación, diversidad y preservación de bloques.</p>
+                    {% endif %}
+                </div>
                 {% if puede_editar_servicios %}<a class="button button-secondary" href="{% url 'turnos:configuracion_agenda_editar' odontologo_seleccionado.pk %}">Configurar</a>{% endif %}
             </div>
             {% if configuracion_agenda %}
                 <div class="detail-grid">
-                    <div><span>Estado</span><strong>{% if configuracion_agenda.activa %}Activa{% else %}Desactivada{% endif %}</strong></div>
-                    <div><span>Grilla</span><strong>{{ configuracion_agenda.intervalo_inicio_minutos }} min</strong></div>
-                    <div><span>Hueco mínimo</span><strong>{{ configuracion_agenda.hueco_minimo_util_minutos }} min</strong></div>
-                    <div><span>Modo</span><strong>{{ configuracion_agenda.get_modo_compactacion_display }}</strong></div>
+                    <div><span>Organizar turnos para evitar huecos</span><strong>{% if configuracion_agenda.evitar_huecos %}Sí{% else %}No{% endif %}</strong></div>
+                    {% if not vista_simplificada %}
+                        <div><span>Estado</span><strong>{% if configuracion_agenda.activa %}Activa{% else %}Desactivada{% endif %}</strong></div>
+                        <div><span>Grilla</span><strong>{{ configuracion_agenda.intervalo_inicio_minutos }} min</strong></div>
+                        <div><span>Hueco mínimo</span><strong>{{ configuracion_agenda.hueco_minimo_util_minutos }} min</strong></div>
+                        <div><span>Modo</span><strong>{{ configuracion_agenda.get_modo_compactacion_display }}</strong></div>
+                    {% endif %}
                 </div>
+            {% elif vista_simplificada %}
+                <p class="muted">Por defecto, los turnos se organizan para evitar huecos.</p>
             {% else %}
                 <p class="muted">Se usarán los valores predeterminados cuando se habilite esta agenda.</p>
             {% endif %}

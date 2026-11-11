@@ -276,10 +276,18 @@ class ConfiguracionAgendaInteligente(models.Model):
         on_delete=models.CASCADE,
         related_name="configuracion_agenda_inteligente",
     )
+    # Interruptor maestro (solo administración): apagado, no se ofrece ningún horario inteligente.
     activa = models.BooleanField(default=True)
+    # Interruptor del odontólogo: apagado ofrece la grilla pura, sin antifragmentación,
+    # anclas ni horarios sugeridos. Encendido (por defecto) es el comportamiento de smart-v2.
+    # `db_default` mantiene el valor por defecto en la base: sin él, revertir el código dejaría
+    # una columna NOT NULL sin default y el código anterior no podría crear configuraciones.
+    evitar_huecos = models.BooleanField(default=True, db_default=True)
     intervalo_inicio_minutos = models.PositiveSmallIntegerField(default=15)
     hueco_minimo_util_minutos = models.PositiveSmallIntegerField(default=30)
     cantidad_horarios_recomendados = models.PositiveSmallIntegerField(default=4)
+    # Obsoleto desde smart-v2: ya no limita los alternativos. Se conserva la columna (sin
+    # migración destructiva) y la validación para no alterar datos ni migraciones existentes.
     cantidad_horarios_alternativos = models.PositiveSmallIntegerField(default=8)
     preservar_bloques_largos = models.BooleanField(default=True)
     bloque_largo_minutos = models.PositiveSmallIntegerField(default=90)

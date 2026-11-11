@@ -17,6 +17,7 @@ from pacientes.models import Paciente
 from turnos.models import (
     ConfiguracionAgendaInteligente,
     DisponibilidadOdontologo,
+    ExcepcionAgenda,
     Odontologo,
     SolicitudTurnoPublica,
     TipoTurno,
@@ -342,16 +343,24 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
         self.page.locator(
             f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
         ).wait_for()
-        self.page.locator("[data-slot-group='recomendados']").wait_for()
+        self.page.locator("[data-slot-group='manana'], [data-slot-group='tarde']").first.wait_for()
         self.page.wait_for_load_state("networkidle")
         horarios_limpieza = self.page.locator("[data-public-slot]").all_inner_texts()
         self.assertGreaterEqual(len(horarios_limpieza), 3)
+        self.assertEqual(horarios_limpieza, sorted(horarios_limpieza))
+        # Los sugeridos se destacan por horario, con leyenda y nombre accesible (no solo color).
+        self.assertEqual(self.page.locator("[data-slot-group='recomendados']").count(), 0)
+        self.page.locator(".public-slot-legend").wait_for()
+        sugerido = self.page.locator("[data-public-slot][data-slot-suggested='true']").first
+        self.assertTrue(sugerido.get_attribute("aria-label").endswith(", sugerido"))
         self._capture("public-booking-smart-mobile.png")
+        # La grilla con estrellas y la leyenda no deben desbordar en el ancho mínimo (320 px).
+        self.page.set_viewport_size({"width": 320, "height": 568})
+        self.page.wait_for_timeout(150)
+        self._assert_no_horizontal_overflow()
+        self.page.set_viewport_size({"width": 390, "height": 844})
 
-        alternativa = self.page.locator(
-            "[data-slot-group='manana'] [data-public-slot], "
-            "[data-slot-group='tarde'] [data-public-slot]"
-        ).first
+        alternativa = self.page.locator("[data-public-slot][data-slot-suggested='false']").first
         alternativa.wait_for()
         alternativa.focus()
         self.page.keyboard.press("Space")
@@ -396,12 +405,64 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
             f"[data-public-date='{self.fecha.isoformat()}'][aria-current='date']"
         ).wait_for(state="attached")
         self.assertTrue(self.page.locator("[data-public-calendar]").is_visible())
-        self.page.locator("[data-slot-group='recomendados']").wait_for()
+        self.page.locator("[data-slot-group='manana'], [data-slot-group='tarde']").first.wait_for()
         self.page.wait_for_load_state("networkidle")
         horarios_control = self.page.locator("[data-public-slot]").all_inner_texts()
         self.assertNotEqual(horarios_control, horarios_limpieza)
         self._assert_no_horizontal_overflow()
         self._capture("public-booking-smart-desktop.png")
+
+    @override_settings(TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=True)
+    def test_dia_sin_horarios_ofrece_el_proximo_disponible(self):
+        control = TipoTurno.objects.create(
+            nombre="Control",
+            slug="control-e2e-vacio",
+            descripcion_publica="Revisión periódica.",
+            icono=TipoTurno.Icono.CONTROL,
+            orden_publico=10,
+            visible_publicamente=True,
+        )
+        TipoTurnoOdontologo.objects.create(
+            odontologo=self.odontologo,
+            tipo_turno=control,
+            duracion_atencion_minutos=30,
+            reserva_publica=True,
+        )
+        ConfiguracionAgendaInteligente.objects.create(odontologo=self.odontologo)
+        ExcepcionAgenda.objects.create(
+            tipo=ExcepcionAgenda.Tipo.FERIADO,
+            odontologo=self.odontologo,
+            fecha_desde=self.fecha,
+            fecha_hasta=self.fecha,
+            todo_el_dia=True,
+            motivo="Cierre E2E",
+        )
+
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.page.goto(f"{self.live_server_url}{reverse('turnos:solicitud_publica')}")
+        self.page.locator("[data-public-search-form].is-enhanced").wait_for()
+        self.page.locator(f"[data-public-professional='{self.odontologo.pk}']").click()
+        opcion = self.page.locator(f"[data-public-service='{control.pk}']")
+        opcion.wait_for()
+        opcion.click()
+        self._elegir_fecha(self.fecha)
+
+        siguiente = self.page.locator("[data-public-next-available]")
+        siguiente.wait_for()
+        self.assertIn("Próximo disponible", siguiente.inner_text())
+        self.assertIn("09:00", siguiente.inner_text())
+        self.assertEqual(self.page.locator("[data-public-slot]").count(), 0)
+        self._assert_no_horizontal_overflow()
+        self._capture("public-booking-no-slots-mobile.png")
+        # El botón de dos líneas también tiene que entrar en el ancho mínimo soportado.
+        self.page.set_viewport_size({"width": 320, "height": 568})
+        self.page.wait_for_timeout(150)
+        self._assert_no_horizontal_overflow()
+        self.page.set_viewport_size({"width": 390, "height": 844})
+
+        siguiente.click()
+        self.page.get_by_role("heading", name="Completá tus datos").wait_for()
+        self.page.get_by_text("Control", exact=True).first.wait_for()
 
     def test_landing_publica_mobile_sin_scroll_horizontal(self):
         for width, height in RESPONSIVE_VIEWPORTS:
