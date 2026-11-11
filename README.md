@@ -207,7 +207,7 @@ expirados se ejecuta con `python manage.py limpiar_protecciones_publicas`.
 
 1. Ingresa a `/`.
 2. Solicita turno desde `/turnos/solicitar/`.
-3. Elige odontólogo, fecha y horario disponible. Con la agenda inteligente activa, primero elige un motivo configurado y ve horarios recomendados y alternativas compatibles con su duración.
+3. Elige odontólogo, fecha y horario disponible. Con la agenda inteligente activa, primero elige un motivo configurado y ve todos los horarios compatibles con su duración en orden cronológico, con los sugeridos destacados (y el próximo disponible si el día está vacío).
 4. Completa nombre, apellido, DNI obligatorio, teléfono, email y comentario opcional. El email es obligatorio para pacientes nuevos y para pacientes existentes que todavía no tienen email registrado.
 5. El sistema aplica protecciones de creación: rate limit por IP y DNI hasheados, token de idempotencia, deduplicación exacta, máximo de pendientes por DNI y Turnstile progresivo si está habilitado.
 6. El sistema valida ventana pública, anticipación mínima, disponibilidad, excepciones de agenda y superposición.

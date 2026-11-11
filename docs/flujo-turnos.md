@@ -49,7 +49,7 @@ Ruta:
 Flujo:
 
 1. El paciente elige odontólogo. Con la agenda inteligente activa también elige un motivo configurado antes de la fecha.
-2. La pantalla consulta horarios disponibles; el modo inteligente separa recomendados y alternativas.
+2. La pantalla consulta horarios disponibles; el modo inteligente los lista en orden cronológico y marca los sugeridos.
 3. El paciente elige cualquier horario válido.
 4. Completa datos mínimos:
    - nombre;
@@ -102,8 +102,12 @@ Reglas:
 
 Con `TURNOS_PUBLIC_SMART_SCHEDULING_ENABLED=True`, el navegador recibe solo servicios públicos
 habilitados para el odontólogo. La duración, margen, puntaje y snapshot nunca se aceptan desde
-el cliente. El servidor genera candidatos por grilla, descarta fragmentos inferiores al mínimo
-útil, puntúa encajes y extremos, y presenta una selección diversa más alternativas.
+el cliente. El servidor genera candidatos por grilla y anclados a los bordes de cada intervalo
+libre, prefiere los que no dejan fragmentos inferiores al mínimo útil (con un fallback por
+intervalo para no dejar tiempo inutilizable), los ordena con un orden de preferencia
+explícito (`smart-v2`) y muestra todos los horarios en orden cronológico por franja, con los
+sugeridos destacados. Si el día no tiene horarios, ofrece el próximo disponible dentro de la
+ventana pública.
 
 Al confirmar, `crear_solicitud_publica_de_turno()` bloquea odontólogo/fecha, bloquea la
 configuración, recalcula sin caché y verifica que el candidato siga vigente. La reprogramación

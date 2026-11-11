@@ -406,10 +406,13 @@
             return "";
         }
         const buttons = slots.map(function (slot) {
-            return `<a class="public-slot-button" role="button" aria-pressed="false" href="${escapeHtml(slot.url)}" data-public-slot="${escapeHtml(slot.label)}" aria-label="Seleccionar horario ${escapeHtml(slot.label)}">${escapeHtml(slot.label)}</a>`;
+            // `sugerido` solo existe en el flujo inteligente; el servidor decide cuáles son.
+            const hasSuggestion = typeof slot.sugerido === "boolean";
+            const suggested = slot.sugerido === true;
+            return `<a class="public-slot-button${suggested ? " is-suggested" : ""}" role="button" aria-pressed="false" href="${escapeHtml(slot.url)}" data-public-slot="${escapeHtml(slot.label)}"${hasSuggestion ? ` data-slot-suggested="${suggested}"` : ""} aria-label="Seleccionar horario ${escapeHtml(slot.label)}${suggested ? ", sugerido" : ""}">${escapeHtml(slot.label)}</a>`;
         }).join("");
         return `
-            <section class="public-slot-group${group === "recomendados" ? " is-recommended" : ""}" data-public-slot-card data-slot-group="${group}">
+            <section class="public-slot-group" data-public-slot-card data-slot-group="${group}">
                 <h3>${escapeHtml(title)}</h3>
                 <div class="public-time-grid">${buttons}</div>
             </section>
@@ -422,30 +425,29 @@
         return `<p class="public-selected-date-label">${escapeHtml(label)}</p>`;
     }
 
-    function renderNoSlots(message) {
-        return `<div class="empty-state public-booking-empty"><h3>Sin horarios para este día</h3><p>${escapeHtml(message || "Probá con otra fecha disponible.")}</p></div>`;
+    function renderNextAvailable(next) {
+        if (!next) {
+            return "";
+        }
+        const date = next.fecha ? parseIsoDate(next.fecha.iso) : null;
+        const label = date ? formatDayMonth(date) : next.fecha && next.fecha.display;
+        return `<a class="button public-outline-button public-next-available" href="${escapeHtml(next.url)}" data-public-next-available>Próximo disponible: ${escapeHtml(label)} · ${escapeHtml(next.hora)}</a>`;
     }
 
-    function renderSmartAvailability(data) {
-        const recommended = data.horarios_recomendados || {manana: [], tarde: []};
-        const alternatives = data.horarios_alternativos || {manana: [], tarde: []};
-        const groups = renderSlotGroup("Recomendados", "recomendados", recommended.manana.concat(recommended.tarde))
-            + renderSlotGroup("Mañana", "manana", alternatives.manana)
-            + renderSlotGroup("Tarde", "tarde", alternatives.tarde);
-        results.innerHTML = `
-            ${renderDateStrip(data.dias_cercanos)}
-            ${renderSelectedDate(data.fecha)}
-            ${groups || renderNoSlots(data.mensaje)}
-        `;
+    function renderNoSlots(data) {
+        return `<div class="empty-state public-booking-empty"><h3>Sin horarios para este día</h3><p>${escapeHtml(data.mensaje || "Probá con otra fecha disponible.")}</p>${renderNextAvailable(data.proximo_disponible)}</div>`;
     }
 
-    function renderLegacyAvailability(data) {
+    function renderSlotLists(data) {
         const groups = renderSlotGroup("Mañana", "manana", data.horarios_manana)
             + renderSlotGroup("Tarde", "tarde", data.horarios_tarde);
+        const legend = data.hay_sugeridos
+            ? '<p class="public-slot-legend"><span aria-hidden="true">★</span> Horario sugerido por el consultorio</p>'
+            : "";
         results.innerHTML = `
             ${renderDateStrip(data.dias_cercanos)}
             ${renderSelectedDate(data.fecha)}
-            ${groups || renderNoSlots(data.mensaje)}
+            ${groups ? legend + groups : renderNoSlots(data)}
         `;
     }
 
@@ -459,10 +461,8 @@
         selectProfessional(data.odontologo.id, data.odontologo);
         if (smartScheduling) {
             selectService(data.tipo_turno.id, data.tipo_turno);
-            renderSmartAvailability(data);
-        } else {
-            renderLegacyAvailability(data);
         }
+        renderSlotLists(data);
         if (data.fecha && data.fecha.iso) {
             fechaControl.value = data.fecha.iso;
             updateDateSummary();

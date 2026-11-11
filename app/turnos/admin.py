@@ -264,6 +264,8 @@ class ConfiguracionAgendaInteligenteAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("odontologo",)
     readonly_fields = ("actualizado_en",)
+    # Obsoleto desde smart-v2: el motor ofrece todos los horarios válidos y no lo usa.
+    exclude = ("cantidad_horarios_alternativos",)
 
     def has_delete_permission(self, request, obj=None):
         return False
