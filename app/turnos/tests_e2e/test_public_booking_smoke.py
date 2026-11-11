@@ -548,7 +548,11 @@ class PublicBookingSmokeE2ETests(StaticLiveServerTestCase):
 
                     self.page.get_by_role("heading", name="Tu próximo turno").wait_for()
                     self.assertEqual(
-                        self.page.locator(".public-mine-next .public-status-chip").inner_text(),
+                        # El chip lleva un ícono en línea: según el render, inner_text puede traer
+                        # un espacio inicial.
+                        self.page.locator(".public-mine-next .public-status-chip")
+                        .inner_text()
+                        .strip(),
                         "Pendiente",
                     )
                     self._assert_no_horizontal_overflow()
