@@ -36,7 +36,7 @@ class ClinicaSoloLecturaAdminMixin:
         paciente = _paciente_de_objeto(obj)
         return bool(obtener_politica_lectura(request.user, paciente, request=request))
 
-    def get_actions(self, request):
+    def get_actions(self, request, action_location=admin.ActionLocation.CHANGE_LIST):
         return {}
 
     def changelist_view(self, request, extra_context=None):
@@ -283,7 +283,7 @@ class AccesoClinicoAuditoriaAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def get_actions(self, request):
+    def get_actions(self, request, action_location=admin.ActionLocation.CHANGE_LIST):
         return {}
 
 
