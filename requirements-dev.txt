@@ -1,10 +1,10 @@
 -r requirements.txt
 
 bandit==1.9.4
-black==26.5.1
-coverage==7.16.0
-django-stubs==6.1.0
-mypy==2.3.1
+black==26.10.1
+coverage==7.17.3
+django-stubs==6.1.2
+mypy==2.4.1
 pip-audit==2.10.1
-playwright==1.62.0
-ruff==0.16.6
+playwright==1.65.1
+ruff==0.17.5
